@@ -1,0 +1,20 @@
+{
+  "name": "avoidance",
+  "displayName": "躲避",
+  "description": "躲避掉落物。左右移动避开从天而降的红色障碍，坚持越久分越高。",
+  "dsl": [
+    "create scene name=Game first=true",
+    "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=32 scene=Game",
+    "create object name=Obstacle type=ShapePainter shape=circle color=#DC3232 width=24 height=24 scene=Game",
+    "create object name=ScoreText type=Text scene=Game size=24",
+    "set variable name=Score value=0 type=Number scope=global",
+    "place object=Player at=400,550 scene=Game",
+    "place object=ScoreText at=650,30 scene=Game",
+    "on start -> Score=0",
+    "on key Left -> move Player to 350,550",
+    "on key Right -> move Player to 450,550",
+    "every 1s -> spawn Obstacle at 400,0",
+    "on collision Player Obstacle -> restart",
+    "every 2s -> score+1"
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "theme": "平台跳跃收集金币",
+  "objects": [
+    {
+      "name": "player",
+      "type": "ShapePainter",
+      "shape": "rectangle",
+      "color": "#0000FF",
+      "width": 30,
+      "height": 30,
+      "role": "player"
+    },
+    {
+      "name": "enemy",
+      "type": "ShapePainter",
+      "shape": "rectangle",
+      "color": "#FF0000",
+      "width": 30,
+      "height": 30,
+      "role": "enemy"
+    },
+    {
+      "name": "coin",
+      "type": "ShapePainter",
+      "shape": "circle",
+      "color": "#FFD700",
+      "width": 20,
+      "height": 20,
+      "role": "coin"
+    },
+    {
+      "name": "platform",
+      "type": "ShapePainter",
+      "shape": "rectangle",
+      "color": "#8B4513",
+      "width": 200,
+      "height": 20,
+      "role": "platform"
+    },
+    {
+      "name": "ground",
+      "type": "ShapePainter",
+      "shape": "rectangle",
+      "color": "#4B3621",
+      "width": 800,
+      "height": 20,
+      "role": "ground"
+    }
+  ],
+  "rules": [
+    "玩家使用左右箭头键移动，空格键跳跃。",
+    "玩家碰到金币后，金币消失，变量score增加1。",
+    "玩家碰到敌人后，游戏重新开始：所有对象回到初始位置，score重置为0。"
+  ],
+  "layout": {
+    "placements": [
+      {
+        "object": "ground",
+        "x": 400,
+        "y": 590
+      },
+      {
+        "object": "platform",
+        "x": 200,
+        "y": 450
+      },
+      {
+        "object": "platform",
+        "x": 400,
+        "y": 350
+      },
+      {
+        "object": "platform",
+        "x": 600,
+        "y": 250
+      },
+      {
+        "object": "platform",
+        "x": 400,
+        "y": 150
+      },
+      {
+        "object": "player",
+        "x": 80,
+        "y": 565
+      },
+      {
+        "object": "enemy",
+        "x": 700,
+        "y": 565
+      },
+      {
+        "object": "enemy",
+        "x": 600,
+        "y": 225
+      },
+      {
+        "object": "coin",
+        "x": 150,
+        "y": 545
+      },
+      {
+        "object": "coin",
+        "x": 200,
+        "y": 430
+      },
+      {
+        "object": "coin",
+        "x": 300,
+        "y": 400
+      },
+      {
+        "object": "coin",
+        "x": 400,
+        "y": 330
+      },
+      {
+        "object": "coin",
+        "x": 500,
+        "y": 300
+      },
+      {
+        "object": "coin",
+        "x": 550,
+        "y": 230
+      },
+      {
+        "object": "coin",
+        "x": 400,
+        "y": 130
+      },
+      {
+        "object": "coin",
+        "x": 650,
+        "y": 540
+      }
+    ]
+  },
+  "behaviors": [
+    {
+      "object": "player",
+      "type": "PlatformBehavior::PlatformerObjectBehavior"
+    },
+    {
+      "object": "enemy",
+      "type": "PlatformBehavior::PlatformerObjectBehavior"
+    }
+  ],
+  "variables": [
+    {
+      "name": "score",
+      "value": 0
+    }
+  ],
+  "difficulty": "easy",
+  "controls": "左右箭头键移动，空格键跳跃"
+}

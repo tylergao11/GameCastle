@@ -1,0 +1,252 @@
+﻿@import "tailwindcss";
+
+/* ═══════════════════════════════════════
+   GameCastle Design Tokens
+   坏蛋联盟风格 — The Bad Guys
+   Sleek × Heist × Anime Noir
+   ═══════════════════════════════════════ */
+
+@theme {
+  /* ── Core palette ── */
+  --color-bg: #0B0E17;
+  --color-bg-elevated: #111522;
+  --color-panel: #1A1F33;
+  --color-panel-hover: #222840;
+
+  /* ── Accent colors ── */
+  --color-orange: #F0763B;
+  --color-orange-glow: #F4853B;
+  --color-teal: #4A9EB5;
+  --color-teal-dim: #3A7D91;
+  --color-red: #D9443A;
+  --color-red-bright: #E85048;
+  --color-amber: #F0A848;
+  --color-yellow: #F0A848;
+  --color-blue: #2E5090;
+  --color-cyan: #4A9EB5;
+
+  /* ── Text ── */
+  --color-ink: #ECEFF4;
+  --color-ink-soft: #7C829A;
+  --color-ink-dim: #4A5068;
+
+  /* ── Borders ── */
+  --color-border: #252B40;
+  --color-border-light: #353C55;
+
+  /* ── Fonts ── */
+  --font-display: "Bangers", "ZCOOL KuaiLe", cursive;
+  --font-comic: "Nunito", "ZCOOL KuaiLe", sans-serif;
+  --font-body: "Nunito", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* ── Animations ── */
+  --animate-bounce-pop: bounce-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-card-enter: card-enter 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  --animate-slide-up: slide-up 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  --animate-shimmer: shimmer 3s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════
+   Base
+   ═══════════════════════════════════════ */
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-weight: 600;
+  /* Subtle halftone texture — Bad Guys style */
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(240,118,59,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(74,158,181,0.03) 0%, transparent 50%),
+    radial-gradient(circle, rgba(255,255,255,0.025) 0.5px, transparent 0.5px);
+  background-size: 100% 100%, 100% 100%, 10px 10px;
+}
+
+#root { min-height: 100vh; }
+
+/* ═══════════════════════════════════════
+   Scroll
+   ═══════════════════════════════════════ */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.overflow-x-auto { -webkit-overflow-scrolling: touch; }
+.touch-pan-y { touch-action: pan-y; }
+.scroll-snap-align-start { scroll-snap-align: start; }
+
+/* ═══════════════════════════════════════
+   PANEL — sleek heist-movie card
+   replaces comic-box
+   ═══════════════════════════════════════ */
+.comic-box {
+  border: 1px solid var(--color-border-light);
+  border-radius: 4px;
+  background: var(--color-panel);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.3),
+    0 0 20px rgba(240,118,59,0.04);
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.comic-box-sm {
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-panel);
+  transition: border-color 0.2s;
+}
+
+.comic-box-red {
+  border: 1px solid rgba(217,68,58,0.4);
+  border-radius: 4px;
+  background: var(--color-panel);
+  box-shadow: 0 0 16px rgba(217,68,58,0.08);
+}
+
+/* ═══════════════════════════════════════
+   Halftone dots — subtle manga-style
+   ═══════════════════════════════════════ */
+.benday {
+  position: relative;
+}
+.benday::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.03) 0.5px, transparent 0.5px);
+  background-size: 6px 6px;
+}
+
+/* ═══════════════════════════════════════
+   Speed / Action Lines — anime direction
+   ═══════════════════════════════════════ */
+.action-lines {
+  background: repeating-linear-gradient(
+    90deg, transparent, transparent 20px,
+    rgba(255,255,255,0.02) 20px, rgba(255,255,255,0.02) 21px
+  );
+}
+
+.action-lines-diag {
+  background: repeating-linear-gradient(
+    45deg, transparent, transparent 10px,
+    rgba(255,255,255,0.02) 10px, rgba(255,255,255,0.02) 11px
+  );
+}
+
+/* ═══════════════════════════════════════
+   Speech bubble tail
+   ═══════════════════════════════════════ */
+.speech-tail::before {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 24px;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid var(--color-panel);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+/* ═══════════════════════════════════════
+   Glow accents
+   ═══════════════════════════════════════ */
+.glow-orange {
+  box-shadow: 0 0 20px rgba(240,118,59,0.15), 0 0 40px rgba(240,118,59,0.05);
+}
+
+.glow-teal {
+  box-shadow: 0 0 20px rgba(74,158,181,0.12), 0 0 40px rgba(74,158,181,0.04);
+}
+
+/* ═══════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════ */
+
+@keyframes bounce-pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.85); }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(240,118,59,0.2), 0 0 30px rgba(240,118,59,0.06); }
+  50%      { box-shadow: 0 0 24px rgba(240,118,59,0.4), 0 0 50px rgba(240,167,72,0.15); }
+}
+
+@keyframes card-enter {
+  0%   { transform: translateY(16px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slide-up {
+  0%   { transform: translateY(24px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: -200% 0; }
+  50%      { background-position: 200% 0; }
+}
+
+@keyframes float-up {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-50px) scale(0.2); opacity: 0; }
+}
+
+@keyframes pop-in {
+  0%   { transform: scale(0); }
+  80%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: rotate(0); }
+  20%  { transform: rotate(-2deg); }
+  40%  { transform: rotate(2deg); }
+  60%  { transform: rotate(-1deg); }
+  80%  { transform: rotate(1deg); }
+}
+
+@keyframes speed-dash {
+  0%   { width: 0; opacity: 1; }
+  100% { width: 100%; opacity: 0.3; }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50%      { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+
+/* ═══════════════════════════════════════
+   Action words — sleek, not comic-POW
+   ═══════════════════════════════════════ */
+.action-word {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 20px rgba(240,118,59,0.3);
+}
+
+/* ═══════════════════════════════════════
+   Diagonal accent — heist poster vibe
+   ═══════════════════════════════════════ */
+.diagonal-clip {
+  clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%);
+}
+
+/* ═══════════════════════════════════════
+   Stagger delays
+   ═══════════════════════════════════════ */
+.animate-card-enter-delay-1 { animation-delay: 0.05s; }
+.animate-card-enter-delay-2 { animation-delay: 0.1s; }
+.animate-card-enter-delay-3 { animation-delay: 0.15s; }
+.animate-card-enter-delay-4 { animation-delay: 0.2s; }
+.animate-card-enter-delay-5 { animation-delay: 0.25s; }
