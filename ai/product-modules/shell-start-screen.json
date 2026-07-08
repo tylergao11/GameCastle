@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "id": "shell.start_screen",
+  "name": "Start Screen",
+  "summary": "A lightweight start scene that launches the main game scene.",
+  "llm1Card": "Add a start screen before gameplay.",
+  "category": "shell",
+  "defaultPreset": "basic",
+  "presets": {
+    "basic": {
+      "description": "Title text and a start button."
+    }
+  },
+  "defaults": {
+    "scene": "Start",
+    "targetScene": "Game",
+    "title": "GameCastle",
+    "button": "Start"
+  },
+  "sync": {
+    "default": {
+      "sync": "local",
+      "authority": "client",
+      "tickRate": 0,
+      "seed": "auto"
+    },
+    "supported": {
+      "sync": ["local", "event"],
+      "authority": ["client", "host", "server"]
+    },
+    "deterministic": true,
+    "inputs": ["start"],
+    "state": []
+  },
+  "interaction": {
+    "fixedTriggers": [
+      {
+        "id": "start",
+        "labelParam": "button",
+        "kind": "mouse_object",
+        "object": "StartButton",
+        "description": "The game starts by clicking the StartButton object.",
+        "copyRules": {
+          "forbiddenTerms": ["enter", "return", "space", "esc", "escape", "回车", "空格"]
+        }
+      }
+    ]
+  },
+  "compiler": {
+    "configurePatches": {
+      "title": {
+        "findEvent": {
+          "sceneParam": "scene",
+          "textPrefix": "on start -> text TitleText \"{{title}}\"",
+          "indexParam": "titleEventIndex"
+        },
+        "dsl": [
+          "remove event #{{titleEventIndex}} scene={{scene}}",
+          "on start -> text TitleText {{title}} scene={{scene}}"
+        ]
+      },
+      "button": {
+        "findEvent": {
+          "sceneParam": "scene",
+          "textPrefix": "on start -> text StartLabel \"{{button}}\"",
+          "indexParam": "buttonEventIndex"
+        },
+        "dsl": [
+          "remove event #{{buttonEventIndex}} scene={{scene}}",
+          "on start -> text StartLabel {{button}} scene={{scene}}"
+        ]
+      },
+      "targetScene": {
+        "findEvent": {
+          "sceneParam": "scene",
+          "textPrefix": "on mouse StartButton -> scene {{targetScene}}",
+          "indexParam": "targetSceneEventIndex"
+        },
+        "dsl": [
+          "remove event #{{targetSceneEventIndex}} scene={{scene}}",
+          "on mouse StartButton -> scene {{targetScene}} scene={{scene}}"
+        ]
+      }
+    },
+    "dsl": [
+      "create scene name={{scene}} first=true",
+      "create object name=TitleText type=Text size=36 scene={{scene}}",
+      "create object name=StartButton type=ShapePainter shape=rectangle color=#2ECC71 width=180 height=56 scene={{scene}}",
+      "create object name=StartLabel type=Text size=24 scene={{scene}}",
+      "place object=TitleText at=280,170 scene={{scene}}",
+      "place object=StartButton at=310,300 scene={{scene}} width=180 height=56",
+      "place object=StartLabel at=360,315 scene={{scene}}",
+      "on start -> text TitleText {{title}} scene={{scene}}",
+      "on start -> text StartLabel {{button}} scene={{scene}}",
+      "on mouse StartButton -> scene {{targetScene}} scene={{scene}}"
+    ]
+  }
+}

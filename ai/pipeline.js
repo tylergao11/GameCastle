@@ -4,7 +4,9 @@
 var fs = require("fs");
 var path = require("path");
 var crypto = require("crypto");
+var capabilities = require("./capabilities");
 var projectWorld = require("./project-world");
+var moduleCompiler = require("./module-compiler");
 
 var STATE_DIR = path.join(__dirname, "..", "output");
 var LOG_PATH = path.join(STATE_DIR, "pipeline.log");
@@ -13,6 +15,59 @@ function gc_log(msg) {
 }
 var BRIEF_PATH = path.join(STATE_DIR, "design-brief.json");
 var HISTORY_PATH = path.join(STATE_DIR, "conversation.json");
+var CAPABILITIES_DIR = path.join(__dirname, "capabilities");
+var PRODUCT_MODULES_DIR = path.join(__dirname, "product-modules");
+var PROJECT_PATH = path.join(STATE_DIR, "project.json");
+var NETWORK_MANIFEST_PATH = path.join(STATE_DIR, "network-manifest.json");
+var PENDING_APPROVAL_PATH = path.join(STATE_DIR, "pending-approval.json");
+var MAX_LLM2_REPAIR_ROUNDS = 2;
+var MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS = 2;
+
+function hasArg(name) {
+  return args.indexOf(name) >= 0;
+}
+
+function getArgValue(name) {
+  var index = args.indexOf(name);
+  if (index < 0 || index + 1 >= args.length) return null;
+  return args[index + 1];
+}
+
+function getPromptFromArgs() {
+  var valueFlags = {
+    '--dsl-file': true,
+    '--module-dsl-file': true,
+    '--batch-label': true,
+  };
+  var promptParts = [];
+  for (var i = 0; i < args.length; i++) {
+    var arg = args[i];
+    if (valueFlags[arg]) {
+      i++;
+      continue;
+    }
+    if (arg.indexOf('--') === 0) continue;
+    promptParts.push(arg);
+  }
+  return promptParts.join(' ');
+}
+
+function loadJsonFile(filePath, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch(e) {
+    return fallback;
+  }
+}
+
+function saveJsonFile(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+}
+
+function cloneValue(value) {
+  return value ? JSON.parse(JSON.stringify(value)) : value;
+}
 
 function makePersistentUuid(parts) {
   return 'gc-' + crypto
@@ -41,7 +96,11 @@ function parseLine(line) {
   line = line.trim();
   if (!line || line[0] === "#") return null;
   if (line.startsWith("on ") || line.startsWith("every ")) {
-    return { verb: "add", target: "event", params: { desc: line } };
+    var sceneMatch = line.match(/\s+scene=([A-Za-z0-9_.-]+)\s*$/);
+    var eventLine = sceneMatch ? line.slice(0, sceneMatch.index).trim() : line;
+    var eventParams = { desc: eventLine };
+    if (sceneMatch) eventParams.scene = sceneMatch[1];
+    return { verb: "add", target: "event", params: eventParams };
   }
   var tokens = [];
   var current = "";
@@ -490,7 +549,7 @@ function emptyProject(name) {
 }
 
 
-async function generateDesignBrief(userPrompt, history, previousBrief) {
+async function generateDesignBrief(userPrompt, history, previousBrief, creativeCapabilitySummary) {
   var sp = [
     "你是一个小游戏创意设计师。画布800x600。",
     "根据用户描述设计或迭代游戏。",
@@ -509,7 +568,9 @@ async function generateDesignBrief(userPrompt, history, previousBrief) {
     "  \"controls\": \"操作说明\",",
     "}",
     "",
-    "素材能力：仅几何图形（ShapePainter 矩形/圆形 + 填色）+ 文字（Text）。无图片/动画/粒子/音效。",
+    "可用能力提示（只作为创意边界，不要复述为模板结构）：",
+    creativeCapabilitySummary,
+    "",
     "每个对象必须指定 type 为 ShapePainter 或 Text。ShapePainter 必填 shape 和 color。",
     "color 用 #RRGGBB 格式。width/height 为数字。",
     "规则具体化：\"玩家碰到金币→金币消失+得分\" 而非 \"收集金币\"。",
@@ -545,8 +606,125 @@ async function generateDesignBrief(userPrompt, history, previousBrief) {
 }
 
 
-var LLM2_SYSTEM_PROMPT = '你是游戏DSL引擎。阅读设计师的创意稿，输出精确的DSL操作序列。\n\n画布800x600。x:0-800左右，y:0-600上下。坐标根据游戏类型合理安排。\n\n=== 创建操作 ===\ncreate scene name=<名> first=true\ncreate object name=<名> type=ShapePainter shape=rectangle|circle color=#RRGGBB width=<w> height=<h> scene=<场景>\ncreate object name=<名> type=Text scene=<场景> size=<字号>\nadd behavior type=PlatformBehavior::PlatformerObjectBehavior to=<对象> scene=<场景>\nplace object=<名> at=<x>,<y> scene=<场景>\nplace object=<名> at=<x>,<y> scene=<场景> width=<w> height=<h>\nset variable name=<名> value=<值> type=Number scope=global\nadd layer name=<名> scene=<场景>\n\n=== 删除操作 ===\ndelete scene name=<名>\ndelete object name=<名> scene=<场景>\nremove behavior type=<类型> from=<对象> scene=<场景>\nremove event #<序号> scene=<场景>  (序号从0开始，按事件列表顺序)\n\n=== 修改操作 ===\nset object name=<名> color=#RRGGBB width=<w> height=<h> shape=rectangle|circle scene=<场景>\nset behavior name=<Platformer|TopDown> object=<对象> maxSpeed=<值> jumpSpeed=<值> scene=<场景>\n修改对象属性 = set object（原位修改，不删实例）\n修改事件 = remove event #N + 新的 on ... -> ... 行\n\n=== 事件DSL ===\non start | on collision <A> <B> | on key <键> | every <N>s | on is_jumping <obj> | on is_falling <obj> | on is_on_floor <obj> | on mouse <obj> | on var <name> <op> <value> -> <动作们>\n\n=== 动作 ===\ndestroy <O> | spawn <O> at <x>,<y> | jump <O> <力> | move <O> to <x>,<y>\nscore+<N> | score-<N> | score=<N> | restart | flip <O> left|right\nanimate <O> <动画名> | camera <O> | scene <场景名> | text <O> \"内容\"\nsim_left <O> | sim_right <O> | sim_jump <O> | variable <名> <op> <值>\n\n=== 规则 ===\n对象名英文。ShapePainter必有shape和color。Text对象type=Text。\n每个对象先create再place。场景名Game。坐标填数字。\n创意稿缺的信息用合理默认值。从创意稿提取所有规则。\n迭代时：遇到删除用delete/remove操作，遇到修改用删旧+建新。\n只输出DSL行。';
+function cleanDslOutput(text) {
+  text = String(text || '').trim();
+  var fence = text.match(/^```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)\s*```$/);
+  if (fence) text = fence[1].trim();
+  return text;
+}
 
+function buildModuleCommanderSystemPrompt(productModuleCatalog) {
+  return [
+    'You are GameCastle Module Patch Commander.',
+    'Compile LLM1 creative intent into product Module DSL patches.',
+    'Do not output low-level object/event DSL, JSON, Markdown, explanations, or project.json.',
+    'Prefer coarse product modules. Do not expose micro-module internals to the user or to LLM1.',
+    '',
+    moduleCompiler.buildModuleDslReference(productModuleCatalog),
+    '',
+    'Rules:',
+    '- For a new game, install the minimum product modules needed for a playable first version.',
+    '- For iteration, install only missing product modules needed by the requested change.',
+    '- Do not reinstall modules already present in ProjectWorld.modules; use configure module for supported installed-module parameters.',
+    '- Include sync, authority, tickRate, and seed when the choice matters.',
+    '- Output only Module DSL lines.'
+  ].join('\n');
+}
+
+function buildInternalDslRepairSystemPrompt(capabilityCatalog) {
+  return [
+    'You are GameCastle internal DSL repair.',
+    'This is a runtime/compiler fallback, not the product module interface.',
+    'Read the ExecutionReport and output only the minimum low-level DSL diff needed to repair failed commands.',
+    'Do not repeat completed commands. Do not output Module DSL, JSON, Markdown, or explanations.',
+    '',
+    capabilities.buildCompilerPromptSection(capabilityCatalog)
+  ].join('\n');
+}
+
+function buildModulePatchUserPrompt(options) {
+  return [
+    'Original user request:',
+    options.userPrompt,
+    '',
+    'Current ProjectWorld context. This is not full project.json:',
+    JSON.stringify(options.worldContext, null, 2),
+    '',
+    'LLM1 creative design brief:',
+    JSON.stringify(options.designBrief, null, 2),
+    '',
+    'Design diff summary:',
+    JSON.stringify(options.diff, null, 2),
+    '',
+    options.isNew
+      ? 'Task: output the Module DSL patch for the first playable version.'
+      : 'Task: output only the Module DSL patch needed for this iteration.',
+    '',
+    'Remember: product modules are coarse. Prefer core.*, shell.*, system.*, meta.*, and network.* modules. Do not output object/event DSL.'
+    + ' The original user request is authoritative for explicitly requested product modules if LLM1 omitted them.'
+  ].join('\n');
+}
+
+function buildModuleCompileRepairPrompt(options) {
+  return [
+    'The previous Module DSL patch failed before execution.',
+    'Repair only the Module DSL patch. Do not output low-level DSL.',
+    '',
+    'Original user prompt:',
+    options.userPrompt,
+    '',
+    'LLM1 creative design brief:',
+    JSON.stringify(options.designBrief, null, 2),
+    '',
+    'Current ProjectWorld context:',
+    JSON.stringify(options.worldContext, null, 2),
+    '',
+    'Compiler error:',
+    String(options.error && options.error.message || options.error),
+    '',
+    'Previous Module DSL:',
+    options.moduleDslText,
+    '',
+    'Rules:',
+    '- Output only the corrected Module DSL diff.',
+    '- Do not reinstall modules already present in ProjectWorld.modules; use configure module for supported installed-module parameters.',
+    '- Keep sync policy explicit when changing networking-relevant modules.'
+  ].join('\n');
+}
+
+async function compileModulePatchWithRepair(options) {
+  var moduleDslText = cleanDslOutput(options.moduleDslText);
+  for (var attempt = 0; attempt <= MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS; attempt++) {
+    try {
+      var compiled = moduleCompiler.compileModuleDslText(moduleDslText, options.productModuleCatalog, {
+        baseModules: options.baseModules,
+        projectWorld: options.projectWorld,
+      });
+      return {
+        moduleDslText: moduleDslText,
+        compiled: compiled,
+      };
+    } catch (e) {
+      if (!options.allowLlmRepair || attempt >= MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS) throw e;
+      console.log('[ModuleCompile] repair round ' + (attempt + 1) + '/' + MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS + ': ' + e.message);
+      var repairPrompt = buildModuleCompileRepairPrompt({
+        userPrompt: options.userPrompt,
+        designBrief: options.designBrief,
+        worldContext: options.worldContext,
+        error: e,
+        moduleDslText: moduleDslText,
+      });
+      var repaired = await callLLM(repairPrompt, options.llm2SystemPrompt, {
+        temperature: 0,
+        reasoningEffort: 'high',
+        label: 'LLM2-ModuleRepair',
+      });
+      moduleDslText = cleanDslOutput(repaired);
+      if (!moduleDslText) throw new Error('LLM2 returned empty Module DSL repair');
+    }
+  }
+  throw new Error('Module DSL compile repair loop exhausted');
+}
 
 function diffDesignBriefs(oldBrief, newBrief) {
   var diff = {
@@ -632,6 +810,282 @@ function saveState(brief, history) {
   fs.writeFileSync(HISTORY_PATH, JSON.stringify(history,null,2));
 }
 
+function loadOutputProject() {
+  try {
+    return JSON.parse(fs.readFileSync(PROJECT_PATH, 'utf8'));
+  } catch(e) {
+    return null;
+  }
+}
+
+function resetGeneratedStateForNewProject(options) {
+  options = options || {};
+  [
+    PROJECT_PATH,
+    path.join(STATE_DIR, 'game.html'),
+    NETWORK_MANIFEST_PATH,
+    PENDING_APPROVAL_PATH,
+    projectWorld.getWorldPath(STATE_DIR),
+    projectWorld.getLedgerPath(STATE_DIR),
+  ].forEach(function(filePath) {
+    if (options.keepPendingApproval && filePath === PENDING_APPROVAL_PATH) return;
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch(e) {
+      throw new Error('Failed to reset generated state: ' + filePath + ' ' + e.message);
+    }
+  });
+}
+
+function clearPendingApproval() {
+  try {
+    if (fs.existsSync(PENDING_APPROVAL_PATH)) fs.unlinkSync(PENDING_APPROVAL_PATH);
+  } catch(e) {
+    throw new Error('Failed to clear pending approval: ' + PENDING_APPROVAL_PATH + ' ' + e.message);
+  }
+}
+
+function writeProjectOutputs(project) {
+  fs.mkdirSync(STATE_DIR, {recursive:true});
+  fs.writeFileSync(PROJECT_PATH, JSON.stringify(project, null, 2));
+  console.log('[Output] ' + PROJECT_PATH + ' (' + JSON.stringify(project).length + ' bytes)');
+  var s0 = project.layouts[0];
+  console.log('  Scenes:'+project.layouts.length+' Objects:'+project.objects.length+' SceneObjects:'+(s0?s0.objects.length:0)+' Instances:'+(s0?s0.instances.length:0)+' Events:'+(s0?s0.events.length:0)+' Vars:'+project.variables.length);
+
+  try {
+    var engDir = path.join(__dirname, '..', 'engine', 'runtime');
+    if (fs.existsSync(engDir + '/game.html')) {
+      var html = fs.readFileSync(engDir + '/game.html', 'utf8');
+      html = html.replace('var projectData = PROJECT_DATA_PLACEHOLDER;', 'var projectData = ' + JSON.stringify(project) + ';');
+      fs.writeFileSync(STATE_DIR + '/game.html', html);
+      console.log('[GameHTML] ' + STATE_DIR + '/game.html');
+    }
+  } catch(e) {}
+}
+
+function executeDslBatch(project, dslText, batchLabel, options) {
+  options = options || {};
+  var dslLines = dslText.split(/\r?\n/).map(function(line) {
+    return line.trim();
+  }).filter(function(line) {
+    return line && line[0] !== '#';
+  });
+  var ops = parseDSL(dslText);
+  if (!ops.length && !options.allowEmpty) throw new Error('No ops parsed for ' + batchLabel);
+  console.log('[Parse:' + batchLabel + '] ' + ops.length + ' ops');
+
+  var previousWorld = projectWorld.loadProjectWorld(STATE_DIR);
+  var ok = 0;
+  var commandResults = [];
+  for (var i = 0; i < ops.length; i++) {
+    var r = execute(project, ops[i]);
+    var label = ops[i].verb + (ops[i].target?' '+ops[i].target:'');
+    console.log('  ' + (r.ok?'OK':'FAIL') + ' ' + label + ': ' + r.msg);
+    if (r.ok) ok++;
+    commandResults.push({
+      index: i,
+      commandId: batchLabel + '_line_' + String(i + 1).padStart(3, '0'),
+      ok: !!r.ok,
+      label: label,
+      message: r.msg,
+    });
+  }
+  console.log('[Done:' + batchLabel + '] ' + ok + '/' + ops.length + ' succeeded');
+
+  writeProjectOutputs(project);
+
+  var world = projectWorld.buildProjectWorld(project, previousWorld, {
+    modules: options.modules,
+  });
+  projectWorld.saveProjectWorld(STATE_DIR, world);
+  if (options.networkManifest) {
+    var networkPath = moduleCompiler.saveNetworkManifest(STATE_DIR, options.networkManifest);
+    console.log('[NetworkManifest] ' + networkPath);
+  }
+  var ledger = projectWorld.loadExecutionLedger(STATE_DIR);
+  var report = projectWorld.makeExecutionReport({
+    previousWorld: previousWorld,
+    world: world,
+    dslLines: dslLines,
+    commandResults: commandResults,
+    runIndex: ledger.runs.length + 1,
+    batchLabel: batchLabel,
+  });
+  projectWorld.appendExecutionReport(STATE_DIR, report);
+  console.log('[ProjectWorld] v' + world.worldVersion + ' ' + world.semanticHash + ' -> ' + projectWorld.getWorldPath(STATE_DIR));
+  console.log('[ExecutionReport] ' + report.summary.nextAction + ' ' + report.summary.completed + '/' + report.summary.total + ' -> ' + projectWorld.getLedgerPath(STATE_DIR));
+
+  return {
+    dslText: dslText,
+    dslLines: dslLines,
+    report: report,
+    world: world,
+  };
+}
+
+function makeApprovalSummary(options) {
+  var dslLines = String(options.dslText || '').split(/\r?\n/).filter(function(line) {
+    return line.trim() && line.trim()[0] !== '#';
+  });
+  var moduleDslLines = String(options.moduleDslText || '').split(/\r?\n/).filter(function(line) {
+    return line.trim() && line.trim()[0] !== '#';
+  });
+  return {
+    mode: options.projectMode,
+    batchLabel: options.batchLabel,
+    prompt: options.prompt,
+    moduleDslLineCount: moduleDslLines.length,
+    internalDslLineCount: dslLines.length,
+    modules: (options.modules || []).map(function(module) {
+      return {
+        id: module.id,
+        preset: module.preset,
+        syncPolicy: module.syncPolicy,
+      };
+    }),
+    baseWorldVersion: options.baseWorld ? options.baseWorld.worldVersion : null,
+    baseSemanticHash: options.baseWorld ? options.baseWorld.semanticHash : null,
+    preview: options.preview || null,
+  };
+}
+
+function previewApprovalPatch(project, dslText, options) {
+  options = options || {};
+  var previewProject = cloneValue(project);
+  var dslLines = String(dslText || '').split(/\r?\n/).map(function(line) {
+    return line.trim();
+  }).filter(function(line) {
+    return line && line[0] !== '#';
+  });
+  var ops = parseDSL(dslText || '');
+  var commandResults = [];
+  var ok = 0;
+  for (var i = 0; i < ops.length; i++) {
+    var result = execute(previewProject, ops[i]);
+    if (result.ok) ok++;
+    commandResults.push({
+      index: i,
+      ok: !!result.ok,
+      command: dslLines[i] || (ops[i].verb + (ops[i].target ? ' ' + ops[i].target : '')),
+      message: result.msg,
+    });
+  }
+  var previewWorld = projectWorld.buildProjectWorld(previewProject, options.baseWorld, {
+    modules: options.modules,
+  });
+  var failed = commandResults.filter(function(result) { return !result.ok; });
+  return {
+    total: commandResults.length,
+    completed: ok,
+    failed: failed.length,
+    nextAction: failed.length ? 'repair' : 'done',
+    predictedWorldVersion: previewWorld.worldVersion,
+    predictedSemanticHash: previewWorld.semanticHash,
+    baseSemanticHash: options.baseWorld ? options.baseWorld.semanticHash : null,
+    cacheHit: !!(options.baseWorld && options.baseWorld.semanticHash === previewWorld.semanticHash),
+    failedCommands: failed,
+  };
+}
+
+function savePendingApproval(options) {
+  var preview = previewApprovalPatch(options.project, options.dslText || '', {
+    baseWorld: options.baseWorld,
+    modules: options.modules,
+  });
+  var pending = {
+    schemaVersion: 1,
+    createdAt: new Date().toISOString(),
+    prompt: options.prompt,
+    projectMode: options.projectMode,
+    batchLabel: options.batchLabel,
+    isNewProject: !!options.isNewProject,
+    requiresExistingProject: !!options.requiresExistingProject,
+    patchKind: options.patchKind,
+    baseWorldVersion: options.baseWorld ? options.baseWorld.worldVersion : null,
+    baseSemanticHash: options.baseWorld ? options.baseWorld.semanticHash : null,
+    moduleDslText: options.moduleDslText || null,
+    dslText: options.dslText || '',
+    dslLines: String(options.dslText || '').split(/\r?\n/).filter(function(line) {
+      return line.trim() && line.trim()[0] !== '#';
+    }),
+    modules: options.modules || null,
+    networkManifest: options.networkManifest || null,
+    designBrief: options.designBrief || null,
+    diff: options.diff || null,
+    preview: preview,
+    summary: makeApprovalSummary(Object.assign({}, options, { preview: preview })),
+  };
+  saveJsonFile(PENDING_APPROVAL_PATH, pending);
+  console.log('[Approval] Pending patch written: ' + PENDING_APPROVAL_PATH);
+  console.log('[Approval] Review summary: ' + JSON.stringify(pending.summary, null, 2));
+  console.log('[Approval] Execute after review with: node ai/pipeline.js --approve-pending');
+  return pending;
+}
+
+function approvePendingPatch() {
+  var pending = loadJsonFile(PENDING_APPROVAL_PATH, null);
+  if (!pending) {
+    console.error('[Approval] No pending approval found: ' + PENDING_APPROVAL_PATH);
+    process.exit(1);
+  }
+  if (pending.schemaVersion !== 1) {
+    console.error('[Approval] Unsupported pending approval schemaVersion: ' + pending.schemaVersion);
+    process.exit(1);
+  }
+
+  var project;
+  if (pending.requiresExistingProject) {
+    project = loadOutputProject();
+    if (!project) {
+      console.error('[Approval] Pending patch requires existing ' + PROJECT_PATH);
+      process.exit(1);
+    }
+  } else {
+    resetGeneratedStateForNewProject({ keepPendingApproval: true });
+    project = emptyProject('GameCastle');
+    console.log('[Approval] Starting approved new project patch');
+  }
+
+  var batch = executeDslBatch(project, pending.dslText || '', pending.batchLabel || 'apply', {
+    modules: pending.modules,
+    networkManifest: pending.networkManifest,
+    allowEmpty: pending.patchKind === 'module',
+  });
+  fs.unlinkSync(PENDING_APPROVAL_PATH);
+  console.log('[Approval] Executed pending patch. nextAction=' + batch.report.summary.nextAction);
+  if (batch.report.summary.nextAction !== 'done') {
+    process.exitCode = 1;
+  }
+}
+
+function buildInternalExecutionRepairPrompt(options) {
+  return [
+    'The previous internal low-level DSL batch executed with failures.',
+    'Output only the minimum low-level DSL diff required to repair failed commands.',
+    'Do not repeat completed commands.',
+    '',
+    'Original user prompt:',
+    options.userPrompt,
+    '',
+    'LLM1 creative design brief:',
+    JSON.stringify(options.designBrief, null, 2),
+    '',
+    'Current ProjectWorld:',
+    JSON.stringify(options.world, null, 2),
+    '',
+    'Previous ExecutionReport:',
+    JSON.stringify(options.report, null, 2),
+    '',
+    'Previous low-level DSL:',
+    options.dslText,
+    '',
+    'Repair rules:',
+    '- Only repair failed commands and missing prerequisites caused by those failures.',
+    '- Completed commands are already applied.',
+    '- Output only low-level DSL lines.'
+  ].join('\n');
+}
+
 
 // ===== LLM PROVIDER (streaming SSE with thinking visibility) =====
 async function callLLM(prompt, systemPrompt, opts) {
@@ -643,9 +1097,7 @@ async function callLLM(prompt, systemPrompt, opts) {
   var reasoningEffort = opts.reasoningEffort || "xhigh";
   var label = opts.label || "LLM";
   var maxTokens = opts.maxTokens || 4096;
-  var isStatic = systemPrompt === LLM2_SYSTEM_PROMPT;
-
-  gc_log("[" + label + "] REQ model=" + model + " reasoning=" + reasoningEffort + " staticPrompt=" + isStatic + " systemPrompt=" + systemPrompt.length + "chars userPrompt=" + prompt.length + "chars");
+  gc_log("[" + label + "] REQ model=" + model + " reasoning=" + reasoningEffort + " systemPrompt=" + systemPrompt.length + "chars userPrompt=" + prompt.length + "chars");
 
   var t0 = Date.now();
   var body = {
@@ -762,11 +1214,68 @@ async function callLLM(prompt, systemPrompt, opts) {
 // ===== MAIN (two-stage: creative -> deterministic) =====
 async function run(prompt, useMock) {
   console.log('[Pipeline] ' + prompt);
-  var project = emptyProject('GameCastle');
+  if (hasArg('--approve-pending')) {
+    approvePendingPatch();
+    return;
+  }
+  var capabilityCatalog = capabilities.loadCapabilityCatalog(CAPABILITIES_DIR);
+  var productModuleCatalog = moduleCompiler.loadProductModuleCatalog(PRODUCT_MODULES_DIR);
+  var creativeCapabilitySummary = [
+    capabilities.buildCreativeCapabilitySummary(capabilityCatalog),
+    '',
+    'Product modules:',
+    moduleCompiler.buildProductModuleCards(productModuleCatalog),
+  ].join('\n');
+  var isContinue = hasArg('--continue');
+  var dslFile = getArgValue('--dsl-file');
+  var moduleDslFile = getArgValue('--module-dsl-file');
+  var batchLabel = getArgValue('--batch-label') || 'apply';
+  var approvalGate = hasArg('--approval-gate');
+  if (approvalGate) clearPendingApproval();
+  if (dslFile && moduleDslFile) {
+    console.error('[Input] Use only one of --dsl-file or --module-dsl-file');
+    process.exit(1);
+  }
+  var projectMode = (dslFile || moduleDslFile) ? (isContinue ? 'fixture-continue' : 'fixture-new') : (useMock ? 'mock-new' : (isContinue ? 'continue' : 'new'));
+  var isNewProject = projectMode !== 'continue';
+  if (projectMode === 'fixture-continue') isNewProject = false;
+  if (isNewProject && !approvalGate) {
+    resetGeneratedStateForNewProject();
+    console.log('[State] Starting new project mode: ' + projectMode);
+  } else if (isNewProject && approvalGate) {
+    console.log('[State] Approval gate new project mode: ' + projectMode + ' (no output reset before approval)');
+  }
+  var existingProject = (projectMode === 'continue' || projectMode === 'fixture-continue') ? loadOutputProject() : null;
+  if ((projectMode === 'continue' || projectMode === 'fixture-continue') && !existingProject) {
+    console.error('[State] --continue requires an existing ' + PROJECT_PATH);
+    process.exit(1);
+  }
+  var project = existingProject || emptyProject('GameCastle');
+  if ((projectMode === 'continue' || projectMode === 'fixture-continue') && existingProject) {
+    console.log('[State] Loaded existing project for iteration: ' + PROJECT_PATH);
+  }
+  var compileBaseWorld = (projectMode === 'continue' || projectMode === 'fixture-continue') ? projectWorld.loadProjectWorld(STATE_DIR) : null;
+  var compileBaseModules = (compileBaseWorld && compileBaseWorld.modules) || [];
   var dslText;
+  var moduleDslText = null;
+  var compiledModulePatch = null;
   var diff = { isNew: false };  // initialized for scope; real value set in iteration path
+  var designBrief = null;
+  var llm2SystemPrompt = null;
 
-  if (useMock) {
+  if (moduleDslFile) {
+    moduleDslText = fs.readFileSync(path.resolve(moduleDslFile), 'utf8');
+    compiledModulePatch = moduleCompiler.compileModuleDslText(moduleDslText, productModuleCatalog, {
+      baseModules: compileBaseModules,
+      projectWorld: compileBaseWorld,
+    });
+    dslText = compiledModulePatch.dslText;
+    console.log('[ModuleDSLFile] ' + path.resolve(moduleDslFile) + ' (' + moduleDslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
+    console.log('[ModuleCompiler] ' + compiledModulePatch.installedModules.length + ' modules -> ' + compiledModulePatch.dslLines.length + ' low-level DSL lines');
+  } else if (dslFile) {
+    dslText = fs.readFileSync(path.resolve(dslFile), 'utf8');
+    console.log('[DSLFile] ' + path.resolve(dslFile) + ' (' + dslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
+  } else if (useMock) {
     dslText = [
       'create scene name=Game first=true',
       'create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game',
@@ -792,7 +1301,6 @@ async function run(prompt, useMock) {
     ].join(String.fromCharCode(10));
     console.log('[Mock] ' + dslText.split(String.fromCharCode(10)).length + ' lines');
   } else {
-    var isContinue = args.indexOf('--continue') >= 0;
     var prev = isContinue ? loadState() : { brief: null, history: [] };
     var previousBrief = prev.brief;
     var history = prev.history;
@@ -802,7 +1310,7 @@ async function run(prompt, useMock) {
     if (isContinue && previousBrief) {
       console.log('[Stage1] Previous brief loaded, ' + history.length + ' history entries');
     }
-    var designBrief = await generateDesignBrief(prompt, history, previousBrief);
+    designBrief = await generateDesignBrief(prompt, history, previousBrief, creativeCapabilitySummary);
     if (!designBrief) { console.error('Failed to generate design brief'); process.exit(1); }
     console.log('[Stage1] Keys: ' + Object.keys(designBrief).join(', '));
     console.log('[Stage1] Brief: ' + JSON.stringify(designBrief).substring(0, 300));
@@ -813,133 +1321,126 @@ async function run(prompt, useMock) {
     saveState(designBrief, history);
 
     // Stage 2: 只把变更部分发给 LLM2
-    console.log('[Stage2] DSL LLM translating...');
-    var sp = LLM2_SYSTEM_PROMPT;
+    console.log('[Stage2] Module Patch Commander translating...');
+    llm2SystemPrompt = buildModuleCommanderSystemPrompt(productModuleCatalog);
     var diff = diffDesignBriefs(previousBrief, designBrief);
-    var um;
-    if (diff.isNew || !previousBrief) {
-      um = '新游戏设计稿：\n' + JSON.stringify(designBrief, null, 2) + '\n\n把它变成DSL。';
-    } else {
+    var currentWorld = compileBaseWorld;
+    var currentLedger = projectMode === 'continue' ? projectWorld.loadExecutionLedger(STATE_DIR) : { runs: [] };
+    var lastReport = currentLedger.runs.length ? currentLedger.runs[currentLedger.runs.length - 1] : null;
+    var worldContext = {
+      projectWorld: currentWorld,
+      lastExecutionReport: lastReport,
+    };
+    if (!diff.isNew && previousBrief) {
       var hasChanges = diff.added.objects.length + diff.added.rules.length + diff.added.placements.length + diff.added.behaviors.length + diff.added.variables.length + diff.removed.objects.length + diff.removed.rules.length + diff.removed.placements.length + diff.removed.behaviors.length + diff.removed.variables.length + diff.modified.objects.length + diff.modified.rules.length + diff.modified.placements.length + diff.modified.behaviors.length + diff.modified.variables.length;
       if (hasChanges === 0) {
         console.log('[Stage2] No changes detected, skipping LLM2');
         dslText = '';
-      } else {
-                                                                                um = '当前游戏已有完整DSL。只输出以下变更的DSL：\n\n'
-          + '【DSL 映射规则】\n'
-          + '  新增对象 → create object name=<name> type=ShapePainter shape=<shape> color=<color> width=<width> height=<height> scene=Game\n'
-          + '  新增放置 → place object=<object> at=<x>,<y> scene=Game\n'
-          + '  新增行为 → add behavior type=<type> to=<object> scene=Game\n'
-          + '  新增变量 → set variable name=<name> value=<value> type=Number scope=global\n'
-          + '  新增规则 → on <trigger> -> <actions>（中文转英文）\n'
-          + '  删除对象 → delete object name=<name> scene=Game\n'
-          + '  删除放置 → remove placement object=<object> scene=Game\n'
-          + '  删除行为 → remove behavior type=<type> from=<object> scene=Game\n'
-          + '  删除变量 → delete variable name=<name>\n'
-          + '  删除规则 → remove event #<序号> scene=Game（按描述匹配已有事件序号）\n'
-          + '  修改对象属性 → set object name=<name> <属性>=<新值> scene=Game（原位修改，不删实例）\n'
-          + '  修改放置 → set placement object=<object> x=<x> y=<y> scene=Game\n'
-          + '  修改行为参数 → set behavior name=<行为名> object=<对象> <参数>=<新值> scene=Game\n'
-          + '  修改变量 → set variable name=<name> value=<新值> type=Number scope=global\n'
-          + '\n'
-          + '新增对象：\n' + JSON.stringify(diff.added.objects, null, 2) + '\n\n'
-          + '新增放置：\n' + JSON.stringify(diff.added.placements, null, 2) + '\n\n'
-          + '新增行为：\n' + JSON.stringify(diff.added.behaviors, null, 2) + '\n\n'
-          + '新增变量：\n' + JSON.stringify(diff.added.variables, null, 2) + '\n\n'
-          + '新增规则：\n' + JSON.stringify(diff.added.rules, null, 2) + '\n\n'
-          + '删除对象：\n' + JSON.stringify(diff.removed.objects, null, 2) + '\n\n'
-          + '删除放置：\n' + JSON.stringify(diff.removed.placements, null, 2) + '\n\n'
-          + '删除规则：\n' + JSON.stringify(diff.removed.rules, null, 2) + '\n\n'
-          + '删除行为：\n' + JSON.stringify(diff.removed.behaviors, null, 2) + '\n\n'
-          + '删除变量：\n' + JSON.stringify(diff.removed.variables, null, 2) + '\n\n'
-          + '修改对象（旧→新）：\n' + JSON.stringify(diff.modified.objects, null, 2) + '\n\n'
-          + '修改放置（旧→新）：\n' + JSON.stringify(diff.modified.placements, null, 2) + '\n\n'
-          + '修改行为（旧→新）：\n' + JSON.stringify(diff.modified.behaviors, null, 2) + '\n\n'
-          + '修改变量（旧→新）：\n' + JSON.stringify(diff.modified.variables, null, 2) + '\n\n'
-          + '修改规则（旧→新）：\n' + JSON.stringify(diff.modified.rules, null, 2) + '\n\n'
-          + '只输出变更部分DSL，不要重复已有内容。按【DSL 映射规则】翻译。\n'
-          + '\n'
-          + '=== 规则全量重建 ===\n'
-          + '以下为当前全部规则。请全部翻译为事件DSL（旧事件已清空，所有规则都要输出）：\n'
-          + '\n' + JSON.stringify(designBrief.rules, null, 2) + '\n\n'
-          + '每条规则翻译为 on ... -> ... 格式。全部输出，不遗漏。';
       }
     }
 
-if (dslText !== '') {
-      dslText = await callLLM(um, sp);
-      // 迭代时清空场景事件，从当前规则全量重建
-      project.layouts.forEach(function(l){ l.events = []; });
-      console.log('[Events] Cleared for full regeneration from current rules');
-      if (!dslText) { console.error('DSL generation failed'); process.exit(1); }
-      console.log('[Stage2] DSL (' + dslText.split('\n').length + ' lines):');
-      console.log(dslText);
+    if (dslText !== '') {
+      var um = buildModulePatchUserPrompt({
+        userPrompt: prompt,
+        worldContext: worldContext,
+        designBrief: designBrief,
+        diff: diff,
+        isNew: diff.isNew || !previousBrief,
+      });
+      moduleDslText = await callLLM(um, llm2SystemPrompt, { temperature: 0, label: 'LLM2' });
+      if (!moduleDslText) { console.error('Module DSL generation failed'); process.exit(1); }
+      console.log('[Stage2] Module DSL (' + moduleDslText.split('\n').length + ' lines):');
+      console.log(moduleDslText);
+      var moduleCompileResult = await compileModulePatchWithRepair({
+        moduleDslText: moduleDslText,
+        productModuleCatalog: productModuleCatalog,
+        baseModules: compileBaseModules,
+        projectWorld: compileBaseWorld,
+        allowLlmRepair: !approvalGate,
+        llm2SystemPrompt: llm2SystemPrompt,
+        userPrompt: prompt,
+        designBrief: designBrief,
+        worldContext: worldContext,
+      });
+      moduleDslText = moduleCompileResult.moduleDslText;
+      compiledModulePatch = moduleCompileResult.compiled;
+      dslText = compiledModulePatch.dslText;
+      console.log('[ModuleCompiler] ' + compiledModulePatch.installedModules.length + ' modules -> ' + compiledModulePatch.dslLines.length + ' low-level DSL lines');
     }
   }
 
-  var dslLines = dslText.split(/\r?\n/).map(function(line) {
-    return line.trim();
-  }).filter(function(line) {
-    return line && line[0] !== '#';
-  });
-  var ops = parseDSL(dslText);
-  if (!ops.length) { console.error('No ops parsed'); process.exit(1); }
-  console.log('[Parse] ' + ops.length + ' ops');
+  if (dslText === '' && !compiledModulePatch) {
+    console.log('[Done] No DSL changes to apply');
+    return;
+  }
 
-  var previousWorld = projectWorld.loadProjectWorld(STATE_DIR);
-  var ok = 0;
-  var commandResults = [];
-  for (var i = 0; i < ops.length; i++) {
-    var r = execute(project, ops[i]);
-    var label = ops[i].verb + (ops[i].target?' '+ops[i].target:'');
-    console.log('  ' + (r.ok?'OK':'FAIL') + ' ' + label + ': ' + r.msg);
-    if (r.ok) ok++;
-    commandResults.push({
-      index: i,
-      commandId: 'line_' + String(i + 1).padStart(3, '0'),
-      ok: !!r.ok,
-      label: label,
-      message: r.msg,
+  if (approvalGate) {
+    savePendingApproval({
+      prompt: prompt,
+      projectMode: projectMode,
+      batchLabel: batchLabel,
+      isNewProject: isNewProject,
+      requiresExistingProject: projectMode === 'continue' || projectMode === 'fixture-continue',
+      patchKind: compiledModulePatch ? 'module' : 'internal',
+      project: project,
+      baseWorld: compileBaseWorld,
+      moduleDslText: moduleDslText,
+      dslText: dslText,
+      modules: compiledModulePatch && compiledModulePatch.installedModules,
+      networkManifest: compiledModulePatch && compiledModulePatch.networkManifest,
+      designBrief: designBrief,
+      diff: diff,
     });
+    return;
   }
-  console.log('[Done] ' + ok + '/' + ops.length + ' succeeded');
 
-  var outDir = path.join(__dirname, '..', 'output');
-  fs.mkdirSync(outDir, {recursive:true});
-  var outPath = path.join(outDir, 'project.json');
-  fs.writeFileSync(outPath, JSON.stringify(project, null, 2));
-  console.log('[Output] ' + outPath + ' (' + JSON.stringify(project).length + ' bytes)');
-  var s0 = project.layouts[0];
-  console.log('  Scenes:'+project.layouts.length+' Objects:'+project.objects.length+' SceneObjects:'+(s0?s0.objects.length:0)+' Instances:'+(s0?s0.instances.length:0)+' Events:'+(s0?s0.events.length:0)+' Vars:'+project.variables.length);
-
-  var world = projectWorld.buildProjectWorld(project, previousWorld);
-  projectWorld.saveProjectWorld(STATE_DIR, world);
-  var ledger = projectWorld.loadExecutionLedger(STATE_DIR);
-  var report = projectWorld.makeExecutionReport({
-    previousWorld: previousWorld,
-    world: world,
-    dslLines: dslLines,
-    commandResults: commandResults,
-    runIndex: ledger.runs.length + 1,
+  var batch = executeDslBatch(project, dslText, batchLabel, {
+    modules: compiledModulePatch && compiledModulePatch.installedModules,
+    networkManifest: compiledModulePatch && compiledModulePatch.networkManifest,
+    allowEmpty: !!compiledModulePatch,
   });
-  projectWorld.appendExecutionReport(STATE_DIR, report);
-  console.log('[ProjectWorld] v' + world.worldVersion + ' ' + world.semanticHash + ' -> ' + projectWorld.getWorldPath(STATE_DIR));
-  console.log('[ExecutionReport] ' + report.summary.nextAction + ' ' + report.summary.completed + '/' + report.summary.total + ' -> ' + projectWorld.getLedgerPath(STATE_DIR));
 
-  try {
-    var engDir = path.join(__dirname, '..', 'engine', 'runtime');
-    if (fs.existsSync(engDir + '/game.html')) {
-      var html = fs.readFileSync(engDir + '/game.html', 'utf8');
-      html = html.replace('var projectData = PROJECT_DATA_PLACEHOLDER;', 'var projectData = ' + JSON.stringify(project) + ';');
-      fs.writeFileSync(outDir + '/game.html', html);
-      console.log('[GameHTML] ' + outDir + '/game.html');
+  if (!useMock && designBrief && llm2SystemPrompt) {
+    for (var repairRound = 1; repairRound <= MAX_LLM2_REPAIR_ROUNDS && batch.report.summary.nextAction === 'repair'; repairRound++) {
+      console.log('[Repair] LLM2 repair round ' + repairRound + '/' + MAX_LLM2_REPAIR_ROUNDS);
+      var repairPrompt = buildInternalExecutionRepairPrompt({
+        userPrompt: prompt,
+        designBrief: designBrief,
+        world: batch.world,
+        report: batch.report,
+        dslText: batch.dslText,
+      });
+      var repairDsl = await callLLM(repairPrompt, buildInternalDslRepairSystemPrompt(capabilityCatalog), {
+        temperature: 0,
+        reasoningEffort: 'high',
+        label: 'LLM2-InternalRepair',
+      });
+      if (!repairDsl || !repairDsl.trim()) {
+        console.error('[Repair] LLM2 returned empty repair DSL');
+        break;
+      }
+      console.log('[Repair] DSL (' + repairDsl.split('\n').length + ' lines):');
+      console.log(repairDsl);
+      repairDsl = cleanDslOutput(repairDsl);
+      batch = executeDslBatch(project, repairDsl, 'repair_' + String(repairRound).padStart(2, '0'), {
+        modules: compiledModulePatch && compiledModulePatch.installedModules,
+        networkManifest: compiledModulePatch && compiledModulePatch.networkManifest,
+      });
     }
-  } catch(e) {}
+    if (batch.report.summary.nextAction === 'repair') {
+      console.error('[Repair] Failed after ' + MAX_LLM2_REPAIR_ROUNDS + ' repair round(s). See ' + projectWorld.getLedgerPath(STATE_DIR));
+      process.exitCode = 1;
+    }
+  }
 }
 
 // ===== CLI =====
 var args = process.argv.slice(2);
-var useMock = args.indexOf('--mock') >= 0;
-var prompt = args.filter(function(a){return !a.startsWith('--');}).join(' ');
-if (!prompt) { console.log('Usage: node ai/pipeline.js [--mock] [--continue] "game description"'); process.exit(1); }
+var useMock = hasArg('--mock');
+var prompt = getPromptFromArgs();
+if (!prompt && !hasArg('--approve-pending')) {
+  console.log('Usage: node ai/pipeline.js [--mock] [--continue] [--approval-gate] "game description"');
+  console.log('       node ai/pipeline.js --approve-pending');
+  process.exit(1);
+}
 run(prompt, useMock).catch(function(e){console.error(e);process.exit(1);});

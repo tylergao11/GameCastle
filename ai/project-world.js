@@ -197,7 +197,8 @@ function describeEvent(event) {
   };
 }
 
-function buildProjectWorld(project, previousWorld) {
+function buildProjectWorld(project, previousWorld, options) {
+  options = options || {};
   var registry = clone(previousWorld && previousWorld.idRegistry) || makeEmptyRegistry();
   var usedIds = {};
   var nextRegistry = makeEmptyRegistry();
@@ -228,7 +229,7 @@ function buildProjectWorld(project, previousWorld) {
       described.scope = 'global';
       return described;
     }),
-    modules: clone(previousWorld && previousWorld.modules) || [],
+    modules: options.modules ? clone(options.modules) : (clone(previousWorld && previousWorld.modules) || []),
     idRegistry: nextRegistry,
   };
 
@@ -347,6 +348,7 @@ function makeExecutionReport(options) {
   return {
     schemaVersion: LEDGER_SCHEMA_VERSION,
     runId: 'run_' + String(runIndex).padStart(3, '0'),
+    batchLabel: options.batchLabel || null,
     baseWorldVersion: previousWorld ? previousWorld.worldVersion : null,
     targetWorldVersion: world ? world.worldVersion : null,
     baseSemanticHash: previousWorld ? previousWorld.semanticHash : null,

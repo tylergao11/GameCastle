@@ -4,731 +4,212 @@
     {
       "schemaVersion": 1,
       "runId": "run_001",
+      "batchLabel": "apply",
       "baseWorldVersion": null,
       "targetWorldVersion": 1,
       "baseSemanticHash": null,
-      "targetSemanticHash": "59e29762",
+      "targetSemanticHash": "fefeae89",
       "summary": {
-        "total": 21,
-        "completed": 21,
+        "total": 39,
+        "completed": 39,
         "failed": 0,
         "nextAction": "done"
       },
       "completed": [
         {
-          "commandId": "line_001",
+          "commandId": "apply_line_001",
           "command": "create scene name=Game first=true",
           "message": "scene: Game"
         },
         {
-          "commandId": "line_002",
+          "commandId": "apply_line_002",
           "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
           "message": "shape: Player (rectangle #4488FF)"
         },
         {
-          "commandId": "line_003",
+          "commandId": "apply_line_003",
           "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
           "message": "shape: Ground (rectangle #8B4513)"
         },
         {
-          "commandId": "line_004",
+          "commandId": "apply_line_004",
           "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
           "message": "shape: Platform (rectangle #8B4513)"
         },
         {
-          "commandId": "line_005",
+          "commandId": "apply_line_005",
           "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
           "message": "shape: Coin (circle #FFD700)"
         },
         {
-          "commandId": "line_006",
+          "commandId": "apply_line_006",
           "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
           "message": "shape: Enemy (rectangle #DC3232)"
         },
         {
-          "commandId": "line_007",
+          "commandId": "apply_line_007",
           "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
           "message": "behavior: Platformer"
         },
         {
-          "commandId": "line_008",
+          "commandId": "apply_line_008",
           "command": "set variable name=Score value=0 type=Number scope=global",
           "message": "var: Score=0"
         },
         {
-          "commandId": "line_009",
+          "commandId": "apply_line_009",
           "command": "place object=Player at=100,400 scene=Game",
           "message": "placed Player x1"
         },
         {
-          "commandId": "line_010",
+          "commandId": "apply_line_010",
           "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
           "message": "placed Ground x1"
         },
         {
-          "commandId": "line_011",
+          "commandId": "apply_line_011",
           "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "line_012",
+          "commandId": "apply_line_012",
           "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "line_013",
+          "commandId": "apply_line_013",
           "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "line_014",
+          "commandId": "apply_line_014",
           "command": "place object=Coin at=240,430 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "line_015",
+          "commandId": "apply_line_015",
           "command": "place object=Coin at=440,350 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "line_016",
+          "commandId": "apply_line_016",
           "command": "place object=Coin at=640,270 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "line_017",
+          "commandId": "apply_line_017",
           "command": "place object=Enemy at=550,400 scene=Game",
           "message": "placed Enemy x1"
         },
         {
-          "commandId": "line_018",
-          "command": "on start -> Score=0",
+          "commandId": "apply_line_018",
+          "command": "on start -> Score=0 scene=Game",
           "message": "event: on start -> Score=0"
         },
         {
-          "commandId": "line_019",
-          "command": "on collision Player Coin -> destroy Coin, score+1",
+          "commandId": "apply_line_019",
+          "command": "on collision Player Coin -> destroy Coin, score+1 scene=Game",
           "message": "event: on collision Player Coin -> destroy Coin, score+1"
         },
         {
-          "commandId": "line_020",
-          "command": "on collision Player Enemy -> restart",
-          "message": "event: on collision Player Enemy -> restart"
+          "commandId": "apply_line_020",
+          "command": "on collision Player Enemy -> scene GameOver scene=Game",
+          "message": "event: on collision Player Enemy -> scene GameOver"
         },
         {
-          "commandId": "line_021",
-          "command": "on key Space -> jump Player 500",
+          "commandId": "apply_line_021",
+          "command": "on key Space -> jump Player 500 scene=Game",
           "message": "event: on key Space -> jump Player 500"
-        }
-      ],
-      "failed": []
-    },
-    {
-      "schemaVersion": 1,
-      "runId": "run_002",
-      "baseWorldVersion": 1,
-      "targetWorldVersion": 2,
-      "baseSemanticHash": "59e29762",
-      "targetSemanticHash": "386998e7",
-      "summary": {
-        "total": 21,
-        "completed": 21,
-        "failed": 0,
-        "nextAction": "done"
-      },
-      "completed": [
-        {
-          "commandId": "line_001",
-          "command": "create scene name=Game first=true",
-          "message": "scene: Game"
-        },
-        {
-          "commandId": "line_002",
-          "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
-          "message": "shape: Player (rectangle #4488FF)"
-        },
-        {
-          "commandId": "line_003",
-          "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
-          "message": "shape: Ground (rectangle #8B4513)"
-        },
-        {
-          "commandId": "line_004",
-          "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
-          "message": "shape: Platform (rectangle #8B4513)"
-        },
-        {
-          "commandId": "line_005",
-          "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
-          "message": "shape: Coin (circle #FFD700)"
-        },
-        {
-          "commandId": "line_006",
-          "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
-          "message": "shape: Enemy (rectangle #DC3232)"
-        },
-        {
-          "commandId": "line_007",
-          "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
-          "message": "behavior: Platformer"
-        },
-        {
-          "commandId": "line_008",
-          "command": "set variable name=Score value=0 type=Number scope=global",
-          "message": "var: Score=0"
-        },
-        {
-          "commandId": "line_009",
-          "command": "place object=Player at=100,400 scene=Game",
-          "message": "placed Player x1"
-        },
-        {
-          "commandId": "line_010",
-          "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
-          "message": "placed Ground x1"
-        },
-        {
-          "commandId": "line_011",
-          "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_012",
-          "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_013",
-          "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_014",
-          "command": "place object=Coin at=240,430 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_015",
-          "command": "place object=Coin at=440,350 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_016",
-          "command": "place object=Coin at=640,270 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_017",
-          "command": "place object=Enemy at=550,400 scene=Game",
-          "message": "placed Enemy x1"
-        },
-        {
-          "commandId": "line_018",
-          "command": "on start -> Score=0",
-          "message": "event: on start -> Score=0"
-        },
-        {
-          "commandId": "line_019",
-          "command": "on collision Player Coin -> destroy Coin, score+1",
-          "message": "event: on collision Player Coin -> destroy Coin, score+1"
-        },
-        {
-          "commandId": "line_020",
-          "command": "on collision Player Enemy -> restart",
-          "message": "event: on collision Player Enemy -> restart"
-        },
-        {
-          "commandId": "line_021",
-          "command": "on key Space -> jump Player 500",
-          "message": "event: on key Space -> jump Player 500"
-        }
-      ],
-      "failed": []
-    },
-    {
-      "schemaVersion": 1,
-      "runId": "run_003",
-      "baseWorldVersion": 2,
-      "targetWorldVersion": 3,
-      "baseSemanticHash": "386998e7",
-      "targetSemanticHash": "3c86bf0a",
-      "summary": {
-        "total": 21,
-        "completed": 21,
-        "failed": 0,
-        "nextAction": "done"
-      },
-      "completed": [
-        {
-          "commandId": "line_001",
-          "command": "create scene name=Game first=true",
-          "message": "scene: Game"
-        },
-        {
-          "commandId": "line_002",
-          "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
-          "message": "shape: Player (rectangle #4488FF)"
-        },
-        {
-          "commandId": "line_003",
-          "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
-          "message": "shape: Ground (rectangle #8B4513)"
-        },
-        {
-          "commandId": "line_004",
-          "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
-          "message": "shape: Platform (rectangle #8B4513)"
-        },
-        {
-          "commandId": "line_005",
-          "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
-          "message": "shape: Coin (circle #FFD700)"
-        },
-        {
-          "commandId": "line_006",
-          "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
-          "message": "shape: Enemy (rectangle #DC3232)"
-        },
-        {
-          "commandId": "line_007",
-          "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
-          "message": "behavior: Platformer"
-        },
-        {
-          "commandId": "line_008",
-          "command": "set variable name=Score value=0 type=Number scope=global",
-          "message": "var: Score=0"
-        },
-        {
-          "commandId": "line_009",
-          "command": "place object=Player at=100,400 scene=Game",
-          "message": "placed Player x1"
-        },
-        {
-          "commandId": "line_010",
-          "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
-          "message": "placed Ground x1"
-        },
-        {
-          "commandId": "line_011",
-          "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_012",
-          "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_013",
-          "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_014",
-          "command": "place object=Coin at=240,430 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_015",
-          "command": "place object=Coin at=440,350 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_016",
-          "command": "place object=Coin at=640,270 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_017",
-          "command": "place object=Enemy at=550,400 scene=Game",
-          "message": "placed Enemy x1"
-        },
-        {
-          "commandId": "line_018",
-          "command": "on start -> Score=0",
-          "message": "event: on start -> Score=0"
-        },
-        {
-          "commandId": "line_019",
-          "command": "on collision Player Coin -> destroy Coin, score+1",
-          "message": "event: on collision Player Coin -> destroy Coin, score+1"
-        },
-        {
-          "commandId": "line_020",
-          "command": "on collision Player Enemy -> restart",
-          "message": "event: on collision Player Enemy -> restart"
-        },
-        {
-          "commandId": "line_021",
-          "command": "on key Space -> jump Player 500",
-          "message": "event: on key Space -> jump Player 500"
-        }
-      ],
-      "failed": []
-    },
-    {
-      "schemaVersion": 1,
-      "runId": "run_004",
-      "baseWorldVersion": 3,
-      "targetWorldVersion": 3,
-      "baseSemanticHash": "3c86bf0a",
-      "targetSemanticHash": "3c86bf0a",
-      "summary": {
-        "total": 21,
-        "completed": 21,
-        "failed": 0,
-        "nextAction": "done"
-      },
-      "completed": [
-        {
-          "commandId": "line_001",
-          "command": "create scene name=Game first=true",
-          "message": "scene: Game"
-        },
-        {
-          "commandId": "line_002",
-          "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
-          "message": "shape: Player (rectangle #4488FF)"
-        },
-        {
-          "commandId": "line_003",
-          "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
-          "message": "shape: Ground (rectangle #8B4513)"
-        },
-        {
-          "commandId": "line_004",
-          "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
-          "message": "shape: Platform (rectangle #8B4513)"
-        },
-        {
-          "commandId": "line_005",
-          "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
-          "message": "shape: Coin (circle #FFD700)"
-        },
-        {
-          "commandId": "line_006",
-          "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
-          "message": "shape: Enemy (rectangle #DC3232)"
-        },
-        {
-          "commandId": "line_007",
-          "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
-          "message": "behavior: Platformer"
-        },
-        {
-          "commandId": "line_008",
-          "command": "set variable name=Score value=0 type=Number scope=global",
-          "message": "var: Score=0"
-        },
-        {
-          "commandId": "line_009",
-          "command": "place object=Player at=100,400 scene=Game",
-          "message": "placed Player x1"
-        },
-        {
-          "commandId": "line_010",
-          "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
-          "message": "placed Ground x1"
-        },
-        {
-          "commandId": "line_011",
-          "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_012",
-          "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_013",
-          "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_014",
-          "command": "place object=Coin at=240,430 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_015",
-          "command": "place object=Coin at=440,350 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_016",
-          "command": "place object=Coin at=640,270 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_017",
-          "command": "place object=Enemy at=550,400 scene=Game",
-          "message": "placed Enemy x1"
-        },
-        {
-          "commandId": "line_018",
-          "command": "on start -> Score=0",
-          "message": "event: on start -> Score=0"
-        },
-        {
-          "commandId": "line_019",
-          "command": "on collision Player Coin -> destroy Coin, score+1",
-          "message": "event: on collision Player Coin -> destroy Coin, score+1"
-        },
-        {
-          "commandId": "line_020",
-          "command": "on collision Player Enemy -> restart",
-          "message": "event: on collision Player Enemy -> restart"
-        },
-        {
-          "commandId": "line_021",
-          "command": "on key Space -> jump Player 500",
-          "message": "event: on key Space -> jump Player 500"
-        }
-      ],
-      "failed": []
-    },
-    {
-      "schemaVersion": 1,
-      "runId": "run_005",
-      "baseWorldVersion": 3,
-      "targetWorldVersion": 4,
-      "baseSemanticHash": "3c86bf0a",
-      "targetSemanticHash": "4bad9b31",
-      "summary": {
-        "total": 21,
-        "completed": 21,
-        "failed": 0,
-        "nextAction": "done"
-      },
-      "completed": [
-        {
-          "commandId": "line_001",
-          "command": "create scene name=Game first=true",
-          "message": "scene: Game"
-        },
-        {
-          "commandId": "line_002",
-          "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
-          "message": "shape: Player (rectangle #4488FF)"
-        },
-        {
-          "commandId": "line_003",
-          "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
-          "message": "shape: Ground (rectangle #8B4513)"
-        },
-        {
-          "commandId": "line_004",
-          "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
-          "message": "shape: Platform (rectangle #8B4513)"
-        },
-        {
-          "commandId": "line_005",
-          "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
-          "message": "shape: Coin (circle #FFD700)"
-        },
-        {
-          "commandId": "line_006",
-          "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
-          "message": "shape: Enemy (rectangle #DC3232)"
-        },
-        {
-          "commandId": "line_007",
-          "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
-          "message": "behavior: Platformer"
-        },
-        {
-          "commandId": "line_008",
-          "command": "set variable name=Score value=0 type=Number scope=global",
-          "message": "var: Score=0"
-        },
-        {
-          "commandId": "line_009",
-          "command": "place object=Player at=100,400 scene=Game",
-          "message": "placed Player x1"
-        },
-        {
-          "commandId": "line_010",
-          "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
-          "message": "placed Ground x1"
-        },
-        {
-          "commandId": "line_011",
-          "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_012",
-          "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_013",
-          "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
-        },
-        {
-          "commandId": "line_014",
-          "command": "place object=Coin at=240,430 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_015",
-          "command": "place object=Coin at=440,350 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_016",
-          "command": "place object=Coin at=640,270 scene=Game",
-          "message": "placed Coin x1"
-        },
-        {
-          "commandId": "line_017",
-          "command": "place object=Enemy at=550,400 scene=Game",
-          "message": "placed Enemy x1"
-        },
-        {
-          "commandId": "line_018",
-          "command": "on start -> Score=0",
-          "message": "event: on start -> Score=0"
-        },
-        {
-          "commandId": "line_019",
-          "command": "on collision Player Coin -> destroy Coin, score+1",
-          "message": "event: on collision Player Coin -> destroy Coin, score+1"
-        },
-        {
-          "commandId": "line_020",
-          "command": "on collision Player Enemy -> restart",
-          "message": "event: on collision Player Enemy -> restart"
-        },
-        {
-          "commandId": "line_021",
-          "command": "on key Space -> jump Player 500",
-          "message": "event: on key Space -> jump Player 500"
-        }
-      ],
-      "failed": []
-    },
-    {
-      "schemaVersion": 1,
-      "runId": "run_006",
-      "baseWorldVersion": 4,
-      "targetWorldVersion": 4,
-      "baseSemanticHash": "4bad9b31",
-      "targetSemanticHash": "4bad9b31",
-      "summary": {
-        "total": 21,
-        "completed": 21,
-        "failed": 0,
-        "nextAction": "done"
-      },
-      "completed": [
-        {
-          "commandId": "line_001",
-          "command": "create scene name=Game first=true",
-          "message": "scene: Game"
-        },
-        {
-          "commandId": "line_002",
-          "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
-          "message": "shape: Player (rectangle #4488FF)"
-        },
-        {
-          "commandId": "line_003",
-          "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
-          "message": "shape: Ground (rectangle #8B4513)"
         },
         {
-          "commandId": "line_004",
-          "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
-          "message": "shape: Platform (rectangle #8B4513)"
+          "commandId": "apply_line_022",
+          "command": "create scene name=Start first=true",
+          "message": "scene: Start"
         },
         {
-          "commandId": "line_005",
-          "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
-          "message": "shape: Coin (circle #FFD700)"
+          "commandId": "apply_line_023",
+          "command": "create object name=TitleText type=Text size=36 scene=Start",
+          "message": "object: TitleText (Text)"
         },
         {
-          "commandId": "line_006",
-          "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
-          "message": "shape: Enemy (rectangle #DC3232)"
+          "commandId": "apply_line_024",
+          "command": "create object name=StartButton type=ShapePainter shape=rectangle color=#2ECC71 width=180 height=56 scene=Start",
+          "message": "shape: StartButton (rectangle #2ECC71)"
         },
         {
-          "commandId": "line_007",
-          "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
-          "message": "behavior: Platformer"
+          "commandId": "apply_line_025",
+          "command": "create object name=StartLabel type=Text size=24 scene=Start",
+          "message": "object: StartLabel (Text)"
         },
         {
-          "commandId": "line_008",
-          "command": "set variable name=Score value=0 type=Number scope=global",
-          "message": "var: Score=0"
+          "commandId": "apply_line_026",
+          "command": "place object=TitleText at=280,170 scene=Start",
+          "message": "placed TitleText x1"
         },
         {
-          "commandId": "line_009",
-          "command": "place object=Player at=100,400 scene=Game",
-          "message": "placed Player x1"
+          "commandId": "apply_line_027",
+          "command": "place object=StartButton at=310,300 scene=Start width=180 height=56",
+          "message": "placed StartButton x1"
         },
         {
-          "commandId": "line_010",
-          "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
-          "message": "placed Ground x1"
+          "commandId": "apply_line_028",
+          "command": "place object=StartLabel at=360,315 scene=Start",
+          "message": "placed StartLabel x1"
         },
         {
-          "commandId": "line_011",
-          "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
+          "commandId": "apply_line_029",
+          "command": "on start -> text TitleText Sky Jumper scene=Start",
+          "message": "event: on start -> text TitleText Sky Jumper"
         },
         {
-          "commandId": "line_012",
-          "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
+          "commandId": "apply_line_030",
+          "command": "on start -> text StartLabel Start scene=Start",
+          "message": "event: on start -> text StartLabel Start"
         },
         {
-          "commandId": "line_013",
-          "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
+          "commandId": "apply_line_031",
+          "command": "on mouse StartButton -> scene Game scene=Start",
+          "message": "event: on mouse StartButton -> scene Game"
         },
         {
-          "commandId": "line_014",
-          "command": "place object=Coin at=240,430 scene=Game",
-          "message": "placed Coin x1"
+          "commandId": "apply_line_032",
+          "command": "create scene name=GameOver first=false",
+          "message": "scene: GameOver"
         },
         {
-          "commandId": "line_015",
-          "command": "place object=Coin at=440,350 scene=Game",
-          "message": "placed Coin x1"
+          "commandId": "apply_line_033",
+          "command": "create object name=GameOverText type=Text size=40 scene=GameOver",
+          "message": "object: GameOverText (Text)"
         },
         {
-          "commandId": "line_016",
-          "command": "place object=Coin at=640,270 scene=Game",
-          "message": "placed Coin x1"
+          "commandId": "apply_line_034",
+          "command": "create object name=RestartHint type=Text size=22 scene=GameOver",
+          "message": "object: RestartHint (Text)"
         },
         {
-          "commandId": "line_017",
-          "command": "place object=Enemy at=550,400 scene=Game",
-          "message": "placed Enemy x1"
+          "commandId": "apply_line_035",
+          "command": "place object=GameOverText at=285,240 scene=GameOver",
+          "message": "placed GameOverText x1"
         },
         {
-          "commandId": "line_018",
-          "command": "on start -> Score=0",
-          "message": "event: on start -> Score=0"
+          "commandId": "apply_line_036",
+          "command": "place object=RestartHint at=330,310 scene=GameOver",
+          "message": "placed RestartHint x1"
         },
         {
-          "commandId": "line_019",
-          "command": "on collision Player Coin -> destroy Coin, score+1",
-          "message": "event: on collision Player Coin -> destroy Coin, score+1"
+          "commandId": "apply_line_037",
+          "command": "on start -> text GameOverText Game Over scene=GameOver",
+          "message": "event: on start -> text GameOverText Game Over"
         },
         {
-          "commandId": "line_020",
-          "command": "on collision Player Enemy -> restart",
-          "message": "event: on collision Player Enemy -> restart"
+          "commandId": "apply_line_038",
+          "command": "on start -> text RestartHint Press Space scene=GameOver",
+          "message": "event: on start -> text RestartHint Press Space"
         },
         {
-          "commandId": "line_021",
-          "command": "on key Space -> jump Player 500",
-          "message": "event: on key Space -> jump Player 500"
+          "commandId": "apply_line_039",
+          "command": "on key Space -> scene Start scene=GameOver",
+          "message": "event: on key Space -> scene Start"
         }
       ],
       "failed": []

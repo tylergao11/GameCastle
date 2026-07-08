@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "modules": [
+    {
+      "id": "core.platformer",
+      "category": "core",
+      "syncPolicy": {
+        "sync": "local",
+        "authority": "host",
+        "tickRate": 20,
+        "seed": "auto"
+      },
+      "deterministic": true,
+      "inputs": [
+        "move_left",
+        "move_right",
+        "jump"
+      ],
+      "state": [
+        "Score",
+        "Player",
+        "Coin",
+        "Enemy"
+      ]
+    },
+    {
+      "id": "shell.start_screen",
+      "category": "shell",
+      "syncPolicy": {
+        "sync": "local",
+        "authority": "client",
+        "tickRate": 0,
+        "seed": "auto"
+      },
+      "deterministic": true,
+      "inputs": [
+        "start"
+      ],
+      "state": []
+    },
+    {
+      "id": "shell.game_over_screen",
+      "category": "shell",
+      "syncPolicy": {
+        "sync": "local",
+        "authority": "client",
+        "tickRate": 0,
+        "seed": "auto"
+      },
+      "deterministic": true,
+      "inputs": [
+        "restart"
+      ],
+      "state": []
+    }
+  ]
+}

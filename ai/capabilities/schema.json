@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "description": "GameCastle capability cards describe reusable game-building capabilities. They are the source of truth for what LLM1 may consider and what LLM2 may compile into line-style DSL.",
+  "requiredFields": [
+    "id",
+    "name",
+    "summary",
+    "llm1Hint",
+    "provides",
+    "requires",
+    "dsl",
+    "constraints",
+    "sync"
+  ],
+  "fieldNotes": {
+    "id": "Stable capability identifier.",
+    "llm1Hint": "Short natural-language hint safe for LLM1. Must not include full DSL examples or template structure.",
+    "provides": "Game design abilities this card makes available.",
+    "requires": "Objects, variables, behaviors, or events the capability expects or creates.",
+    "dsl": "Line-style DSL commands and examples available to LLM2.",
+    "constraints": "Compiler and runtime constraints.",
+    "sync": "Future multiplayer synchronization metadata."
+  }
+}

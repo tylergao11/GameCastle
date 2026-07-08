@@ -1,13 +1,13 @@
 {
-  "theme": "平台跳跃收集金币",
+  "theme": "Sky Jumper",
   "objects": [
     {
       "name": "player",
       "type": "ShapePainter",
       "shape": "rectangle",
       "color": "#0000FF",
-      "width": 30,
-      "height": 30,
+      "width": 40,
+      "height": 40,
       "role": "player"
     },
     {
@@ -15,25 +15,43 @@
       "type": "ShapePainter",
       "shape": "rectangle",
       "color": "#FF0000",
-      "width": 30,
-      "height": 30,
+      "width": 40,
+      "height": 40,
       "role": "enemy"
     },
     {
-      "name": "coin",
-      "type": "ShapePainter",
-      "shape": "circle",
-      "color": "#FFD700",
-      "width": 20,
-      "height": 20,
-      "role": "coin"
-    },
-    {
-      "name": "platform",
+      "name": "platform1",
       "type": "ShapePainter",
       "shape": "rectangle",
-      "color": "#8B4513",
-      "width": 200,
+      "color": "#00AA00",
+      "width": 120,
+      "height": 20,
+      "role": "platform"
+    },
+    {
+      "name": "platform2",
+      "type": "ShapePainter",
+      "shape": "rectangle",
+      "color": "#00AA00",
+      "width": 120,
+      "height": 20,
+      "role": "platform"
+    },
+    {
+      "name": "platform3",
+      "type": "ShapePainter",
+      "shape": "rectangle",
+      "color": "#00AA00",
+      "width": 120,
+      "height": 20,
+      "role": "platform"
+    },
+    {
+      "name": "platform4",
+      "type": "ShapePainter",
+      "shape": "rectangle",
+      "color": "#00AA00",
+      "width": 120,
       "height": 20,
       "role": "platform"
     },
@@ -41,108 +59,170 @@
       "name": "ground",
       "type": "ShapePainter",
       "shape": "rectangle",
-      "color": "#4B3621",
+      "color": "#8B4513",
       "width": 800,
       "height": 20,
       "role": "ground"
+    },
+    {
+      "name": "coin1",
+      "type": "ShapePainter",
+      "shape": "circle",
+      "color": "#FFD700",
+      "width": 30,
+      "height": 30,
+      "role": "coin"
+    },
+    {
+      "name": "coin2",
+      "type": "ShapePainter",
+      "shape": "circle",
+      "color": "#FFD700",
+      "width": 30,
+      "height": 30,
+      "role": "coin"
+    },
+    {
+      "name": "coin3",
+      "type": "ShapePainter",
+      "shape": "circle",
+      "color": "#FFD700",
+      "width": 30,
+      "height": 30,
+      "role": "coin"
+    },
+    {
+      "name": "titleText",
+      "type": "Text",
+      "color": "#FFFFFF",
+      "width": 200,
+      "height": 50,
+      "role": "ui"
+    },
+    {
+      "name": "startPrompt",
+      "type": "Text",
+      "color": "#FFFFFF",
+      "width": 200,
+      "height": 30,
+      "role": "ui"
+    },
+    {
+      "name": "gameOverText",
+      "type": "Text",
+      "color": "#FF4444",
+      "width": 200,
+      "height": 50,
+      "role": "ui"
+    },
+    {
+      "name": "finalScoreText",
+      "type": "Text",
+      "color": "#FFFFFF",
+      "width": 150,
+      "height": 30,
+      "role": "ui"
+    },
+    {
+      "name": "restartPrompt",
+      "type": "Text",
+      "color": "#FFFFFF",
+      "width": 200,
+      "height": 30,
+      "role": "ui"
     }
   ],
   "rules": [
-    "玩家使用左右箭头键移动，空格键跳跃。",
-    "玩家碰到金币后，金币消失，变量score增加1。",
-    "玩家碰到敌人后，游戏重新开始：所有对象回到初始位置，score重置为0。"
+    "玩家左右移动可跳跃，重力向下，落地时停止下落",
+    "玩家碰到金币→金币消失+得分加10",
+    "玩家碰到敌人→游戏结束，显示结算页面",
+    "玩家掉落出屏幕下方→游戏结束，显示结算页面",
+    "开始页面显示'标题'和'按空格开始'，按下空格键→隐藏开始页，开始游戏",
+    "游戏结束页面显示'游戏结束'、'得分'和'按R重新开始'，按下R键→重置游戏，回到开始页",
+    "地面和平台支撑玩家，金币和敌人放在平台上或地面"
   ],
   "layout": {
     "placements": [
+      {
+        "object": "player",
+        "x": 80,
+        "y": 520
+      },
+      {
+        "object": "enemy",
+        "x": 600,
+        "y": 540
+      },
+      {
+        "object": "platform1",
+        "x": 200,
+        "y": 450
+      },
+      {
+        "object": "platform2",
+        "x": 400,
+        "y": 350
+      },
+      {
+        "object": "platform3",
+        "x": 550,
+        "y": 250
+      },
+      {
+        "object": "platform4",
+        "x": 150,
+        "y": 180
+      },
       {
         "object": "ground",
         "x": 400,
         "y": 590
       },
       {
-        "object": "platform",
-        "x": 200,
-        "y": 450
+        "object": "coin1",
+        "x": 250,
+        "y": 410
       },
       {
-        "object": "platform",
-        "x": 400,
-        "y": 350
+        "object": "coin2",
+        "x": 450,
+        "y": 310
       },
       {
-        "object": "platform",
+        "object": "coin3",
         "x": 600,
-        "y": 250
+        "y": 210
       },
       {
-        "object": "platform",
+        "object": "titleText",
         "x": 400,
-        "y": 150
+        "y": 200
       },
       {
-        "object": "player",
-        "x": 80,
-        "y": 565
-      },
-      {
-        "object": "enemy",
-        "x": 700,
-        "y": 565
-      },
-      {
-        "object": "enemy",
-        "x": 600,
-        "y": 225
-      },
-      {
-        "object": "coin",
-        "x": 150,
-        "y": 545
-      },
-      {
-        "object": "coin",
-        "x": 200,
-        "y": 430
-      },
-      {
-        "object": "coin",
-        "x": 300,
-        "y": 400
-      },
-      {
-        "object": "coin",
+        "object": "startPrompt",
         "x": 400,
-        "y": 330
-      },
-      {
-        "object": "coin",
-        "x": 500,
         "y": 300
       },
       {
-        "object": "coin",
-        "x": 550,
-        "y": 230
-      },
-      {
-        "object": "coin",
+        "object": "gameOverText",
         "x": 400,
-        "y": 130
+        "y": 200
       },
       {
-        "object": "coin",
-        "x": 650,
-        "y": 540
+        "object": "finalScoreText",
+        "x": 400,
+        "y": 280
+      },
+      {
+        "object": "restartPrompt",
+        "x": 400,
+        "y": 360
       }
     ]
   },
   "behaviors": [
     {
       "object": "player",
-      "type": "PlatformBehavior::PlatformerObjectBehavior"
-    },
-    {
-      "object": "enemy",
       "type": "PlatformBehavior::PlatformerObjectBehavior"
     }
   ],
@@ -153,5 +233,5 @@
     }
   ],
   "difficulty": "easy",
-  "controls": "左右箭头键移动，空格键跳跃"
+  "controls": "Arrow keys 或 A/D 移动，Space 跳跃"
 }

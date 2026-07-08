@@ -1,5 +1,5 @@
 {
-  "firstLayout": "Game",
+  "firstLayout": "Start",
   "gdVersion": {
     "build": 96,
     "major": 4,
@@ -629,9 +629,11 @@
             {
               "type": {
                 "inverted": false,
-                "value": "ResetGame"
+                "value": "ChangeScene"
               },
-              "parameters": []
+              "parameters": [
+                "GameOver"
+              ]
             }
           ],
           "events": []
@@ -662,6 +664,449 @@
                 "Player",
                 "Up",
                 "500"
+              ]
+            }
+          ],
+          "events": []
+        }
+      ],
+      "layers": [
+        {
+          "name": "",
+          "visibility": true,
+          "cameras": [
+            {
+              "defaultSize": true,
+              "defaultViewport": true,
+              "height": 0,
+              "width": 0,
+              "viewportBottom": 1,
+              "viewportLeft": 0,
+              "viewportRight": 1,
+              "viewportTop": 0
+            }
+          ],
+          "effects": []
+        }
+      ],
+      "variables": [],
+      "objectsGroups": [],
+      "behaviorsSharedData": []
+    },
+    {
+      "name": "Start",
+      "instances": [
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "TitleText",
+          "x": 280,
+          "y": 170,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-236dbf49c4e34c9b"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 56,
+          "width": 180,
+          "layer": "",
+          "locked": false,
+          "name": "StartButton",
+          "x": 310,
+          "y": 300,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-4d2cae27b130bfda"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "StartLabel",
+          "x": 360,
+          "y": 315,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-9ebce518b8f573ca"
+        }
+      ],
+      "objects": [
+        {
+          "name": "TitleText",
+          "type": "Text",
+          "variables": [],
+          "behaviors": [],
+          "string": "TitleText",
+          "font": "",
+          "characterSize": 36,
+          "color": {
+            "r": 255,
+            "g": 255,
+            "b": 255
+          }
+        },
+        {
+          "name": "StartButton",
+          "type": "PrimitiveDrawing::ShapePainter",
+          "variables": [],
+          "behaviors": [],
+          "absoluteCoordinates": false,
+          "coordinatesOrigin": {
+            "x": 0,
+            "y": 0
+          },
+          "fillColor": {
+            "r": 46,
+            "g": 204,
+            "b": 113
+          },
+          "fillOpacity": 255,
+          "outlineColor": {
+            "r": 0,
+            "g": 0,
+            "b": 0
+          },
+          "outlineOpacity": 255,
+          "outlineSize": 0,
+          "thickness": 2,
+          "useGradient": false,
+          "gradientType": "linear",
+          "gradientColor1": {
+            "r": 255,
+            "g": 255,
+            "b": 255
+          },
+          "gradientColor2": {
+            "r": 200,
+            "g": 200,
+            "b": 200
+          },
+          "gradientX1": 0,
+          "gradientY1": 0,
+          "gradientX2": 100,
+          "gradientY2": 100,
+          "shapeType": "rectangle",
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 180,
+              "y": 0
+            },
+            {
+              "x": 180,
+              "y": 56
+            },
+            {
+              "x": 0,
+              "y": 56
+            }
+          ],
+          "centerPosition": {
+            "x": 90,
+            "y": 28
+          },
+          "customCenter": true,
+          "automaticCenter": false
+        },
+        {
+          "name": "StartLabel",
+          "type": "Text",
+          "variables": [],
+          "behaviors": [],
+          "string": "StartLabel",
+          "font": "",
+          "characterSize": 24,
+          "color": {
+            "r": 255,
+            "g": 255,
+            "b": 255
+          }
+        }
+      ],
+      "events": [
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "TextObject::String"
+              },
+              "parameters": [
+                "TitleText",
+                "=",
+                "Sky Jumper"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "TextObject::String"
+              },
+              "parameters": [
+                "StartLabel",
+                "=",
+                "Start"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "SourisSurObjet"
+              },
+              "parameters": [
+                "LeftButton",
+                "",
+                "StartButton"
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "ChangeScene"
+              },
+              "parameters": [
+                "Game"
+              ]
+            }
+          ],
+          "events": []
+        }
+      ],
+      "layers": [
+        {
+          "name": "",
+          "visibility": true,
+          "cameras": [
+            {
+              "defaultSize": true,
+              "defaultViewport": true,
+              "height": 0,
+              "width": 0,
+              "viewportBottom": 1,
+              "viewportLeft": 0,
+              "viewportRight": 1,
+              "viewportTop": 0
+            }
+          ],
+          "effects": []
+        }
+      ],
+      "variables": [],
+      "objectsGroups": [],
+      "behaviorsSharedData": []
+    },
+    {
+      "name": "GameOver",
+      "instances": [
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "GameOverText",
+          "x": 285,
+          "y": 240,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-92895047ad7486c6"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "RestartHint",
+          "x": 330,
+          "y": 310,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-01f85388610431c2"
+        }
+      ],
+      "objects": [
+        {
+          "name": "GameOverText",
+          "type": "Text",
+          "variables": [],
+          "behaviors": [],
+          "string": "GameOverText",
+          "font": "",
+          "characterSize": 40,
+          "color": {
+            "r": 255,
+            "g": 255,
+            "b": 255
+          }
+        },
+        {
+          "name": "RestartHint",
+          "type": "Text",
+          "variables": [],
+          "behaviors": [],
+          "string": "RestartHint",
+          "font": "",
+          "characterSize": 22,
+          "color": {
+            "r": 255,
+            "g": 255,
+            "b": 255
+          }
+        }
+      ],
+      "events": [
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "TextObject::String"
+              },
+              "parameters": [
+                "GameOverText",
+                "=",
+                "Game Over"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "TextObject::String"
+              },
+              "parameters": [
+                "RestartHint",
+                "=",
+                "Press Space"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "KeyPressed"
+              },
+              "parameters": [
+                "",
+                "Space"
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "ChangeScene"
+              },
+              "parameters": [
+                "Start"
               ]
             }
           ],

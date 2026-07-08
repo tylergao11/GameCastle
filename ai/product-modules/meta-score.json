@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "meta.score",
+  "name": "Score Meta",
+  "summary": "Score state and score display support for game cores that do not already include scoring.",
+  "llm1Card": "Track and display a score.",
+  "category": "meta",
+  "incompatibleWith": ["core.platformer"],
+  "defaultPreset": "basic",
+  "presets": {
+    "basic": {
+      "description": "Global Score variable and display text."
+    }
+  },
+  "defaults": {
+    "scene": "Game"
+  },
+  "sync": {
+    "default": {
+      "sync": "local",
+      "authority": "host",
+      "tickRate": 20,
+      "seed": "auto"
+    },
+    "supported": {
+      "sync": ["local", "lockstep", "state"],
+      "authority": ["host", "server"]
+    },
+    "deterministic": true,
+    "inputs": [],
+    "state": ["Score"]
+  },
+  "compiler": {
+    "dsl": [
+      "set variable name=Score value=0 type=Number scope=global",
+      "create object name=ScoreText type=Text size=22 scene={{scene}}",
+      "place object=ScoreText at=20,20 scene={{scene}}",
+      "on start -> Score=0 scene={{scene}}",
+      "on start -> text ScoreText Score scene={{scene}}"
+    ]
+  }
+}

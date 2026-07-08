@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "capability.scene.base",
+  "name": "Base scene",
+  "summary": "Create the playable scene and base canvas for a GameCastle project.",
+  "llm1Hint": "A game can have one main playable scene on an 800x600 canvas.",
+  "provides": ["main_scene", "playable_canvas"],
+  "requires": {
+    "objects": [],
+    "variables": [],
+    "behaviors": [],
+    "events": []
+  },
+  "dsl": {
+    "commands": [
+      "create scene name=<SceneName> first=true"
+    ],
+    "examples": [
+      "create scene name=Game first=true"
+    ]
+  },
+  "constraints": {
+    "sceneName": "Use Game unless the user explicitly asks for another scene.",
+    "canvas": { "width": 800, "height": 600 }
+  },
+  "sync": {
+    "mode": "static",
+    "deterministic": true,
+    "authority": "project"
+  }
+}

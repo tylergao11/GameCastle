@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "description": "Product modules are AI-facing game-factory building blocks. They are larger than low-level capabilities and compile into internal line-style DSL.",
+  "requiredFields": [
+    "schemaVersion",
+    "id",
+    "name",
+    "summary",
+    "llm1Card",
+    "category",
+    "defaultPreset",
+    "presets",
+    "sync",
+    "compiler"
+  ],
+  "categories": ["core", "shell", "system", "meta", "network"],
+  "fieldNotes": {
+    "llm1Card": "Short product-level card safe for LLM1. Do not include full low-level DSL.",
+    "compiler.dsl": "Internal low-level DSL template lines consumed by ai/pipeline.js.",
+    "compiler.slots": "Internal module-link slots. Slots are patched by compiler.links and are not automatically LLM2-configurable.",
+    "compiler.slotPatches": "Internal patch templates used when a newly installed module links into an already installed base module.",
+    "compiler.links": "Module-level integration hooks that fill named slots in other modules.",
+    "compiler.configurePatches": "Per-parameter patches for configuring an already installed module from ProjectWorld state.",
+    "interaction": "AI-visible fixed runtime interaction contract. Use this for trigger/copy constraints without exposing internal DSL templates.",
+    "sync": "Supported future networking policy for this module."
+  }
+}

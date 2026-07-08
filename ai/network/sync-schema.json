@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "description": "Network sync policy schema for product modules. This is metadata only until runtime networking is implemented.",
+  "modes": ["local", "lockstep", "state", "event"],
+  "authorities": ["client", "host", "server"],
+  "fields": {
+    "sync": "local keeps behavior single-player/local-only; lockstep synchronizes deterministic inputs; state synchronizes authoritative state; event synchronizes discrete events.",
+    "authority": "client, host, or server authority for the module state.",
+    "tickRate": "Simulation or network tick rate reserved for future sync runtimes.",
+    "seed": "Deterministic seed value. Use auto for compiler-assigned stable defaults."
+  }
+}

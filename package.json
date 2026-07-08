@@ -7,7 +7,8 @@
     "dev": "npm --prefix platform run dev",
     "build": "npm --prefix platform run build",
     "gen": "node ai/pipeline.js --mock platformer",
-    "check:ai": "node -c ai/pipeline.js && node -c ai/project-world.js"
+    "check:ai": "node -c ai/pipeline.js && node -c ai/project-world.js && node -c ai/capabilities.js && node -c ai/module-dsl.js && node -c ai/module-compiler.js && node ai/check-capabilities.js && node ai/check-product-modules.js",
+    "test:ai": "npm run check:ai && node ai/test-dsl-fixtures.js && node ai/test-module-dsl.js"
   },
   "dependencies": {},
   "devDependencies": {}

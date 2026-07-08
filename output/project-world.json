@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "worldVersion": 4,
+  "worldVersion": 1,
   "project": {
     "name": "GameCastle",
-    "firstScene": "Game",
+    "firstScene": "Start",
     "width": 800,
     "height": 600
   },
@@ -202,14 +202,14 @@
         },
         {
           "type": "standard",
-          "text": "on collision Player Enemy -> restart",
+          "text": "on collision Player Enemy -> scene GameOver",
           "conditions": [
             "on collision Player Enemy"
           ],
           "actions": [
-            "restart"
+            "scene GameOver"
           ],
-          "id": "evt_game_on_collision_player_enemy_restart_1"
+          "id": "evt_game_on_collision_player_enemy_scene_gam"
         },
         {
           "type": "standard",
@@ -221,6 +221,209 @@
             "jump Player 500"
           ],
           "id": "evt_game_on_key_space_jump_player_500_1"
+        }
+      ]
+    },
+    {
+      "id": "scene_start",
+      "name": "Start",
+      "objects": [
+        {
+          "name": "TitleText",
+          "type": "Text",
+          "kind": "Text",
+          "text": "TitleText",
+          "size": 36,
+          "id": "obj_start_titletext",
+          "scope": "scene"
+        },
+        {
+          "name": "StartButton",
+          "type": "PrimitiveDrawing::ShapePainter",
+          "kind": "ShapePainter",
+          "shape": "rectangle",
+          "color": "#2ecc71",
+          "width": 180,
+          "height": 56,
+          "id": "obj_start_startbutton",
+          "scope": "scene"
+        },
+        {
+          "name": "StartLabel",
+          "type": "Text",
+          "kind": "Text",
+          "text": "StartLabel",
+          "size": 24,
+          "id": "obj_start_startlabel",
+          "scope": "scene"
+        }
+      ],
+      "instances": [
+        {
+          "id": "inst_start_titletext_280_170_0_0_1",
+          "object": "TitleText",
+          "x": 280,
+          "y": 170,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_start_startbutton_310_300_180_56_1",
+          "object": "StartButton",
+          "x": 310,
+          "y": 300,
+          "width": 180,
+          "height": 56,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_start_startlabel_360_315_0_0_1",
+          "object": "StartLabel",
+          "x": 360,
+          "y": 315,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        }
+      ],
+      "variables": [],
+      "layers": [
+        {
+          "id": "layer_base",
+          "name": "",
+          "isBaseLayer": true,
+          "index": 0,
+          "visible": true
+        }
+      ],
+      "events": [
+        {
+          "type": "standard",
+          "text": "on start -> text TitleText \"Sky Jumper\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text TitleText \"Sky Jumper\""
+          ],
+          "id": "evt_start_on_start_text_titletext_sky_jumper"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> text StartLabel \"Start\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text StartLabel \"Start\""
+          ],
+          "id": "evt_start_on_start_text_startlabel_start_1"
+        },
+        {
+          "type": "standard",
+          "text": "on mouse StartButton -> scene Game",
+          "conditions": [
+            "on mouse StartButton"
+          ],
+          "actions": [
+            "scene Game"
+          ],
+          "id": "evt_start_on_mouse_startbutton_scene_game_1"
+        }
+      ]
+    },
+    {
+      "id": "scene_gameover",
+      "name": "GameOver",
+      "objects": [
+        {
+          "name": "GameOverText",
+          "type": "Text",
+          "kind": "Text",
+          "text": "GameOverText",
+          "size": 40,
+          "id": "obj_gameover_gameovertext",
+          "scope": "scene"
+        },
+        {
+          "name": "RestartHint",
+          "type": "Text",
+          "kind": "Text",
+          "text": "RestartHint",
+          "size": 22,
+          "id": "obj_gameover_restarthint",
+          "scope": "scene"
+        }
+      ],
+      "instances": [
+        {
+          "id": "inst_gameover_gameovertext_285_240_0_0_1",
+          "object": "GameOverText",
+          "x": 285,
+          "y": 240,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_gameover_restarthint_330_310_0_0_1",
+          "object": "RestartHint",
+          "x": 330,
+          "y": 310,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        }
+      ],
+      "variables": [],
+      "layers": [
+        {
+          "id": "layer_base",
+          "name": "",
+          "isBaseLayer": true,
+          "index": 0,
+          "visible": true
+        }
+      ],
+      "events": [
+        {
+          "type": "standard",
+          "text": "on start -> text GameOverText \"Game Over\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text GameOverText \"Game Over\""
+          ],
+          "id": "evt_gameover_on_start_text_gameovertext_game"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> text RestartHint \"Press Space\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text RestartHint \"Press Space\""
+          ],
+          "id": "evt_gameover_on_start_text_restarthint_press"
+        },
+        {
+          "type": "standard",
+          "text": "on key Space -> scene Start",
+          "conditions": [
+            "on key Space"
+          ],
+          "actions": [
+            "scene Start"
+          ],
+          "id": "evt_gameover_on_key_space_scene_start_1"
         }
       ]
     }
@@ -235,17 +438,95 @@
       "scope": "global"
     }
   ],
-  "modules": [],
+  "modules": [
+    {
+      "id": "core.platformer",
+      "name": "Platformer Core",
+      "category": "core",
+      "preset": "basic",
+      "params": {
+        "scene": "Game",
+        "failAction": "scene GameOver",
+        "preset": "basic",
+        "sync": "local",
+        "authority": "host",
+        "tickRate": 20,
+        "seed": "auto"
+      },
+      "syncPolicy": {
+        "sync": "local",
+        "authority": "host",
+        "tickRate": 20,
+        "seed": "auto"
+      },
+      "sourceLine": 1
+    },
+    {
+      "id": "shell.start_screen",
+      "name": "Start Screen",
+      "category": "shell",
+      "preset": "basic",
+      "params": {
+        "scene": "Start",
+        "targetScene": "Game",
+        "title": "Sky Jumper",
+        "button": "Start",
+        "preset": "basic",
+        "sync": "local",
+        "authority": "client",
+        "tickRate": 0,
+        "seed": "auto"
+      },
+      "syncPolicy": {
+        "sync": "local",
+        "authority": "client",
+        "tickRate": 0,
+        "seed": "auto"
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "shell.game_over_screen",
+      "name": "Game Over Screen",
+      "category": "shell",
+      "preset": "basic",
+      "params": {
+        "scene": "GameOver",
+        "targetScene": "Start",
+        "title": "Game Over",
+        "hint": "Press Space",
+        "preset": "basic",
+        "sync": "local",
+        "authority": "client",
+        "tickRate": 0,
+        "seed": "auto"
+      },
+      "syncPolicy": {
+        "sync": "local",
+        "authority": "client",
+        "tickRate": 0,
+        "seed": "auto"
+      },
+      "sourceLine": 3
+    }
+  ],
   "idRegistry": {
     "scenes": {
-      "Game": "scene_game"
+      "Game": "scene_game",
+      "Start": "scene_start",
+      "GameOver": "scene_gameover"
     },
     "objects": {
       "Game|Player": "obj_game_player",
       "Game|Ground": "obj_game_ground",
       "Game|Platform": "obj_game_platform",
       "Game|Coin": "obj_game_coin",
-      "Game|Enemy": "obj_game_enemy"
+      "Game|Enemy": "obj_game_enemy",
+      "Start|TitleText": "obj_start_titletext",
+      "Start|StartButton": "obj_start_startbutton",
+      "Start|StartLabel": "obj_start_startlabel",
+      "GameOver|GameOverText": "obj_gameover_gameovertext",
+      "GameOver|RestartHint": "obj_gameover_restarthint"
     },
     "instances": {
       "Game|Player|100|400|0|0||1": "inst_game_player_100_400_0_0_1",
@@ -256,18 +537,29 @@
       "Game|Coin|240|430|0|0||1": "inst_game_coin_240_430_0_0_1",
       "Game|Coin|440|350|0|0||1": "inst_game_coin_440_350_0_0_1",
       "Game|Coin|640|270|0|0||1": "inst_game_coin_640_270_0_0_1",
-      "Game|Enemy|550|400|0|0||1": "inst_game_enemy_550_400_0_0_1"
+      "Game|Enemy|550|400|0|0||1": "inst_game_enemy_550_400_0_0_1",
+      "Start|TitleText|280|170|0|0||1": "inst_start_titletext_280_170_0_0_1",
+      "Start|StartButton|310|300|180|56||1": "inst_start_startbutton_310_300_180_56_1",
+      "Start|StartLabel|360|315|0|0||1": "inst_start_startlabel_360_315_0_0_1",
+      "GameOver|GameOverText|285|240|0|0||1": "inst_gameover_gameovertext_285_240_0_0_1",
+      "GameOver|RestartHint|330|310|0|0||1": "inst_gameover_restarthint_330_310_0_0_1"
     },
     "events": {
       "Game|on start -> variable Score = 0|1": "evt_game_on_start_variable_score_0_1",
       "Game|on collision Player Coin -> destroy Coin, variable Score + 1|1": "evt_game_on_collision_player_coin_destroy_co",
-      "Game|on collision Player Enemy -> restart|1": "evt_game_on_collision_player_enemy_restart_1",
-      "Game|on key Space -> jump Player 500|1": "evt_game_on_key_space_jump_player_500_1"
+      "Game|on collision Player Enemy -> scene GameOver|1": "evt_game_on_collision_player_enemy_scene_gam",
+      "Game|on key Space -> jump Player 500|1": "evt_game_on_key_space_jump_player_500_1",
+      "Start|on start -> text TitleText \"Sky Jumper\"|1": "evt_start_on_start_text_titletext_sky_jumper",
+      "Start|on start -> text StartLabel \"Start\"|1": "evt_start_on_start_text_startlabel_start_1",
+      "Start|on mouse StartButton -> scene Game|1": "evt_start_on_mouse_startbutton_scene_game_1",
+      "GameOver|on start -> text GameOverText \"Game Over\"|1": "evt_gameover_on_start_text_gameovertext_game",
+      "GameOver|on start -> text RestartHint \"Press Space\"|1": "evt_gameover_on_start_text_restarthint_press",
+      "GameOver|on key Space -> scene Start|1": "evt_gameover_on_key_space_scene_start_1"
     },
     "variables": {
       "global|Score": "var_global_score"
     },
     "modules": {}
   },
-  "semanticHash": "4bad9b31"
+  "semanticHash": "fefeae89"
 }

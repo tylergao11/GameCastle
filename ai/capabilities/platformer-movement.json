@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "capability.movement.platformer",
+  "name": "Platform movement",
+  "summary": "Add platformer movement and jumping to a player object.",
+  "llm1Hint": "The player can move and jump through platform-style levels.",
+  "provides": ["player_movement", "jump", "platformer_controls"],
+  "requires": {
+    "objects": ["player"],
+    "variables": [],
+    "behaviors": ["PlatformBehavior::PlatformerObjectBehavior"],
+    "events": ["jump_input"]
+  },
+  "dsl": {
+    "commands": [
+      "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=<PlayerObject> scene=<SceneName>",
+      "on key Space -> jump <PlayerObject> <Strength>",
+      "on is_jumping <PlayerObject> -> <Actions>",
+      "on is_falling <PlayerObject> -> <Actions>",
+      "on is_on_floor <PlayerObject> -> <Actions>"
+    ],
+    "examples": [
+      "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
+      "on key Space -> jump Player 500"
+    ]
+  },
+  "constraints": {
+    "playerPlacement": "Place the player near the lower-left area for platform games.",
+    "jumpStrength": "Default jump strength is 500.",
+    "platforms": "Pair with shape objects for ground and platforms."
+  },
+  "sync": {
+    "mode": "input",
+    "deterministic": true,
+    "authority": "input"
+  }
+}
