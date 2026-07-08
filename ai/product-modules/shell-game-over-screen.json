@@ -24,21 +24,6 @@
     "title": "Game Over",
     "hint": "Press Space"
   },
-  "sync": {
-    "default": {
-      "sync": "local",
-      "authority": "client",
-      "tickRate": 0,
-      "seed": "auto"
-    },
-    "supported": {
-      "sync": ["local", "event"],
-      "authority": ["client", "host", "server"]
-    },
-    "deterministic": true,
-    "inputs": ["restart"],
-    "state": []
-  },
   "interaction": {
     "fixedTriggers": [
       {
@@ -48,8 +33,18 @@
         "key": "Space",
         "description": "The game restarts when the player presses Space.",
         "copyRules": {
-          "requiredAny": ["space", "空格"],
-          "forbiddenTerms": ["enter", "return", "回车", "mouse", "click", "点击"]
+          "requiredAny": [
+            "space",
+            "空格"
+          ],
+          "forbiddenTerms": [
+            "enter",
+            "return",
+            "回车",
+            "mouse",
+            "click",
+            "点击"
+          ]
         }
       }
     ]
@@ -107,5 +102,50 @@
       "on start -> text RestartHint {{hint}} scene={{scene}}",
       "on key Space -> scene {{targetScene}} scene={{scene}}"
     ]
+  },
+  "networking": {
+    "supports": {
+      "syncModels": [
+        "local",
+        "event"
+      ],
+      "authority": [
+        "client",
+        "host",
+        "server"
+      ],
+      "players": {
+        "min": 1,
+        "max": 4
+      }
+    },
+    "determinism": {
+      "supported": true,
+      "requiresSeededRNG": true,
+      "requiresFixedTimestep": true
+    },
+    "inputs": [
+      "restart"
+    ],
+    "state": [],
+    "default": {
+      "sync": "local",
+      "authority": "client",
+      "tickRate": 0,
+      "seed": "auto"
+    }
+  },
+  "provides": {
+    "ui": [
+      "game over_screen"
+    ],
+    "configurable": [
+      "title",
+      "hint",
+      "targetScene"
+    ]
+  },
+  "requires": {
+    "scene": "GameOver"
   }
 }

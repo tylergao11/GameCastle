@@ -81,7 +81,7 @@ function buildCompilerCapabilityContext(catalog) {
       requires: card.requires,
       dsl: card.dsl,
       constraints: card.constraints,
-      sync: card.sync,
+      networking: card.networking,
     };
   });
 }

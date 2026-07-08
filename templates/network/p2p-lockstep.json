@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "id": "network.p2p-lockstep",
+  "category": "network",
+  "version": 1,
+  "summary": "2-player deterministic lockstep over peer-to-peer input forwarding with tick-sequence-redundancy recovery.",
+  "llm1Card": "Both players send their inputs to each other every frame. Both games run the exact same inputs and stay perfectly in sync. Every frame must match exactly. Best when two players need split-second accuracy against each other and any desync would ruin the game.",
+  "provides": {
+    "syncModels": [
+      "lockstep-input"
+    ],
+    "topology": [
+      "peer-to-peer"
+    ],
+    "players": {
+      "min": 2,
+      "max": 2
+    },
+    "authority": [
+      "each-owns-own",
+      "host-control"
+    ]
+  },
+  "requires": {
+    "gameplay": {
+      "deterministic": true,
+      "fixedTimestep": true,
+      "seededRNG": true,
+      "declaredInputs": true
+    },
+    "serverSide": [
+      "signaling-broker"
+    ]
+  },
+  "dataFlow": {
+    "control": {
+      "channel": "control",
+      "reliability": "reliable",
+      "ordering": "ordered"
+    },
+    "input": {
+      "channel": "input",
+      "reliability": "reliable-or-redundant",
+      "ordering": "tick-ordered"
+    }
+  },
+  "transport": {
+    "control": {
+      "protocol": "websocket"
+    },
+    "input": {
+      "protocol": "webrtc-datachannel",
+      "mode": "unordered",
+      "recovery": "tick-sequence-redundancy"
+    }
+  },
+  "codec": {
+    "control": {
+      "format": "json"
+    },
+    "input": {
+      "format": "protobuf"
+    }
+  },
+  "syncConfig": {
+    "tickRate": {
+      "default": 20,
+      "min": 10,
+      "max": 60
+    },
+    "inputDelay": 2
+  },
+  "compiler": {
+    "strategies": [
+      "strategies/lockstep-input.js"
+    ],
+    "transports": [
+      "transports/websocket.js",
+      "transports/webrtc-unordered.js"
+    ],
+    "codecs": [
+      "codecs/json.js",
+      "codecs/protobuf.js"
+    ],
+    "protos": [
+      "proto/lockstep-input.proto"
+    ],
+    "dsl": [
+      "install network sync=lockstep-input authority=each-owns-own tickRate={{tickRate}}",
+      "set topology type=p2p maxPeers=2",
+      "set determinism seedFrom=room random=seeded timestep=fixed",
+      "set channel=control reliability=reliable ordering=ordered transport=websocket codec=json",
+      "set channel=input reliability=reliable-or-redundant ordering=tick-ordered transport=webrtc codec=protobuf",
+      "set recovery=input strategy=tick-sequence-redundancy includePreviousTicks=5 ack=true",
+      "set inputDelay={{inputDelay}}",
+      "sync input {{inputs}} channel=input"
+    ]
+  }
+}

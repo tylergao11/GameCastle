@@ -4,7 +4,11 @@
   "name": "Shape objects and text",
   "summary": "Create visible game objects using ShapePainter rectangles/circles and Text objects.",
   "llm1Hint": "Visuals use simple colored shapes and text, enough for players, enemies, platforms, coins, bullets, and HUD labels.",
-  "provides": ["shape_object", "text_object", "simple_visuals"],
+  "provides": [
+    "shape_object",
+    "text_object",
+    "simple_visuals"
+  ],
   "requires": {
     "objects": [],
     "variables": [],
@@ -31,9 +35,21 @@
     "shapePainter": "ShapePainter objects must include shape, color, width, and height.",
     "colors": "Use #RRGGBB. Preserve 00 color channels exactly."
   },
-  "sync": {
-    "mode": "state",
-    "deterministic": true,
-    "authority": "project"
+  "networking": {
+    "supports": {
+      "syncModels": [],
+      "authority": [],
+      "players": {
+        "min": 1,
+        "max": 4
+      }
+    },
+    "determinism": {
+      "supported": true,
+      "requiresSeededRNG": true,
+      "requiresFixedTimestep": true
+    },
+    "inputs": [],
+    "state": []
   }
 }

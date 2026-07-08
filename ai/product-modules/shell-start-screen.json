@@ -24,21 +24,6 @@
     "title": "GameCastle",
     "button": "Start"
   },
-  "sync": {
-    "default": {
-      "sync": "local",
-      "authority": "client",
-      "tickRate": 0,
-      "seed": "auto"
-    },
-    "supported": {
-      "sync": ["local", "event"],
-      "authority": ["client", "host", "server"]
-    },
-    "deterministic": true,
-    "inputs": ["start"],
-    "state": []
-  },
   "interaction": {
     "fixedTriggers": [
       {
@@ -48,7 +33,15 @@
         "object": "StartButton",
         "description": "The game starts by clicking the StartButton object.",
         "copyRules": {
-          "forbiddenTerms": ["enter", "return", "space", "esc", "escape", "回车", "空格"]
+          "forbiddenTerms": [
+            "enter",
+            "return",
+            "space",
+            "esc",
+            "escape",
+            "回车",
+            "空格"
+          ]
         }
       }
     ]
@@ -101,5 +94,50 @@
       "on start -> text StartLabel {{button}} scene={{scene}}",
       "on mouse StartButton -> scene {{targetScene}} scene={{scene}}"
     ]
+  },
+  "networking": {
+    "supports": {
+      "syncModels": [
+        "local",
+        "event"
+      ],
+      "authority": [
+        "client",
+        "host",
+        "server"
+      ],
+      "players": {
+        "min": 1,
+        "max": 4
+      }
+    },
+    "determinism": {
+      "supported": true,
+      "requiresSeededRNG": true,
+      "requiresFixedTimestep": true
+    },
+    "inputs": [
+      "start"
+    ],
+    "state": [],
+    "default": {
+      "sync": "local",
+      "authority": "client",
+      "tickRate": 0,
+      "seed": "auto"
+    }
+  },
+  "provides": {
+    "ui": [
+      "start screen"
+    ],
+    "configurable": [
+      "title",
+      "button",
+      "targetScene"
+    ]
+  },
+  "requires": {
+    "scene": "Start"
   }
 }

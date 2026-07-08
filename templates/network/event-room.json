@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "id": "network.event-room",
+  "category": "network",
+  "version": 1,
+  "summary": "Turn-based or event-driven multiplayer with server-authoritative event validation.",
+  "llm1Card": "Each player takes a turn or triggers an action. The server validates every move before it happens. Best when players strictly take turns and every step must be verified by a central authority.",
+  "provides": {
+    "syncModels": [
+      "event"
+    ],
+    "topology": [
+      "server-center"
+    ],
+    "players": {
+      "min": 2,
+      "max": 100
+    },
+    "authority": [
+      "server"
+    ]
+  },
+  "requires": {
+    "gameplay": {
+      "deterministic": false,
+      "declaredInputs": false
+    },
+    "serverSide": [
+      "room-manager",
+      "event-validator"
+    ]
+  },
+  "dataFlow": {
+    "control": {
+      "channel": "control",
+      "reliability": "reliable",
+      "ordering": "ordered"
+    }
+  },
+  "transport": {
+    "control": {
+      "protocol": "websocket"
+    }
+  },
+  "codec": {
+    "control": {
+      "format": "json"
+    }
+  },
+  "syncConfig": {
+    "tickRate": null
+  },
+  "compiler": {
+    "strategies": [
+      "strategies/event.js"
+    ],
+    "transports": [
+      "transports/websocket.js"
+    ],
+    "codecs": [
+      "codecs/json.js"
+    ],
+    "dsl": [
+      "install network sync=event authority=server",
+      "set topology type=server-center",
+      "set channel=control reliability=reliable ordering=ordered",
+      "set codec=json channel=control"
+    ]
+  }
+}

@@ -22,21 +22,6 @@
     "scene": "Game",
     "failAction": "restart"
   },
-  "sync": {
-    "default": {
-      "sync": "local",
-      "authority": "host",
-      "tickRate": 20,
-      "seed": "auto"
-    },
-    "supported": {
-      "sync": ["local", "lockstep"],
-      "authority": ["host", "server"]
-    },
-    "deterministic": true,
-    "inputs": ["move_left", "move_right", "jump"],
-    "state": ["Score", "Player", "Coin", "Enemy"]
-  },
   "compiler": {
     "slots": {
       "failAction": "restart"
@@ -79,5 +64,67 @@
       "on collision Player Enemy -> {{failAction}} scene={{scene}}",
       "on key Space -> jump Player 500 scene={{scene}}"
     ]
+  },
+  "networking": {
+    "supports": {
+      "syncModels": [
+        "local",
+        "lockstep"
+      ],
+      "authority": [
+        "host",
+        "server"
+      ],
+      "players": {
+        "min": 1,
+        "max": 4
+      }
+    },
+    "determinism": {
+      "supported": true,
+      "requiresSeededRNG": true,
+      "requiresFixedTimestep": true
+    },
+    "inputs": [
+      "move_left",
+      "move_right",
+      "jump"
+    ],
+    "state": [
+      "Score",
+      "Player",
+      "Coin",
+      "Enemy"
+    ],
+    "default": {
+      "sync": "local",
+      "authority": "host",
+      "tickRate": 20,
+      "seed": "auto"
+    }
+  },
+  "provides": {
+    "gameLoop": "platformer",
+    "playerCount": {
+      "min": 1,
+      "max": 4
+    },
+    "objects": [
+      "Player",
+      "Ground",
+      "Platform",
+      "Coin",
+      "Enemy"
+    ],
+    "behaviors": [
+      "PlatformBehavior::PlatformerObjectBehavior",
+      "PlatformBehavior::PlatformBehavior"
+    ],
+    "inputs": [
+      "space"
+    ]
+  },
+  "requires": {
+    "scene": "Game"
   }
 }

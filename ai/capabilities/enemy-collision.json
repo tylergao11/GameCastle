@@ -4,12 +4,21 @@
   "name": "Enemy collision hazard",
   "summary": "Create enemies or hazards that punish the player on collision.",
   "llm1Hint": "Enemies and hazards can reset, defeat, or otherwise punish the player.",
-  "provides": ["enemy", "hazard", "lose_condition"],
+  "provides": [
+    "enemy",
+    "hazard",
+    "lose_condition"
+  ],
   "requires": {
-    "objects": ["player", "enemy"],
+    "objects": [
+      "player",
+      "enemy"
+    ],
     "variables": [],
     "behaviors": [],
-    "events": ["collision_hazard"]
+    "events": [
+      "collision_hazard"
+    ]
   },
   "dsl": {
     "commands": [
@@ -25,9 +34,21 @@
     "feedback": "For the current runtime slice, restart is the safest default punishment.",
     "placement": "Place enemies away from the initial player spawn unless the user asks for high difficulty."
   },
-  "sync": {
-    "mode": "event",
-    "deterministic": true,
-    "authority": "state"
+  "networking": {
+    "supports": {
+      "syncModels": [],
+      "authority": [],
+      "players": {
+        "min": 1,
+        "max": 4
+      }
+    },
+    "determinism": {
+      "supported": true,
+      "requiresSeededRNG": true,
+      "requiresFixedTimestep": true
+    },
+    "inputs": [],
+    "state": []
   }
 }

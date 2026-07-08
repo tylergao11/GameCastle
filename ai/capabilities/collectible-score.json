@@ -4,12 +4,23 @@
   "name": "Collectible scoring",
   "summary": "Collect objects, destroy the collected item, and update a score variable.",
   "llm1Hint": "Players can collect items such as coins or gems for score.",
-  "provides": ["collectible", "score", "pickup_loop"],
+  "provides": [
+    "collectible",
+    "score",
+    "pickup_loop"
+  ],
   "requires": {
-    "objects": ["player", "collectible"],
-    "variables": ["Score"],
+    "objects": [
+      "player",
+      "collectible"
+    ],
+    "variables": [
+      "Score"
+    ],
     "behaviors": [],
-    "events": ["collision_collectible"]
+    "events": [
+      "collision_collectible"
+    ]
   },
   "dsl": {
     "commands": [
@@ -28,9 +39,21 @@
     "scoreVariable": "Use Score as the default global score variable.",
     "pickupAction": "A collectible collision should remove the collected object or otherwise mark it as consumed."
   },
-  "sync": {
-    "mode": "event",
-    "deterministic": true,
-    "authority": "state"
+  "networking": {
+    "supports": {
+      "syncModels": [],
+      "authority": [],
+      "players": {
+        "min": 1,
+        "max": 4
+      }
+    },
+    "determinism": {
+      "supported": true,
+      "requiresSeededRNG": true,
+      "requiresFixedTimestep": true
+    },
+    "inputs": [],
+    "state": []
   }
 }

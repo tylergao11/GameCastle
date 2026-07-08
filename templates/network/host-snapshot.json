@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "id": "network.host-snapshot",
+  "category": "network",
+  "version": 1,
+  "summary": "Host periodically sends full game state snapshots to all clients. Best for co-op games and casual multiplayer.",
+  "llm1Card": "One player's screen is mirrored to everyone else in real time. Everyone sees the same thing. Best when players want to experience the same world together without needing split-second competitive accuracy.",
+  "provides": {
+    "syncModels": [
+      "snapshot"
+    ],
+    "topology": [
+      "star"
+    ],
+    "players": {
+      "min": 2,
+      "max": 8
+    },
+    "authority": [
+      "host"
+    ]
+  },
+  "requires": {
+    "gameplay": {
+      "deterministic": false,
+      "declaredState": true
+    },
+    "serverSide": [
+      "relay-server"
+    ]
+  },
+  "dataFlow": {
+    "control": {
+      "channel": "control",
+      "reliability": "reliable",
+      "ordering": "ordered"
+    },
+    "state": {
+      "channel": "state",
+      "reliability": "reliable",
+      "ordering": "ordered"
+    }
+  },
+  "transport": {
+    "control": {
+      "protocol": "websocket"
+    },
+    "state": {
+      "protocol": "websocket"
+    }
+  },
+  "codec": {
+    "control": {
+      "format": "json"
+    },
+    "state": {
+      "format": "json"
+    }
+  },
+  "syncConfig": {
+    "tickRate": {
+      "default": 10,
+      "min": 5,
+      "max": 15
+    }
+  },
+  "compiler": {
+    "strategies": [
+      "strategies/snapshot.js"
+    ],
+    "transports": [
+      "transports/websocket.js"
+    ],
+    "codecs": [
+      "codecs/json.js"
+    ],
+    "dsl": [
+      "install network sync=snapshot authority=host tickRate={{tickRate}}",
+      "set topology type=star center=host",
+      "set channel=control reliability=reliable ordering=ordered",
+      "set channel=state reliability=reliable ordering=ordered",
+      "sync state {{state}} channel=state"
+    ]
+  }
+}

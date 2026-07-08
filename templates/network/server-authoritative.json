@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "id": "network.server-authoritative",
+  "category": "network",
+  "version": 1,
+  "summary": "Server-authoritative multiplayer with client-side prediction. The server runs game logic; clients are remote controllers.",
+  "llm1Card": "The server decides everything. Players send their actions to the server, and the server tells everyone what actually happened. Best when fairness is critical, many players are involved, and no single player can be trusted to run the game.",
+  "provides": {
+    "syncModels": [
+      "server-authoritative"
+    ],
+    "topology": [
+      "server-center"
+    ],
+    "players": {
+      "min": 2,
+      "max": 100
+    },
+    "authority": [
+      "server"
+    ]
+  },
+  "requires": {
+    "gameplay": {
+      "deterministic": false,
+      "declaredInputs": true,
+      "declaredState": true
+    },
+    "serverSide": [
+      "game-server",
+      "anti-cheat",
+      "state-persistence"
+    ]
+  },
+  "dataFlow": {
+    "control": {
+      "channel": "control",
+      "reliability": "reliable",
+      "ordering": "ordered"
+    },
+    "input": {
+      "channel": "input",
+      "reliability": "unreliable",
+      "ordering": "unordered"
+    },
+    "state": {
+      "channel": "state",
+      "reliability": "reliable-or-redundant",
+      "ordering": "ordered"
+    }
+  },
+  "transport": {
+    "control": {
+      "protocol": "websocket"
+    },
+    "input": {
+      "protocol": "webtransport",
+      "mode": "unordered",
+      "recovery": "latest-input-wins"
+    },
+    "state": {
+      "protocol": "webtransport"
+    }
+  },
+  "codec": {
+    "control": {
+      "format": "json"
+    },
+    "input": {
+      "format": "protobuf"
+    },
+    "state": {
+      "format": "protobuf"
+    }
+  },
+  "syncConfig": {
+    "tickRate": {
+      "default": 20,
+      "min": 10,
+      "max": 30
+    }
+  },
+  "compiler": {
+    "strategies": [
+      "strategies/server-authoritative.js"
+    ],
+    "transports": [
+      "transports/websocket.js",
+      "transports/webtransport.js"
+    ],
+    "codecs": [
+      "codecs/json.js",
+      "codecs/protobuf.js"
+    ],
+    "protos": [
+      "proto/server-input.proto",
+      "proto/server-state.proto"
+    ],
+    "dsl": [
+      "install network sync=server-authoritative tickRate={{tickRate}}",
+      "set topology type=server-center",
+      "set channel=control reliability=reliable ordering=ordered transport=websocket codec=json",
+      "set channel=input reliability=unreliable ordering=unordered transport=webtransport codec=protobuf",
+      "set channel=state reliability=reliable-or-redundant ordering=ordered transport=webtransport codec=protobuf",
+      "set recovery=input strategy=latest-input-wins",
+      "sync input {{inputs}} channel=input",
+      "sync state {{state}} channel=state"
+    ]
+  }
+}

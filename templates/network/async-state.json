@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "network.async-state",
+  "category": "network",
+  "version": 1,
+  "summary": "Player state saved to server and loaded by others. No real-time synchronization needed.",
+  "llm1Card": "Players do not need to be online at the same time. Each player's progress or world is saved to the server and can be viewed or visited by others later. Best when interaction is slow-paced or visits happen at different times.",
+  "provides": {
+    "syncModels": ["async-state"],
+    "topology": ["server-center"],
+    "players": { "min": 1, "max": 100000 },
+    "authority": ["server", "each-owns-own"]
+  },
+  "requires": {
+    "gameplay": { "deterministic": false, "declaredState": true },
+    "serverSide": ["state-persistence", "state-sync-on-connect"]
+  },
+  "dataFlow": {
+    "control": { "channel": "control", "reliability": "reliable", "ordering": "ordered" },
+    "state":   { "channel": "state",   "reliability": "reliable", "ordering": "ordered" }
+  },
+  "transport": {
+    "control": { "protocol": "websocket" },
+    "state":   { "protocol": "websocket" }
+  },
+  "codec": {
+    "control": { "format": "json" },
+    "state":   { "format": "json" }
+  },
+  "syncConfig": { "tickRate": null },
+  "compiler": {
+    "strategies": ["strategies/async-state.js"],
+    "transports": ["transports/websocket.js"],
+    "codecs": ["codecs/json.js"],
+    "dsl": [
+      "install network sync=async-state authority=server",
+      "set topology type=server-center",
+      "set channel=control reliability=reliable ordering=ordered",
+      "set channel=state reliability=reliable ordering=ordered",
+      "sync state on-save channel=state"
+    ]
+  }
+}

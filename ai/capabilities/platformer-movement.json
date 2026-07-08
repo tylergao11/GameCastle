@@ -4,12 +4,22 @@
   "name": "Platform movement",
   "summary": "Add platformer movement and jumping to a player object.",
   "llm1Hint": "The player can move and jump through platform-style levels.",
-  "provides": ["player_movement", "jump", "platformer_controls"],
+  "provides": [
+    "player_movement",
+    "jump",
+    "platformer_controls"
+  ],
   "requires": {
-    "objects": ["player"],
+    "objects": [
+      "player"
+    ],
     "variables": [],
-    "behaviors": ["PlatformBehavior::PlatformerObjectBehavior"],
-    "events": ["jump_input"]
+    "behaviors": [
+      "PlatformBehavior::PlatformerObjectBehavior"
+    ],
+    "events": [
+      "jump_input"
+    ]
   },
   "dsl": {
     "commands": [
@@ -29,9 +39,21 @@
     "jumpStrength": "Default jump strength is 500.",
     "platforms": "Pair with shape objects for ground and platforms."
   },
-  "sync": {
-    "mode": "input",
-    "deterministic": true,
-    "authority": "input"
+  "networking": {
+    "supports": {
+      "syncModels": [],
+      "authority": [],
+      "players": {
+        "min": 1,
+        "max": 4
+      }
+    },
+    "determinism": {
+      "supported": true,
+      "requiresSeededRNG": true,
+      "requiresFixedTimestep": true
+    },
+    "inputs": [],
+    "state": []
   }
 }

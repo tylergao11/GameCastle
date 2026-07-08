@@ -4,12 +4,20 @@
   "name": "Simple timed spawn",
   "summary": "Spawn objects on a timer or in response to input.",
   "llm1Hint": "The game can add simple timed spawns, such as falling hazards or recurring enemies.",
-  "provides": ["timed_spawn", "input_spawn"],
+  "provides": [
+    "timed_spawn",
+    "input_spawn"
+  ],
   "requires": {
-    "objects": ["spawned_object"],
+    "objects": [
+      "spawned_object"
+    ],
     "variables": [],
     "behaviors": [],
-    "events": ["timer_spawn", "input_spawn"]
+    "events": [
+      "timer_spawn",
+      "input_spawn"
+    ]
   },
   "dsl": {
     "commands": [
@@ -25,9 +33,21 @@
     "spawnPosition": "Use numeric coordinates. Keep spawns inside or just outside the 800x600 play area.",
     "currentLimit": "The current runtime slice does not yet include full projectile physics."
   },
-  "sync": {
-    "mode": "event",
-    "deterministic": false,
-    "authority": "state"
+  "networking": {
+    "supports": {
+      "syncModels": [],
+      "authority": [],
+      "players": {
+        "min": 1,
+        "max": 4
+      }
+    },
+    "determinism": {
+      "supported": false,
+      "requiresSeededRNG": false,
+      "requiresFixedTimestep": false
+    },
+    "inputs": [],
+    "state": []
   }
 }

@@ -59,7 +59,7 @@ function validateProductModules(schema, modules) {
     }
     validatePatchMap(manifest, 'slotPatches');
     validatePatchMap(manifest, 'configurePatches');
-    validateSyncDefaults(manifest);
+    validateNetworking(manifest);
     validateRepositoryPolicy(manifest);
     validateInteractionContracts(manifest);
   });
@@ -91,11 +91,11 @@ function validatePatchMap(manifest, fieldName) {
   });
 }
 
-function validateSyncDefaults(manifest) {
-  var policy = manifest.sync && manifest.sync.default;
-  if (!policy) throw new Error('Product module ' + manifest.id + ' missing sync.default');
-  if (SYNC_MODES.indexOf(policy.sync) < 0) throw new Error('Product module ' + manifest.id + ' invalid default sync: ' + policy.sync);
-  if (AUTHORITIES.indexOf(policy.authority) < 0) throw new Error('Product module ' + manifest.id + ' invalid default authority: ' + policy.authority);
+function validateNetworking(manifest) {
+  var networking = manifest.networking;
+  if (!networking) throw new Error('Product module ' + manifest.id + ' missing networking');
+  if (!networking.supports || !networking.supports.syncModels || networking.supports.syncModels.length === 0) throw new Error('Product module ' + manifest.id + ' missing networking.supports.syncModels');
+  // authority validation moved to runtime policy check
 }
 
 function validateInteractionContracts(manifest) {
@@ -141,7 +141,7 @@ function buildModuleDslReference(catalog) {
       repositoryPolicy: manifest.repositoryPolicy,
       configurable: Object.keys(getConfigurePatches(manifest)),
       interaction: manifest.interaction || {},
-      sync: manifest.sync
+      networking: manifest.networking
     };
   });
   return [
@@ -214,8 +214,8 @@ function indexCatalog(catalog) {
 function validatePolicy(moduleId, manifest, policy) {
   if (SYNC_MODES.indexOf(policy.sync) < 0) throw new Error('Invalid sync mode for ' + moduleId + ': ' + policy.sync);
   if (AUTHORITIES.indexOf(policy.authority) < 0) throw new Error('Invalid authority for ' + moduleId + ': ' + policy.authority);
-  var supported = manifest.sync.supported || {};
-  if ((supported.sync || []).indexOf(policy.sync) < 0) {
+  var supported = (manifest.networking && manifest.networking.supports) || {};
+  if ((supported.syncModels || []).indexOf(policy.sync) < 0) {
     throw new Error('Module ' + moduleId + ' does not support sync=' + policy.sync);
   }
   if ((supported.authority || []).indexOf(policy.authority) < 0) {
@@ -283,7 +283,7 @@ function makeInstall(command, manifest, options) {
   if (!manifest.presets[preset]) throw new Error('Module ' + manifest.id + ' does not define preset=' + preset);
   params.preset = preset;
 
-  var defaultPolicy = clone(manifest.sync.default);
+  var defaultPolicy = clone((manifest.networking && manifest.networking.default) || {});
   var policy = {
     sync: params.sync || defaultPolicy.sync,
     authority: params.authority || defaultPolicy.authority,
@@ -539,9 +539,9 @@ function compileModuleCommands(commands, catalog, options) {
       id: install.id,
       category: manifest.category,
       syncPolicy: clone(install.syncPolicy),
-      deterministic: !!(manifest.sync && manifest.sync.deterministic),
-      inputs: clone((manifest.sync && manifest.sync.inputs) || []),
-      state: clone((manifest.sync && manifest.sync.state) || [])
+      deterministic: !!(manifest.networking && manifest.networking.determinism && manifest.networking.determinism.supported),
+      inputs: clone((manifest.networking && manifest.networking.inputs) || []),
+      state: clone((manifest.networking && manifest.networking.state) || [])
     });
   });
 

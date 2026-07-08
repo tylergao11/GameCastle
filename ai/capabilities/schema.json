@@ -10,7 +10,7 @@
     "requires",
     "dsl",
     "constraints",
-    "sync"
+    "networking"
   ],
   "fieldNotes": {
     "id": "Stable capability identifier.",
@@ -19,6 +19,6 @@
     "requires": "Objects, variables, behaviors, or events the capability expects or creates.",
     "dsl": "Line-style DSL commands and examples available to LLM2.",
     "constraints": "Compiler and runtime constraints.",
-    "sync": "Future multiplayer synchronization metadata."
+    "networking": "Declares networking synchronization metadata for this capability. Used by compiler when composing multiplayer games."
   }
 }
