@@ -28,7 +28,7 @@
 - [x] 明确 LLM2 读取模块能力库、DSL 能力、参数约束和项目状态
 - [x] 明确只有 LLM2 输出确定性 patch
 - [ ] 把 `pipeline.js` 拆成设计、编译、执行、状态、provider 五个边界
-- [ ] 用 `ai/schema/` 统一 JavaScript 执行器和 TypeScript 操作定义
+- [x] 用 `ai/gdevelop-truth/runtime-truth.json` 统一 GDevelop runtime 类型、include 和数据字段真相源
 
 ## Phase 3: 可反复迭代的项目状态
 

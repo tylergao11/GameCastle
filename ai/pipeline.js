@@ -9,6 +9,7 @@ var projectWorld = require("./project-world");
 var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
 var htmlExporter = require("./html-exporter");
+var gdevelopTruth = require("./gdevelop-truth");
 
 var STATE_DIR = path.join(__dirname, "..", "output");
 var LOG_PATH = path.join(STATE_DIR, "pipeline.log");
@@ -399,51 +400,13 @@ EXEC["create object"] = function(p, ps) {
   var scene = ps.scene ? p.layouts.find(function(l){return l.name===ps.scene;}) : null;
   var tgt = ps.scene ? (scene||{}).objects : p.objects;
   if (!tgt) return {ok:false,msg:"scene not found: "+ps.scene};
-  if (ps.type === "ShapePainter") {
-    var sType = ps.shape || "rectangle";
-    var color = ps.color || "#4488FF";
-    var w = ps.width || 32; var h = ps.height || 32;
-    var parsedColor = parseHexColor(color, { r: 100, g: 130, b: 240 });
-    var obj = {
-      name: ps.name, tags: '', type: "PrimitiveDrawing::Drawer", variables: [], behaviors: [],
-      effects: [],
-      absoluteCoordinates: false,
-      clearBetweenFrames: false,
-      antialiasing: 'low',
-      fillColor: parsedColor, fillOpacity: 255,
-      outlineColor: {r:0,g:0,b:0}, outlineOpacity: 255, outlineSize: ps.outline || 0,
-    };
-    tgt.push(obj);
-    if (scene) addStaticDrawerBootstrapEvent(scene, ps.name, sType, Number(w) || 32, Number(h) || 32);
-    return {ok:true,msg:"shape: "+ps.name+" ("+sType+" "+color+")"};
-  }
-  var obj = {name:ps.name,type:ps.type,variables:[],behaviors:[],effects:[]};
-  if (ps.type==="Text") {
-    obj.type = "TextObject::Text";
-    obj.content = {
-      text: ps.name,
-      font: "",
-      characterSize: ps.size || 20,
-      color: "255;255;255",
-      bold: false,
-      italic: false,
-      underlined: false,
-      textAlignment: "left",
-      verticalTextAlignment: "top",
-      isOutlineEnabled: false,
-      outlineThickness: 0,
-      outlineColor: "0;0;0",
-      isShadowEnabled: false,
-      shadowColor: "0;0;0",
-      shadowOpacity: 127,
-      shadowDistance: 4,
-      shadowAngle: 45,
-      shadowBlurRadius: 2,
-      lineHeight: 0
-    };
-  }
+  var sType = ps.shape || "rectangle";
+  var obj = gdevelopTruth.createObjectData(ps);
   tgt.push(obj);
-  return {ok:true,msg:"object: "+ps.name+" ("+ps.type+")"};
+  if (ps.type === "ShapePainter" && scene) {
+    addStaticDrawerBootstrapEvent(scene, ps.name, sType, Number(ps.width) || 32, Number(ps.height) || 32);
+  }
+  return {ok:true,msg:"object: "+ps.name+" ("+obj.type+")"};
 };
 
 EXEC["delete object"] = function(p, ps) {
@@ -463,38 +426,7 @@ EXEC["add behavior"] = function(p, ps) {
   var obj = container.find(function(o){return o.name===tgtName;});
   if (!obj) return {ok:false,msg:"object not found: "+tgtName};
   if (!obj.behaviors) obj.behaviors=[];
-  var parts = ps.type.split("::");
-  var last = parts[parts.length-1];
-  if (last.endsWith("ObjectBehavior")) last=last.replace("ObjectBehavior","");
-  if (last.endsWith("Behavior")) last=last.replace("Behavior","");
-  var bn = ps.as || last;
-  var behavior = {name:bn,type:ps.type};
-  if (ps.type === 'PlatformBehavior::PlatformerObjectBehavior') {
-    behavior = {
-      name: ps.as || 'PlatformerObject',
-      type: ps.type,
-      acceleration: ps.acceleration || 1500,
-      canGrabPlatforms: false,
-      deceleration: ps.deceleration || 1500,
-      gravity: ps.gravity || 1300,
-      ignoreDefaultControls: false,
-      jumpSpeed: ps.jumpSpeed || 1000,
-      maxFallingSpeed: ps.maxFallingSpeed || 1000,
-      maxSpeed: ps.maxSpeed || 250,
-      roundCoordinates: true,
-      slopeMaxAngle: ps.slopeMaxAngle || 60,
-      xGrabTolerance: 10,
-      yGrabOffset: 0
-    };
-  } else if (ps.type === 'PlatformBehavior::PlatformBehavior') {
-    behavior = {
-      name: ps.as || 'Platform',
-      type: ps.type,
-      canBeGrabbed: true,
-      platformType: ps.platformType || 'NormalPlatform',
-      yGrabOffset: 0
-    };
-  }
+  var behavior = gdevelopTruth.createBehaviorData(ps);
   obj.behaviors.push(behavior);
   return {ok:true,msg:"behavior: "+behavior.name};
 };
@@ -598,8 +530,9 @@ EXEC["set object"] = function(p, ps) {
     if (ps.outline!==undefined) obj.outlineSize=parseFloat(ps.outline)||0;
   }
   if (obj.type==="TextObject::Text") {
-    if (ps.size) obj.characterSize=parseFloat(ps.size)||20;
-    if (ps.color) obj.color = parseHexColor(ps.color, obj.color || { r: 255, g: 255, b: 255 });
+    if (!obj.content) obj.content = {};
+    if (ps.size) obj.content.characterSize=parseFloat(ps.size)||20;
+    if (ps.color) obj.content.color = gdevelopTruth.toRgbString(ps.color, { r: 255, g: 255, b: 255 });
   }
   return {ok:true,msg:"object updated: "+ps.name};
 };
@@ -726,9 +659,7 @@ function emptyProject(name) {
         progressBarColor: 16777215
       },
       watermark: { showWatermark: false, placement: "bottom" },
-      extensions:[{name:"BuiltinObject"},{name:"Sprite"},{name:"BuiltinCommonInstructions"},{name:"TextObject"},
-        {name:"PlatformBehavior"},{name:"BuiltinVariables"},{name:"BuiltinTime"},{name:"BuiltinMouse"},
-        {name:"BuiltinKeyboard"},{name:"BuiltinCamera"},{name:"BuiltinScene"},{name:"PrimitiveDrawing"}],
+      extensions:gdevelopTruth.getProjectExtensions(),
       currentPlatform:"GDevelop JS platform",
       extensionProperties: []
     },
@@ -1064,6 +995,8 @@ function writeRuntimeExecutionFiles(project) {
 function writeProjectOutputs(project, options) {
   options = options || {};
   fs.mkdirSync(STATE_DIR, {recursive:true});
+  gdevelopTruth.syncProjectExtensions(project);
+  gdevelopTruth.validateProject(project);
   fs.writeFileSync(PROJECT_PATH, JSON.stringify(project, null, 2));
   var codeFiles = writeRuntimeExecutionFiles(project);
   var htmlManifest = htmlExporter.buildHtmlExportManifest(project, {

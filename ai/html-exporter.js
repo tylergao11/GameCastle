@@ -1,5 +1,6 @@
 var fs = require('fs');
 var path = require('path');
+var gdevelopTruth = require('./gdevelop-truth');
 
 var CORE_HTML_INCLUDES = [
   'libs/jshashtable.js',
@@ -77,38 +78,6 @@ var COMMON_OBJECT_CAPABILITY_INCLUDES = [
   'object-capabilities/TextContainerBehavior.js',
 ];
 
-var TYPE_INCLUDES = {
-  'TextObject::Text': [
-    'Extensions/TextObject/textruntimeobject-pixi-renderer.js',
-    'Extensions/TextObject/textruntimeobject.js',
-  ],
-  'PrimitiveDrawing::Drawer': [
-    'Extensions/PrimitiveDrawing/pixi-graphics-extras/graphics-extras.min.js',
-    'Extensions/PrimitiveDrawing/shapepainterruntimeobject-pixi-renderer.js',
-    'Extensions/PrimitiveDrawing/shapepainterruntimeobject.js',
-  ],
-  'Cube3D::Cube3DObject': [
-    'Extensions/3D/Cube3DRuntimeObjectPixiRenderer.js',
-    'Extensions/3D/Cube3DRuntimeObject.js',
-  ],
-  'Scene3D::Model3DObject': [
-    'Extensions/3D/Model3DRuntimeObject3DRenderer.js',
-    'Extensions/3D/Model3DRuntimeObject.js',
-  ],
-};
-
-var BEHAVIOR_INCLUDES = {
-  'PlatformBehavior::PlatformerObjectBehavior': [
-    'Extensions/PlatformBehavior/platformerobjectruntimebehavior.js',
-  ],
-  'PlatformBehavior::PlatformBehavior': [
-    'Extensions/PlatformBehavior/platformruntimebehavior.js',
-  ],
-  'Scene3D::Base3DBehavior': [
-    'Extensions/3D/Base3DBehavior.js',
-  ],
-};
-
 var THREE_D_BASE_INCLUDES = [
   'pixi-renderers/three.js',
   'pixi-renderers/ThreeAddons.js',
@@ -174,9 +143,9 @@ function walkObjects(project, visitor) {
 function projectUses3D(project, modules) {
   var uses3D = false;
   walkObjects(project, function(object) {
-    if (String(object.type || '').indexOf('3D') >= 0) uses3D = true;
+    if (gdevelopTruth.isThreeDType(object.type)) uses3D = true;
     (object.behaviors || []).forEach(function(behavior) {
-      if (String(behavior.type || '').indexOf('3D') >= 0) uses3D = true;
+      if (gdevelopTruth.isThreeDType(behavior.type)) uses3D = true;
     });
   });
   (modules || []).forEach(function(module) {
@@ -200,9 +169,9 @@ function buildHtmlExportManifest(project, options) {
   }
 
   walkObjects(project, function(object) {
-    (TYPE_INCLUDES[object.type] || []).forEach(function(file) { addUnique(scriptFiles, file); });
+    gdevelopTruth.getObjectIncludes(object.type).forEach(function(file) { addUnique(scriptFiles, file); });
     (object.behaviors || []).forEach(function(behavior) {
-      (BEHAVIOR_INCLUDES[behavior.type] || []).forEach(function(file) { addUnique(scriptFiles, file); });
+      gdevelopTruth.getBehaviorIncludes(behavior.type).forEach(function(file) { addUnique(scriptFiles, file); });
     });
   });
 

@@ -22,7 +22,7 @@ GameCastle 的目标不是“一句话生成一个一次性小游戏”，而是
 |------|------|
 | `ai/` | 生成管线主路径，当前由 `pipeline.js` 承担设计稿、DSL 翻译、执行和 CLI |
 | `ai/capabilities/` | 模块能力真相源，描述可组合能力、DSL 映射、约束和未来同步属性 |
-| `ai/schema/` | GDevelop JSON 类型和操作定义，未来 TypeScript 化的候选真理源 |
+| `ai/gdevelop-truth/` | Extracted GDevelop/GDJS runtime truth snapshot generated from `D:\GDevelop-master` |
 | `dsl/` | DSL 操作语言文档，连接模块能力和 GDevelop JSON |
 | `engine/` | GDJS 浏览器运行时，负责加载 `project.json` 并运行游戏 |
 | `templates/` | 当前的能力样例/原型数据；后续应演进为模块能力库，而不是完整游戏模板库 |
@@ -60,6 +60,10 @@ npm run check:ai
 
 # AI 管线 fixture 测试：状态机、repair batch、缓存命中和超时防护
 npm run test:ai
+
+# Refresh/check the extracted GDevelop runtime truth snapshot
+npm run truth:extract
+npm run truth:check
 
 # Product Module DSL: compile product modules to internal low-level DSL
 node ai/pipeline.js --module-dsl-file ai/fixtures/module-platformer-shells.dsl "module composition"
@@ -129,6 +133,19 @@ mutating `project.json`. The pending file includes Module DSL, compiled internal
 DSL, module/network metadata, and a dry-run preview with predicted semantic
 hash, cache-hit status, and command success/failure summary. Approval should be
 based on reading that file first.
+
+## GDevelop Runtime Truth
+
+GameCastle does not hand-maintain GDevelop object types, behavior types, object
+data fields, or extension include files. `scripts/extract-gdevelop-truth.js`
+extracts the supported runtime surface from `D:\GDevelop-master` into
+`ai/gdevelop-truth/runtime-truth.json`.
+
+`ai/gdevelop-truth.js` is the only in-repo entry point for these facts. The
+pipeline may keep AI-friendly internal DSL names such as `ShapePainter`, but
+the emitted `project.json` must validate against official GDevelop types and
+fields from the snapshot. HTML export also reads object/behavior include files
+from the same snapshot and fails fast on unsupported runtime types.
 
 ## HTML Runtime Cache
 

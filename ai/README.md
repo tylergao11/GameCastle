@@ -13,9 +13,8 @@
 | `module-dsl.js` | LLM2/Commander 级 Module DSL parser |
 | `module-compiler.js` | 产品模块编译器，把 Module DSL 展开为内部低层 DSL，并产出 network manifest |
 | `project-world.js` | 把 GDevelop `project.json` 翻译为稳定的 `ProjectWorld`，并追加 `ExecutionLedger` |
-| `schema/operations.ts` | GDevelop 操作定义，后续应成为能力到 JSON 操作的真理源 |
-| `schema/json-engine.ts` | TypeScript 版 JSON 操作执行器，待与 `pipeline.js` 统一 |
-| `schema/gdevelop-types.ts` | GDevelop `project.json` 类型定义 |
+| `gdevelop-truth.js` | 项目内唯一 GDevelop runtime truth 入口，负责官方类型/include/字段读取和校验 |
+| `gdevelop-truth/runtime-truth.json` | 从 `D:\GDevelop-master` 提取的官方 GDevelop/GDJS runtime truth snapshot |
 
 历史拼装脚本和硬编码旧路径已经移除。后续新增脚本必须使用仓库相对路径，并且明确属于测试、构建还是迁移。
 

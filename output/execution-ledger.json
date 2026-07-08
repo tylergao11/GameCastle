@@ -4,7 +4,7 @@
     {
       "schemaVersion": 1,
       "runId": "run_001",
-      "batchLabel": "apply",
+      "batchLabel": "browser_verify_base",
       "baseWorldVersion": null,
       "targetWorldVersion": 1,
       "baseSemanticHash": null,
@@ -17,207 +17,207 @@
       },
       "completed": [
         {
-          "commandId": "apply_line_001",
+          "commandId": "browser_verify_base_line_001",
           "command": "create scene name=Game first=true",
           "message": "scene: Game"
         },
         {
-          "commandId": "apply_line_002",
+          "commandId": "browser_verify_base_line_002",
           "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
-          "message": "shape: Player (rectangle #4488FF)"
+          "message": "object: Player (PrimitiveDrawing::Drawer)"
         },
         {
-          "commandId": "apply_line_003",
+          "commandId": "browser_verify_base_line_003",
           "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
-          "message": "shape: Ground (rectangle #8B4513)"
+          "message": "object: Ground (PrimitiveDrawing::Drawer)"
         },
         {
-          "commandId": "apply_line_004",
+          "commandId": "browser_verify_base_line_004",
           "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
-          "message": "shape: Platform (rectangle #8B4513)"
+          "message": "object: Platform (PrimitiveDrawing::Drawer)"
         },
         {
-          "commandId": "apply_line_005",
+          "commandId": "browser_verify_base_line_005",
           "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
-          "message": "shape: Coin (circle #FFD700)"
+          "message": "object: Coin (PrimitiveDrawing::Drawer)"
         },
         {
-          "commandId": "apply_line_006",
+          "commandId": "browser_verify_base_line_006",
           "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
-          "message": "shape: Enemy (rectangle #DC3232)"
+          "message": "object: Enemy (PrimitiveDrawing::Drawer)"
         },
         {
-          "commandId": "apply_line_007",
+          "commandId": "browser_verify_base_line_007",
           "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
           "message": "behavior: PlatformerObject"
         },
         {
-          "commandId": "apply_line_008",
+          "commandId": "browser_verify_base_line_008",
           "command": "add behavior type=PlatformBehavior::PlatformBehavior to=Ground scene=Game",
           "message": "behavior: Platform"
         },
         {
-          "commandId": "apply_line_009",
+          "commandId": "browser_verify_base_line_009",
           "command": "add behavior type=PlatformBehavior::PlatformBehavior to=Platform scene=Game",
           "message": "behavior: Platform"
         },
         {
-          "commandId": "apply_line_010",
+          "commandId": "browser_verify_base_line_010",
           "command": "set variable name=Score value=0 type=Number scope=global",
           "message": "var: Score=0"
         },
         {
-          "commandId": "apply_line_011",
+          "commandId": "browser_verify_base_line_011",
           "command": "place object=Player at=100,400 scene=Game",
           "message": "placed Player x1"
         },
         {
-          "commandId": "apply_line_012",
+          "commandId": "browser_verify_base_line_012",
           "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
           "message": "placed Ground x1"
         },
         {
-          "commandId": "apply_line_013",
+          "commandId": "browser_verify_base_line_013",
           "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "apply_line_014",
+          "commandId": "browser_verify_base_line_014",
           "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "apply_line_015",
+          "commandId": "browser_verify_base_line_015",
           "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "apply_line_016",
+          "commandId": "browser_verify_base_line_016",
           "command": "place object=Coin at=240,430 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "apply_line_017",
+          "commandId": "browser_verify_base_line_017",
           "command": "place object=Coin at=440,350 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "apply_line_018",
+          "commandId": "browser_verify_base_line_018",
           "command": "place object=Coin at=640,270 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "apply_line_019",
+          "commandId": "browser_verify_base_line_019",
           "command": "place object=Enemy at=550,400 scene=Game",
           "message": "placed Enemy x1"
         },
         {
-          "commandId": "apply_line_020",
+          "commandId": "browser_verify_base_line_020",
           "command": "on start -> Score=0 scene=Game",
           "message": "event: on start -> Score=0"
         },
         {
-          "commandId": "apply_line_021",
+          "commandId": "browser_verify_base_line_021",
           "command": "on collision Player Coin -> destroy Coin, score+1 scene=Game",
           "message": "event: on collision Player Coin -> destroy Coin, score+1"
         },
         {
-          "commandId": "apply_line_022",
+          "commandId": "browser_verify_base_line_022",
           "command": "on collision Player Enemy -> scene GameOver scene=Game",
           "message": "event: on collision Player Enemy -> scene GameOver"
         },
         {
-          "commandId": "apply_line_023",
+          "commandId": "browser_verify_base_line_023",
           "command": "on key Space -> jump Player 500 scene=Game",
           "message": "event: on key Space -> jump Player 500"
         },
         {
-          "commandId": "apply_line_024",
+          "commandId": "browser_verify_base_line_024",
           "command": "create scene name=Start first=true",
           "message": "scene: Start"
         },
         {
-          "commandId": "apply_line_025",
+          "commandId": "browser_verify_base_line_025",
           "command": "create object name=TitleText type=Text size=36 scene=Start",
-          "message": "object: TitleText (Text)"
+          "message": "object: TitleText (TextObject::Text)"
         },
         {
-          "commandId": "apply_line_026",
+          "commandId": "browser_verify_base_line_026",
           "command": "create object name=StartButton type=ShapePainter shape=rectangle color=#2ECC71 width=180 height=56 scene=Start",
-          "message": "shape: StartButton (rectangle #2ECC71)"
+          "message": "object: StartButton (PrimitiveDrawing::Drawer)"
         },
         {
-          "commandId": "apply_line_027",
+          "commandId": "browser_verify_base_line_027",
           "command": "create object name=StartLabel type=Text size=24 scene=Start",
-          "message": "object: StartLabel (Text)"
+          "message": "object: StartLabel (TextObject::Text)"
         },
         {
-          "commandId": "apply_line_028",
+          "commandId": "browser_verify_base_line_028",
           "command": "place object=TitleText at=280,170 scene=Start",
           "message": "placed TitleText x1"
         },
         {
-          "commandId": "apply_line_029",
+          "commandId": "browser_verify_base_line_029",
           "command": "place object=StartButton at=310,300 scene=Start width=180 height=56",
           "message": "placed StartButton x1"
         },
         {
-          "commandId": "apply_line_030",
+          "commandId": "browser_verify_base_line_030",
           "command": "place object=StartLabel at=360,315 scene=Start",
           "message": "placed StartLabel x1"
         },
         {
-          "commandId": "apply_line_031",
+          "commandId": "browser_verify_base_line_031",
           "command": "on start -> text TitleText Sky Runner scene=Start",
           "message": "event: on start -> text TitleText Sky Runner"
         },
         {
-          "commandId": "apply_line_032",
+          "commandId": "browser_verify_base_line_032",
           "command": "on start -> text StartLabel Start scene=Start",
           "message": "event: on start -> text StartLabel Start"
         },
         {
-          "commandId": "apply_line_033",
+          "commandId": "browser_verify_base_line_033",
           "command": "on mouse StartButton -> scene Game scene=Start",
           "message": "event: on mouse StartButton -> scene Game"
         },
         {
-          "commandId": "apply_line_034",
+          "commandId": "browser_verify_base_line_034",
           "command": "create scene name=GameOver first=false",
           "message": "scene: GameOver"
         },
         {
-          "commandId": "apply_line_035",
+          "commandId": "browser_verify_base_line_035",
           "command": "create object name=GameOverText type=Text size=40 scene=GameOver",
-          "message": "object: GameOverText (Text)"
+          "message": "object: GameOverText (TextObject::Text)"
         },
         {
-          "commandId": "apply_line_036",
+          "commandId": "browser_verify_base_line_036",
           "command": "create object name=RestartHint type=Text size=22 scene=GameOver",
-          "message": "object: RestartHint (Text)"
+          "message": "object: RestartHint (TextObject::Text)"
         },
         {
-          "commandId": "apply_line_037",
+          "commandId": "browser_verify_base_line_037",
           "command": "place object=GameOverText at=285,240 scene=GameOver",
           "message": "placed GameOverText x1"
         },
         {
-          "commandId": "apply_line_038",
+          "commandId": "browser_verify_base_line_038",
           "command": "place object=RestartHint at=330,310 scene=GameOver",
           "message": "placed RestartHint x1"
         },
         {
-          "commandId": "apply_line_039",
+          "commandId": "browser_verify_base_line_039",
           "command": "on start -> text GameOverText Game Over scene=GameOver",
           "message": "event: on start -> text GameOverText Game Over"
         },
         {
-          "commandId": "apply_line_040",
+          "commandId": "browser_verify_base_line_040",
           "command": "on start -> text RestartHint Press Space scene=GameOver",
           "message": "event: on start -> text RestartHint Press Space"
         },
         {
-          "commandId": "apply_line_041",
+          "commandId": "browser_verify_base_line_041",
           "command": "on key Space -> scene Game scene=GameOver",
           "message": "event: on key Space -> scene Game"
         }

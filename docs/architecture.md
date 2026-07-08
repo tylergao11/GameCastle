@@ -153,9 +153,16 @@ the actual generated project.
 
 当前已覆盖基础场景、几何对象/文本、平台移动、收集计分、敌人碰撞和简单生成。
 
-### `ai/schema/`
+### `ai/gdevelop-truth/`
 
-TypeScript 类型和操作定义，适合作为后续工程化真理源。
+`runtime-truth.json` is extracted from `D:\GDevelop-master` and is the canonical
+GDevelop/GDJS runtime truth snapshot for the supported surface. It owns official
+object types, behavior types, include files, runtime registration sources,
+instruction function mappings, and object/behavior data fields.
+
+`ai/gdevelop-truth.js` is the only code entry point for these facts. Pipeline
+DSL may stay AI-friendly, but emitted `project.json` and HTML manifests must
+validate against this snapshot and fail fast on stale GDevelop names.
 
 ### `engine/runtime/`
 

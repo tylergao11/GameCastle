@@ -58,12 +58,6 @@
         "name": "BuiltinCommonInstructions"
       },
       {
-        "name": "TextObject"
-      },
-      {
-        "name": "PlatformBehavior"
-      },
-      {
         "name": "BuiltinVariables"
       },
       {
@@ -83,6 +77,12 @@
       },
       {
         "name": "PrimitiveDrawing"
+      },
+      {
+        "name": "PlatformBehavior"
+      },
+      {
+        "name": "TextObject"
       }
     ],
     "currentPlatform": "GDevelop JS platform",
@@ -282,15 +282,20 @@
               "name": "PlatformerObject",
               "type": "PlatformBehavior::PlatformerObjectBehavior",
               "acceleration": 1500,
+              "canGoDownFromJumpthru": true,
               "canGrabPlatforms": false,
+              "canGrabWithoutMoving": true,
               "deceleration": 1500,
               "gravity": 1300,
               "ignoreDefaultControls": false,
               "jumpSpeed": 1000,
+              "jumpSustainTime": 0,
+              "ladderClimbingSpeed": 150,
               "maxFallingSpeed": 1000,
               "maxSpeed": 250,
-              "roundCoordinates": true,
               "slopeMaxAngle": 60,
+              "useLegacyTrajectory": false,
+              "useRepeatedJump": false,
               "xGrabTolerance": 10,
               "yGrabOffset": 0
             }
@@ -950,6 +955,7 @@
       "objects": [
         {
           "name": "TitleText",
+          "tags": "",
           "type": "TextObject::Text",
           "variables": [],
           "behaviors": [],
@@ -1002,6 +1008,7 @@
         },
         {
           "name": "StartLabel",
+          "tags": "",
           "type": "TextObject::Text",
           "variables": [],
           "behaviors": [],
@@ -1267,6 +1274,7 @@
       "objects": [
         {
           "name": "GameOverText",
+          "tags": "",
           "type": "TextObject::Text",
           "variables": [],
           "behaviors": [],
@@ -1295,6 +1303,7 @@
         },
         {
           "name": "RestartHint",
+          "tags": "",
           "type": "TextObject::Text",
           "variables": [],
           "behaviors": [],

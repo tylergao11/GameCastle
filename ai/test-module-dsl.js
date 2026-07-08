@@ -347,7 +347,7 @@ function testHtmlManifestKeeps3DOwnedByRuntime() {
       name: 'Game3D',
       objects: [{
         name: 'Cube',
-        type: 'Cube3D::Cube3DObject',
+        type: 'Scene3D::Cube3DObject',
         behaviors: [{ name: 'Base3D', type: 'Scene3D::Base3DBehavior' }],
       }],
     }],
