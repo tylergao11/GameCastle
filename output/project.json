@@ -1,5 +1,5 @@
 {
-  "firstLayout": "Start",
+  "firstLayout": "Game",
   "gdVersion": {
     "build": 96,
     "major": 4,
@@ -79,9 +79,6 @@
         "name": "PrimitiveDrawing"
       },
       {
-        "name": "PlatformBehavior"
-      },
-      {
         "name": "TextObject"
       }
     ],
@@ -99,6 +96,16 @@
       "name": "Score",
       "type": 3,
       "value": "0"
+    },
+    {
+      "name": "Wave",
+      "type": 3,
+      "value": "1"
+    },
+    {
+      "name": "PlayerHealth",
+      "type": 3,
+      "value": "3"
     }
   ],
   "layouts": [
@@ -135,76 +142,12 @@
           "locked": false,
           "name": "Player",
           "x": 100,
-          "y": 400,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-c7a61a47206018f5"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 20,
-          "width": 800,
-          "layer": "",
-          "locked": false,
-          "name": "Ground",
-          "x": 400,
-          "y": 590,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-ce5389274a11c52d"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 16,
-          "width": 100,
-          "layer": "",
-          "locked": false,
-          "name": "Platform",
-          "x": 200,
-          "y": 460,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-75bd337fe2766d93"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 16,
-          "width": 100,
-          "layer": "",
-          "locked": false,
-          "name": "Platform",
-          "x": 400,
-          "y": 380,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-e767a4fe2aeccdaf"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 16,
-          "width": 100,
-          "layer": "",
-          "locked": false,
-          "name": "Platform",
-          "x": 600,
           "y": 300,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-c82d7923ce8ac818"
+          "persistentUuid": "gc-87db7048187118b0"
         },
         {
           "angle": 0,
@@ -213,14 +156,14 @@
           "width": 0,
           "layer": "",
           "locked": false,
-          "name": "Coin",
-          "x": 240,
-          "y": 430,
+          "name": "HudScore",
+          "x": 16,
+          "y": 16,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-a0808002f02aae40"
+          "persistentUuid": "gc-519bd6f1a54b9ea1"
         },
         {
           "angle": 0,
@@ -229,46 +172,14 @@
           "width": 0,
           "layer": "",
           "locked": false,
-          "name": "Coin",
-          "x": 440,
-          "y": 350,
+          "name": "HudWave",
+          "x": 16,
+          "y": 44,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-8f8879a2dd154fba"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
-          "name": "Coin",
-          "x": 640,
-          "y": 270,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-6d4907fb1a9f261a"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
-          "name": "Enemy",
-          "x": 550,
-          "y": 400,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-3bac08e131281128"
+          "persistentUuid": "gc-be5ef3833e8982a7"
         }
       ],
       "objects": [
@@ -277,29 +188,7 @@
           "tags": "",
           "type": "PrimitiveDrawing::Drawer",
           "variables": [],
-          "behaviors": [
-            {
-              "name": "PlatformerObject",
-              "type": "PlatformBehavior::PlatformerObjectBehavior",
-              "acceleration": 1500,
-              "canGoDownFromJumpthru": true,
-              "canGrabPlatforms": false,
-              "canGrabWithoutMoving": true,
-              "deceleration": 1500,
-              "gravity": 1300,
-              "ignoreDefaultControls": false,
-              "jumpSpeed": 1000,
-              "jumpSustainTime": 0,
-              "ladderClimbingSpeed": 150,
-              "maxFallingSpeed": 1000,
-              "maxSpeed": 250,
-              "slopeMaxAngle": 60,
-              "useLegacyTrajectory": false,
-              "useRepeatedJump": false,
-              "xGrabTolerance": 10,
-              "yGrabOffset": 0
-            }
-          ],
+          "behaviors": [],
           "effects": [],
           "absoluteCoordinates": false,
           "clearBetweenFrames": false,
@@ -319,71 +208,7 @@
           "outlineSize": 0
         },
         {
-          "name": "Ground",
-          "tags": "",
-          "type": "PrimitiveDrawing::Drawer",
-          "variables": [],
-          "behaviors": [
-            {
-              "name": "Platform",
-              "type": "PlatformBehavior::PlatformBehavior",
-              "canBeGrabbed": true,
-              "platformType": "NormalPlatform",
-              "yGrabOffset": 0
-            }
-          ],
-          "effects": [],
-          "absoluteCoordinates": false,
-          "clearBetweenFrames": false,
-          "antialiasing": "low",
-          "fillColor": {
-            "r": 139,
-            "g": 69,
-            "b": 19
-          },
-          "fillOpacity": 255,
-          "outlineColor": {
-            "r": 0,
-            "g": 0,
-            "b": 0
-          },
-          "outlineOpacity": 255,
-          "outlineSize": 0
-        },
-        {
-          "name": "Platform",
-          "tags": "",
-          "type": "PrimitiveDrawing::Drawer",
-          "variables": [],
-          "behaviors": [
-            {
-              "name": "Platform",
-              "type": "PlatformBehavior::PlatformBehavior",
-              "canBeGrabbed": true,
-              "platformType": "NormalPlatform",
-              "yGrabOffset": 0
-            }
-          ],
-          "effects": [],
-          "absoluteCoordinates": false,
-          "clearBetweenFrames": false,
-          "antialiasing": "low",
-          "fillColor": {
-            "r": 139,
-            "g": 69,
-            "b": 19
-          },
-          "fillOpacity": 255,
-          "outlineColor": {
-            "r": 0,
-            "g": 0,
-            "b": 0
-          },
-          "outlineOpacity": 255,
-          "outlineSize": 0
-        },
-        {
-          "name": "Coin",
+          "name": "Bullet",
           "tags": "",
           "type": "PrimitiveDrawing::Drawer",
           "variables": [],
@@ -429,6 +254,88 @@
           },
           "outlineOpacity": 255,
           "outlineSize": 0
+        },
+        {
+          "name": "PowerUp",
+          "tags": "",
+          "type": "PrimitiveDrawing::Drawer",
+          "variables": [],
+          "behaviors": [],
+          "effects": [],
+          "absoluteCoordinates": false,
+          "clearBetweenFrames": false,
+          "antialiasing": "low",
+          "fillColor": {
+            "r": 46,
+            "g": 204,
+            "b": 113
+          },
+          "fillOpacity": 255,
+          "outlineColor": {
+            "r": 0,
+            "g": 0,
+            "b": 0
+          },
+          "outlineOpacity": 255,
+          "outlineSize": 0
+        },
+        {
+          "name": "HudScore",
+          "tags": "",
+          "type": "TextObject::Text",
+          "variables": [],
+          "behaviors": [],
+          "effects": [],
+          "content": {
+            "text": "HudScore",
+            "font": "",
+            "characterSize": 20,
+            "color": "255;255;255",
+            "bold": false,
+            "italic": false,
+            "underlined": false,
+            "textAlignment": "left",
+            "verticalTextAlignment": "top",
+            "isOutlineEnabled": false,
+            "outlineThickness": 0,
+            "outlineColor": "0;0;0",
+            "isShadowEnabled": false,
+            "shadowColor": "0;0;0",
+            "shadowOpacity": 127,
+            "shadowDistance": 4,
+            "shadowAngle": 45,
+            "shadowBlurRadius": 2,
+            "lineHeight": 0
+          }
+        },
+        {
+          "name": "HudWave",
+          "tags": "",
+          "type": "TextObject::Text",
+          "variables": [],
+          "behaviors": [],
+          "effects": [],
+          "content": {
+            "text": "HudWave",
+            "font": "",
+            "characterSize": 20,
+            "color": "255;255;255",
+            "bold": false,
+            "italic": false,
+            "underlined": false,
+            "textAlignment": "left",
+            "verticalTextAlignment": "top",
+            "isOutlineEnabled": false,
+            "outlineThickness": 0,
+            "outlineColor": "0;0;0",
+            "isShadowEnabled": false,
+            "shadowColor": "0;0;0",
+            "shadowOpacity": 127,
+            "shadowDistance": 4,
+            "shadowAngle": 45,
+            "shadowBlurRadius": 2,
+            "lineHeight": 0
+          }
         }
       ],
       "events": [
@@ -468,7 +375,7 @@
                 "0",
                 "0",
                 "32",
-                "48"
+                "32"
               ],
               "subInstructions": []
             },
@@ -482,7 +389,7 @@
                 "0",
                 "0",
                 "32",
-                "48"
+                "32"
               ],
               "subInstructions": []
             }
@@ -511,7 +418,7 @@
                 "value": "PrimitiveDrawing::Drawer::ClearShapes"
               },
               "parameters": [
-                "Ground"
+                "Bullet"
               ],
               "subInstructions": []
             },
@@ -521,11 +428,11 @@
                 "value": "PrimitiveDrawing::Rectangle"
               },
               "parameters": [
-                "Ground",
+                "Bullet",
                 "0",
                 "0",
-                "800",
-                "20"
+                "12",
+                "6"
               ],
               "subInstructions": []
             },
@@ -535,124 +442,11 @@
                 "value": "PrimitiveDrawing::SetRectangularCollisionMask"
               },
               "parameters": [
-                "Ground",
+                "Bullet",
                 "0",
                 "0",
-                "800",
-                "20"
-              ],
-              "subInstructions": []
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Drawer::ClearShapes"
-              },
-              "parameters": [
-                "Platform"
-              ],
-              "subInstructions": []
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Rectangle"
-              },
-              "parameters": [
-                "Platform",
-                "0",
-                "0",
-                "100",
-                "16"
-              ],
-              "subInstructions": []
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
-              },
-              "parameters": [
-                "Platform",
-                "0",
-                "0",
-                "100",
-                "16"
-              ],
-              "subInstructions": []
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Drawer::ClearShapes"
-              },
-              "parameters": [
-                "Coin"
-              ],
-              "subInstructions": []
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Circle"
-              },
-              "parameters": [
-                "Coin",
-                "8",
-                "8",
-                "8"
-              ],
-              "subInstructions": []
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
-              },
-              "parameters": [
-                "Coin",
-                "0",
-                "0",
-                "16",
-                "16"
+                "12",
+                "6"
               ],
               "subInstructions": []
             }
@@ -694,8 +488,8 @@
                 "Enemy",
                 "0",
                 "0",
-                "32",
-                "32"
+                "28",
+                "28"
               ],
               "subInstructions": []
             },
@@ -708,8 +502,64 @@
                 "Enemy",
                 "0",
                 "0",
-                "32",
-                "32"
+                "28",
+                "28"
+              ],
+              "subInstructions": []
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "PrimitiveDrawing::Drawer::ClearShapes"
+              },
+              "parameters": [
+                "PowerUp"
+              ],
+              "subInstructions": []
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "PrimitiveDrawing::Circle"
+              },
+              "parameters": [
+                "PowerUp",
+                "8",
+                "8",
+                "8"
+              ],
+              "subInstructions": []
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
+              },
+              "parameters": [
+                "PowerUp",
+                "0",
+                "0",
+                "16",
+                "16"
               ],
               "subInstructions": []
             }
@@ -742,6 +592,307 @@
                 "=",
                 "0"
               ]
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "SetVariable"
+              },
+              "parameters": [
+                "Wave",
+                "=",
+                "1"
+              ]
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "SetVariable"
+              },
+              "parameters": [
+                "PlayerHealth",
+                "=",
+                "3"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "TextObject::String"
+              },
+              "parameters": [
+                "HudScore",
+                "=",
+                "Score"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "TextObject::String"
+              },
+              "parameters": [
+                "HudWave",
+                "=",
+                "Wave"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "KeyPressed"
+              },
+              "parameters": [
+                "",
+                "ArrowUp"
+              ],
+              "_held": true
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "MettreXY"
+              },
+              "parameters": [
+                "Player",
+                "",
+                "0",
+                "-",
+                "4"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "KeyPressed"
+              },
+              "parameters": [
+                "",
+                "ArrowDown"
+              ],
+              "_held": true
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "MettreXY"
+              },
+              "parameters": [
+                "Player",
+                "",
+                "0",
+                "+",
+                "4"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "KeyPressed"
+              },
+              "parameters": [
+                "",
+                "ArrowLeft"
+              ],
+              "_held": true
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "MettreXY"
+              },
+              "parameters": [
+                "Player",
+                "-",
+                "4",
+                "",
+                "0"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "KeyPressed"
+              },
+              "parameters": [
+                "",
+                "ArrowRight"
+              ],
+              "_held": true
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "MettreXY"
+              },
+              "parameters": [
+                "Player",
+                "+",
+                "4",
+                "",
+                "0"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "KeyPressed"
+              },
+              "parameters": [
+                "",
+                "Space"
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "CreateObject"
+              },
+              "parameters": [
+                "Bullet",
+                "100",
+                "300"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "CollisionNP"
+              },
+              "parameters": [
+                "Bullet",
+                "Enemy",
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "Delete"
+              },
+              "parameters": [
+                "Bullet",
+                ""
+              ]
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "Delete"
+              },
+              "parameters": [
+                "Enemy",
+                ""
+              ]
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "SetVariable"
+              },
+              "parameters": [
+                "Score",
+                "+",
+                "10"
+              ]
             }
           ],
           "events": []
@@ -758,7 +909,7 @@
               },
               "parameters": [
                 "Player",
-                "Coin",
+                "PowerUp",
                 ""
               ]
             }
@@ -770,7 +921,7 @@
                 "value": "Delete"
               },
               "parameters": [
-                "Coin",
+                "PowerUp",
                 ""
               ]
             },
@@ -780,9 +931,9 @@
                 "value": "SetVariable"
               },
               "parameters": [
-                "Score",
-                "+",
-                "1"
+                "PlayerHealth",
+                "=",
+                "3"
               ]
             }
           ],
@@ -809,11 +960,9 @@
             {
               "type": {
                 "inverted": false,
-                "value": "ChangeScene"
+                "value": "ResetGame"
               },
-              "parameters": [
-                "GameOver"
-              ]
+              "parameters": []
             }
           ],
           "events": []
@@ -821,605 +970,122 @@
         {
           "disabled": false,
           "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
+          "type": "BuiltinCommonInstructions::Repeat",
+          "repeatExpression": "2",
+          "conditions": [],
+          "actions": [],
+          "events": [
             {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "Space"
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "AddForce"
-              },
-              "parameters": [
-                "Player",
-                "Up",
-                "500"
-              ]
-            }
-          ],
-          "events": []
-        }
-      ],
-      "layers": [
-        {
-          "ambientLightColorB": 0,
-          "ambientLightColorG": 8042920,
-          "ambientLightColorR": 16,
-          "followBaseLayerCamera": false,
-          "isLightingLayer": false,
-          "name": "",
-          "visibility": true,
-          "cameras": [
-            {
-              "defaultSize": true,
-              "defaultViewport": true,
-              "height": 0,
-              "width": 0,
-              "viewportBottom": 1,
-              "viewportLeft": 0,
-              "viewportRight": 1,
-              "viewportTop": 0
-            }
-          ],
-          "effects": []
-        }
-      ],
-      "variables": [],
-      "objectsGroups": [],
-      "behaviorsSharedData": [],
-      "usedResources": []
-    },
-    {
-      "b": 0,
-      "disableInputWhenNotFocused": true,
-      "mangledName": "Start",
-      "name": "Start",
-      "r": 0,
-      "standardSortMethod": true,
-      "stopSoundsOnStartup": true,
-      "title": "",
-      "v": 0,
-      "uiSettings": {
-        "grid": false,
-        "gridType": "rectangular",
-        "gridWidth": 32,
-        "gridHeight": 32,
-        "gridOffsetX": 0,
-        "gridOffsetY": 0,
-        "gridColor": 10401023,
-        "gridAlpha": 0.8,
-        "snap": false,
-        "zoomFactor": 0.546875,
-        "windowMask": false
-      },
-      "instances": [
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
-          "name": "TitleText",
-          "x": 280,
-          "y": 170,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-236dbf49c4e34c9b"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 56,
-          "width": 180,
-          "layer": "",
-          "locked": false,
-          "name": "StartButton",
-          "x": 310,
-          "y": 300,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-4d2cae27b130bfda"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
-          "name": "StartLabel",
-          "x": 360,
-          "y": 315,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-9ebce518b8f573ca"
-        }
-      ],
-      "objects": [
-        {
-          "name": "TitleText",
-          "tags": "",
-          "type": "TextObject::Text",
-          "variables": [],
-          "behaviors": [],
-          "effects": [],
-          "content": {
-            "text": "TitleText",
-            "font": "",
-            "characterSize": 36,
-            "color": "255;255;255",
-            "bold": false,
-            "italic": false,
-            "underlined": false,
-            "textAlignment": "left",
-            "verticalTextAlignment": "top",
-            "isOutlineEnabled": false,
-            "outlineThickness": 0,
-            "outlineColor": "0;0;0",
-            "isShadowEnabled": false,
-            "shadowColor": "0;0;0",
-            "shadowOpacity": 127,
-            "shadowDistance": 4,
-            "shadowAngle": 45,
-            "shadowBlurRadius": 2,
-            "lineHeight": 0
-          }
-        },
-        {
-          "name": "StartButton",
-          "tags": "",
-          "type": "PrimitiveDrawing::Drawer",
-          "variables": [],
-          "behaviors": [],
-          "effects": [],
-          "absoluteCoordinates": false,
-          "clearBetweenFrames": false,
-          "antialiasing": "low",
-          "fillColor": {
-            "r": 46,
-            "g": 204,
-            "b": 113
-          },
-          "fillOpacity": 255,
-          "outlineColor": {
-            "r": 0,
-            "g": 0,
-            "b": 0
-          },
-          "outlineOpacity": 255,
-          "outlineSize": 0
-        },
-        {
-          "name": "StartLabel",
-          "tags": "",
-          "type": "TextObject::Text",
-          "variables": [],
-          "behaviors": [],
-          "effects": [],
-          "content": {
-            "text": "StartLabel",
-            "font": "",
-            "characterSize": 24,
-            "color": "255;255;255",
-            "bold": false,
-            "italic": false,
-            "underlined": false,
-            "textAlignment": "left",
-            "verticalTextAlignment": "top",
-            "isOutlineEnabled": false,
-            "outlineThickness": 0,
-            "outlineColor": "0;0;0",
-            "isShadowEnabled": false,
-            "shadowColor": "0;0;0",
-            "shadowOpacity": 127,
-            "shadowDistance": 4,
-            "shadowAngle": 45,
-            "shadowBlurRadius": 2,
-            "lineHeight": 0
-          }
-        }
-      ],
-      "events": [
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Drawer::ClearShapes"
-              },
-              "parameters": [
-                "StartButton"
+              "disabled": false,
+              "folded": false,
+              "type": "BuiltinCommonInstructions::Standard",
+              "conditions": [],
+              "actions": [
+                {
+                  "type": {
+                    "inverted": false,
+                    "value": "CreateObject"
+                  },
+                  "parameters": [
+                    "Enemy",
+                    "780",
+                    "100"
+                  ]
+                }
               ],
-              "subInstructions": []
-            },
+              "events": []
+            }
+          ]
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Repeat",
+          "repeatExpression": "2",
+          "conditions": [],
+          "actions": [],
+          "events": [
             {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Rectangle"
-              },
-              "parameters": [
-                "StartButton",
-                "0",
-                "0",
-                "180",
-                "56"
+              "disabled": false,
+              "folded": false,
+              "type": "BuiltinCommonInstructions::Standard",
+              "conditions": [],
+              "actions": [
+                {
+                  "type": {
+                    "inverted": false,
+                    "value": "CreateObject"
+                  },
+                  "parameters": [
+                    "Enemy",
+                    "780",
+                    "250"
+                  ]
+                }
               ],
-              "subInstructions": []
-            },
+              "events": []
+            }
+          ]
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Repeat",
+          "repeatExpression": "3",
+          "conditions": [],
+          "actions": [],
+          "events": [
             {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
-              },
-              "parameters": [
-                "StartButton",
-                "0",
-                "0",
-                "180",
-                "56"
+              "disabled": false,
+              "folded": false,
+              "type": "BuiltinCommonInstructions::Standard",
+              "conditions": [],
+              "actions": [
+                {
+                  "type": {
+                    "inverted": false,
+                    "value": "CreateObject"
+                  },
+                  "parameters": [
+                    "Enemy",
+                    "780",
+                    "400"
+                  ]
+                }
               ],
-              "subInstructions": []
+              "events": []
             }
-          ],
-          "events": []
+          ]
         },
         {
           "disabled": false,
           "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
+          "type": "BuiltinCommonInstructions::Repeat",
+          "repeatExpression": "15",
+          "conditions": [],
+          "actions": [],
+          "events": [
             {
-              "type": {
-                "inverted": false,
-                "value": "SourisSurObjet"
-              },
-              "parameters": [
-                "LeftButton",
-                "",
-                "StartButton"
-              ]
+              "disabled": false,
+              "folded": false,
+              "type": "BuiltinCommonInstructions::Standard",
+              "conditions": [],
+              "actions": [
+                {
+                  "type": {
+                    "inverted": false,
+                    "value": "CreateObject"
+                  },
+                  "parameters": [
+                    "PowerUp",
+                    "400",
+                    "300"
+                  ]
+                }
+              ],
+              "events": []
             }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "ChangeScene"
-              },
-              "parameters": [
-                "Game"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "TextObject::String"
-              },
-              "parameters": [
-                "StartLabel",
-                "=",
-                "Play Now"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "TextObject::String"
-              },
-              "parameters": [
-                "TitleText",
-                "=",
-                "Moon Runner"
-              ]
-            }
-          ],
-          "events": []
-        }
-      ],
-      "layers": [
-        {
-          "ambientLightColorB": 0,
-          "ambientLightColorG": 8042920,
-          "ambientLightColorR": 16,
-          "followBaseLayerCamera": false,
-          "isLightingLayer": false,
-          "name": "",
-          "visibility": true,
-          "cameras": [
-            {
-              "defaultSize": true,
-              "defaultViewport": true,
-              "height": 0,
-              "width": 0,
-              "viewportBottom": 1,
-              "viewportLeft": 0,
-              "viewportRight": 1,
-              "viewportTop": 0
-            }
-          ],
-          "effects": []
-        }
-      ],
-      "variables": [],
-      "objectsGroups": [],
-      "behaviorsSharedData": [],
-      "usedResources": []
-    },
-    {
-      "b": 0,
-      "disableInputWhenNotFocused": true,
-      "mangledName": "GameOver",
-      "name": "GameOver",
-      "r": 0,
-      "standardSortMethod": true,
-      "stopSoundsOnStartup": true,
-      "title": "",
-      "v": 0,
-      "uiSettings": {
-        "grid": false,
-        "gridType": "rectangular",
-        "gridWidth": 32,
-        "gridHeight": 32,
-        "gridOffsetX": 0,
-        "gridOffsetY": 0,
-        "gridColor": 10401023,
-        "gridAlpha": 0.8,
-        "snap": false,
-        "zoomFactor": 0.546875,
-        "windowMask": false
-      },
-      "instances": [
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
-          "name": "GameOverText",
-          "x": 285,
-          "y": 240,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-92895047ad7486c6"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
-          "name": "RestartHint",
-          "x": 330,
-          "y": 310,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-01f85388610431c2"
-        }
-      ],
-      "objects": [
-        {
-          "name": "GameOverText",
-          "tags": "",
-          "type": "TextObject::Text",
-          "variables": [],
-          "behaviors": [],
-          "effects": [],
-          "content": {
-            "text": "GameOverText",
-            "font": "",
-            "characterSize": 40,
-            "color": "255;255;255",
-            "bold": false,
-            "italic": false,
-            "underlined": false,
-            "textAlignment": "left",
-            "verticalTextAlignment": "top",
-            "isOutlineEnabled": false,
-            "outlineThickness": 0,
-            "outlineColor": "0;0;0",
-            "isShadowEnabled": false,
-            "shadowColor": "0;0;0",
-            "shadowOpacity": 127,
-            "shadowDistance": 4,
-            "shadowAngle": 45,
-            "shadowBlurRadius": 2,
-            "lineHeight": 0
-          }
-        },
-        {
-          "name": "RestartHint",
-          "tags": "",
-          "type": "TextObject::Text",
-          "variables": [],
-          "behaviors": [],
-          "effects": [],
-          "content": {
-            "text": "RestartHint",
-            "font": "",
-            "characterSize": 22,
-            "color": "255;255;255",
-            "bold": false,
-            "italic": false,
-            "underlined": false,
-            "textAlignment": "left",
-            "verticalTextAlignment": "top",
-            "isOutlineEnabled": false,
-            "outlineThickness": 0,
-            "outlineColor": "0;0;0",
-            "isShadowEnabled": false,
-            "shadowColor": "0;0;0",
-            "shadowOpacity": 127,
-            "shadowDistance": 4,
-            "shadowAngle": 45,
-            "shadowBlurRadius": 2,
-            "lineHeight": 0
-          }
-        }
-      ],
-      "events": [
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "Space"
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "ChangeScene"
-              },
-              "parameters": [
-                "Game"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "TextObject::String"
-              },
-              "parameters": [
-                "RestartHint",
-                "=",
-                "Space To Retry"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "TextObject::String"
-              },
-              "parameters": [
-                "GameOverText",
-                "=",
-                "Try Again"
-              ]
-            }
-          ],
-          "events": []
+          ]
         }
       ],
       "layers": [

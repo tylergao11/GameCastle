@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Product modules are AI-facing game-factory building blocks. They are larger than low-level capabilities and compile into internal line-style DSL.",
+  "description": "Product modules are AI-facing game-factory building blocks. They are the single source of truth for capabilities, DSL compilation, networking, and LLM prompts. Capabilities are declared inline and derived from here; there is no separate capabilities directory.",
   "requiredFields": [
     "schemaVersion",
     "id",
@@ -12,7 +12,8 @@
     "presets",
     "repositoryPolicy",
     "networking",
-    "compiler"
+    "compiler",
+    "capabilities"
   ],
   "categories": [
     "core",
@@ -23,6 +24,7 @@
   ],
   "fieldNotes": {
     "llm1Card": "Short product-level card safe for LLM1. Do not include full low-level DSL.",
+    "capabilities": "Array of atomic capability cards embodied by this module. Each card has id, name, summary, llm1Hint, provides, requires, dsl (commands + examples), and constraints. These are the source for LLM1 creative summaries and LLM2 repair prompts. Cards are deduplicated by id across all modules.",
     "compiler.dsl": "Internal low-level DSL template lines consumed by ai/pipeline.js.",
     "compiler.slots": "Internal module-link slots. Slots are patched by compiler.links and are not automatically LLM2-configurable.",
     "compiler.slotPatches": "Internal patch templates used when a newly installed module links into an already installed base module.",
@@ -30,6 +32,6 @@
     "compiler.configurePatches": "Per-parameter patches for configuring an already installed module from ProjectWorld state.",
     "interaction": "AI-visible fixed runtime interaction contract. Use this for trigger/copy constraints without exposing internal DSL templates.",
     "repositoryPolicy": "Module repository strategy. Product modules are reused from the module repository; expensive generated module variants must be promoted back as cloud-module candidates instead of remaining one-off outputs.",
-    "networking": "Declares what networking models this module supports. Replaces the old sync field. Used by compiler to match with network modules."
+    "networking": "Declares what networking models this module supports. Used by compiler to match with network modules."
   }
 }

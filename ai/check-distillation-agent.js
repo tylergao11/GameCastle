@@ -75,6 +75,14 @@ async function main() {
     var approved = manager.getCandidatesByStatus('approved');
     assert(approved.length === 1, 'must have 1 approved');
 
+    // 5b. needsCloudVerification: approved asset still needs cloud verification
+    assert(approved[0].needsCloudVerification === true, 'approved asset must still need cloud verification');
+
+    // 5c. markCloudVerified
+    var verified = manager.markCloudVerified(stored.candidateId, { score: 0.92 });
+    assert(verified.needsCloudVerification === false, 'markCloudVerified must clear flag');
+    assert(manager.getCandidatesNeedingCloudVerification().length === 0, 'no pending after markCloudVerified');
+
     // 6. resolveByTags should now find the approved asset
     var resolved = manager.resolveByTags('sprite', ['enemy', 'boss'], ['dark'], { width: 64, height: 64 });
     assert(resolved !== null, 'resolveByTags must find approved asset');

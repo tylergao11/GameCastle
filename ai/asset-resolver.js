@@ -214,6 +214,48 @@ function collectCandidates(slot, repositories, lookup) {
   return candidates;
 }
 
+function formatCloudLibraryResult(slot, candidate, rank) {
+  var asset = candidate.asset;
+  return {
+    slotId: slot.slotId,
+    status: "reused",
+    source: "cloudLibrary",
+    assetId: asset.assetId,
+    repoAssetId: null,
+    provider: "cloud-library",
+    path: asset.path,
+    format: asset.format,
+    sha1: asset.sha1,
+    width: asset.width,
+    height: asset.height,
+    transparent: !!asset.transparent,
+    semanticTags: clone(asset.semanticTags || []),
+    styleTags: clone(asset.styleTags || []),
+    confidence: Number(candidate.confidence.toFixed(4)),
+    prompt: "",
+    negativePrompt: "",
+    seed: null,
+    cloudCandidateId: candidate.cloudCandidateId || null,
+    resolution: {
+      strategy: "cloudLibrary",
+      rank: rank,
+      candidatesConsidered: 1,
+      cacheHit: false,
+      ownerOnFailure: "ImageAgent",
+    },
+    transform: { resize: false, recolor: false, crop: false, atlasPacked: false, processedPath: null },
+    publishability: {
+      playable: true,
+      publishable: true,
+      repoEligible: true,
+      trainingEligible: false,
+      blocksFinalExport: false,
+      debt: "none",
+    },
+    collisionHint: (slot.constraints || {}).collisionHint || undefined,
+  };
+}
+
 function formatAssetResult(slot, candidate, rank, cacheHit) {
   var asset = candidate.asset;
   var repository = candidate.repository;
@@ -327,6 +369,46 @@ function stripUndefined(value) {
   return value;
 }
 
+function collectCloudLibraryCandidates(slot, cloudLibraryManager) {
+  if (!cloudLibraryManager) return [];
+  var strategy = "cloudLibrary";
+  var candidates = [];
+  var approved = cloudLibraryManager.getCandidatesByStatus("approved") || [];
+  var promoted = cloudLibraryManager.getCandidatesByStatus("promoted") || [];
+  var allCandidates = approved.concat(promoted);
+  allCandidates.forEach(function(entry) {
+    var hint = entry.distillHint || {};
+    var asset = {
+      kind: hint.kind || "sprite",
+      semanticTags: hint.semanticTags || [],
+      styleTags: hint.styleTags || [],
+      width: entry.width || hint.width || 0,
+      height: entry.height || hint.height || 0,
+      transparent: !!(hint.transparent),
+      license: "commercial",
+      assetId: entry.candidateId,
+      path: entry.storedPath,
+      format: entry.format || "png",
+      sha1: entry.contentHash,
+    };
+    var confidence = scoreAsset(asset, slot, strategy);
+    if (confidence <= 0) return;
+    candidates.push({
+      repository: null,
+      asset: asset,
+      confidence: Math.min(1, confidence),
+      strategy: strategy,
+      source: "cloudLibrary",
+      cloudCandidateId: entry.candidateId,
+    });
+  });
+  candidates.sort(function(a, b) {
+    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+    return String(a.asset.assetId).localeCompare(String(b.asset.assetId));
+  });
+  return candidates;
+}
+
 function resolveSlot(slot, context) {
   var cache = context.cache;
   var signature = makeSlotSignature(slot, context.assetContract);
@@ -346,6 +428,24 @@ function resolveSlot(slot, context) {
   var considered = 0;
   for (var i = 0; i < lookupOrder.length; i++) {
     var lookup = lookupOrder[i];
+    if (lookup === 'cloudLibrary') {
+      if (resolutionPolicy.allowRepoMatch === false) continue;
+      if (context.cloudLibraryManager) {
+        var libCandidates = collectCloudLibraryCandidates(slot, context.cloudLibraryManager).slice(0, maxCandidates);
+        considered += libCandidates.length;
+        for (var lc = 0; lc < libCandidates.length; lc++) {
+          var libCandidate = libCandidates[lc];
+          libCandidate.candidatesConsidered = considered;
+          if (libCandidate.confidence >= minConfidence) {
+            var libResult = formatCloudLibraryResult(slot, libCandidate, lc + 1);
+            libResult.resolution.candidatesConsidered = considered;
+            cache.entries[signature] = clone(libResult);
+            return libResult;
+          }
+        }
+      }
+      continue;
+    }
     if (lookup === 'exactCache' || lookup === 'variant' || lookup === 'externalGeneration' || lookup === 'runtimePlaceholder') continue;
     if (resolutionPolicy.allowRepoMatch === false) continue;
     var candidates = collectCandidates(slot, context.repositories, lookup).slice(0, maxCandidates);
@@ -414,6 +514,7 @@ function resolveAssetContract(buildContract, options) {
   var cachePath = options.cachePath || null;
   var cache = loadAssetCache(cachePath);
   var context = {
+    cloudLibraryManager: options.cloudLibraryManager || null,
     assetContract: assetContract,
     repositories: repositories,
     cache: cache,
@@ -435,6 +536,88 @@ function resolveAssetContract(buildContract, options) {
   };
 }
 
+async function resolveAssetContractAsync(buildContract, options) {
+  options = options || {};
+  var assetContract = buildContract.assetContract || buildContract;
+  var repositories = options.repositories || loadAssetRepositories(options.repositoryPaths || []);
+  var cachePath = options.cachePath || null;
+  var cache = loadAssetCache(cachePath);
+  var cloudLibraryManager = options.cloudLibraryManager || null;
+  var generateAsset = options.generateAsset || null;
+  var context = {
+    cloudLibraryManager: cloudLibraryManager,
+    assetContract: assetContract,
+    repositories: repositories,
+    cache: cache,
+  };
+  var slots = assetContract.slots || [];
+  var assets = [];
+  for (var i = 0; i < slots.length; i++) {
+    var slot = slots[i];
+    if (slot.owner !== "RuntimeAssetResolver") {
+      throw new Error("AssetSlot owner must be RuntimeAssetResolver: " + slot.slotId);
+    }
+    // Use sync resolution first, then generation if needed
+    var result = resolveSlot(slot, context);
+    // If sync resolution returned a placeholder and generation is allowed, try generation
+    var resolutionPolicy = slot.resolutionPolicy || {};
+    if (result.status === "placeholder" && resolutionPolicy.allowGeneration && generateAsset) {
+      try {
+        var generated = await generateAsset(slot);
+        if (generated) {
+          result = {
+            slotId: slot.slotId,
+            status: "generated",
+            source: "generatedExternal",
+            assetId: generated.assetId || ("generated." + slot.slotId),
+            repoAssetId: null,
+            provider: "ImageAgent",
+            path: generated.path,
+            format: generated.format || "png",
+            sha1: generated.sha1,
+            width: generated.width,
+            height: generated.height,
+            transparent: !!generated.transparent,
+            semanticTags: clone(slot.semanticTags || (slot.constraints && slot.constraints.semantic) || []),
+            styleTags: clone(slot.styleTags || [slot.constraints && slot.constraints.style].filter(Boolean)),
+            confidence: 0.5,
+            prompt: generated.prompt || "",
+            negativePrompt: generated.negativePrompt || "",
+            seed: generated.seed || null,
+            distillHint: generated.distillHint || null,
+            resolution: { strategy: "generate", rank: 0, candidatesConsidered: 0, cacheHit: false, ownerOnFailure: "ImageAgent" },
+            transform: { resize: false, recolor: false, crop: false, atlasPacked: false, processedPath: null },
+            publishability: { playable: true, publishable: true, repoEligible: !!(generated.distillHint), trainingEligible: false, blocksFinalExport: false, debt: "needs_distillation" },
+            collisionHint: (slot.constraints || {}).collisionHint || undefined,
+          };
+          // Store in cloud library if available
+          if (cloudLibraryManager && generated.distillHint) {
+            cloudLibraryManager.storeCandidate({
+              path: generated.path,
+              sha1: generated.sha1,
+              format: generated.format || "png",
+              width: generated.width,
+              height: generated.height,
+              distillHint: generated.distillHint,
+            });
+          }
+        }
+      } catch (genErr) {
+        // Keep the placeholder on generation failure
+      }
+    }
+    assets.push(stripUndefined(result));
+  }
+  saveAssetCache(cachePath, cache);
+  var summary = summarizeAssets(assets);
+  return {
+    meta: makeMeta((buildContract.meta && buildContract.meta.contractId) || "build-contract", summary.failed ? "partial" : "ready"),
+    buildContractId: (buildContract.meta && buildContract.meta.contractId) || "build-contract",
+    assets: assets,
+    summary: summary,
+  };
+}
+
 module.exports = {
   ASSET_REPOSITORY_SCHEMA_VERSION: ASSET_REPOSITORY_SCHEMA_VERSION,
   ASSET_CACHE_SCHEMA_VERSION: ASSET_CACHE_SCHEMA_VERSION,
@@ -446,4 +629,6 @@ module.exports = {
   saveAssetCache: saveAssetCache,
   makeSlotSignature: makeSlotSignature,
   resolveAssetContract: resolveAssetContract,
+  resolveAssetContractAsync: resolveAssetContractAsync,
+  scoreAsset: scoreAsset,
 };

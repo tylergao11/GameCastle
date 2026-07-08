@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "modules": [
     {
-      "id": "core.platformer",
+      "id": "core.shooter",
       "category": "core",
       "syncPolicy": {
         "sync": "lockstep",
@@ -12,46 +12,21 @@
       },
       "deterministic": true,
       "inputs": [
+        "move_up",
+        "move_down",
         "move_left",
         "move_right",
-        "jump"
+        "shoot"
       ],
       "state": [
         "Score",
+        "Wave",
         "Player",
-        "Coin",
-        "Enemy"
+        "PlayerHealth",
+        "Bullet",
+        "Enemy",
+        "PowerUp"
       ]
-    },
-    {
-      "id": "shell.start_screen",
-      "category": "shell",
-      "syncPolicy": {
-        "sync": "local",
-        "authority": "client",
-        "tickRate": 0,
-        "seed": "auto"
-      },
-      "deterministic": true,
-      "inputs": [
-        "start"
-      ],
-      "state": []
-    },
-    {
-      "id": "shell.game_over_screen",
-      "category": "shell",
-      "syncPolicy": {
-        "sync": "event",
-        "authority": "host",
-        "tickRate": 0,
-        "seed": "auto"
-      },
-      "deterministic": true,
-      "inputs": [
-        "restart"
-      ],
-      "state": []
     }
   ]
 }

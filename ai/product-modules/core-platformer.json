@@ -126,5 +126,330 @@
   },
   "requires": {
     "scene": "Game"
-  }
+  },
+  "capabilities": [
+    {
+      "id": "capability.movement.platformer",
+      "name": "Platform movement",
+      "summary": "Add platformer movement and jumping to a player object.",
+      "llm1Hint": "The player can move and jump through platform-style levels.",
+      "provides": [
+        "player_movement",
+        "jump",
+        "platformer_controls"
+      ],
+      "requires": {
+        "objects": [
+          "player"
+        ],
+        "variables": [],
+        "behaviors": [
+          "PlatformBehavior::PlatformerObjectBehavior"
+        ],
+        "events": [
+          "jump_input"
+        ]
+      },
+      "dsl": {
+        "commands": [
+          "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=<PlayerObject> scene=<SceneName>",
+          "on key Space -> jump <PlayerObject> <Strength>",
+          "on is_jumping <PlayerObject> -> <Actions>",
+          "on is_falling <PlayerObject> -> <Actions>",
+          "on is_on_floor <PlayerObject> -> <Actions>"
+        ],
+        "examples": [
+          "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
+          "on key Space -> jump Player 500"
+        ]
+      },
+      "constraints": {
+        "playerPlacement": "Place the player near the lower-left area for platform games.",
+        "jumpStrength": "Default jump strength is 500.",
+        "platforms": "Pair with shape objects for ground and platforms."
+      },
+      "networking": {
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.collectible.score",
+      "name": "Collectible scoring",
+      "summary": "Collect objects, destroy the collected item, and update a score variable.",
+      "llm1Hint": "Players can collect items such as coins or gems for score.",
+      "provides": [
+        "collectible",
+        "score",
+        "pickup_loop"
+      ],
+      "requires": {
+        "objects": [
+          "player",
+          "collectible"
+        ],
+        "variables": [
+          "Score"
+        ],
+        "behaviors": [],
+        "events": [
+          "collision_collectible"
+        ]
+      },
+      "dsl": {
+        "commands": [
+          "set variable name=Score value=<InitialValue> type=Number scope=global",
+          "on start -> Score=0",
+          "on collision <PlayerObject> <CollectibleObject> -> destroy <CollectibleObject>, score+<Amount>",
+          "on collision <PlayerObject> <CollectibleObject> -> destroy <CollectibleObject>, variable Score + <Amount>"
+        ],
+        "examples": [
+          "set variable name=Score value=0 type=Number scope=global",
+          "on start -> Score=0",
+          "on collision Player Coin -> destroy Coin, score+1"
+        ]
+      },
+      "constraints": {
+        "scoreVariable": "Use Score as the default global score variable.",
+        "pickupAction": "A collectible collision should remove the collected object or otherwise mark it as consumed."
+      },
+      "networking": {
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.enemy.collision",
+      "name": "Enemy collision hazard",
+      "summary": "Create enemies or hazards that punish the player on collision.",
+      "llm1Hint": "Enemies and hazards can reset, defeat, or otherwise punish the player.",
+      "provides": [
+        "enemy",
+        "hazard",
+        "lose_condition"
+      ],
+      "requires": {
+        "objects": [
+          "player",
+          "enemy"
+        ],
+        "variables": [],
+        "behaviors": [],
+        "events": [
+          "collision_hazard"
+        ]
+      },
+      "dsl": {
+        "commands": [
+          "on collision <PlayerObject> <EnemyObject> -> restart",
+          "on collision <PlayerObject> <EnemyObject> -> scene <SceneName>",
+          "delete object name=<EnemyObject> scene=<SceneName>"
+        ],
+        "examples": [
+          "on collision Player Enemy -> restart"
+        ]
+      },
+      "constraints": {
+        "feedback": "For the current runtime slice, restart is the safest default punishment.",
+        "placement": "Place enemies away from the initial player spawn unless the user asks for high difficulty."
+      },
+      "networking": {
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.object.shape",
+      "name": "Shape objects and text",
+      "summary": "Create visible game objects using ShapePainter rectangles/circles and Text objects.",
+      "llm1Hint": "Visuals use simple colored shapes and text, enough for players, enemies, platforms, coins, bullets, and HUD labels.",
+      "provides": [
+        "shape_object",
+        "text_object",
+        "simple_visuals"
+      ],
+      "requires": {
+        "objects": [],
+        "variables": [],
+        "behaviors": [],
+        "events": []
+      },
+      "dsl": {
+        "commands": [
+          "create object name=<Name> type=ShapePainter shape=rectangle|circle color=#RRGGBB width=<Width> height=<Height> scene=<SceneName>",
+          "create object name=<Name> type=Text scene=<SceneName> size=<Size>",
+          "set object name=<Name> color=#RRGGBB width=<Width> height=<Height> shape=rectangle|circle scene=<SceneName>",
+          "place object=<Name> at=<X>,<Y> scene=<SceneName>",
+          "place object=<Name> at=<X>,<Y> scene=<SceneName> width=<Width> height=<Height>",
+          "set placement object=<Name> x=<X> y=<Y> scene=<SceneName>"
+        ],
+        "examples": [
+          "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
+          "place object=Player at=100,400 scene=Game",
+          "create object name=ScoreText type=Text scene=Game size=24"
+        ]
+      },
+      "constraints": {
+        "objectNames": "Use stable English names. Do not rename objects unless explicitly requested.",
+        "shapePainter": "ShapePainter objects must include shape, color, width, and height.",
+        "colors": "Use #RRGGBB. Preserve 00 color channels exactly."
+      },
+      "networking": {
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.scene.base",
+      "name": "Base scene",
+      "summary": "Create the playable scene and base canvas for a GameCastle project.",
+      "llm1Hint": "A game can have one main playable scene on an 800x600 canvas.",
+      "provides": [
+        "main_scene",
+        "playable_canvas"
+      ],
+      "requires": {
+        "objects": [],
+        "variables": [],
+        "behaviors": [],
+        "events": []
+      },
+      "dsl": {
+        "commands": [
+          "create scene name=<SceneName> first=true"
+        ],
+        "examples": [
+          "create scene name=Game first=true"
+        ]
+      },
+      "constraints": {
+        "sceneName": "Use Game unless the user explicitly asks for another scene.",
+        "canvas": {
+          "width": 800,
+          "height": 600
+        }
+      },
+      "networking": {
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.spawn.simple",
+      "name": "Simple timed spawn",
+      "summary": "Spawn objects on a timer or in response to input.",
+      "llm1Hint": "The game can add simple timed spawns, such as falling hazards or recurring enemies.",
+      "provides": [
+        "timed_spawn",
+        "input_spawn"
+      ],
+      "requires": {
+        "objects": [
+          "spawned_object"
+        ],
+        "variables": [],
+        "behaviors": [],
+        "events": [
+          "timer_spawn",
+          "input_spawn"
+        ]
+      },
+      "dsl": {
+        "commands": [
+          "every <Seconds>s -> spawn <ObjectName> at <X>,<Y>",
+          "on key <Key> -> spawn <ObjectName> at <X>,<Y>"
+        ],
+        "examples": [
+          "every 2s -> spawn Enemy at 760,80",
+          "on key Space -> spawn Bullet at 420,500"
+        ]
+      },
+      "constraints": {
+        "spawnPosition": "Use numeric coordinates. Keep spawns inside or just outside the 800x600 play area.",
+        "currentLimit": "The current runtime slice does not yet include full projectile physics."
+      },
+      "networking": {
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": false,
+          "requiresSeededRNG": false,
+          "requiresFixedTimestep": false
+        },
+        "inputs": [],
+        "state": []
+      }
+    }
+  ]
 }

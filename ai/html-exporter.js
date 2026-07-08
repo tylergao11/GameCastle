@@ -177,8 +177,8 @@ function buildHtmlExportManifest(project, options) {
 
   (options.codeFiles || []).forEach(function(file) { addUnique(scriptFiles, file.fileName || file); });
   addUnique(scriptFiles, 'data.js');
-
-  return {
+  addUnique(scriptFiles, 'network-runtime.js');
+return {
     schemaVersion: 1,
     target: 'html',
     scriptFiles: scriptFiles,
@@ -212,15 +212,51 @@ function syncHtmlRuntime(runtimeDir, outputDir, manifest) {
   }
   removeManagedRuntime(outputDir, runtimeDir);
   manifest.scriptFiles.concat(manifest.assetFiles || []).forEach(function(file) {
-    if (/^code\d+\.js$/.test(file) || file === 'data.js') return;
+    if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'network-runtime.js') return;
     copyRuntimeFile(runtimeDir, outputDir, file);
   });
 }
 
-function renderHtml(manifest) {
+function renderHtml(manifest, options) {
+  options = options || {};
+  var hasNetwork = options.hasNetwork || false;
   var scriptTags = manifest.scriptFiles.map(function(file) {
     return '<script src="' + file.replace(/\\/g, '/') + '" crossorigin="anonymous"></script>';
   }).join('\n');
+
+  var gameStartScript;
+  if (hasNetwork) {
+    // Network mode: bridge controls the game loop
+    gameStartScript = [
+      '    (function() {',
+      '      var game = new gdjs.RuntimeGame(gdjs.projectData, gdjs.runtimeGameOptions || {});',
+      '      game.getRenderer().createStandardCanvas(document.body);',
+      '      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);',
+      '      game.loadAllAssets(function() {',
+      '        var bridgeOwnsLoop = false;',
+      '        if (window.GameCastleNetwork && window.GameCastleNetwork.bridge) {',
+      '          bridgeOwnsLoop = window.GameCastleNetwork.bridge.attach(game);',
+      '        }',
+      '        if (!bridgeOwnsLoop) {',
+      '          game.startGameLoop();',
+      '        }',
+      '      });',
+      '    })();',
+    ].join('\n');
+  } else {
+    // Local mode: standard GDevelop start
+    gameStartScript = [
+      '    (function() {',
+      '      var game = new gdjs.RuntimeGame(gdjs.projectData, gdjs.runtimeGameOptions || {});',
+      '      game.getRenderer().createStandardCanvas(document.body);',
+      '      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);',
+      '      game.loadAllAssets(function() {',
+      '        game.startGameLoop();',
+      '      });',
+      '    })();',
+    ].join('\n');
+  }
+
   return [
     '<!DOCTYPE html>',
     '<html>',
@@ -236,14 +272,7 @@ function renderHtml(manifest) {
     '</head>',
     '<body>',
     '  <script>',
-    '    (function() {',
-    '      var game = new gdjs.RuntimeGame(gdjs.projectData, gdjs.runtimeGameOptions || {});',
-    '      game.getRenderer().createStandardCanvas(document.body);',
-    '      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);',
-    '      game.loadAllAssets(function() {',
-    '        game.startGameLoop();',
-    '      });',
-    '    })();',
+    gameStartScript,
     '  </script>',
     '</body>',
     '</html>',
@@ -251,8 +280,9 @@ function renderHtml(manifest) {
   ].join('\n');
 }
 
-function writeHtmlExport(outputDir, manifest) {
-  var html = renderHtml(manifest);
+function writeHtmlExport(outputDir, manifest, options) {
+  options = options || {};
+  var html = renderHtml(manifest, { hasNetwork: !!options.hasNetwork });
   fs.writeFileSync(path.join(outputDir, 'index.html'), html);
   fs.writeFileSync(path.join(outputDir, 'game.html'), html);
 }
@@ -261,4 +291,5 @@ module.exports = {
   buildHtmlExportManifest: buildHtmlExportManifest,
   syncHtmlRuntime: syncHtmlRuntime,
   writeHtmlExport: writeHtmlExport,
+  renderHtml: renderHtml,
 };

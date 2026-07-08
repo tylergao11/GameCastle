@@ -125,6 +125,8 @@ function createCloudLibraryManager(options) {
       height: (asset.distillHint && asset.distillHint.height) || asset.height || 0,
       distillHint: asset.distillHint || null,
       scope: scope,
+      needsCloudVerification: true,
+      cloudVerifiedAt: null,
       createdAt: new Date().toISOString(),
       promotedAt: null,
     };
@@ -142,37 +144,82 @@ function createCloudLibraryManager(options) {
 
   /**
    * Resolve an asset by semantic tags. Returns the best matching candidate.
-   * Currently simple: first match with highest tag overlap. Future: scoring like asset-resolver.
+   * Currently simple: first match with highest tag overlap. Now uses unified asset-resolver scoring engine.
+   */
+  /**
+   * Resolve an asset by semantic tags using the unified asset-resolver scoring engine.
+   * Now delegates to the same scoreAsset used by asset-resolver.js for consistent scoring.
    */
   function resolveByTags(kind, semanticTags, styleTags, constraints) {
+    var assetResolver = null;
+    try { assetResolver = require("./asset-resolver"); } catch (e) { /* fall through to simple scoring */ }
+    
     var manifest = loadManifest();
     var candidates = manifest.candidates.filter(function(c) {
-      return c.status === 'approved' || c.status === 'promoted';
+      return c.status === "approved" || c.status === "promoted";
     });
 
     if (!candidates.length) return null;
 
-    // Simple scoring: prefer approved/promoted with matching kind
+    // Build a pseudo-slot for the unified scoring engine
+    var slot = {
+      kind: kind,
+      semanticTags: semanticTags || [],
+      styleTags: styleTags || [],
+      constraints: constraints || {},
+      repoPolicy: { requiredLicense: "any", allowLicensedAssets: true },
+    };
+
     var scored = candidates
-      .filter(function(c) {
-        var hint = c.distillHint || {};
-        return hint.kind === kind;
-      })
       .map(function(c) {
         var hint = c.distillHint || {};
-        var tagOverlap = (semanticTags || []).filter(function(t) {
-          return (hint.semanticTags || []).indexOf(t) >= 0;
-        }).length;
-        return { candidate: c, score: tagOverlap };
+        var asset = {
+          kind: hint.kind || "sprite",
+          semanticTags: hint.semanticTags || [],
+          styleTags: hint.styleTags || [],
+          width: c.width || hint.width || 0,
+          height: c.height || hint.height || 0,
+          transparent: !!(hint.transparent),
+          license: "commercial",
+        };
+        // Use unified scoring if available, fall back to simple overlap
+        var score = 0;
+        if (assetResolver && typeof assetResolver.scoreAsset === "function") {
+          score = assetResolver.scoreAsset(asset, slot, "cloudLibrary");
+        } else {
+          // Simple fallback: tag overlap scoring
+          var tagOverlap = (semanticTags || []).filter(function(t) {
+            return (hint.semanticTags || []).indexOf(t) >= 0;
+          }).length;
+          var styleOverlap = (styleTags || []).filter(function(t) {
+            return (hint.styleTags || []).indexOf(t) >= 0;
+          }).length;
+          score = tagOverlap * 0.6 + styleOverlap * 0.4;
+        }
+        return { candidate: c, score: score };
       })
       .filter(function(item) { return item.score > 0; })
       .sort(function(a, b) { return b.score - a.score; });
 
-    if (scored.length) return scored[0].candidate;
+    if (scored.length) {
+    // Track reuse for quality audit
+    var hit = scored[0].candidate;
+    var manifest = loadManifest();
+    var entry = manifest.candidates.find(function(c) { return c.candidateId === hit.candidateId; });
+    if (entry) {
+      entry.reuseCount = (entry.reuseCount || 0) + 1;
+      entry.lastReusedAt = new Date().toISOString();
+      saveManifest(manifest);
+      // Update the returned reference so reuseCount is visible
+      hit.reuseCount = entry.reuseCount;
+      hit.lastReusedAt = entry.lastReusedAt;
+    }
+    return hit;
+  }
     return null;
   }
 
-  function computeSemanticHash(distillHint) {
+    function computeSemanticHash(distillHint) {
     if (!distillHint) return sha1('empty');
     var payload = {
       kind: distillHint.kind || '',
@@ -216,7 +263,58 @@ function createCloudLibraryManager(options) {
   /**
    * Reject a candidate that fails distillation quality checks.
    */
-  function rejectCandidate(candidateId, reason) {
+  
+  /**
+   * Promote an approved asset to promoted status for cloud synchronization.
+   * Called when an asset has proven quality through high reuse.
+   */
+  function promoteToCloud(candidateId) {
+    var manifest = loadManifest();
+    var entry = manifest.candidates.find(function(c) { return c.candidateId === candidateId; });
+    if (!entry) throw new Error("Candidate not found: " + candidateId);
+    if (entry.status !== "approved") throw new Error("Cannot promote to cloud: status is " + entry.status);
+    entry.status = "promoted";
+    entry.promotedAt = new Date().toISOString();
+    saveManifest(manifest);
+    return entry;
+  }
+
+  /**
+   * Demote an approved/promoted asset back to candidate if quality issues found later.
+   */
+  function demoteCandidate(candidateId, reason) {
+    var manifest = loadManifest();
+    var entry = manifest.candidates.find(function(c) { return c.candidateId === candidateId; });
+    if (!entry) throw new Error("Candidate not found: " + candidateId);
+    if (entry.status === "candidate" || entry.status === "rejected") {
+      throw new Error("Cannot demote candidate with status: " + entry.status);
+    }
+    entry.status = "candidate";
+    entry.demotionReason = reason || "Quality audit found issues";
+    entry.demotedAt = new Date().toISOString();
+    saveManifest(manifest);
+    return entry;
+  }
+
+  /**
+   * Auto-promote approved assets that exceed the reuse threshold.
+   */
+  function autoPromoteByReuse(minReuseCount) {
+    minReuseCount = minReuseCount || 5;
+    var manifest = loadManifest();
+    var promoted = [];
+    manifest.candidates.forEach(function(entry) {
+      if (entry.status === "approved" && (entry.reuseCount || 0) >= minReuseCount) {
+        entry.status = "promoted";
+        entry.promotedAt = new Date().toISOString();
+        entry.autoPromoted = true;
+        promoted.push(entry.candidateId);
+      }
+    });
+    if (promoted.length) saveManifest(manifest);
+    return promoted;
+  }
+function rejectCandidate(candidateId, reason) {
     var manifest = loadManifest();
     var entry = manifest.candidates.find(function(c) { return c.candidateId === candidateId; });
     if (!entry) throw new Error('Candidate not found: ' + candidateId);
@@ -227,6 +325,30 @@ function createCloudLibraryManager(options) {
     entry.rejectionReason = reason || 'Failed distillation quality checks';
     saveManifest(manifest);
     return entry;
+  }
+
+  /**
+   * Mark a candidate as cloud-verified (RAG verification passed).
+   * Clears the needsCloudVerification flag.
+   */
+  function markCloudVerified(candidateId, verificationResult) {
+    var manifest = loadManifest();
+    var entry = manifest.candidates.find(function(c) { return c.candidateId === candidateId; });
+    if (!entry) return null;
+    entry.needsCloudVerification = false;
+    entry.cloudVerifiedAt = new Date().toISOString();
+    entry.cloudVerificationResult = verificationResult || null;
+    saveManifest(manifest);
+    return entry;
+  }
+
+  /**
+   * Get candidates that are pending cloud verification.
+   */
+  function getCandidatesNeedingCloudVerification() {
+    return loadManifest().candidates.filter(function(c) {
+      return c.needsCloudVerification === true && (c.status === 'approved' || c.status === 'promoted');
+    });
   }
 
   function getCandidatesByStatus(status) {
@@ -240,6 +362,11 @@ function createCloudLibraryManager(options) {
     promoteCandidate: promoteCandidate,
     rejectCandidate: rejectCandidate,
     getCandidatesByStatus: getCandidatesByStatus,
+    promoteToCloud: promoteToCloud,
+    demoteCandidate: demoteCandidate,
+    autoPromoteByReuse: autoPromoteByReuse,
+    markCloudVerified: markCloudVerified,
+    getCandidatesNeedingCloudVerification: getCandidatesNeedingCloudVerification,
     getStoreDir: function() { return storeDir; },
   };
 }

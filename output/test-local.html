@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="theme-color" content="#000000"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <style>
+    body { margin: 0; padding: 0; background-color: #000000; overflow: hidden; }
+    canvas { margin-left: auto; margin-right: auto; display: block; }
+  </style>
+<script src="data.js" crossorigin="anonymous"></script>
+<script src="code0.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <script>
+    (function() {
+      var game = new gdjs.RuntimeGame(gdjs.projectData, gdjs.runtimeGameOptions || {});
+      game.getRenderer().createStandardCanvas(document.body);
+      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);
+      game.loadAllAssets(function() {
+        game.startGameLoop();
+      });
+    })();
+  </script>
+</body>
+</html>

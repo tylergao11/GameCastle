@@ -86,15 +86,28 @@ async function main() {
     assert(stored3.isDuplicate, 'same semantic hash must be deduped');
     assert(manager.getCandidateCount() === 1, 'candidate count must still be 1 after semantic dedupe');
 
+    // needsCloudVerification: new candidates must have the flag set
+    var candidates = manager.getCandidatesByStatus('candidate');
+    assert(candidates.length === 1, 'must have 1 candidate');
+    assert(candidates[0].needsCloudVerification === true, 'new candidate must need cloud verification');
+    assert(candidates[0].cloudVerifiedAt === null, 'cloudVerifiedAt must be null initially');
+
+    // markCloudVerified: clears the flag
+    var verified = manager.markCloudVerified(stored.candidateId, { score: 0.95 });
+    assert(verified !== null, 'markCloudVerified must return entry');
+    assert(verified.needsCloudVerification === false, 'needsCloudVerification must be cleared');
+    assert(verified.cloudVerifiedAt !== null, 'cloudVerifiedAt must be set');
+    assert(verified.cloudVerificationResult.score === 0.95, 'verification result must be saved');
+
+    // getCandidatesNeedingCloudVerification: empty after markCloudVerified
+    var needing = manager.getCandidatesNeedingCloudVerification();
+    assert(needing.length === 0, 'no candidates should need cloud verification after markCloudVerified');
+
     // Resolve by tags (no approved/promoted candidates yet, so null)
     var resolved = manager.resolveByTags('sprite', ['player'], ['arcade'], { width: 32, height: 48 });
     assert(resolved === null, 'resolveByTags must return null when no approved candidates');
 
-    // getCandidatesByStatus
-    var candidates = manager.getCandidatesByStatus('candidate');
-    assert(candidates.length === 1, 'must have 1 candidate');
-
-    console.log('[CloudLibraryManager] storeCandidate + dedupe + resolveByTags passed');
+    console.log('[CloudLibraryManager] storeCandidate + dedupe + resolveByTags + needsCloudVerification passed');
     console.log('[CloudLibraryManager] all passed');
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });

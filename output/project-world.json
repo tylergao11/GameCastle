@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "worldVersion": 2,
+  "worldVersion": 1,
   "project": {
     "name": "GameCastle",
-    "firstScene": "Start",
+    "firstScene": "Game",
     "width": 800,
     "height": 600
   },
@@ -17,49 +17,15 @@
           "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
           "color": "#4488ff",
-          "behaviors": [
-            {
-              "name": "PlatformerObject",
-              "type": "PlatformBehavior::PlatformerObjectBehavior"
-            }
-          ],
           "id": "obj_game_player",
           "scope": "scene"
         },
         {
-          "name": "Ground",
-          "type": "PrimitiveDrawing::Drawer",
-          "kind": "ShapePainter",
-          "color": "#8b4513",
-          "behaviors": [
-            {
-              "name": "Platform",
-              "type": "PlatformBehavior::PlatformBehavior"
-            }
-          ],
-          "id": "obj_game_ground",
-          "scope": "scene"
-        },
-        {
-          "name": "Platform",
-          "type": "PrimitiveDrawing::Drawer",
-          "kind": "ShapePainter",
-          "color": "#8b4513",
-          "behaviors": [
-            {
-              "name": "Platform",
-              "type": "PlatformBehavior::PlatformBehavior"
-            }
-          ],
-          "id": "obj_game_platform",
-          "scope": "scene"
-        },
-        {
-          "name": "Coin",
+          "name": "Bullet",
           "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
           "color": "#ffd700",
-          "id": "obj_game_coin",
+          "id": "obj_game_bullet",
           "scope": "scene"
         },
         {
@@ -69,94 +35,60 @@
           "color": "#dc3232",
           "id": "obj_game_enemy",
           "scope": "scene"
+        },
+        {
+          "name": "PowerUp",
+          "type": "PrimitiveDrawing::Drawer",
+          "kind": "ShapePainter",
+          "color": "#2ecc71",
+          "id": "obj_game_powerup",
+          "scope": "scene"
+        },
+        {
+          "name": "HudScore",
+          "type": "TextObject::Text",
+          "kind": "Text",
+          "text": "HudScore",
+          "size": 20,
+          "id": "obj_game_hudscore",
+          "scope": "scene"
+        },
+        {
+          "name": "HudWave",
+          "type": "TextObject::Text",
+          "kind": "Text",
+          "text": "HudWave",
+          "size": 20,
+          "id": "obj_game_hudwave",
+          "scope": "scene"
         }
       ],
       "instances": [
         {
-          "id": "inst_game_player_100_400_0_0_1",
+          "id": "inst_game_player_100_300_0_0_1",
           "object": "Player",
           "x": 100,
-          "y": 400,
-          "width": 0,
-          "height": 0,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_game_ground_400_590_800_20_1",
-          "object": "Ground",
-          "x": 400,
-          "y": 590,
-          "width": 800,
-          "height": 20,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_game_platform_200_460_100_16_1",
-          "object": "Platform",
-          "x": 200,
-          "y": 460,
-          "width": 100,
-          "height": 16,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_game_platform_400_380_100_16_1",
-          "object": "Platform",
-          "x": 400,
-          "y": 380,
-          "width": 100,
-          "height": 16,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_game_platform_600_300_100_16_1",
-          "object": "Platform",
-          "x": 600,
           "y": 300,
-          "width": 100,
-          "height": 16,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_game_coin_240_430_0_0_1",
-          "object": "Coin",
-          "x": 240,
-          "y": 430,
           "width": 0,
           "height": 0,
           "layer": "",
           "zOrder": 1
         },
         {
-          "id": "inst_game_coin_440_350_0_0_1",
-          "object": "Coin",
-          "x": 440,
-          "y": 350,
+          "id": "inst_game_hudscore_16_16_0_0_1",
+          "object": "HudScore",
+          "x": 16,
+          "y": 16,
           "width": 0,
           "height": 0,
           "layer": "",
           "zOrder": 1
         },
         {
-          "id": "inst_game_coin_640_270_0_0_1",
-          "object": "Coin",
-          "x": 640,
-          "y": 270,
-          "width": 0,
-          "height": 0,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_game_enemy_550_400_0_0_1",
-          "object": "Enemy",
-          "x": 550,
-          "y": 400,
+          "id": "inst_game_hudwave_16_44_0_0_1",
+          "object": "HudWave",
+          "x": 16,
+          "y": 44,
           "width": 0,
           "height": 0,
           "layer": "",
@@ -176,326 +108,217 @@
       "events": [
         {
           "type": "standard",
-          "text": "on start -> clear drawer Player, draw rectangle Player 0 0 32 48, collision mask Player 0 0 32 48",
+          "text": "on start -> clear drawer Player, draw rectangle Player 0 0 32 32, collision mask Player 0 0 32 32",
           "conditions": [
             "on start"
           ],
           "actions": [
             "clear drawer Player",
-            "draw rectangle Player 0 0 32 48",
-            "collision mask Player 0 0 32 48"
+            "draw rectangle Player 0 0 32 32",
+            "collision mask Player 0 0 32 32"
           ],
           "id": "evt_game_on_start_clear_drawer_player_draw_r"
         },
         {
           "type": "standard",
-          "text": "on start -> clear drawer Ground, draw rectangle Ground 0 0 800 20, collision mask Ground 0 0 800 20",
+          "text": "on start -> clear drawer Bullet, draw rectangle Bullet 0 0 12 6, collision mask Bullet 0 0 12 6",
           "conditions": [
             "on start"
           ],
           "actions": [
-            "clear drawer Ground",
-            "draw rectangle Ground 0 0 800 20",
-            "collision mask Ground 0 0 800 20"
+            "clear drawer Bullet",
+            "draw rectangle Bullet 0 0 12 6",
+            "collision mask Bullet 0 0 12 6"
           ],
-          "id": "evt_game_on_start_clear_drawer_ground_draw_r"
+          "id": "evt_game_on_start_clear_drawer_bullet_draw_r"
         },
         {
           "type": "standard",
-          "text": "on start -> clear drawer Platform, draw rectangle Platform 0 0 100 16, collision mask Platform 0 0 100 16",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "clear drawer Platform",
-            "draw rectangle Platform 0 0 100 16",
-            "collision mask Platform 0 0 100 16"
-          ],
-          "id": "evt_game_on_start_clear_drawer_platform_draw"
-        },
-        {
-          "type": "standard",
-          "text": "on start -> clear drawer Coin, draw circle Coin 8 8 8, collision mask Coin 0 0 16 16",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "clear drawer Coin",
-            "draw circle Coin 8 8 8",
-            "collision mask Coin 0 0 16 16"
-          ],
-          "id": "evt_game_on_start_clear_drawer_coin_draw_cir"
-        },
-        {
-          "type": "standard",
-          "text": "on start -> clear drawer Enemy, draw rectangle Enemy 0 0 32 32, collision mask Enemy 0 0 32 32",
+          "text": "on start -> clear drawer Enemy, draw rectangle Enemy 0 0 28 28, collision mask Enemy 0 0 28 28",
           "conditions": [
             "on start"
           ],
           "actions": [
             "clear drawer Enemy",
-            "draw rectangle Enemy 0 0 32 32",
-            "collision mask Enemy 0 0 32 32"
+            "draw rectangle Enemy 0 0 28 28",
+            "collision mask Enemy 0 0 28 28"
           ],
           "id": "evt_game_on_start_clear_drawer_enemy_draw_re"
         },
         {
           "type": "standard",
-          "text": "on start -> variable Score = 0",
+          "text": "on start -> clear drawer PowerUp, draw circle PowerUp 8 8 8, collision mask PowerUp 0 0 16 16",
           "conditions": [
             "on start"
           ],
           "actions": [
-            "variable Score = 0"
+            "clear drawer PowerUp",
+            "draw circle PowerUp 8 8 8",
+            "collision mask PowerUp 0 0 16 16"
           ],
-          "id": "evt_game_on_start_variable_score_0_1"
+          "id": "evt_game_on_start_clear_drawer_powerup_draw_"
         },
         {
           "type": "standard",
-          "text": "on collision Player Coin -> destroy Coin, variable Score + 1",
+          "text": "on start -> variable Score = 0, variable Wave = 1, variable PlayerHealth = 3",
           "conditions": [
-            "on collision Player Coin"
+            "on start"
           ],
           "actions": [
-            "destroy Coin",
-            "variable Score + 1"
+            "variable Score = 0",
+            "variable Wave = 1",
+            "variable PlayerHealth = 3"
           ],
-          "id": "evt_game_on_collision_player_coin_destroy_co"
+          "id": "evt_game_on_start_variable_score_0_variable_"
         },
         {
           "type": "standard",
-          "text": "on collision Player Enemy -> scene GameOver",
+          "text": "on start -> text HudScore \"Score\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text HudScore \"Score\""
+          ],
+          "id": "evt_game_on_start_text_hudscore_score_1"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> text HudWave \"Wave\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text HudWave \"Wave\""
+          ],
+          "id": "evt_game_on_start_text_hudwave_wave_1"
+        },
+        {
+          "type": "standard",
+          "text": "on key ArrowUp -> move Player to 0,4",
+          "conditions": [
+            "on key ArrowUp"
+          ],
+          "actions": [
+            "move Player to 0,4"
+          ],
+          "id": "evt_game_on_key_arrowup_move_player_to_0_4_1"
+        },
+        {
+          "type": "standard",
+          "text": "on key ArrowDown -> move Player to 0,4",
+          "conditions": [
+            "on key ArrowDown"
+          ],
+          "actions": [
+            "move Player to 0,4"
+          ],
+          "id": "evt_game_on_key_arrowdown_move_player_to_0_4"
+        },
+        {
+          "type": "standard",
+          "text": "on key ArrowLeft -> move Player to 4,0",
+          "conditions": [
+            "on key ArrowLeft"
+          ],
+          "actions": [
+            "move Player to 4,0"
+          ],
+          "id": "evt_game_on_key_arrowleft_move_player_to_4_0"
+        },
+        {
+          "type": "standard",
+          "text": "on key ArrowRight -> move Player to 4,0",
+          "conditions": [
+            "on key ArrowRight"
+          ],
+          "actions": [
+            "move Player to 4,0"
+          ],
+          "id": "evt_game_on_key_arrowright_move_player_to_4_"
+        },
+        {
+          "type": "standard",
+          "text": "on key Space -> spawn Bullet at 100,300",
+          "conditions": [
+            "on key Space"
+          ],
+          "actions": [
+            "spawn Bullet at 100,300"
+          ],
+          "id": "evt_game_on_key_space_spawn_bullet_at_100_30"
+        },
+        {
+          "type": "standard",
+          "text": "on collision Bullet Enemy -> destroy Bullet, destroy Enemy, variable Score + 10",
+          "conditions": [
+            "on collision Bullet Enemy"
+          ],
+          "actions": [
+            "destroy Bullet",
+            "destroy Enemy",
+            "variable Score + 10"
+          ],
+          "id": "evt_game_on_collision_bullet_enemy_destroy_b"
+        },
+        {
+          "type": "standard",
+          "text": "on collision Player PowerUp -> destroy PowerUp, variable PlayerHealth = 3",
+          "conditions": [
+            "on collision Player PowerUp"
+          ],
+          "actions": [
+            "destroy PowerUp",
+            "variable PlayerHealth = 3"
+          ],
+          "id": "evt_game_on_collision_player_powerup_destroy"
+        },
+        {
+          "type": "standard",
+          "text": "on collision Player Enemy -> restart",
           "conditions": [
             "on collision Player Enemy"
           ],
           "actions": [
-            "scene GameOver"
+            "restart"
           ],
-          "id": "evt_game_on_collision_player_enemy_scene_gam"
+          "id": "evt_game_on_collision_player_enemy_restart_1"
         },
         {
-          "type": "standard",
-          "text": "on key Space -> jump Player 500",
-          "conditions": [
-            "on key Space"
-          ],
+          "type": "repeat",
+          "text": "every 2s -> spawn Enemy at 780,100",
           "actions": [
-            "jump Player 500"
+            "spawn Enemy at 780,100"
           ],
-          "id": "evt_game_on_key_space_jump_player_500_1"
-        }
-      ]
-    },
-    {
-      "id": "scene_start",
-      "name": "Start",
-      "objects": [
-        {
-          "name": "TitleText",
-          "type": "TextObject::Text",
-          "kind": "Text",
-          "text": "TitleText",
-          "size": 36,
-          "id": "obj_start_titletext",
-          "scope": "scene"
+          "children": 1,
+          "id": "evt_game_every_2s_spawn_enemy_at_780_100_1"
         },
         {
-          "name": "StartButton",
-          "type": "PrimitiveDrawing::Drawer",
-          "kind": "ShapePainter",
-          "color": "#2ecc71",
-          "id": "obj_start_startbutton",
-          "scope": "scene"
-        },
-        {
-          "name": "StartLabel",
-          "type": "TextObject::Text",
-          "kind": "Text",
-          "text": "StartLabel",
-          "size": 24,
-          "id": "obj_start_startlabel",
-          "scope": "scene"
-        }
-      ],
-      "instances": [
-        {
-          "id": "inst_start_titletext_280_170_0_0_1",
-          "object": "TitleText",
-          "x": 280,
-          "y": 170,
-          "width": 0,
-          "height": 0,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_start_startbutton_310_300_180_56_1",
-          "object": "StartButton",
-          "x": 310,
-          "y": 300,
-          "width": 180,
-          "height": 56,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_start_startlabel_360_315_0_0_1",
-          "object": "StartLabel",
-          "x": 360,
-          "y": 315,
-          "width": 0,
-          "height": 0,
-          "layer": "",
-          "zOrder": 1
-        }
-      ],
-      "variables": [],
-      "layers": [
-        {
-          "id": "layer_base",
-          "name": "",
-          "isBaseLayer": true,
-          "index": 0,
-          "visible": true
-        }
-      ],
-      "events": [
-        {
-          "type": "standard",
-          "text": "on start -> clear drawer StartButton, draw rectangle StartButton 0 0 180 56, collision mask StartButton 0 0 180 56",
-          "conditions": [
-            "on start"
-          ],
+          "type": "repeat",
+          "text": "every 2s -> spawn Enemy at 780,250",
           "actions": [
-            "clear drawer StartButton",
-            "draw rectangle StartButton 0 0 180 56",
-            "collision mask StartButton 0 0 180 56"
+            "spawn Enemy at 780,250"
           ],
-          "id": "evt_start_on_start_clear_drawer_startbutton_"
+          "children": 1,
+          "id": "evt_game_every_2s_spawn_enemy_at_780_250_1"
         },
         {
-          "type": "standard",
-          "text": "on mouse StartButton -> scene Game",
-          "conditions": [
-            "on mouse StartButton"
-          ],
+          "type": "repeat",
+          "text": "every 3s -> spawn Enemy at 780,400",
           "actions": [
-            "scene Game"
+            "spawn Enemy at 780,400"
           ],
-          "id": "evt_start_on_mouse_startbutton_scene_game_1"
+          "children": 1,
+          "id": "evt_game_every_3s_spawn_enemy_at_780_400_1"
         },
         {
-          "type": "standard",
-          "text": "on start -> text StartLabel \"Play Now\"",
-          "conditions": [
-            "on start"
-          ],
+          "type": "repeat",
+          "text": "every 15s -> spawn PowerUp at 400,300",
           "actions": [
-            "text StartLabel \"Play Now\""
+            "spawn PowerUp at 400,300"
           ],
-          "id": "evt_start_on_start_text_startlabel_play_now_"
-        },
-        {
-          "type": "standard",
-          "text": "on start -> text TitleText \"Moon Runner\"",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "text TitleText \"Moon Runner\""
-          ],
-          "id": "evt_start_on_start_text_titletext_moon_runne"
-        }
-      ]
-    },
-    {
-      "id": "scene_gameover",
-      "name": "GameOver",
-      "objects": [
-        {
-          "name": "GameOverText",
-          "type": "TextObject::Text",
-          "kind": "Text",
-          "text": "GameOverText",
-          "size": 40,
-          "id": "obj_gameover_gameovertext",
-          "scope": "scene"
-        },
-        {
-          "name": "RestartHint",
-          "type": "TextObject::Text",
-          "kind": "Text",
-          "text": "RestartHint",
-          "size": 22,
-          "id": "obj_gameover_restarthint",
-          "scope": "scene"
-        }
-      ],
-      "instances": [
-        {
-          "id": "inst_gameover_gameovertext_285_240_0_0_1",
-          "object": "GameOverText",
-          "x": 285,
-          "y": 240,
-          "width": 0,
-          "height": 0,
-          "layer": "",
-          "zOrder": 1
-        },
-        {
-          "id": "inst_gameover_restarthint_330_310_0_0_1",
-          "object": "RestartHint",
-          "x": 330,
-          "y": 310,
-          "width": 0,
-          "height": 0,
-          "layer": "",
-          "zOrder": 1
-        }
-      ],
-      "variables": [],
-      "layers": [
-        {
-          "id": "layer_base",
-          "name": "",
-          "isBaseLayer": true,
-          "index": 0,
-          "visible": true
-        }
-      ],
-      "events": [
-        {
-          "type": "standard",
-          "text": "on key Space -> scene Game",
-          "conditions": [
-            "on key Space"
-          ],
-          "actions": [
-            "scene Game"
-          ],
-          "id": "evt_gameover_on_key_space_scene_game_1"
-        },
-        {
-          "type": "standard",
-          "text": "on start -> text RestartHint \"Space To Retry\"",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "text RestartHint \"Space To Retry\""
-          ],
-          "id": "evt_gameover_on_start_text_restarthint_space"
-        },
-        {
-          "type": "standard",
-          "text": "on start -> text GameOverText \"Try Again\"",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "text GameOverText \"Try Again\""
-          ],
-          "id": "evt_gameover_on_start_text_gameovertext_try_"
+          "children": 1,
+          "id": "evt_game_every_15s_spawn_powerup_at_400_300_"
         }
       ]
     }
@@ -508,136 +331,89 @@
       "value": "0",
       "id": "var_global_score",
       "scope": "global"
+    },
+    {
+      "name": "Wave",
+      "type": 3,
+      "value": "1",
+      "id": "var_global_wave",
+      "scope": "global"
+    },
+    {
+      "name": "PlayerHealth",
+      "type": 3,
+      "value": "3",
+      "id": "var_global_playerhealth",
+      "scope": "global"
     }
   ],
   "modules": [
     {
-      "id": "core.platformer",
-      "name": "Platformer Core",
+      "id": "core.shooter",
+      "name": "Shooter Core",
       "category": "core",
       "preset": "basic",
       "params": {
         "scene": "Game",
-        "failAction": "scene GameOver",
+        "failAction": "restart",
         "preset": "basic",
+        "sync": "lockstep",
+        "tickRate": 20,
+        "authority": "host"
+      },
+      "syncPolicy": {
         "sync": "lockstep",
         "authority": "host",
         "tickRate": 20,
         "seed": "auto"
       },
-      "syncPolicy": {
-        "sync": "lockstep",
-        "authority": "host",
-        "tickRate": 20,
-        "seed": "auto"
-      },
-      "sourceLine": 0
-    },
-    {
-      "id": "shell.start_screen",
-      "name": "Start Screen",
-      "category": "shell",
-      "preset": "basic",
-      "params": {
-        "scene": "Start",
-        "targetScene": "Game",
-        "title": "Moon Runner",
-        "button": "Play Now",
-        "preset": "basic",
-        "sync": "local",
-        "authority": "client",
-        "tickRate": 0,
-        "seed": "auto"
-      },
-      "syncPolicy": {
-        "sync": "local",
-        "authority": "client",
-        "tickRate": 0,
-        "seed": "auto"
-      },
-      "sourceLine": 0
-    },
-    {
-      "id": "shell.game_over_screen",
-      "name": "Game Over Screen",
-      "category": "shell",
-      "preset": "basic",
-      "params": {
-        "scene": "GameOver",
-        "targetScene": "Game",
-        "title": "Try Again",
-        "hint": "Space To Retry",
-        "preset": "basic",
-        "sync": "event",
-        "authority": "host",
-        "tickRate": 0,
-        "seed": "auto"
-      },
-      "syncPolicy": {
-        "sync": "event",
-        "authority": "host",
-        "tickRate": 0,
-        "seed": "auto"
-      },
-      "sourceLine": 0
+      "sourceLine": 1
     }
   ],
   "idRegistry": {
     "scenes": {
-      "Game": "scene_game",
-      "Start": "scene_start",
-      "GameOver": "scene_gameover"
+      "Game": "scene_game"
     },
     "objects": {
       "Game|Player": "obj_game_player",
-      "Game|Ground": "obj_game_ground",
-      "Game|Platform": "obj_game_platform",
-      "Game|Coin": "obj_game_coin",
+      "Game|Bullet": "obj_game_bullet",
       "Game|Enemy": "obj_game_enemy",
-      "Start|TitleText": "obj_start_titletext",
-      "Start|StartButton": "obj_start_startbutton",
-      "Start|StartLabel": "obj_start_startlabel",
-      "GameOver|GameOverText": "obj_gameover_gameovertext",
-      "GameOver|RestartHint": "obj_gameover_restarthint"
+      "Game|PowerUp": "obj_game_powerup",
+      "Game|HudScore": "obj_game_hudscore",
+      "Game|HudWave": "obj_game_hudwave"
     },
     "instances": {
-      "Game|Player|100|400|0|0||1": "inst_game_player_100_400_0_0_1",
-      "Game|Ground|400|590|800|20||1": "inst_game_ground_400_590_800_20_1",
-      "Game|Platform|200|460|100|16||1": "inst_game_platform_200_460_100_16_1",
-      "Game|Platform|400|380|100|16||1": "inst_game_platform_400_380_100_16_1",
-      "Game|Platform|600|300|100|16||1": "inst_game_platform_600_300_100_16_1",
-      "Game|Coin|240|430|0|0||1": "inst_game_coin_240_430_0_0_1",
-      "Game|Coin|440|350|0|0||1": "inst_game_coin_440_350_0_0_1",
-      "Game|Coin|640|270|0|0||1": "inst_game_coin_640_270_0_0_1",
-      "Game|Enemy|550|400|0|0||1": "inst_game_enemy_550_400_0_0_1",
-      "Start|TitleText|280|170|0|0||1": "inst_start_titletext_280_170_0_0_1",
-      "Start|StartButton|310|300|180|56||1": "inst_start_startbutton_310_300_180_56_1",
-      "Start|StartLabel|360|315|0|0||1": "inst_start_startlabel_360_315_0_0_1",
-      "GameOver|GameOverText|285|240|0|0||1": "inst_gameover_gameovertext_285_240_0_0_1",
-      "GameOver|RestartHint|330|310|0|0||1": "inst_gameover_restarthint_330_310_0_0_1"
+      "Game|Player|100|300|0|0||1": "inst_game_player_100_300_0_0_1",
+      "Game|HudScore|16|16|0|0||1": "inst_game_hudscore_16_16_0_0_1",
+      "Game|HudWave|16|44|0|0||1": "inst_game_hudwave_16_44_0_0_1"
     },
     "events": {
-      "Game|on start -> clear drawer Player, draw rectangle Player 0 0 32 48, collision mask Player 0 0 32 48|1": "evt_game_on_start_clear_drawer_player_draw_r",
-      "Game|on start -> clear drawer Ground, draw rectangle Ground 0 0 800 20, collision mask Ground 0 0 800 20|1": "evt_game_on_start_clear_drawer_ground_draw_r",
-      "Game|on start -> clear drawer Platform, draw rectangle Platform 0 0 100 16, collision mask Platform 0 0 100 16|1": "evt_game_on_start_clear_drawer_platform_draw",
-      "Game|on start -> clear drawer Coin, draw circle Coin 8 8 8, collision mask Coin 0 0 16 16|1": "evt_game_on_start_clear_drawer_coin_draw_cir",
-      "Game|on start -> clear drawer Enemy, draw rectangle Enemy 0 0 32 32, collision mask Enemy 0 0 32 32|1": "evt_game_on_start_clear_drawer_enemy_draw_re",
-      "Game|on start -> variable Score = 0|1": "evt_game_on_start_variable_score_0_1",
-      "Game|on collision Player Coin -> destroy Coin, variable Score + 1|1": "evt_game_on_collision_player_coin_destroy_co",
-      "Game|on collision Player Enemy -> scene GameOver|1": "evt_game_on_collision_player_enemy_scene_gam",
-      "Game|on key Space -> jump Player 500|1": "evt_game_on_key_space_jump_player_500_1",
-      "Start|on start -> clear drawer StartButton, draw rectangle StartButton 0 0 180 56, collision mask StartButton 0 0 180 56|1": "evt_start_on_start_clear_drawer_startbutton_",
-      "Start|on mouse StartButton -> scene Game|1": "evt_start_on_mouse_startbutton_scene_game_1",
-      "Start|on start -> text StartLabel \"Play Now\"|1": "evt_start_on_start_text_startlabel_play_now_",
-      "Start|on start -> text TitleText \"Moon Runner\"|1": "evt_start_on_start_text_titletext_moon_runne",
-      "GameOver|on key Space -> scene Game|1": "evt_gameover_on_key_space_scene_game_1",
-      "GameOver|on start -> text RestartHint \"Space To Retry\"|1": "evt_gameover_on_start_text_restarthint_space",
-      "GameOver|on start -> text GameOverText \"Try Again\"|1": "evt_gameover_on_start_text_gameovertext_try_"
+      "Game|on start -> clear drawer Player, draw rectangle Player 0 0 32 32, collision mask Player 0 0 32 32|1": "evt_game_on_start_clear_drawer_player_draw_r",
+      "Game|on start -> clear drawer Bullet, draw rectangle Bullet 0 0 12 6, collision mask Bullet 0 0 12 6|1": "evt_game_on_start_clear_drawer_bullet_draw_r",
+      "Game|on start -> clear drawer Enemy, draw rectangle Enemy 0 0 28 28, collision mask Enemy 0 0 28 28|1": "evt_game_on_start_clear_drawer_enemy_draw_re",
+      "Game|on start -> clear drawer PowerUp, draw circle PowerUp 8 8 8, collision mask PowerUp 0 0 16 16|1": "evt_game_on_start_clear_drawer_powerup_draw_",
+      "Game|on start -> variable Score = 0, variable Wave = 1, variable PlayerHealth = 3|1": "evt_game_on_start_variable_score_0_variable_",
+      "Game|on start -> text HudScore \"Score\"|1": "evt_game_on_start_text_hudscore_score_1",
+      "Game|on start -> text HudWave \"Wave\"|1": "evt_game_on_start_text_hudwave_wave_1",
+      "Game|on key ArrowUp -> move Player to 0,4|1": "evt_game_on_key_arrowup_move_player_to_0_4_1",
+      "Game|on key ArrowDown -> move Player to 0,4|1": "evt_game_on_key_arrowdown_move_player_to_0_4",
+      "Game|on key ArrowLeft -> move Player to 4,0|1": "evt_game_on_key_arrowleft_move_player_to_4_0",
+      "Game|on key ArrowRight -> move Player to 4,0|1": "evt_game_on_key_arrowright_move_player_to_4_",
+      "Game|on key Space -> spawn Bullet at 100,300|1": "evt_game_on_key_space_spawn_bullet_at_100_30",
+      "Game|on collision Bullet Enemy -> destroy Bullet, destroy Enemy, variable Score + 10|1": "evt_game_on_collision_bullet_enemy_destroy_b",
+      "Game|on collision Player PowerUp -> destroy PowerUp, variable PlayerHealth = 3|1": "evt_game_on_collision_player_powerup_destroy",
+      "Game|on collision Player Enemy -> restart|1": "evt_game_on_collision_player_enemy_restart_1",
+      "Game|every 2s -> spawn Enemy at 780,100|1": "evt_game_every_2s_spawn_enemy_at_780_100_1",
+      "Game|every 2s -> spawn Enemy at 780,250|1": "evt_game_every_2s_spawn_enemy_at_780_250_1",
+      "Game|every 3s -> spawn Enemy at 780,400|1": "evt_game_every_3s_spawn_enemy_at_780_400_1",
+      "Game|every 15s -> spawn PowerUp at 400,300|1": "evt_game_every_15s_spawn_powerup_at_400_300_"
     },
     "variables": {
-      "global|Score": "var_global_score"
+      "global|Score": "var_global_score",
+      "global|Wave": "var_global_wave",
+      "global|PlayerHealth": "var_global_playerhealth"
     },
     "modules": {}
   },
-  "semanticHash": "cb1b5692"
+  "semanticHash": "702316eb"
 }

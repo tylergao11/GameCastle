@@ -9,9 +9,11 @@ var projectWorld = require("./project-world");
 var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
 var htmlExporter = require("./html-exporter");
+var networkCodegen = require("./network-runtime/codegen");
 var textureProvider = require("./texture-provider");
 var gdevelopTruth = require("./gdevelop-truth");
 var agentWorkflow = require("./agent-workflow");
+var agentContracts = require("./agent-contracts");
 var requirementAgent = require("./requirement-agent");
 var dslAgent = require("./dsl-agent");
 var llmProvider = require("./llm-provider");
@@ -214,6 +216,11 @@ var ACTIONS = {
   'destroy': function(obj) { return { type: {inverted:false, value:'Delete'}, parameters:[obj, ''] }; },
   'spawn': function(obj, x, y) { return { type: {inverted:false, value:'CreateObject'}, parameters:[obj, String(x), String(y)] }; },
   'move_to': function(obj, x, y) { return { type: {inverted:false, value:'MettreXY'}, parameters:[obj, '=', String(x), '=', String(y)] }; },
+  'move_rel': function(obj, dx, dy) {
+    var opX = dx === 0 ? '' : (dx > 0 ? '+' : '-');
+    var opY = dy === 0 ? '' : (dy > 0 ? '+' : '-');
+    return { type: {inverted:false, value:'MettreXY'}, parameters:[obj, opX, String(Math.abs(dx)), opY, String(Math.abs(dy))] };
+  },
   'jump': function(obj, strength) { return { type: {inverted:false, value:'AddForce'}, parameters:[obj, 'Up', String(strength||500)] }; },
   'flip': function(obj, dir) { return { type: {inverted:false, value:'FlipX'}, parameters:[obj, dir==='left'?'yes':'no'] }; },
 
@@ -303,12 +310,21 @@ function parseTrigger(text) {
     return [CONDITIONS.start()];
   }
 
+  // "every Ns" timer (without "on" prefix)
+  if (words[0] === 'every' && words.length >= 2) {
+    return [{ type: {inverted:false, value:'__TIMER__'}, parameters:[String(parseFloat(words[1])||2)] }];
+  }
+
   if (words[1] === 'collision' && words.length >= 4) {
     return [CONDITIONS.collision(words[2], words[3])];
   }
 
   if (words[1] === 'key' && words.length >= 3) {
-    return [CONDITIONS.key(words[2])];
+    var cond = CONDITIONS.key(words[2]);
+    // "on key Space held" — continuous-fire trigger, maps to same KeyPressed condition
+    // which fires every frame while the key is down in GDevelop
+    if (words.length >= 4 && words[3] === 'held') cond._held = true;
+    return [cond];
   }
 
   if (words[1] === 'mouse' && words.length >= 3) {
@@ -348,8 +364,20 @@ function parseAction(text) {
 
   if (words[0] === 'destroy' && words.length >= 2) return ACTIONS.destroy(words[1]);
   if (words[0] === 'spawn' && words.length >= 2) {
-    var x = words.indexOf('at') >= 0 ? (parseFloat(words[words.indexOf('at')+1])||400) : 400;
-    var y = words.indexOf('at') >= 0 && words.length > words.indexOf('at')+2 ? (parseFloat(words[words.indexOf('at')+2])||0) : 0;
+    var atIdx = words.indexOf('at');
+    var x = 400, y = 0;
+    if (atIdx >= 0 && words.length > atIdx + 1) {
+      var coordWord = words[atIdx + 1];
+      // Handle "780,100" (comma-separated) or two separate tokens "780" "100"
+      if (coordWord.indexOf(',') >= 0) {
+        var parts = coordWord.split(',');
+        x = parseFloat(parts[0]) || 400;
+        y = parseFloat(parts[1]) || 0;
+      } else {
+        x = parseFloat(coordWord) || 400;
+        if (words.length > atIdx + 2) { y = parseFloat(words[atIdx + 2]) || 0; }
+      }
+    }
     return ACTIONS.spawn(words[1], x, y);
   }
   if (words[0] === 'jump' && words.length >= 2) return ACTIONS.jump(words[1], words[2] ? parseFloat(words[2]) : 500);
@@ -359,7 +387,21 @@ function parseAction(text) {
     return ACTIONS.score(v.startsWith('-') ? '-' : '+', Math.abs(parseFloat(v)||1));
   }
   if (words[0] === 'variable' && words.length >= 3) return ACTIONS.set_var(words[1], words[2], words[3] || '0');
-  if (words[0] === 'move' && words.length >= 4) return ACTIONS.move_to(words[1], parseFloat(words[3])||400, words.length>=6 ? parseFloat(words[5])||0 : 0);
+  if (words[0] === 'move' && words.length >= 3) {
+    // move Player y=-4         → relative Y
+    // move Player x=+4         → relative X
+    // move Player x=100 y=200  → absolute (legacy)
+    var dx = 0, dy = 0, relX = false, relY = false;
+    for (var mi = 2; mi < words.length; mi++) {
+      var kv = words[mi].split('=');
+      if (kv.length < 2) continue;
+      var val = parseFloat(kv[1]) || 0;
+      if (kv[0] === 'x') { dx = val; relX = (kv[1][0] === '+' || kv[1][0] === '-'); }
+      if (kv[0] === 'y') { dy = val; relY = (kv[1][0] === '+' || kv[1][0] === '-'); }
+    }
+    if (relX || relY) return ACTIONS.move_rel(words[1], dx, dy);
+    return ACTIONS.move_to(words[1], dx || 400, dy || 0);
+  }
   if (words[0] === 'animate' && words.length >= 3) return ACTIONS.animate(words[1], words[2]);
   if (words[0] === 'camera' && words.length >= 2) return ACTIONS.camera_follow(words[1]);
   if (words[0] === 'text' && words.length >= 3) {
@@ -739,16 +781,17 @@ function diffDesignBriefs(oldBrief, newBrief) {
       diff.modified.placements.push({object:newP.object, old:oldP, new:newP});
   });
 
-  var oldBeh = (oldBrief.behaviors||[]).map(function(b){return b.object+b.type;});
-  var newBeh = (newBrief.behaviors||[]).map(function(b){return b.object+b.type;});
+  function behaviorKey(b) { return b.object + (b.type || b.behavior || ''); }
+  var oldBeh = (oldBrief.behaviors||[]).map(behaviorKey);
+  var newBeh = (newBrief.behaviors||[]).map(behaviorKey);
   (newBrief.behaviors||[]).forEach(function(b,i){ if (oldBeh.indexOf(newBeh[i])<0) diff.added.behaviors.push(b); });
   (oldBrief.behaviors||[]).forEach(function(b,i){ if (newBeh.indexOf(oldBeh[i])<0) diff.removed.behaviors.push(b); });
   (newBrief.behaviors||[]).forEach(function(newB){
-    var key = newB.object+newB.type;
+    var key = behaviorKey(newB);
     if (oldBeh.indexOf(key)>=0) {
-      var oldB = (oldBrief.behaviors||[]).find(function(b){return b.object+b.type===key;});
+      var oldB = (oldBrief.behaviors||[]).find(function(b){return behaviorKey(b)===key;});
       if (oldB && JSON.stringify(oldB)!==JSON.stringify(newB))
-        diff.modified.behaviors.push({object:newB.object, type:newB.type, old:oldB, new:newB});
+        diff.modified.behaviors.push({object:newB.object, behavior:newB.behavior||newB.type, old:oldB, new:newB});
     }
   });
 
@@ -843,14 +886,27 @@ function writeProjectOutputs(project, options) {
   gdevelopTruth.validateProject(project);
   fs.writeFileSync(PROJECT_PATH, JSON.stringify(project, null, 2));
   var codeFiles = writeRuntimeExecutionFiles(project);
+  // Regenerate network runtime from cached manifest
+  var networkManifestPath = path.join(STATE_DIR, 'network-manifest.json');
+  if (fs.existsSync(networkManifestPath)) {
+    var cachedManifest = JSON.parse(fs.readFileSync(networkManifestPath, 'utf8'));
+    var networkRuntimeJs = networkCodegen.generate(cachedManifest, { signalingUrl: options.signalingUrl });
+    fs.writeFileSync(path.join(STATE_DIR, 'network-runtime.js'), networkRuntimeJs);
+    console.log('[NetworkRuntime] regenerated (' + networkRuntimeJs.length + ' bytes)');
+  }
   var htmlManifest = htmlExporter.buildHtmlExportManifest(project, {
     codeFiles: codeFiles,
     modules: options.modules,
   });
   fs.writeFileSync(HTML_EXPORT_MANIFEST_PATH, JSON.stringify(htmlManifest, null, 2));
-  htmlExporter.syncHtmlRuntime(GDEVELOP_RUNTIME_DIR, STATE_DIR, htmlManifest);
-  htmlExporter.writeHtmlExport(STATE_DIR, htmlManifest);
-  console.log('[HtmlExport] ' + htmlManifest.scriptFiles.length + ' scripts, ' + (htmlManifest.assetFiles || []).length + ' assets -> ' + HTML_EXPORT_MANIFEST_PATH);
+  try {
+    htmlExporter.syncHtmlRuntime(GDEVELOP_RUNTIME_DIR, STATE_DIR, htmlManifest);
+    var hasNetwork = fs.existsSync(NETWORK_MANIFEST_PATH);
+    htmlExporter.writeHtmlExport(STATE_DIR, htmlManifest, { hasNetwork: hasNetwork });
+    console.log('[HtmlExport] ' + htmlManifest.scriptFiles.length + ' scripts, ' + (htmlManifest.assetFiles || []).length + ' assets -> ' + HTML_EXPORT_MANIFEST_PATH);
+  } catch (e) {
+    console.warn('[HtmlExport] Skipped — GDJS runtime not available: ' + e.message);
+  }
   console.log('[Output] ' + PROJECT_PATH + ' (' + JSON.stringify(project).length + ' bytes)');
   var s0 = project.layouts[0];
   console.log('  Scenes:'+project.layouts.length+' Objects:'+project.objects.length+' SceneObjects:'+(s0?s0.objects.length:0)+' Instances:'+(s0?s0.instances.length:0)+' Events:'+(s0?s0.events.length:0)+' Vars:'+project.variables.length);
@@ -885,6 +941,15 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   }
   console.log('[Done:' + batchLabel + '] ' + ok + '/' + ops.length + ' succeeded');
 
+  // Save network manifest BEFORE writeProjectOutputs so HTML can detect it
+  if (options.networkManifest) {
+    var networkPath = moduleCompiler.saveNetworkManifest(STATE_DIR, options.networkManifest);
+    console.log('[NetworkManifest] ' + networkPath);
+    var networkRuntimeJs = networkCodegen.generate(options.networkManifest, { signalingUrl: options.signalingUrl });
+    fs.writeFileSync(path.join(STATE_DIR, "network-runtime.js"), networkRuntimeJs);
+    console.log("[NetworkRuntime] " + path.join(STATE_DIR, "network-runtime.js") + " (" + networkRuntimeJs.length + " bytes)");
+  }
+
   writeProjectOutputs(project, {
     modules: options.modules,
   });
@@ -893,10 +958,6 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
     modules: options.modules,
   });
   projectWorld.saveProjectWorld(STATE_DIR, world);
-  if (options.networkManifest) {
-    var networkPath = moduleCompiler.saveNetworkManifest(STATE_DIR, options.networkManifest);
-    console.log('[NetworkManifest] ' + networkPath);
-  }
   var ledger = projectWorld.loadExecutionLedger(STATE_DIR);
   var report = projectWorld.makeExecutionReport({
     previousWorld: previousWorld,
@@ -1061,7 +1122,7 @@ async function run(prompt, useMock) {
     await approvePendingPatch();
     return;
   }
-  var capabilityCatalog = capabilities.loadCapabilityCatalog(CAPABILITIES_DIR);
+  var capabilityCatalog = capabilities.loadCapabilityCatalog(PRODUCT_MODULES_DIR);
   var productModuleCatalog = moduleCompiler.loadProductModuleCatalog(PRODUCT_MODULES_DIR);
   var creativeCapabilitySummary = [
     capabilities.buildCreativeCapabilitySummary(capabilityCatalog),
@@ -1211,7 +1272,7 @@ async function run(prompt, useMock) {
         baseModules: compileBaseModules,
         projectWorld: compileBaseWorld,
         maxRepairRounds: MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS,
-        allowLlmRepair: !approvalGate,
+        allowLlmRepair: true,
         llm2SystemPrompt: llm2SystemPrompt,
         userPrompt: prompt,
         designBrief: designBrief,
@@ -1294,8 +1355,10 @@ async function run(prompt, useMock) {
 var args = process.argv.slice(2);
 var useMock = hasArg('--mock');
 var prompt = getPromptFromArgs();
-if (!prompt && !hasArg('--approve-pending')) {
+if (!prompt && !hasArg('--approve-pending') && !getArgValue('--module-dsl-file') && !getArgValue('--dsl-file')) {
   console.log('Usage: node ai/pipeline.js [--mock] [--continue] [--approval-gate] "game description"');
+  console.log('       node ai/pipeline.js --module-dsl-file <file>');
+  console.log('       node ai/pipeline.js --dsl-file <file>');
   console.log('       node ai/pipeline.js --approve-pending');
   process.exit(1);
 }

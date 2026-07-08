@@ -9,14 +9,14 @@
 - [x] React/Vite 平台壳
 - [x] 清理旧路径、临时拼装脚本和旧平台残留
 - [x] 生成稳定 `ProjectWorld` 和追加式 `ExecutionLedger`
-- [x] 建立 `ai/capabilities/` 能力真相源并接入 LLM1/LLM2 上下文派生
+- [x] 建立 `ai/product-modules/` 唯一真相源（合并 capabilities），接入 LLM1/LLM2 上下文派生
 - [x] 接入 LLM2 repair loop：失败报告 -> 追加修复 DSL diff -> 再执行
 - [x] 建立 DSL fixture 测试器，覆盖状态边界、repair batch、缓存命中和超时防护
 - [x] 建立产品模块 DSL 骨架：product module manifests -> Module DSL -> compiler -> internal DSL -> ProjectWorld/network manifest
 
 ## Phase 2: 模块化生成管线
 
-- [ ] 继续把 `templates/` 从完整原型样例升级为模块能力库
+- [x] 清理 `templates/` 游戏原型样例，能力迁移到 product-modules
 - [x] 定义 AI-facing 产品模块 schema，保持 `core.*`、`shell.*`、`system.*`、`meta.*` 等粗颗粒模块边界
 - [x] 为产品模块预留 sync/authority/tickRate/seed，同步策略写入 `output/network-manifest.json`
 - [x] 将在线 LLM2 主路径切到 Module Patch Commander：Module DSL -> compiler -> internal DSL -> executor

@@ -139,5 +139,104 @@
   },
   "requires": {
     "scene": "Start"
-  }
+  },
+  "capabilities": [
+    {
+      "id": "capability.object.shape",
+      "name": "Shape objects and text",
+      "summary": "Create visible game objects using ShapePainter rectangles/circles and Text objects.",
+      "llm1Hint": "Visuals use simple colored shapes and text.",
+      "provides": [
+        "shape_object",
+        "text_object",
+        "simple_visuals"
+      ],
+      "requires": {
+        "objects": [],
+        "variables": [],
+        "behaviors": [],
+        "events": []
+      },
+      "dsl": {
+        "commands": [
+          "create object name=<Name> type=ShapePainter shape=rectangle|circle color=#RRGGBB width=<Width> height=<Height> scene=<SceneName>",
+          "create object name=<Name> type=Text scene=<SceneName> size=<Size>",
+          "place object=<Name> at=<X>,<Y> scene=<SceneName>"
+        ],
+        "examples": [
+          "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game"
+        ]
+      },
+      "constraints": {
+        "objectNames": "Use stable English names.",
+        "shapePainter": "ShapePainter objects must include shape, color, width, and height.",
+        "colors": "Use #RRGGBB."
+      },
+      "networking": {
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.scene.base",
+      "name": "Base scene",
+      "summary": "Create the playable scene and base canvas for a GameCastle project.",
+      "llm1Hint": "A game can have one main playable scene on an 800x600 canvas.",
+      "provides": [
+        "main_scene",
+        "playable_canvas"
+      ],
+      "requires": {
+        "objects": [],
+        "variables": [],
+        "behaviors": [],
+        "events": []
+      },
+      "dsl": {
+        "commands": [
+          "create scene name=<SceneName> first=true"
+        ],
+        "examples": [
+          "create scene name=Game first=true"
+        ]
+      },
+      "constraints": {
+        "sceneName": "Use Game unless the user explicitly asks for another scene.",
+        "canvas": {
+          "width": 800,
+          "height": 600
+        }
+      },
+      "networking": {
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [],
+        "state": []
+      }
+    }
+  ]
 }

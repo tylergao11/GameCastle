@@ -21,12 +21,12 @@ GameCastle 的目标不是“一句话生成一个一次性小游戏”，而是
 | 目录 | 职责 |
 |------|------|
 | `ai/` | 生成管线主路径，当前由 `pipeline.js` 承担设计稿、DSL 翻译、执行和 CLI |
-| `ai/capabilities/` | 模块能力真相源，描述可组合能力、DSL 映射、约束和未来同步属性 |
+| `ai/product-modules/` | 模块能力唯一真相源，描述可组合模块、内嵌 capability 卡片、DSL 映射、约束和同步属性 |
 | `ai/assets/` | Seed local/cloud asset repository manifests used by RuntimeAssetResolver |
 | `ai/gdevelop-truth/` | Extracted GDevelop/GDJS runtime truth snapshot generated from `D:\GDevelop-master` |
-| `dsl/` | DSL 操作语言文档，连接模块能力和 GDevelop JSON |
+| `dsl/` | DSL 操作语言文档，连接 product-modules 能力和 GDevelop JSON |
 | `engine/` | GDJS 浏览器运行时，负责加载 `project.json` 并运行游戏 |
-| `templates/` | 当前的能力样例/原型数据；后续应演进为模块能力库，而不是完整游戏模板库 |
+| `templates/` | 网络同步模型参考模板（游戏原型已迁移至 product-modules） |
 | `platform/` | React/Vite 平台前端，承载发现、创建、迭代、试玩和未来发布/联机入口 |
 | `output/` | 生成产物：`project.json`、`game.html`、`project-world.json`、`execution-ledger.json` |
 | `docs/` | 架构、路线图和产品边界说明 |
@@ -170,3 +170,5 @@ node scripts/prepare-gdjs-runtime.js --source <GDevelop checkout>
 The generated game output is HTML-only. Cordova, Electron, debugger clients,
 TypeScript declaration bundles, and other non-browser platform packages are not
 part of the GameCastle export path.
+
+

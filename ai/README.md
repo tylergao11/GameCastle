@@ -17,7 +17,8 @@
 | `image-agent.js` | ImageAgent：生图 prompt 构建 + DistillHint 输出。当前为 stub（假装生成占位 PNG），接真模型时替换内部实现，契约不变 |
 | `cloud-library-manager.js` | CloudLibraryManager：确定性资产存取、去重、版本、权限。不调 LLM，只被 DistillationAgent 和 texture-provider 调用 |
 | `texture-provider.js` | 薄集成层：pipeline executor → 查 CloudLibraryManager → 未命中则调 ImageAgent 生成 → 存 candidate |
-| `distillation-agent.js` | DistillationAgent：独立脚本（`node ai/distillation-agent.js`），异步批量蒸馏 candidate → approved。不跑在主 pipeline 上 |
+| `distillation-agent.js` | DistillationAgent：独立脚本（`node ai/distillation-agent.js`），异步批量蒸馏 candidate → approved，含 RAG 视觉验证。不跑在主 pipeline 上 |
+| `asset-rag-client.js` | RAG 客户端：轻量 HTTP 客户端，本地零 ML 依赖。调云端 CLIP+LanceDB 做图像-标签一致性验证，不可达时 fallback 到 stub |
 | `check-image-agent.js` | ImageAgent 自检，校验 generateImage + DistillHint schema |
 | `check-cloud-library-manager.js` | CloudLibraryManager 自检，校验 storeCandidate + dedupe + resolveByTags |
 | `check-distillation-agent.js` | DistillationAgent 自检，校验 promoteCandidate + rejectCandidate + 幂等 |
@@ -42,7 +43,7 @@
 
 ## 能力真相源
 
-`ai/capabilities/` 是当前模块能力真相源。每张能力卡描述：
+`ai/product-modules/` 是当前模块能力的唯一真相源。每个 product-module 内嵌 capability 卡片。capabilities.js 从此目录自动派生能力目录（不再独立维护 capabilities/ 目录）：
 
 - `llm1Hint`：给 LLM1 的轻量能力提示，不包含完整 DSL 示例或模板结构。
 - `provides/requires`：能力提供什么、需要什么对象/变量/事件/行为。
@@ -70,6 +71,7 @@ DSL: create object name=Player type=Sprite texture=player.png
 node ai/distillation-agent.js
   → 读 manifest
   → 脱敏 / 标准化标签 / 质量门
+  → visionVerify() → asset-rag-client.js → 云端 CLIP 验证（或 stub fallback）
   → promoteCandidate() → candidate → approved
   → 下次 resolveByTags 直接命中复用
 ```

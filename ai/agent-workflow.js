@@ -124,10 +124,38 @@ function getWorkflowSummary(env) {
   });
 }
 
+/**
+ * Create a unified agent interface for a given role.
+ * Returns { role, resolveModel, buildCallOptions } for that role.
+ */
+function createAgent(roleId, env) {
+  var role = getRole(roleId);
+  env = env || process.env;
+  return {
+    roleId: role.id,
+    label: role.label,
+    owner: role.owner,
+    contractOwner: role.contractOwner,
+    purpose: role.purpose,
+    modality: role.modality,
+    implemented: role.implemented !== false,
+    resolveModel: function() { return resolveRoleModel(roleId, env); },
+    buildCallOptions: function(overrides) { return buildTextCallOptions(roleId, overrides, env); },
+  };
+}
+
+/**
+ * Get all registered agent role IDs.
+ */
+function getRegisteredRoles() {
+  return Object.keys(ROLE_DEFINITIONS);
+}
 module.exports = {
   ROLE_DEFINITIONS: ROLE_DEFINITIONS,
   getRole: getRole,
   resolveRoleModel: resolveRoleModel,
   buildTextCallOptions: buildTextCallOptions,
   getWorkflowSummary: getWorkflowSummary,
+  createAgent: createAgent,
+  getRegisteredRoles: getRegisteredRoles,
 };

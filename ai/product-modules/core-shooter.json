@@ -1,0 +1,384 @@
+{
+  "schemaVersion": 1,
+  "id": "core.shooter",
+  "name": "Shooter Core",
+  "summary": "A playable side-scrolling shooter with free movement, bullet shooting, wave-based enemies, scoring, power-up drops, and a fail condition.",
+  "llm1Card": "A complete side-scrolling shooter: move freely, shoot enemies, dodge hazards, collect power-ups, and survive waves that get harder over time.",
+  "category": "core",
+  "defaultPreset": "basic",
+  "presets": {
+    "basic": {
+      "description": "Side-scrolling shooter with wave-based enemies, score tracking, and power-up drops."
+    }
+  },
+  "repositoryPolicy": {
+    "preferReuse": true,
+    "cloudRepoEligible": true,
+    "promoteGeneratedVariants": true,
+    "promotionTarget": "cloudModuleRepo",
+    "trainingEligible": false
+  },
+  "defaults": {
+    "scene": "Game",
+    "failAction": "restart"
+  },
+  "compiler": {
+    "slots": {
+      "failAction": "restart"
+    },
+    "slotPatches": {
+      "failAction": {
+        "findEvent": {
+          "sceneParam": "scene",
+          "textPrefix": "on collision Player Enemy ->",
+          "indexParam": "failEventIndex"
+        },
+        "dsl": [
+          "remove event #{{failEventIndex}} scene={{scene}}",
+          "on collision Player Enemy -> {{failAction}} scene={{scene}}"
+        ]
+      }
+    },
+    "dsl": [
+      "create scene name={{scene}} first=true",
+      "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=32 scene={{scene}}",
+      "create object name=Bullet type=ShapePainter shape=rectangle color=#FFD700 width=12 height=6 scene={{scene}}",
+      "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=28 height=28 scene={{scene}}",
+      "create object name=PowerUp type=ShapePainter shape=circle color=#2ECC71 width=16 height=16 scene={{scene}}",
+      "create object name=HudScore type=Text size=20 scene={{scene}}",
+      "create object name=HudWave type=Text size=20 scene={{scene}}",
+      "set variable name=Score value=0 type=Number scope=global",
+      "set variable name=Wave value=1 type=Number scope=global",
+      "set variable name=PlayerHealth value=3 type=Number scope=global",
+      "place object=Player at=100,300 scene={{scene}}",
+      "place object=HudScore at=16,16 scene={{scene}}",
+      "place object=HudWave at=16,44 scene={{scene}}",
+      "on start -> Score=0, Wave=1, PlayerHealth=3 scene={{scene}}",
+      "on start -> text HudScore Score scene={{scene}}",
+      "on start -> text HudWave Wave scene={{scene}}",
+      "on key ArrowUp held -> move Player y=-4 scene={{scene}}",
+      "on key ArrowDown held -> move Player y=+4 scene={{scene}}",
+      "on key ArrowLeft held -> move Player x=-4 scene={{scene}}",
+      "on key ArrowRight held -> move Player x=+4 scene={{scene}}",
+      "on key Space -> spawn Bullet at 100 300 scene={{scene}}",
+      "on collision Bullet Enemy -> destroy Bullet, destroy Enemy, score+10 scene={{scene}}",
+      "on collision Player PowerUp -> destroy PowerUp, variable PlayerHealth = 3 scene={{scene}}",
+      "on collision Player Enemy -> {{failAction}} scene={{scene}}",
+      "every 2s -> spawn Enemy at 780 100 scene={{scene}}",
+      "every 2s -> spawn Enemy at 780 250 scene={{scene}}",
+      "every 3s -> spawn Enemy at 780 400 scene={{scene}}",
+      "every 15s -> spawn PowerUp at 400 300 scene={{scene}}"
+    ]
+  },
+  "networking": {
+    "supports": {
+      "syncModels": [
+        "local",
+        "lockstep"
+      ],
+      "authority": [
+        "host",
+        "server"
+      ],
+      "players": {
+        "min": 1,
+        "max": 2
+      }
+    },
+    "determinism": {
+      "supported": true,
+      "requiresSeededRNG": true,
+      "requiresFixedTimestep": true
+    },
+    "inputs": [
+      "move_up",
+      "move_down",
+      "move_left",
+      "move_right",
+      "shoot"
+    ],
+    "state": [
+      "Score",
+      "Wave",
+      "Player",
+      "PlayerHealth",
+      "Bullet",
+      "Enemy",
+      "PowerUp"
+    ],
+    "default": {
+      "sync": "local",
+      "authority": "host",
+      "tickRate": 20,
+      "seed": "auto"
+    }
+  },
+  "provides": {
+    "gameLoop": "shooter",
+    "playerCount": {
+      "min": 1,
+      "max": 2
+    },
+    "objects": [
+      "Player",
+      "Bullet",
+      "Enemy",
+      "PowerUp"
+    ],
+    "behaviors": [],
+    "inputs": [
+      "arrow_up",
+      "arrow_down",
+      "arrow_left",
+      "arrow_right",
+      "space"
+    ]
+  },
+  "requires": {
+    "scene": "Game"
+  },
+  "capabilities": [
+    {
+      "id": "capability.scene.base",
+      "name": "Base scene",
+      "summary": "Create the playable scene and base canvas for a GameCastle project.",
+      "llm1Hint": "A game can have one main playable scene on an 800x600 canvas.",
+      "provides": [
+        "main_scene",
+        "playable_canvas"
+      ],
+      "requires": {
+        "objects": [],
+        "variables": [],
+        "behaviors": [],
+        "events": []
+      },
+      "dsl": {
+        "commands": [
+          "create scene name=<SceneName> first=true"
+        ],
+        "examples": [
+          "create scene name=Game first=true"
+        ]
+      },
+      "constraints": {
+        "sceneName": "Use Game unless the user explicitly asks for another scene.",
+        "canvas": {
+          "width": 800,
+          "height": 600
+        }
+      },
+      "networking": {
+        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 4 } },
+        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "inputs": [],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.object.shape",
+      "name": "Shape objects and text",
+      "summary": "Create visible game objects using ShapePainter rectangles/circles and Text objects.",
+      "llm1Hint": "Visuals use simple colored shapes and text, enough for players, enemies, bullets, power-ups, and HUD labels.",
+      "provides": [
+        "shape_object",
+        "text_object",
+        "simple_visuals"
+      ],
+      "requires": {
+        "objects": [],
+        "variables": [],
+        "behaviors": [],
+        "events": []
+      },
+      "dsl": {
+        "commands": [
+          "create object name=<Name> type=ShapePainter shape=rectangle|circle color=#RRGGBB width=<Width> height=<Height> scene=<SceneName>",
+          "create object name=<Name> type=Text scene=<SceneName> size=<Size>",
+          "set object name=<Name> color=#RRGGBB width=<Width> height=<Height> shape=rectangle|circle scene=<SceneName>",
+          "place object=<Name> at=<X>,<Y> scene=<SceneName>",
+          "place object=<Name> at=<X>,<Y> scene=<SceneName> width=<Width> height=<Height>",
+          "set placement object=<Name> x=<X> y=<Y> scene=<SceneName>"
+        ],
+        "examples": [
+          "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=32 scene=Game",
+          "place object=Player at=100,300 scene=Game",
+          "create object name=HudScore type=Text scene=Game size=20"
+        ]
+      },
+      "constraints": {
+        "objectNames": "Use stable English names. Do not rename objects unless explicitly requested.",
+        "shapePainter": "ShapePainter objects must include shape, color, width, and height.",
+        "colors": "Use #RRGGBB. Preserve 00 color channels exactly."
+      },
+      "networking": {
+        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 4 } },
+        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "inputs": [],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.movement.free2d",
+      "name": "Free 2D movement",
+      "summary": "Move an object freely in all four directions via held keys, without gravity or platform physics.",
+      "llm1Hint": "The player can move freely up, down, left, and right through the game world.",
+      "provides": [
+        "free_movement",
+        "4_direction_controls"
+      ],
+      "requires": {
+        "objects": ["player"],
+        "variables": [],
+        "behaviors": [],
+        "events": ["movement_input"]
+      },
+      "dsl": {
+        "commands": [
+          "on key ArrowUp held -> move <Object> y=-<Speed> scene=<SceneName>",
+          "on key ArrowDown held -> move <Object> y=+<Speed> scene=<SceneName>",
+          "on key ArrowLeft held -> move <Object> x=-<Speed> scene=<SceneName>",
+          "on key ArrowRight held -> move <Object> x=+<Speed> scene=<SceneName>",
+          "every <Interval>s -> move <Object> x=+<Speed> scene=<SceneName>"
+        ],
+        "examples": [
+          "on key ArrowUp held -> move Player y=-4 scene=Game",
+          "on key ArrowLeft held -> move Player x=-4 scene=Game",
+          "every 0.05s -> move Bullet x=+8 scene=Game"
+        ]
+      },
+      "constraints": {
+        "speed": "Default move speed is 4px per frame. Bullet speed is 8px per tick.",
+        "boundary": "Constrain the player inside the 800x600 canvas to prevent escaping the play area.",
+        "noGravity": "Free 2D objects do NOT use PlatformBehavior. Movement is purely event-driven via move_rel (MettreXY with +/- operators)."
+      },
+      "networking": {
+        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
+        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "inputs": ["move_up", "move_down", "move_left", "move_right"],
+        "state": []
+      }
+    },
+    {
+      "id": "capability.projectile.shoot",
+      "name": "Projectile shooting",
+      "summary": "Spawn a projectile on key press that travels in a direction and destroys on enemy collision.",
+      "llm1Hint": "The player can shoot bullets that travel across the screen and destroy enemies.",
+      "provides": [
+        "projectile",
+        "shooting",
+        "bullet_collision"
+      ],
+      "requires": {
+        "objects": ["player", "bullet", "enemy"],
+        "variables": [],
+        "behaviors": [],
+        "events": ["shoot_input", "bullet_enemy_collision"]
+      },
+      "dsl": {
+        "commands": [
+          "on key <Key> -> spawn <ProjectileObject> at <X>,<Y> scene=<SceneName>",
+          "every <Interval>s -> move <ProjectileObject> x=+<Speed> scene=<SceneName>",
+          "on collision <ProjectileObject> <TargetObject> -> destroy <ProjectileObject>, destroy <TargetObject>, score+<Amount> scene=<SceneName>"
+        ],
+        "examples": [
+          "on key Space -> spawn Bullet at 100,300 scene=Game",
+          "every 0.05s -> move Bullet x=+8 scene=Game",
+          "on collision Bullet Enemy -> destroy Bullet, destroy Enemy, score+10 scene=Game"
+        ]
+      },
+      "constraints": {
+        "spawnOffset": "Spawn the bullet near the player position. Current runtime spawns at a fixed position; LLM2 may adjust coordinates.",
+        "bulletSpeed": "Default bullet speed is 8px per tick at 0.05s interval (160px/sec). Use 'every Ns -> move Bullet x=+M' to adjust.",
+        "cooldown": "Current runtime slice does not enforce fire-rate cooldown. LLM2 may add a cooldown timer via variable gate.",
+        "movement": "Bullet movement uses the move_rel action (GDevelop MettreXY with +/- operators) on a repeating timer."
+      },
+      "networking": {
+        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
+        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "inputs": ["shoot"],
+        "state": ["Bullet"]
+      }
+    },
+    {
+      "id": "capability.enemy.wave",
+      "name": "Wave-based enemy spawning",
+      "summary": "Spawn enemies in timed waves from off-screen. Supports random Y position and per-wave difficulty ramp.",
+      "llm1Hint": "Enemies appear in waves from the right side of the screen. Each wave is harder than the last.",
+      "provides": [
+        "enemy_wave",
+        "difficulty_ramp",
+        "endless_mode"
+      ],
+      "requires": {
+        "objects": ["enemy"],
+        "variables": ["Wave"],
+        "behaviors": [],
+        "events": ["timer_spawn", "enemy_player_collision"]
+      },
+      "dsl": {
+        "commands": [
+          "every <Seconds>s -> spawn <EnemyObject> at <X>,<Y> scene=<SceneName>",
+          "on collision <PlayerObject> <EnemyObject> -> <FailAction> scene=<SceneName>"
+        ],
+        "examples": [
+          "every 2s -> spawn Enemy at 780,100 scene=Game",
+          "every 2s -> spawn Enemy at 780,250 scene=Game",
+          "every 3s -> spawn Enemy at 780,400 scene=Game",
+          "on collision Player Enemy -> restart scene=Game"
+        ]
+      },
+      "constraints": {
+        "spawnSide": "Enemies spawn from the right edge (x=780) at varied Y positions. Use multiple spawn lines for wave density.",
+        "waveInterval": "Default spawn intervals are 2-3s. Reduce for harder waves. Use multiple every-lines for varied spawn positions.",
+        "enemySpeed": "Enemies should have a move event pushing them left (x=-2 to x=-4). LLM2 may add 'every 0.05s -> move Enemy x=-2' for leftward movement.",
+        "ramping": "LLM2 may reduce spawn interval or add more spawn lines using the Wave variable for difficulty ramping."
+      },
+      "networking": {
+        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
+        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "inputs": [],
+        "state": ["Wave", "Enemy"]
+      }
+    },
+    {
+      "id": "capability.powerup.drop",
+      "name": "Power-up drops",
+      "summary": "Enemies may drop power-ups on death. Power-ups grant temporary or permanent benefits on player collection.",
+      "llm1Hint": "Destroyed enemies sometimes leave behind power-ups that heal or strengthen the player.",
+      "provides": [
+        "powerup_drop",
+        "health_restore",
+        "drop_chance"
+      ],
+      "requires": {
+        "objects": ["enemy", "powerup", "player"],
+        "variables": ["PlayerHealth"],
+        "behaviors": [],
+        "events": ["enemy_destroy", "powerup_collect"]
+      },
+      "dsl": {
+        "commands": [
+          "every <Seconds>s -> spawn <PowerUpObject> at <X>,<Y> scene=<SceneName>",
+          "on collision <PlayerObject> <PowerUpObject> -> destroy <PowerUpObject>, variable <VarName> = <Value> scene=<SceneName>"
+        ],
+        "examples": [
+          "every 15s -> spawn PowerUp at 400,300 scene=Game",
+          "on collision Player PowerUp -> destroy PowerUp, variable PlayerHealth = 3 scene=Game"
+        ]
+      },
+      "constraints": {
+        "dropInterval": "Default power-up spawn interval is 15s. Keep it infrequent so power-ups feel rewarding.",
+        "effectOptions": "Current preset supports health restore via variable assignment. LLM2 may add speed boost or score multiplier as variants.",
+        "cleanup": "Power-ups that move off-screen left should be destroyed. LLM2 may add 'every 10s -> destroy PowerUp' for cleanup.",
+        "spawn": "Uses simple timer-based spawn at a fixed position. LLM2 may randomize position via multiple spawn lines at different coordinates."
+      },
+      "networking": {
+        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
+        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "inputs": [],
+        "state": ["PowerUp", "PlayerHealth"]
+      }
+    }
+  ]
+}

@@ -42,6 +42,18 @@ function main() {
   });
 
   console.log('[AgentWorkflow] ' + summary.length + ' roles OK');
+
+  var req = agentWorkflow.createAgent('requirement');
+  assert(req.roleId === 'requirement', 'createAgent roleId');
+  assert(req.owner === 'LLM1', 'createAgent owner');
+  assert(typeof req.resolveModel === 'function', 'createAgent resolveModel');
+  assert(req.buildCallOptions().agentRole === 'requirement', 'buildCallOptions agentRole');
+  var img = agentWorkflow.createAgent('imageGeneration');
+  assert(img.implemented === true, 'imageGeneration implemented');
+  var vis = agentWorkflow.createAgent('vision');
+  assert(vis.implemented === false, 'vision not implemented');
+  assert(agentWorkflow.getRegisteredRoles().length === 6, '6 registered roles');
+  console.log('[AgentWorkflow] createAgent factory OK');
 }
 
 main();

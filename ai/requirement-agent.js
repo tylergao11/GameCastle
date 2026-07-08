@@ -11,11 +11,11 @@ function buildRequirementSystemPrompt(creativeCapabilitySummary) {
     '{',
     '  "theme": "short game theme",',
     '  "objects": [',
-    '    {"name":"EnglishName","type":"ShapePainter or Text","shape":"rectangle or circle","color":"#RRGGBB","width":32,"height":32,"role":"player/enemy/platform/coin/bullet/ground/ui"}',
+    '    {"name":"EnglishName","kind":"player/enemy/platform/coin/ground/ui/text/decoration","color":"#RRGGBB","width":32,"height":32,"note":"brief game role of this object"}',
     '  ],',
     '  "rules": ["specific short rule, for example: Player collides Coin -> coin disappears + score increases"],',
     '  "layout": {"placements":[{"object":"ObjectName","x":100,"y":400}]},',
-    '  "behaviors": [{"object":"ObjectName","type":"PlatformBehavior::PlatformerObjectBehavior"}],',
+    '  "behaviors": [{"object":"ObjectName","behavior":"platformer/platform/jumper"}],',
     '  "variables": [{"name":"Score","value":0}],',
     '  "difficulty": "easy",',
     '  "controls": "short player controls"',
@@ -62,7 +62,14 @@ async function generateDesignBrief(options) {
   );
   if (!text) return null;
   try {
-    return JSON.parse(text.trim());
+    var brief = JSON.parse(text.trim());
+  var validation = agentContracts.validateDesignBrief(brief);
+  if (!validation.valid) {
+    console.error("[LLM1] DesignBrief validation failed: " + validation.error);
+    console.error("[LLM1] Received: " + JSON.stringify(brief).substring(0, 200));
+    return null;
+  }
+  return brief;
   } catch(e) {
     console.error('[LLM1] Failed to parse JSON: ' + text.substring(0, 100));
     return null;
