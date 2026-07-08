@@ -43,6 +43,8 @@ function toRgbString(color, fallback) {
 }
 
 function requireObjectType(type) {
+  // Core GDevelop types that are always available
+  if (type === 'Sprite') return { extension: 'Sprite', includes: [], dataFields: [] };
   var record = truth.objects[type];
   if (!record) throw new Error('Unsupported GDevelop object type: ' + type);
   return record;
@@ -166,8 +168,49 @@ function createCube3DObject(params) {
   };
 }
 
+
+function createSpriteObject(params) {
+  // Sprite is a core GDevelop object type (always available via CORE_PROJECT_EXTENSIONS).
+  // It holds animation frames that reference texture images.
+  var texturePath = params.texture || params.name + '.png';
+  var width = Number(params.width) || 32;
+  var height = Number(params.height) || 32;
+  return {
+    name: params.name,
+    tags: '',
+    type: 'Sprite',
+    variables: [],
+    behaviors: [],
+    effects: [],
+    updateIfNotVisible: false,
+    animations: [
+      {
+        name: '',
+        useMultipleDirections: false,
+        directions: [
+          {
+            looping: false,
+            timeBetweenFrames: 0.08,
+            sprites: [
+              {
+                hasCustomCollisionMask: false,
+                image: texturePath,
+                points: [],
+                originPoint: { name: 'origin', x: 0, y: 0 },
+                centerPoint: { automatic: true, name: 'centre', x: 0, y: 0 },
+                customCollisionMask: [],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function createObjectData(params) {
   if (params.type === 'ShapePainter') return createShapePainterObject(params);
+  if (params.type === 'Sprite') return createSpriteObject(params);
   if (params.type === 'Text') return createTextObject(params);
   if (params.type === 'Scene3D::Cube3DObject') return createCube3DObject(params);
   throw new Error('Unsupported internal object DSL type: ' + params.type);

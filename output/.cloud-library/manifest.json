@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "scope": "private",
+  "candidates": [
+    {
+      "candidateId": "candidate_9a2a0b4bf530",
+      "status": "approved",
+      "contentHash": "9a2a0b4bf530b3d09fd03cf8b40ea6b361b8e3fb",
+      "semanticHash": "18a579b85f3f5482da6c2187e2b03a4073f2b584",
+      "storedPath": "D:\\GameCastle\\output\\.cloud-library\\assets\\candidate_9a2a0b4bf530.png",
+      "originalPath": "D:\\GameCastle\\output\\assets\\sprite.player.png",
+      "format": "png",
+      "width": 32,
+      "height": 48,
+      "distillHint": {
+        "schemaVersion": 1,
+        "assetId": "sprite.player",
+        "kind": "sprite",
+        "width": 32,
+        "height": 48,
+        "transparent": true,
+        "format": "png",
+        "sha1": "9a2a0b4bf530b3d09fd03cf8b40ea6b361b8e3fb",
+        "generator": "ImageAgent",
+        "generatorVersion": "stub",
+        "semanticTags": [
+          "player",
+          "game"
+        ],
+        "styleTags": [
+          "arcade",
+          "bright"
+        ],
+        "colorHint": {
+          "r": 68,
+          "g": 136,
+          "b": 255
+        },
+        "reuseHint": {
+          "reusable": true,
+          "scope": "private",
+          "suggestedCanonicalId": "sprite.player",
+          "suggestedTags": [
+            "player",
+            "game",
+            "arcade",
+            "bright"
+          ]
+        },
+        "quality": {
+          "confidence": 0.8,
+          "needsHumanReview": false,
+          "needsDistillation": false
+        },
+        "privateContext": {},
+        "generatedAt": "2026-07-08T08:25:17.517Z"
+      },
+      "scope": "private",
+      "createdAt": "2026-07-08T08:25:17.518Z",
+      "promotedAt": "2026-07-08T08:25:21.317Z"
+    }
+  ]
+}

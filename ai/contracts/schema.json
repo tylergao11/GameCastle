@@ -9,31 +9,69 @@
     "AssetManifest",
     "AssetReview",
     "AssemblyReport",
-    "ValidationReport"
+    "ValidationReport",
+    "DistillHint"
   ],
   "$defs": {
     "ContractMeta": {
       "type": "object",
-      "required": ["schemaVersion", "contractId", "createdAt", "owner", "status"],
+      "required": [
+        "schemaVersion",
+        "contractId",
+        "createdAt",
+        "owner",
+        "status"
+      ],
       "properties": {
-        "schemaVersion": { "const": 1 },
-        "contractId": { "type": "string", "pattern": "^[a-zA-Z0-9_.:-]+$" },
-        "createdAt": { "type": "string", "description": "ISO-8601 timestamp." },
+        "schemaVersion": {
+          "const": 1
+        },
+        "contractId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_.:-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO-8601 timestamp."
+        },
         "owner": {
           "type": "string",
-          "enum": ["RequirementModel", "DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RuntimeLinker", "RuntimeValidator"]
+          "enum": [
+            "RequirementModel",
+            "DSLAgent",
+            "RuntimeAssetResolver",
+            "ImageAgent",
+            "VisionAgent",
+            "RuntimeLinker",
+            "RuntimeValidator"
+          ]
         },
         "status": {
           "type": "string",
-          "enum": ["draft", "ready", "partial", "blocked", "failed", "passed"]
+          "enum": [
+            "draft",
+            "ready",
+            "partial",
+            "blocked",
+            "failed",
+            "passed"
+          ]
         },
         "source": {
           "type": "object",
           "properties": {
-            "userPrompt": { "type": "string" },
-            "projectWorldHash": { "type": "string" },
-            "baseProjectPath": { "type": "string" },
-            "agentRunId": { "type": "string" }
+            "userPrompt": {
+              "type": "string"
+            },
+            "projectWorldHash": {
+              "type": "string"
+            },
+            "baseProjectPath": {
+              "type": "string"
+            },
+            "agentRunId": {
+              "type": "string"
+            }
           },
           "additionalProperties": false
         }
@@ -42,15 +80,57 @@
     },
     "SyncPolicy": {
       "type": "object",
-      "required": ["sync", "authority", "tickRate", "seed", "deterministic"],
+      "required": [
+        "sync",
+        "authority",
+        "tickRate",
+        "seed",
+        "deterministic"
+      ],
       "properties": {
-        "sync": { "type": "string", "enum": ["local", "event", "state", "lockstep"] },
-        "authority": { "type": "string", "enum": ["client", "host", "server", "runtime"] },
-        "tickRate": { "type": "integer", "minimum": 0 },
-        "seed": { "type": ["string", "integer"] },
-        "deterministic": { "type": "boolean" },
-        "networkState": { "type": "array", "items": { "type": "string" } },
-        "networkInputs": { "type": "array", "items": { "type": "string" } }
+        "sync": {
+          "type": "string",
+          "enum": [
+            "local",
+            "event",
+            "state",
+            "lockstep"
+          ]
+        },
+        "authority": {
+          "type": "string",
+          "enum": [
+            "client",
+            "host",
+            "server",
+            "runtime"
+          ]
+        },
+        "tickRate": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seed": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "deterministic": {
+          "type": "boolean"
+        },
+        "networkState": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "networkInputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -72,59 +152,177 @@
         "publishPolicy"
       ],
       "properties": {
-        "slotId": { "type": "string", "pattern": "^asset\\.[a-zA-Z0-9_.-]+$" },
+        "slotId": {
+          "type": "string",
+          "pattern": "^asset\\.[a-zA-Z0-9_.-]+$"
+        },
         "kind": {
           "type": "string",
-          "enum": ["sprite", "background", "ui", "icon", "tile", "effect", "model3d", "texture", "audio"]
+          "enum": [
+            "sprite",
+            "background",
+            "ui",
+            "icon",
+            "tile",
+            "effect",
+            "model3d",
+            "texture",
+            "audio"
+          ]
         },
-        "purpose": { "type": "string" },
-        "required": { "type": "boolean" },
-        "owner": { "const": "RuntimeAssetResolver" },
-        "semanticTags": { "type": "array", "items": { "type": "string" } },
-        "styleTags": { "type": "array", "items": { "type": "string" } },
+        "purpose": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "owner": {
+          "const": "RuntimeAssetResolver"
+        },
+        "semanticTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "styleTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "target": {
           "type": "object",
-          "required": ["scene", "object", "binding"],
+          "required": [
+            "scene",
+            "object",
+            "binding"
+          ],
           "properties": {
-            "scene": { "type": ["string", "null"] },
-            "object": { "type": ["string", "null"] },
+            "scene": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "object": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "binding": {
               "type": "string",
-              "enum": ["objectTexture", "background", "uiImage", "animationFrame", "material", "thumbnail", "audioResource"]
+              "enum": [
+                "objectTexture",
+                "background",
+                "uiImage",
+                "animationFrame",
+                "material",
+                "thumbnail",
+                "audioResource"
+              ]
             },
-            "moduleId": { "type": ["string", "null"] }
+            "moduleId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           "additionalProperties": false
         },
         "constraints": {
           "type": "object",
-          "required": ["width", "height", "transparent", "style", "semantic", "negative"],
+          "required": [
+            "width",
+            "height",
+            "transparent",
+            "style",
+            "semantic",
+            "negative"
+          ],
           "properties": {
-            "width": { "type": "integer", "minimum": 1 },
-            "height": { "type": "integer", "minimum": 1 },
-            "transparent": { "type": "boolean" },
-            "aspectRatio": { "type": "string" },
-            "style": { "type": "string" },
-            "palette": { "type": "array", "items": { "type": "string" } },
-            "semantic": { "type": "array", "items": { "type": "string" } },
-            "negative": { "type": "array", "items": { "type": "string" } },
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "transparent": {
+              "type": "boolean"
+            },
+            "aspectRatio": {
+              "type": "string"
+            },
+            "style": {
+              "type": "string"
+            },
+            "palette": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "semantic": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "negative": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "animation": {
               "type": "object",
               "properties": {
-                "enabled": { "type": "boolean" },
-                "states": { "type": "array", "items": { "type": "string" } },
-                "framesPerState": { "type": "integer", "minimum": 1 }
+                "enabled": {
+                  "type": "boolean"
+                },
+                "states": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "framesPerState": {
+                  "type": "integer",
+                  "minimum": 1
+                }
               },
               "additionalProperties": false
             },
             "collisionHint": {
               "type": "object",
               "properties": {
-                "shape": { "type": "string", "enum": ["none", "rectangle", "circle", "polygon"] },
-                "width": { "type": "integer", "minimum": 0 },
-                "height": { "type": "integer", "minimum": 0 },
-                "offsetX": { "type": "integer" },
-                "offsetY": { "type": "integer" }
+                "shape": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "rectangle",
+                    "circle",
+                    "polygon"
+                  ]
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "offsetX": {
+                  "type": "integer"
+                },
+                "offsetY": {
+                  "type": "integer"
+                }
               },
               "additionalProperties": false
             }
@@ -143,7 +341,9 @@
             "minConfidence"
           ],
           "properties": {
-            "preferReuse": { "type": "boolean" },
+            "preferReuse": {
+              "type": "boolean"
+            },
             "lookupOrder": {
               "type": "array",
               "items": {
@@ -160,14 +360,31 @@
                 ]
               }
             },
-            "maxCandidates": { "type": "integer", "minimum": 1 },
-            "allowCrossGameReuse": { "type": "boolean" },
-            "allowLicensedAssets": { "type": "boolean" },
+            "maxCandidates": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "allowCrossGameReuse": {
+              "type": "boolean"
+            },
+            "allowLicensedAssets": {
+              "type": "boolean"
+            },
             "requiredLicense": {
               "type": "string",
-              "enum": ["owned", "commercial", "internal", "prototype", "any"]
+              "enum": [
+                "owned",
+                "commercial",
+                "internal",
+                "prototype",
+                "any"
+              ]
             },
-            "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            "minConfidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
           },
           "additionalProperties": false
         },
@@ -182,14 +399,29 @@
             "visionReview"
           ],
           "properties": {
-            "allowExactCache": { "type": "boolean" },
-            "allowRepoMatch": { "type": "boolean" },
-            "allowVariant": { "type": "boolean" },
-            "allowGeneration": { "type": "boolean" },
-            "allowPlaceholder": { "type": "boolean" },
+            "allowExactCache": {
+              "type": "boolean"
+            },
+            "allowRepoMatch": {
+              "type": "boolean"
+            },
+            "allowVariant": {
+              "type": "boolean"
+            },
+            "allowGeneration": {
+              "type": "boolean"
+            },
+            "allowPlaceholder": {
+              "type": "boolean"
+            },
             "visionReview": {
               "type": "string",
-              "enum": ["never", "lowConfidence", "criticalAsset", "always"]
+              "enum": [
+                "never",
+                "lowConfidence",
+                "criticalAsset",
+                "always"
+              ]
             }
           },
           "additionalProperties": false
@@ -206,17 +438,44 @@
             "debt"
           ],
           "properties": {
-            "strategy": { "type": "string", "enum": ["placeholder", "shapePainter", "blockAssembly"] },
-            "source": { "const": "runtimeFallback" },
-            "placeholderColor": { "type": "string" },
-            "reason": { "type": "string" },
-            "publishable": { "type": "boolean" },
-            "repoEligible": { "type": "boolean" },
-            "trainingEligible": { "type": "boolean" },
-            "blocksFinalExport": { "type": "boolean" },
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "placeholder",
+                "shapePainter",
+                "blockAssembly"
+              ]
+            },
+            "source": {
+              "const": "runtimeFallback"
+            },
+            "placeholderColor": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "publishable": {
+              "type": "boolean"
+            },
+            "repoEligible": {
+              "type": "boolean"
+            },
+            "trainingEligible": {
+              "type": "boolean"
+            },
+            "blocksFinalExport": {
+              "type": "boolean"
+            },
             "debt": {
               "type": "string",
-              "enum": ["none", "asset_missing", "asset_low_confidence", "asset_generation_failed", "asset_validation_failed"]
+              "enum": [
+                "none",
+                "asset_missing",
+                "asset_low_confidence",
+                "asset_generation_failed",
+                "asset_validation_failed"
+              ]
             }
           },
           "additionalProperties": false
@@ -230,19 +489,36 @@
             "trainingEligibleWhenGenerated"
           ],
           "properties": {
-            "playableWithPlaceholder": { "type": "boolean" },
-            "publishableWithPlaceholder": { "type": "boolean" },
-            "repoEligibleWhenGenerated": { "type": "boolean" },
-            "trainingEligibleWhenGenerated": { "type": "boolean" }
+            "playableWithPlaceholder": {
+              "type": "boolean"
+            },
+            "publishableWithPlaceholder": {
+              "type": "boolean"
+            },
+            "repoEligibleWhenGenerated": {
+              "type": "boolean"
+            },
+            "trainingEligibleWhenGenerated": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": false
         },
         "cache": {
           "type": "object",
           "properties": {
-            "promptHash": { "type": "string" },
-            "seed": { "type": ["string", "integer"] },
-            "reuseAllowed": { "type": "boolean" }
+            "promptHash": {
+              "type": "string"
+            },
+            "seed": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            },
+            "reuseAllowed": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": false
         }
@@ -251,13 +527,35 @@
     },
     "ModuleIntent": {
       "type": "object",
-      "required": ["moduleId", "preset", "action", "syncPolicy", "params"],
+      "required": [
+        "moduleId",
+        "preset",
+        "action",
+        "syncPolicy",
+        "params"
+      ],
       "properties": {
-        "moduleId": { "type": "string" },
-        "preset": { "type": "string" },
-        "action": { "type": "string", "enum": ["install", "configure", "remove"] },
-        "syncPolicy": { "$ref": "#/$defs/SyncPolicy" },
-        "params": { "type": "object", "additionalProperties": true }
+        "moduleId": {
+          "type": "string"
+        },
+        "preset": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "install",
+            "configure",
+            "remove"
+          ]
+        },
+        "syncPolicy": {
+          "$ref": "#/$defs/SyncPolicy"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": true
+        }
       },
       "additionalProperties": false
     },
@@ -277,75 +575,213 @@
         "repairPolicy"
       ],
       "properties": {
-        "meta": { "$ref": "#/$defs/ContractMeta" },
+        "meta": {
+          "$ref": "#/$defs/ContractMeta"
+        },
         "request": {
           "type": "object",
-          "required": ["rawUserPrompt", "projectMode", "iterationIntent"],
+          "required": [
+            "rawUserPrompt",
+            "projectMode",
+            "iterationIntent"
+          ],
           "properties": {
-            "rawUserPrompt": { "type": "string" },
-            "projectMode": { "type": "string", "enum": ["new", "continue", "repair"] },
-            "iterationIntent": { "type": "string" },
-            "hardRequirements": { "type": "array", "items": { "type": "string" } },
-            "nonGoals": { "type": "array", "items": { "type": "string" } }
+            "rawUserPrompt": {
+              "type": "string"
+            },
+            "projectMode": {
+              "type": "string",
+              "enum": [
+                "new",
+                "continue",
+                "repair"
+              ]
+            },
+            "iterationIntent": {
+              "type": "string"
+            },
+            "hardRequirements": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "nonGoals": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
           "additionalProperties": false
         },
         "world": {
           "type": "object",
-          "required": ["projectWorldHash", "knownScenes", "knownModules"],
+          "required": [
+            "projectWorldHash",
+            "knownScenes",
+            "knownModules"
+          ],
           "properties": {
-            "projectWorldHash": { "type": ["string", "null"] },
-            "knownScenes": { "type": "array", "items": { "type": "string" } },
-            "knownModules": { "type": "array", "items": { "type": "string" } }
+            "projectWorldHash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "knownScenes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "knownModules": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
           "additionalProperties": false
         },
         "styleGuide": {
           "type": "object",
-          "required": ["visualStyle", "tone", "palette", "assetReuse"],
+          "required": [
+            "visualStyle",
+            "tone",
+            "palette",
+            "assetReuse"
+          ],
           "properties": {
-            "visualStyle": { "type": "string" },
-            "tone": { "type": "string" },
-            "palette": { "type": "array", "items": { "type": "string" } },
-            "assetReuse": { "type": "string", "enum": ["reuseExisting", "generateMissingOnly", "regenerateAll"] }
+            "visualStyle": {
+              "type": "string"
+            },
+            "tone": {
+              "type": "string"
+            },
+            "palette": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "assetReuse": {
+              "type": "string",
+              "enum": [
+                "reuseExisting",
+                "generateMissingOnly",
+                "regenerateAll"
+              ]
+            }
           },
           "additionalProperties": false
         },
         "moduleContract": {
           "type": "object",
-          "required": ["moduleIntents", "gameplaySlots", "stateVariables", "networkPolicy"],
+          "required": [
+            "moduleIntents",
+            "gameplaySlots",
+            "stateVariables",
+            "networkPolicy"
+          ],
           "properties": {
-            "moduleIntents": { "type": "array", "items": { "$ref": "#/$defs/ModuleIntent" } },
-            "gameplaySlots": { "type": "array", "items": { "type": "string" } },
-            "stateVariables": { "type": "array", "items": { "type": "string" } },
-            "networkPolicy": { "$ref": "#/$defs/SyncPolicy" }
+            "moduleIntents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ModuleIntent"
+              }
+            },
+            "gameplaySlots": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "stateVariables": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "networkPolicy": {
+              "$ref": "#/$defs/SyncPolicy"
+            }
           },
           "additionalProperties": false
         },
         "assetContract": {
           "type": "object",
-          "required": ["slots", "globalConstraints", "resolutionDefaults"],
+          "required": [
+            "slots",
+            "globalConstraints",
+            "resolutionDefaults"
+          ],
           "properties": {
-            "slots": { "type": "array", "items": { "$ref": "#/$defs/AssetSlot" } },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AssetSlot"
+              }
+            },
             "globalConstraints": {
               "type": "object",
-              "required": ["allowTextInImages", "allowedFormats", "outputRoot", "cloudRepoRequired"],
+              "required": [
+                "allowTextInImages",
+                "allowedFormats",
+                "outputRoot",
+                "cloudRepoRequired"
+              ],
               "properties": {
-                "allowTextInImages": { "type": "boolean" },
-                "allowedFormats": { "type": "array", "items": { "type": "string", "enum": ["png", "jpg", "webp", "glb", "mp3", "ogg"] } },
-                "outputRoot": { "type": "string" },
-                "cloudRepoRequired": { "type": "boolean" }
+                "allowTextInImages": {
+                  "type": "boolean"
+                },
+                "allowedFormats": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "png",
+                      "jpg",
+                      "webp",
+                      "glb",
+                      "mp3",
+                      "ogg"
+                    ]
+                  }
+                },
+                "outputRoot": {
+                  "type": "string"
+                },
+                "cloudRepoRequired": {
+                  "type": "boolean"
+                }
               },
               "additionalProperties": false
             },
             "resolutionDefaults": {
               "type": "object",
-              "required": ["preferRepo", "generateOnlyOnMiss", "placeholderIsDebt", "cacheKeyFields"],
+              "required": [
+                "preferRepo",
+                "generateOnlyOnMiss",
+                "placeholderIsDebt",
+                "cacheKeyFields"
+              ],
               "properties": {
-                "preferRepo": { "type": "boolean" },
-                "generateOnlyOnMiss": { "type": "boolean" },
-                "placeholderIsDebt": { "type": "boolean" },
-                "cacheKeyFields": { "type": "array", "items": { "type": "string" } }
+                "preferRepo": {
+                  "type": "boolean"
+                },
+                "generateOnlyOnMiss": {
+                  "type": "boolean"
+                },
+                "placeholderIsDebt": {
+                  "type": "boolean"
+                },
+                "cacheKeyFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               },
               "additionalProperties": false
             }
@@ -354,55 +790,159 @@
         },
         "parallelPlan": {
           "type": "object",
-          "required": ["canRunInParallel", "tasks", "joinStrategy"],
+          "required": [
+            "canRunInParallel",
+            "tasks",
+            "joinStrategy"
+          ],
           "properties": {
-            "canRunInParallel": { "type": "boolean" },
+            "canRunInParallel": {
+              "type": "boolean"
+            },
             "tasks": {
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["taskId", "owner", "inputs", "outputs", "dependsOn"],
+                "required": [
+                  "taskId",
+                  "owner",
+                  "inputs",
+                  "outputs",
+                  "dependsOn"
+                ],
                 "properties": {
-                  "taskId": { "type": "string" },
-                  "owner": { "type": "string", "enum": ["DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent"] },
-                  "inputs": { "type": "array", "items": { "type": "string" } },
-                  "outputs": { "type": "array", "items": { "type": "string" } },
-                  "dependsOn": { "type": "array", "items": { "type": "string" } }
+                  "taskId": {
+                    "type": "string"
+                  },
+                  "owner": {
+                    "type": "string",
+                    "enum": [
+                      "DSLAgent",
+                      "RuntimeAssetResolver",
+                      "ImageAgent",
+                      "VisionAgent"
+                    ]
+                  },
+                  "inputs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "outputs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "dependsOn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
                 },
                 "additionalProperties": false
               }
             },
-            "joinStrategy": { "type": "string", "enum": ["allRequired", "allowVisualFallbacks", "manualApproval"] }
+            "joinStrategy": {
+              "type": "string",
+              "enum": [
+                "allRequired",
+                "allowVisualFallbacks",
+                "manualApproval"
+              ]
+            }
           },
           "additionalProperties": false
         },
         "acceptance": {
           "type": "object",
-          "required": ["runtime", "visual", "cache"],
+          "required": [
+            "runtime",
+            "visual",
+            "cache"
+          ],
           "properties": {
-            "runtime": { "type": "array", "items": { "type": "string" } },
-            "visual": { "type": "array", "items": { "type": "string" } },
-            "cache": { "type": "array", "items": { "type": "string" } }
+            "runtime": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "visual": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cache": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
           "additionalProperties": false
         },
         "cachePolicy": {
           "type": "object",
-          "required": ["semanticHashInputs", "assetHashInputs", "invalidateOn"],
+          "required": [
+            "semanticHashInputs",
+            "assetHashInputs",
+            "invalidateOn"
+          ],
           "properties": {
-            "semanticHashInputs": { "type": "array", "items": { "type": "string" } },
-            "assetHashInputs": { "type": "array", "items": { "type": "string" } },
-            "invalidateOn": { "type": "array", "items": { "type": "string" } }
+            "semanticHashInputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "assetHashInputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "invalidateOn": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
           "additionalProperties": false
         },
         "repairPolicy": {
           "type": "object",
-          "required": ["maxRounds", "routeByOwner", "retryOwners"],
+          "required": [
+            "maxRounds",
+            "routeByOwner",
+            "retryOwners"
+          ],
           "properties": {
-            "maxRounds": { "type": "integer", "minimum": 0 },
-            "routeByOwner": { "type": "boolean" },
-            "retryOwners": { "type": "array", "items": { "type": "string", "enum": ["RequirementModel", "DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RuntimeLinker"] } }
+            "maxRounds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "routeByOwner": {
+              "type": "boolean"
+            },
+            "retryOwners": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "RequirementModel",
+                  "DSLAgent",
+                  "RuntimeAssetResolver",
+                  "ImageAgent",
+                  "VisionAgent",
+                  "RuntimeLinker"
+                ]
+              }
+            }
           },
           "additionalProperties": false
         }
@@ -412,25 +952,66 @@
     "ModuleDslPatch": {
       "type": "object",
       "x-contractOwner": "DSLAgent",
-      "required": ["meta", "buildContractId", "patchKind", "moduleDsl", "declaredAssetSlots", "expectedOutputs"],
+      "required": [
+        "meta",
+        "buildContractId",
+        "patchKind",
+        "moduleDsl",
+        "declaredAssetSlots",
+        "expectedOutputs"
+      ],
       "properties": {
-        "meta": { "$ref": "#/$defs/ContractMeta" },
-        "buildContractId": { "type": "string" },
-        "patchKind": { "type": "string", "enum": ["module", "internalRepair"] },
-        "moduleDsl": { "type": "string" },
-        "declaredAssetSlots": { "type": "array", "items": { "type": "string" } },
-        "expectedOutputs": { "type": "array", "items": { "type": "string" } },
-        "networkManifestPatch": { "type": "object", "additionalProperties": true }
+        "meta": {
+          "$ref": "#/$defs/ContractMeta"
+        },
+        "buildContractId": {
+          "type": "string"
+        },
+        "patchKind": {
+          "type": "string",
+          "enum": [
+            "module",
+            "internalRepair"
+          ]
+        },
+        "moduleDsl": {
+          "type": "string"
+        },
+        "declaredAssetSlots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expectedOutputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "networkManifestPatch": {
+          "type": "object",
+          "additionalProperties": true
+        }
       },
       "additionalProperties": false
     },
     "AssetManifest": {
       "type": "object",
       "x-contractOwner": "RuntimeAssetResolver",
-      "required": ["meta", "buildContractId", "assets", "summary"],
+      "required": [
+        "meta",
+        "buildContractId",
+        "assets",
+        "summary"
+      ],
       "properties": {
-        "meta": { "$ref": "#/$defs/ContractMeta" },
-        "buildContractId": { "type": "string" },
+        "meta": {
+          "$ref": "#/$defs/ContractMeta"
+        },
+        "buildContractId": {
+          "type": "string"
+        },
         "assets": {
           "type": "array",
           "items": {
@@ -452,52 +1033,162 @@
               "resolution"
             ],
             "properties": {
-              "slotId": { "type": "string" },
-              "status": { "type": "string", "enum": ["reused", "variant", "generated", "placeholder", "failed"] },
+              "slotId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "reused",
+                  "variant",
+                  "generated",
+                  "placeholder",
+                  "failed"
+                ]
+              },
               "source": {
                 "type": "string",
-                "enum": ["exactCache", "cloudRepo", "localProject", "generatedExternal", "runtimeFallback"]
+                "enum": [
+                  "exactCache",
+                  "cloudRepo",
+                  "localProject",
+                  "generatedExternal",
+                  "runtimeFallback"
+                ]
               },
-              "assetId": { "type": ["string", "null"] },
-              "repoAssetId": { "type": ["string", "null"] },
-              "provider": { "type": ["string", "null"] },
-              "path": { "type": "string" },
-              "format": { "type": "string" },
-              "sha1": { "type": "string" },
-              "width": { "type": "integer", "minimum": 1 },
-              "height": { "type": "integer", "minimum": 1 },
-              "transparent": { "type": "boolean" },
-              "semanticTags": { "type": "array", "items": { "type": "string" } },
-              "styleTags": { "type": "array", "items": { "type": "string" } },
-              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-              "prompt": { "type": "string" },
-              "negativePrompt": { "type": "string" },
-              "seed": { "type": ["string", "integer", "null"] },
-              "reason": { "type": "string" },
+              "assetId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "repoAssetId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "provider": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "sha1": {
+                "type": "string"
+              },
+              "width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "transparent": {
+                "type": "boolean"
+              },
+              "semanticTags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "styleTags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "negativePrompt": {
+                "type": "string"
+              },
+              "seed": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
               "cost": {
                 "type": "object",
-                "required": ["currency", "estimated", "reason"],
+                "required": [
+                  "currency",
+                  "estimated",
+                  "reason"
+                ],
                 "properties": {
-                  "currency": { "type": "string" },
-                  "estimated": { "type": "number", "minimum": 0 },
-                  "reason": { "type": "string" }
+                  "currency": {
+                    "type": "string"
+                  },
+                  "estimated": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
                 },
                 "additionalProperties": false
               },
               "resolution": {
                 "type": "object",
-                "required": ["strategy", "rank", "candidatesConsidered", "cacheHit", "ownerOnFailure"],
+                "required": [
+                  "strategy",
+                  "rank",
+                  "candidatesConsidered",
+                  "cacheHit",
+                  "ownerOnFailure"
+                ],
                 "properties": {
                   "strategy": {
                     "type": "string",
-                    "enum": ["exactCache", "repoExact", "repoSemantic", "repoStyle", "variant", "generate", "placeholder"]
+                    "enum": [
+                      "exactCache",
+                      "repoExact",
+                      "repoSemantic",
+                      "repoStyle",
+                      "variant",
+                      "generate",
+                      "placeholder"
+                    ]
                   },
-                  "rank": { "type": "integer", "minimum": 0 },
-                  "candidatesConsidered": { "type": "integer", "minimum": 0 },
-                  "cacheHit": { "type": "boolean" },
+                  "rank": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "candidatesConsidered": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cacheHit": {
+                    "type": "boolean"
+                  },
                   "ownerOnFailure": {
                     "type": "string",
-                    "enum": ["RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RequirementModel"]
+                    "enum": [
+                      "RuntimeAssetResolver",
+                      "ImageAgent",
+                      "VisionAgent",
+                      "RequirementModel"
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -505,46 +1196,111 @@
               "transform": {
                 "type": "object",
                 "properties": {
-                  "resize": { "type": "boolean" },
-                  "recolor": { "type": "boolean" },
-                  "crop": { "type": "boolean" },
-                  "atlasPacked": { "type": "boolean" },
-                  "processedPath": { "type": ["string", "null"] }
+                  "resize": {
+                    "type": "boolean"
+                  },
+                  "recolor": {
+                    "type": "boolean"
+                  },
+                  "crop": {
+                    "type": "boolean"
+                  },
+                  "atlasPacked": {
+                    "type": "boolean"
+                  },
+                  "processedPath": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
                 },
                 "additionalProperties": false
               },
               "publishability": {
                 "type": "object",
-                "required": ["playable", "publishable", "repoEligible", "trainingEligible", "blocksFinalExport", "debt"],
+                "required": [
+                  "playable",
+                  "publishable",
+                  "repoEligible",
+                  "trainingEligible",
+                  "blocksFinalExport",
+                  "debt"
+                ],
                 "properties": {
-                  "playable": { "type": "boolean" },
-                  "publishable": { "type": "boolean" },
-                  "repoEligible": { "type": "boolean" },
-                  "trainingEligible": { "type": "boolean" },
-                  "blocksFinalExport": { "type": "boolean" },
+                  "playable": {
+                    "type": "boolean"
+                  },
+                  "publishable": {
+                    "type": "boolean"
+                  },
+                  "repoEligible": {
+                    "type": "boolean"
+                  },
+                  "trainingEligible": {
+                    "type": "boolean"
+                  },
+                  "blocksFinalExport": {
+                    "type": "boolean"
+                  },
                   "debt": {
                     "type": "string",
-                    "enum": ["none", "asset_missing", "asset_low_confidence", "asset_generation_failed", "asset_validation_failed"]
+                    "enum": [
+                      "none",
+                      "asset_missing",
+                      "asset_low_confidence",
+                      "asset_generation_failed",
+                      "asset_validation_failed"
+                    ]
                   }
                 },
                 "additionalProperties": false
               },
-              "collisionHint": { "$ref": "#/$defs/AssetSlot/properties/constraints/properties/collisionHint" }
+              "collisionHint": {
+                "$ref": "#/$defs/AssetSlot/properties/constraints/properties/collisionHint"
+              }
             },
             "additionalProperties": false
           }
         },
         "summary": {
           "type": "object",
-          "required": ["resolved", "generated", "reused", "placeholders", "failed", "cacheHit", "publishable"],
+          "required": [
+            "resolved",
+            "generated",
+            "reused",
+            "placeholders",
+            "failed",
+            "cacheHit",
+            "publishable"
+          ],
           "properties": {
-            "resolved": { "type": "integer", "minimum": 0 },
-            "generated": { "type": "integer", "minimum": 0 },
-            "reused": { "type": "integer", "minimum": 0 },
-            "placeholders": { "type": "integer", "minimum": 0 },
-            "failed": { "type": "integer", "minimum": 0 },
-            "cacheHit": { "type": "boolean" },
-            "publishable": { "type": "boolean" }
+            "resolved": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "generated": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reused": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "placeholders": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cacheHit": {
+              "type": "boolean"
+            },
+            "publishable": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": false
         }
@@ -554,43 +1310,92 @@
     "AssetReview": {
       "type": "object",
       "x-contractOwner": "VisionAgent",
-      "required": ["meta", "buildContractId", "reviews", "summary"],
+      "required": [
+        "meta",
+        "buildContractId",
+        "reviews",
+        "summary"
+      ],
       "properties": {
-        "meta": { "$ref": "#/$defs/ContractMeta" },
-        "buildContractId": { "type": "string" },
+        "meta": {
+          "$ref": "#/$defs/ContractMeta"
+        },
+        "buildContractId": {
+          "type": "string"
+        },
         "reviews": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["slotId", "assetPath", "passed", "checks", "ownerOnFailure"],
+            "required": [
+              "slotId",
+              "assetPath",
+              "passed",
+              "checks",
+              "ownerOnFailure"
+            ],
             "properties": {
-              "slotId": { "type": "string" },
-              "assetPath": { "type": "string" },
-              "passed": { "type": "boolean" },
+              "slotId": {
+                "type": "string"
+              },
+              "assetPath": {
+                "type": "string"
+              },
+              "passed": {
+                "type": "boolean"
+              },
               "checks": {
                 "type": "array",
                 "items": {
                   "type": "object",
-                  "required": ["name", "passed", "message"],
+                  "required": [
+                    "name",
+                    "passed",
+                    "message"
+                  ],
                   "properties": {
-                    "name": { "type": "string" },
-                    "passed": { "type": "boolean" },
-                    "message": { "type": "string" }
+                    "name": {
+                      "type": "string"
+                    },
+                    "passed": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 }
               },
-              "ownerOnFailure": { "type": "string", "enum": ["RuntimeAssetResolver", "ImageAgent", "RequirementModel", "RuntimeLinker"] }
+              "ownerOnFailure": {
+                "type": "string",
+                "enum": [
+                  "RuntimeAssetResolver",
+                  "ImageAgent",
+                  "RequirementModel",
+                  "RuntimeLinker"
+                ]
+              }
             },
             "additionalProperties": false
           }
         },
         "summary": {
           "type": "object",
-          "required": ["passed", "failedSlots"],
+          "required": [
+            "passed",
+            "failedSlots"
+          ],
           "properties": {
-            "passed": { "type": "boolean" },
-            "failedSlots": { "type": "array", "items": { "type": "string" } }
+            "passed": {
+              "type": "boolean"
+            },
+            "failedSlots": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
           "additionalProperties": false
         }
@@ -600,17 +1405,39 @@
     "AssemblyReport": {
       "type": "object",
       "x-contractOwner": "RuntimeLinker",
-      "required": ["meta", "buildContractId", "inputs", "bindings", "outputs", "conflicts", "nextAction"],
+      "required": [
+        "meta",
+        "buildContractId",
+        "inputs",
+        "bindings",
+        "outputs",
+        "conflicts",
+        "nextAction"
+      ],
       "properties": {
-        "meta": { "$ref": "#/$defs/ContractMeta" },
-        "buildContractId": { "type": "string" },
+        "meta": {
+          "$ref": "#/$defs/ContractMeta"
+        },
+        "buildContractId": {
+          "type": "string"
+        },
         "inputs": {
           "type": "object",
-          "required": ["moduleDslPatch", "assetManifest", "assetReview"],
+          "required": [
+            "moduleDslPatch",
+            "assetManifest",
+            "assetReview"
+          ],
           "properties": {
-            "moduleDslPatch": { "type": "string" },
-            "assetManifest": { "type": "string" },
-            "assetReview": { "type": "string" }
+            "moduleDslPatch": {
+              "type": "string"
+            },
+            "assetManifest": {
+              "type": "string"
+            },
+            "assetReview": {
+              "type": "string"
+            }
           },
           "additionalProperties": false
         },
@@ -618,23 +1445,51 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["slotId", "assetPath", "target", "status"],
+            "required": [
+              "slotId",
+              "assetPath",
+              "target",
+              "status"
+            ],
             "properties": {
-              "slotId": { "type": "string" },
-              "assetPath": { "type": "string" },
-              "target": { "$ref": "#/$defs/AssetSlot/properties/target" },
-              "status": { "type": "string", "enum": ["bound", "placeholder", "skipped"] }
+              "slotId": {
+                "type": "string"
+              },
+              "assetPath": {
+                "type": "string"
+              },
+              "target": {
+                "$ref": "#/$defs/AssetSlot/properties/target"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "bound",
+                  "placeholder",
+                  "skipped"
+                ]
+              }
             },
             "additionalProperties": false
           }
         },
         "outputs": {
           "type": "object",
-          "required": ["finalPatchPath", "projectPath", "resourceManifestPath"],
+          "required": [
+            "finalPatchPath",
+            "projectPath",
+            "resourceManifestPath"
+          ],
           "properties": {
-            "finalPatchPath": { "type": "string" },
-            "projectPath": { "type": "string" },
-            "resourceManifestPath": { "type": "string" }
+            "finalPatchPath": {
+              "type": "string"
+            },
+            "projectPath": {
+              "type": "string"
+            },
+            "resourceManifestPath": {
+              "type": "string"
+            }
           },
           "additionalProperties": false
         },
@@ -642,62 +1497,326 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["conflictId", "owner", "reason", "suggestedAction"],
+            "required": [
+              "conflictId",
+              "owner",
+              "reason",
+              "suggestedAction"
+            ],
             "properties": {
-              "conflictId": { "type": "string" },
-              "owner": { "type": "string", "enum": ["RequirementModel", "DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RuntimeLinker"] },
-              "slotId": { "type": ["string", "null"] },
-              "reason": { "type": "string" },
-              "suggestedAction": { "type": "string" }
+              "conflictId": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "RequirementModel",
+                  "DSLAgent",
+                  "RuntimeAssetResolver",
+                  "ImageAgent",
+                  "VisionAgent",
+                  "RuntimeLinker"
+                ]
+              },
+              "slotId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "suggestedAction": {
+                "type": "string"
+              }
             },
             "additionalProperties": false
           }
         },
-        "nextAction": { "type": "string", "enum": ["validate", "repair", "blocked"] }
+        "nextAction": {
+          "type": "string",
+          "enum": [
+            "validate",
+            "repair",
+            "blocked"
+          ]
+        }
       },
       "additionalProperties": false
     },
     "ValidationReport": {
       "type": "object",
       "x-contractOwner": "RuntimeValidator",
-      "required": ["meta", "buildContractId", "checks", "summary", "nextAction"],
+      "required": [
+        "meta",
+        "buildContractId",
+        "checks",
+        "summary",
+        "nextAction"
+      ],
       "properties": {
-        "meta": { "$ref": "#/$defs/ContractMeta" },
-        "buildContractId": { "type": "string" },
+        "meta": {
+          "$ref": "#/$defs/ContractMeta"
+        },
+        "buildContractId": {
+          "type": "string"
+        },
         "checks": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["checkId", "layer", "passed", "ownerOnFailure", "message"],
+            "required": [
+              "checkId",
+              "layer",
+              "passed",
+              "ownerOnFailure",
+              "message"
+            ],
             "properties": {
-              "checkId": { "type": "string" },
+              "checkId": {
+                "type": "string"
+              },
               "layer": {
                 "type": "string",
-                "enum": ["schema", "contract", "gdevelopTruth", "assetResolution", "assetRepo", "assetFiles", "assetPublishability", "htmlManifest", "runtimeSmoke", "vision"]
+                "enum": [
+                  "schema",
+                  "contract",
+                  "gdevelopTruth",
+                  "assetResolution",
+                  "assetRepo",
+                  "assetFiles",
+                  "assetPublishability",
+                  "htmlManifest",
+                  "runtimeSmoke",
+                  "vision"
+                ]
               },
-              "passed": { "type": "boolean" },
+              "passed": {
+                "type": "boolean"
+              },
               "ownerOnFailure": {
                 "type": "string",
-                "enum": ["RequirementModel", "DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RuntimeLinker", "RuntimeValidator"]
+                "enum": [
+                  "RequirementModel",
+                  "DSLAgent",
+                  "RuntimeAssetResolver",
+                  "ImageAgent",
+                  "VisionAgent",
+                  "RuntimeLinker",
+                  "RuntimeValidator"
+                ]
               },
-              "message": { "type": "string" },
-              "evidence": { "type": "object", "additionalProperties": true }
+              "message": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "object",
+                "additionalProperties": true
+              }
             },
             "additionalProperties": false
           }
         },
         "summary": {
           "type": "object",
-          "required": ["passed", "failed", "blocked", "cacheHit"],
+          "required": [
+            "passed",
+            "failed",
+            "blocked",
+            "cacheHit"
+          ],
           "properties": {
-            "passed": { "type": "integer", "minimum": 0 },
-            "failed": { "type": "integer", "minimum": 0 },
-            "blocked": { "type": "integer", "minimum": 0 },
-            "cacheHit": { "type": "boolean" }
+            "passed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "blocked": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cacheHit": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": false
         },
-        "nextAction": { "type": "string", "enum": ["done", "repair", "blocked"] }
+        "nextAction": {
+          "type": "string",
+          "enum": [
+            "done",
+            "repair",
+            "blocked"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "DistillHint": {
+      "type": "object",
+      "x-contractOwner": "ImageAgent",
+      "required": [
+        "schemaVersion",
+        "assetId",
+        "kind",
+        "width",
+        "height",
+        "transparent",
+        "format",
+        "sha1",
+        "generator",
+        "generatorVersion",
+        "semanticTags",
+        "styleTags",
+        "reuseHint",
+        "quality",
+        "privateContext",
+        "generatedAt"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "assetId": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "sprite",
+            "background",
+            "ui",
+            "icon",
+            "tile",
+            "effect",
+            "model3d",
+            "texture",
+            "audio"
+          ]
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "transparent": {
+          "type": "boolean"
+        },
+        "format": {
+          "type": "string"
+        },
+        "sha1": {
+          "type": "string"
+        },
+        "generator": {
+          "type": "string",
+          "enum": [
+            "ImageAgent"
+          ]
+        },
+        "generatorVersion": {
+          "type": "string"
+        },
+        "colorHint": {
+          "type": "object",
+          "properties": {
+            "r": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "g": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "b": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            }
+          },
+          "additionalProperties": false
+        },
+        "semanticTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "styleTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reuseHint": {
+          "type": "object",
+          "required": [
+            "reusable",
+            "scope"
+          ],
+          "properties": {
+            "reusable": {
+              "type": "boolean"
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "private",
+                "team",
+                "global"
+              ]
+            },
+            "suggestedCanonicalId": {
+              "type": "string"
+            },
+            "suggestedTags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "quality": {
+          "type": "object",
+          "required": [
+            "confidence",
+            "needsHumanReview",
+            "needsDistillation"
+          ],
+          "properties": {
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "needsHumanReview": {
+              "type": "boolean"
+            },
+            "needsDistillation": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "privateContext": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "generatedAt": {
+          "type": "string",
+          "description": "ISO-8601 timestamp"
+        }
       },
       "additionalProperties": false
     }

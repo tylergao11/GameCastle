@@ -10,6 +10,7 @@ var CONTRACT_TYPES = [
   'AssetReview',
   'AssemblyReport',
   'ValidationReport',
+  'DistillHint',
 ];
 
 var CONTRACT_OWNERS = [
@@ -38,6 +39,7 @@ var CONTRACT_TYPE_OWNERS = {
   AssetReview: 'VisionAgent',
   AssemblyReport: 'RuntimeLinker',
   ValidationReport: 'RuntimeValidator',
+  DistillHint: 'ImageAgent',
 };
 
 function loadContractSchema() {

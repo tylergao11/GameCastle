@@ -9,6 +9,7 @@ var projectWorld = require("./project-world");
 var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
 var htmlExporter = require("./html-exporter");
+var textureProvider = require("./texture-provider");
 var gdevelopTruth = require("./gdevelop-truth");
 var agentWorkflow = require("./agent-workflow");
 var requirementAgent = require("./requirement-agent");
@@ -403,11 +404,24 @@ EXEC["delete scene"] = function(p, ps) {
   return {ok:true,msg:"deleted: "+ps.name};
 };
 
-EXEC["create object"] = function(p, ps) {
+EXEC["create object"] = async function(p, ps) {
   var scene = ps.scene ? p.layouts.find(function(l){return l.name===ps.scene;}) : null;
   var tgt = ps.scene ? (scene||{}).objects : p.objects;
   if (!tgt) return {ok:false,msg:"scene not found: "+ps.scene};
   var sType = ps.shape || "rectangle";
+
+  // Resolve texture for Sprite objects before creating object data
+  if (ps.type === "Sprite") {
+    try {
+      var resolved = await textureProvider.resolveTexture(ps);
+      if (resolved.texturePath && !ps.texture) {
+        ps.texture = resolved.texturePath;
+      }
+    } catch (e) {
+      return {ok:false,msg:"texture resolution failed: " + e.message};
+    }
+  }
+
   var obj = gdevelopTruth.createObjectData(ps);
   tgt.push(obj);
   if (ps.type === "ShapePainter" && scene) {
@@ -556,7 +570,7 @@ EXEC["set placement"] = function(p, ps) {
   return {ok:true,msg:"placement updated: "+ps.object};
 };
 
-function execute(project, op) {
+async function execute(project, op) {
   var key = op.target ? (op.verb + " " + op.target) : op.verb;
   var fn = EXEC[key];
   if (!fn) return {ok:false,msg:"unknown: "+key};
@@ -842,7 +856,7 @@ function writeProjectOutputs(project, options) {
   console.log('  Scenes:'+project.layouts.length+' Objects:'+project.objects.length+' SceneObjects:'+(s0?s0.objects.length:0)+' Instances:'+(s0?s0.instances.length:0)+' Events:'+(s0?s0.events.length:0)+' Vars:'+project.variables.length);
 }
 
-function executeDslBatch(project, dslText, batchLabel, options) {
+async function executeDslBatch(project, dslText, batchLabel, options) {
   options = options || {};
   var dslLines = dslText.split(/\r?\n/).map(function(line) {
     return line.trim();
@@ -857,7 +871,7 @@ function executeDslBatch(project, dslText, batchLabel, options) {
   var ok = 0;
   var commandResults = [];
   for (var i = 0; i < ops.length; i++) {
-    var r = execute(project, ops[i]);
+    var r = await execute(project, ops[i]);
     var label = ops[i].verb + (ops[i].target?' '+ops[i].target:'');
     console.log('  ' + (r.ok?'OK':'FAIL') + ' ' + label + ': ' + r.msg);
     if (r.ok) ok++;
@@ -930,7 +944,7 @@ function makeApprovalSummary(options) {
   };
 }
 
-function previewApprovalPatch(project, dslText, options) {
+async function previewApprovalPatch(project, dslText, options) {
   options = options || {};
   var previewProject = cloneValue(project);
   var dslLines = String(dslText || '').split(/\r?\n/).map(function(line) {
@@ -942,7 +956,7 @@ function previewApprovalPatch(project, dslText, options) {
   var commandResults = [];
   var ok = 0;
   for (var i = 0; i < ops.length; i++) {
-    var result = execute(previewProject, ops[i]);
+    var result = await execute(previewProject, ops[i]);
     if (result.ok) ok++;
     commandResults.push({
       index: i,
@@ -968,8 +982,8 @@ function previewApprovalPatch(project, dslText, options) {
   };
 }
 
-function savePendingApproval(options) {
-  var preview = previewApprovalPatch(options.project, options.dslText || '', {
+async function savePendingApproval(options) {
+  var preview = await previewApprovalPatch(options.project, options.dslText || '', {
     baseWorld: options.baseWorld,
     modules: options.modules,
   });
@@ -1003,7 +1017,7 @@ function savePendingApproval(options) {
   return pending;
 }
 
-function approvePendingPatch() {
+async function approvePendingPatch() {
   var pending = loadJsonFile(PENDING_APPROVAL_PATH, null);
   if (!pending) {
     console.error('[Approval] No pending approval found: ' + PENDING_APPROVAL_PATH);
@@ -1027,7 +1041,7 @@ function approvePendingPatch() {
     console.log('[Approval] Starting approved new project patch');
   }
 
-  var batch = executeDslBatch(project, pending.dslText || '', pending.batchLabel || 'apply', {
+  var batch = await executeDslBatch(project, pending.dslText || '', pending.batchLabel || 'apply', {
     modules: pending.modules,
     networkManifest: pending.networkManifest,
     allowEmpty: pending.patchKind === 'module',
@@ -1044,7 +1058,7 @@ function approvePendingPatch() {
 async function run(prompt, useMock) {
   console.log('[Pipeline] ' + prompt);
   if (hasArg('--approve-pending')) {
-    approvePendingPatch();
+    await approvePendingPatch();
     return;
   }
   var capabilityCatalog = capabilities.loadCapabilityCatalog(CAPABILITIES_DIR);
@@ -1217,7 +1231,7 @@ async function run(prompt, useMock) {
   }
 
   if (approvalGate) {
-    savePendingApproval({
+    await savePendingApproval({
       prompt: prompt,
       projectMode: projectMode,
       batchLabel: batchLabel,
@@ -1236,7 +1250,7 @@ async function run(prompt, useMock) {
     return;
   }
 
-  var batch = executeDslBatch(project, dslText, batchLabel, {
+  var batch = await executeDslBatch(project, dslText, batchLabel, {
     modules: compiledModulePatch && compiledModulePatch.installedModules,
     networkManifest: compiledModulePatch && compiledModulePatch.networkManifest,
     allowEmpty: !!compiledModulePatch,
@@ -1264,7 +1278,7 @@ async function run(prompt, useMock) {
       console.log('[Repair] DSL (' + repairDsl.split('\n').length + ' lines):');
       console.log(repairDsl);
       repairDsl = dslAgent.cleanDslOutput(repairDsl);
-      batch = executeDslBatch(project, repairDsl, 'repair_' + String(repairRound).padStart(2, '0'), {
+      batch = await executeDslBatch(project, repairDsl, 'repair_' + String(repairRound).padStart(2, '0'), {
         modules: compiledModulePatch && compiledModulePatch.installedModules,
         networkManifest: compiledModulePatch && compiledModulePatch.networkManifest,
       });

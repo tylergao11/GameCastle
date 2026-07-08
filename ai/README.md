@@ -14,6 +14,14 @@
 | `asset-world.js` | AssetWorld builder：stable resource context, asset debts, cache state, and cloud promotion queue |
 | `assets/local-repo.json` | Local asset repository manifest seed for project/local reuse |
 | `assets/cloud-repo.json` | Cloud asset repository manifest seed for repo-first asset resolution |
+| `image-agent.js` | ImageAgent：生图 prompt 构建 + DistillHint 输出。当前为 stub（假装生成占位 PNG），接真模型时替换内部实现，契约不变 |
+| `cloud-library-manager.js` | CloudLibraryManager：确定性资产存取、去重、版本、权限。不调 LLM，只被 DistillationAgent 和 texture-provider 调用 |
+| `texture-provider.js` | 薄集成层：pipeline executor → 查 CloudLibraryManager → 未命中则调 ImageAgent 生成 → 存 candidate |
+| `distillation-agent.js` | DistillationAgent：独立脚本（`node ai/distillation-agent.js`），异步批量蒸馏 candidate → approved。不跑在主 pipeline 上 |
+| `check-image-agent.js` | ImageAgent 自检，校验 generateImage + DistillHint schema |
+| `check-cloud-library-manager.js` | CloudLibraryManager 自检，校验 storeCandidate + dedupe + resolveByTags |
+| `check-distillation-agent.js` | DistillationAgent 自检，校验 promoteCandidate + rejectCandidate + 幂等 |
+
 | `llm-provider.js` | Responses/SSE 文本模型调用边界，负责流式输出、reasoning 可见性和 provider 日志 |
 | `requirement-agent.js` | LLM1/RequirementModel：把用户意图翻译成轻量 design brief |
 | `dsl-agent.js` | LLM2/DSLAgent：Module DSL prompt、Module DSL repair、内部 DSL repair prompt |
@@ -46,6 +54,25 @@
 
 - LLM1：只拿 `buildCreativeCapabilitySummary()`。
 - LLM2：拿 `buildCompilerPromptSection()`，包括结构化能力卡和 DSL 命令表。
+
+## 资产生成与蒸馏管线（新增）
+
+```text
+DSL: create object name=Player type=Sprite texture=player.png
+  → pipeline.js executor
+    → textureProvider.resolveTexture()
+      → CloudLibraryManager.resolveByTags() → 命中 approved? 直接用
+      → 未命中 → ImageAgent.generateImage() → 产出 PNG + DistillHint
+      → CloudLibraryManager.storeCandidate() → 内容hash去重 + 语义hash去重
+  → gdevelopTruth.createSpriteObject(texture) → project.json
+
+# 独立进程，手动或定时触发：
+node ai/distillation-agent.js
+  → 读 manifest
+  → 脱敏 / 标准化标签 / 质量门
+  → promoteCandidate() → candidate → approved
+  → 下次 resolveByTags 直接命中复用
+```
 
 ## 当前管线
 
