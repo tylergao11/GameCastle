@@ -234,7 +234,10 @@ GameCastleNetworkBridge.prototype._onNetworkTick = function(dt, tick) {
 // 3. Increment local tick counter
 // 4. Try to advance ready ticks (when both local + remote inputs available)
 
-GameCastleNetworkBridge.prototype._tickLockstep = function(dt, tick) {
+GameCastleNetworkBridge.prototype._tickLockstep = function(dt, adapterTick) {
+  // Use bridge's own tick counter (starts at 0), not the adapter's (starts at 1).
+  // This ensures _readyTick==0 aligns with _localInputs[0] on the first call.
+  var tick = this._tick;
   this._localInputs[tick] = this._adapter.captureInputs();
   if (this._peerId) {
     // Send current inputs + last 5 ticks as redundancy (UDP-style loss recovery)
@@ -245,7 +248,7 @@ GameCastleNetworkBridge.prototype._tickLockstep = function(dt, tick) {
     }
     this._transport.sync(INPUT_SYNC_CHANNEL, { tick: tick, inputs: this._localInputs[tick], prev: redundancy });
   }
-  this._tick = tick;
+  this._tick++;
   this._tryAdvanceLockstep();
   return true;
 };
@@ -288,10 +291,11 @@ GameCastleNetworkBridge.prototype._tryAdvanceLockstep = function() {
 
 // ── Authority tick ────────────────────────────────────────────────────────
 
-GameCastleNetworkBridge.prototype._tickAuthority = function(dt, tick) {
+GameCastleNetworkBridge.prototype._tickAuthority = function(dt, adapterTick) {
+  var tick = this._tick;
   var inputs = this._adapter.captureInputs();
   if (this._transport && this._transport.sendGameInput) this._transport.sendGameInput(tick, inputs);
-  this._tick = tick;
+  this._tick++;
   this._tryAdvanceAuthority();
   return true;
 };
