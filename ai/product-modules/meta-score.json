@@ -12,6 +12,13 @@
       "description": "Global Score variable and display text."
     }
   },
+  "repositoryPolicy": {
+    "preferReuse": true,
+    "cloudRepoEligible": true,
+    "promoteGeneratedVariants": true,
+    "promotionTarget": "cloudModuleRepo",
+    "trainingEligible": false
+  },
   "defaults": {
     "scene": "Game"
   },

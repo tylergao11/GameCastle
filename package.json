@@ -11,7 +11,7 @@
     "truth:check": "node scripts/extract-gdevelop-truth.js --check",
     "gen": "node ai/pipeline.js --mock platformer",
     "serve:output": "node scripts/serve-output.js",
-    "check:ai": "node -c scripts/extract-gdevelop-truth.js && npm run truth:check && node -c ai/gdevelop-truth.js && node -c ai/agent-workflow.js && node -c ai/contracts.js && node -c ai/llm-provider.js && node -c ai/requirement-agent.js && node -c ai/dsl-agent.js && node -c ai/html-exporter.js && node -c ai/pipeline.js && node -c ai/project-world.js && node -c ai/capabilities.js && node -c ai/module-dsl.js && node -c ai/module-compiler.js && node ai/check-agent-workflow.js && node ai/check-contracts.js && node ai/check-capabilities.js && node ai/check-product-modules.js",
+    "check:ai": "node -c scripts/extract-gdevelop-truth.js && npm run truth:check && node -c ai/gdevelop-truth.js && node -c ai/agent-workflow.js && node -c ai/contracts.js && node -c ai/asset-resolver.js && node -c ai/asset-world.js && node -c ai/llm-provider.js && node -c ai/requirement-agent.js && node -c ai/dsl-agent.js && node -c ai/html-exporter.js && node -c ai/pipeline.js && node -c ai/project-world.js && node -c ai/capabilities.js && node -c ai/module-dsl.js && node -c ai/module-compiler.js && node ai/check-agent-workflow.js && node ai/check-contracts.js && node ai/check-asset-resolver.js && node ai/check-asset-world.js && node ai/check-capabilities.js && node ai/check-product-modules.js",
     "test:ai": "npm run check:ai && node ai/test-dsl-fixtures.js && node ai/test-module-dsl.js"
   },
   "dependencies": {},

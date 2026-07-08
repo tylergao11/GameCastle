@@ -11,6 +11,13 @@
       "description": "Small playable platformer suitable as a first generated version."
     }
   },
+  "repositoryPolicy": {
+    "preferReuse": true,
+    "cloudRepoEligible": true,
+    "promoteGeneratedVariants": true,
+    "promotionTarget": "cloudModuleRepo",
+    "trainingEligible": false
+  },
   "defaults": {
     "scene": "Game",
     "failAction": "restart"

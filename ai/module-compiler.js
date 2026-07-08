@@ -60,8 +60,22 @@ function validateProductModules(schema, modules) {
     validatePatchMap(manifest, 'slotPatches');
     validatePatchMap(manifest, 'configurePatches');
     validateSyncDefaults(manifest);
+    validateRepositoryPolicy(manifest);
     validateInteractionContracts(manifest);
   });
+}
+
+function validateRepositoryPolicy(manifest) {
+  var policy = manifest.repositoryPolicy;
+  if (!policy) throw new Error('Product module ' + manifest.id + ' missing repositoryPolicy');
+  ['preferReuse', 'cloudRepoEligible', 'promoteGeneratedVariants', 'trainingEligible'].forEach(function(field) {
+    if (typeof policy[field] !== 'boolean') {
+      throw new Error('Product module ' + manifest.id + ' repositoryPolicy.' + field + ' must be boolean');
+    }
+  });
+  if (policy.promotionTarget !== 'cloudModuleRepo') {
+    throw new Error('Product module ' + manifest.id + ' repositoryPolicy.promotionTarget must be cloudModuleRepo');
+  }
 }
 
 function validatePatchMap(manifest, fieldName) {
@@ -124,6 +138,7 @@ function buildModuleDslReference(catalog) {
       presets: Object.keys(manifest.presets || {}),
       defaultPreset: manifest.defaultPreset,
       defaults: publicDefaults,
+      repositoryPolicy: manifest.repositoryPolicy,
       configurable: Object.keys(getConfigurePatches(manifest)),
       interaction: manifest.interaction || {},
       sync: manifest.sync

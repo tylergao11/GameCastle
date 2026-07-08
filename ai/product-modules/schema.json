@@ -10,6 +10,7 @@
     "category",
     "defaultPreset",
     "presets",
+    "repositoryPolicy",
     "sync",
     "compiler"
   ],
@@ -22,6 +23,7 @@
     "compiler.links": "Module-level integration hooks that fill named slots in other modules.",
     "compiler.configurePatches": "Per-parameter patches for configuring an already installed module from ProjectWorld state.",
     "interaction": "AI-visible fixed runtime interaction contract. Use this for trigger/copy constraints without exposing internal DSL templates.",
-    "sync": "Supported future networking policy for this module."
+    "sync": "Supported future networking policy for this module.",
+    "repositoryPolicy": "Module repository strategy. Product modules are reused from the module repository; expensive generated module variants must be promoted back as cloud-module candidates instead of remaining one-off outputs."
   }
 }

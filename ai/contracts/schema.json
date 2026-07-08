@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gamecastle.local/ai/contracts/schema.json",
   "schemaVersion": 1,
-  "description": "GameCastle multi-agent contract schemas. LLM agents produce proposals and manifests; runtime Linker/Validator owns deterministic merge and verification.",
+  "description": "GameCastle multi-agent contract schemas. LLM agents translate intent; RuntimeAssetResolver owns asset reuse/generation routing/fallback; runtime Linker/Validator owns deterministic merge and verification.",
   "contractTypes": [
     "BuildContract",
     "ModuleDslPatch",
@@ -21,7 +21,7 @@
         "createdAt": { "type": "string", "description": "ISO-8601 timestamp." },
         "owner": {
           "type": "string",
-          "enum": ["RequirementModel", "DSLAgent", "ImageAgent", "VisionAgent", "RuntimeLinker", "RuntimeValidator"]
+          "enum": ["RequirementModel", "DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RuntimeLinker", "RuntimeValidator"]
         },
         "status": {
           "type": "string",
@@ -56,7 +56,21 @@
     },
     "AssetSlot": {
       "type": "object",
-      "required": ["slotId", "kind", "purpose", "required", "owner", "target", "constraints", "fallback"],
+      "required": [
+        "slotId",
+        "kind",
+        "purpose",
+        "required",
+        "owner",
+        "target",
+        "semanticTags",
+        "styleTags",
+        "constraints",
+        "repoPolicy",
+        "resolutionPolicy",
+        "fallback",
+        "publishPolicy"
+      ],
       "properties": {
         "slotId": { "type": "string", "pattern": "^asset\\.[a-zA-Z0-9_.-]+$" },
         "kind": {
@@ -65,7 +79,9 @@
         },
         "purpose": { "type": "string" },
         "required": { "type": "boolean" },
-        "owner": { "const": "ImageAgent" },
+        "owner": { "const": "RuntimeAssetResolver" },
+        "semanticTags": { "type": "array", "items": { "type": "string" } },
+        "styleTags": { "type": "array", "items": { "type": "string" } },
         "target": {
           "type": "object",
           "required": ["scene", "object", "binding"],
@@ -115,13 +131,109 @@
           },
           "additionalProperties": false
         },
+        "repoPolicy": {
+          "type": "object",
+          "required": [
+            "preferReuse",
+            "lookupOrder",
+            "maxCandidates",
+            "allowCrossGameReuse",
+            "allowLicensedAssets",
+            "requiredLicense",
+            "minConfidence"
+          ],
+          "properties": {
+            "preferReuse": { "type": "boolean" },
+            "lookupOrder": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "exactCache",
+                  "cloudRepoExact",
+                  "cloudRepoSemantic",
+                  "cloudRepoStyle",
+                  "localProject",
+                  "variant",
+                  "externalGeneration",
+                  "runtimePlaceholder"
+                ]
+              }
+            },
+            "maxCandidates": { "type": "integer", "minimum": 1 },
+            "allowCrossGameReuse": { "type": "boolean" },
+            "allowLicensedAssets": { "type": "boolean" },
+            "requiredLicense": {
+              "type": "string",
+              "enum": ["owned", "commercial", "internal", "prototype", "any"]
+            },
+            "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": false
+        },
+        "resolutionPolicy": {
+          "type": "object",
+          "required": [
+            "allowExactCache",
+            "allowRepoMatch",
+            "allowVariant",
+            "allowGeneration",
+            "allowPlaceholder",
+            "visionReview"
+          ],
+          "properties": {
+            "allowExactCache": { "type": "boolean" },
+            "allowRepoMatch": { "type": "boolean" },
+            "allowVariant": { "type": "boolean" },
+            "allowGeneration": { "type": "boolean" },
+            "allowPlaceholder": { "type": "boolean" },
+            "visionReview": {
+              "type": "string",
+              "enum": ["never", "lowConfidence", "criticalAsset", "always"]
+            }
+          },
+          "additionalProperties": false
+        },
         "fallback": {
           "type": "object",
-          "required": ["strategy"],
+          "required": [
+            "strategy",
+            "source",
+            "publishable",
+            "repoEligible",
+            "trainingEligible",
+            "blocksFinalExport",
+            "debt"
+          ],
           "properties": {
             "strategy": { "type": "string", "enum": ["placeholder", "shapePainter", "blockAssembly"] },
+            "source": { "const": "runtimeFallback" },
             "placeholderColor": { "type": "string" },
-            "reason": { "type": "string" }
+            "reason": { "type": "string" },
+            "publishable": { "type": "boolean" },
+            "repoEligible": { "type": "boolean" },
+            "trainingEligible": { "type": "boolean" },
+            "blocksFinalExport": { "type": "boolean" },
+            "debt": {
+              "type": "string",
+              "enum": ["none", "asset_missing", "asset_low_confidence", "asset_generation_failed", "asset_validation_failed"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "publishPolicy": {
+          "type": "object",
+          "required": [
+            "playableWithPlaceholder",
+            "publishableWithPlaceholder",
+            "repoEligibleWhenGenerated",
+            "trainingEligibleWhenGenerated"
+          ],
+          "properties": {
+            "playableWithPlaceholder": { "type": "boolean" },
+            "publishableWithPlaceholder": { "type": "boolean" },
+            "repoEligibleWhenGenerated": { "type": "boolean" },
+            "trainingEligibleWhenGenerated": { "type": "boolean" }
           },
           "additionalProperties": false
         },
@@ -212,16 +324,28 @@
         },
         "assetContract": {
           "type": "object",
-          "required": ["slots", "globalConstraints"],
+          "required": ["slots", "globalConstraints", "resolutionDefaults"],
           "properties": {
             "slots": { "type": "array", "items": { "$ref": "#/$defs/AssetSlot" } },
             "globalConstraints": {
               "type": "object",
-              "required": ["allowTextInImages", "allowedFormats", "outputRoot"],
+              "required": ["allowTextInImages", "allowedFormats", "outputRoot", "cloudRepoRequired"],
               "properties": {
                 "allowTextInImages": { "type": "boolean" },
                 "allowedFormats": { "type": "array", "items": { "type": "string", "enum": ["png", "jpg", "webp", "glb", "mp3", "ogg"] } },
-                "outputRoot": { "type": "string" }
+                "outputRoot": { "type": "string" },
+                "cloudRepoRequired": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            },
+            "resolutionDefaults": {
+              "type": "object",
+              "required": ["preferRepo", "generateOnlyOnMiss", "placeholderIsDebt", "cacheKeyFields"],
+              "properties": {
+                "preferRepo": { "type": "boolean" },
+                "generateOnlyOnMiss": { "type": "boolean" },
+                "placeholderIsDebt": { "type": "boolean" },
+                "cacheKeyFields": { "type": "array", "items": { "type": "string" } }
               },
               "additionalProperties": false
             }
@@ -240,7 +364,7 @@
                 "required": ["taskId", "owner", "inputs", "outputs", "dependsOn"],
                 "properties": {
                   "taskId": { "type": "string" },
-                  "owner": { "type": "string", "enum": ["DSLAgent", "ImageAgent", "VisionAgent"] },
+                  "owner": { "type": "string", "enum": ["DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent"] },
                   "inputs": { "type": "array", "items": { "type": "string" } },
                   "outputs": { "type": "array", "items": { "type": "string" } },
                   "dependsOn": { "type": "array", "items": { "type": "string" } }
@@ -278,7 +402,7 @@
           "properties": {
             "maxRounds": { "type": "integer", "minimum": 0 },
             "routeByOwner": { "type": "boolean" },
-            "retryOwners": { "type": "array", "items": { "type": "string", "enum": ["RequirementModel", "DSLAgent", "ImageAgent", "VisionAgent", "RuntimeLinker"] } }
+            "retryOwners": { "type": "array", "items": { "type": "string", "enum": ["RequirementModel", "DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RuntimeLinker"] } }
           },
           "additionalProperties": false
         }
@@ -302,8 +426,8 @@
     },
     "AssetManifest": {
       "type": "object",
-      "x-contractOwner": "ImageAgent",
-      "required": ["meta", "buildContractId", "assets"],
+      "x-contractOwner": "RuntimeAssetResolver",
+      "required": ["meta", "buildContractId", "assets", "summary"],
       "properties": {
         "meta": { "$ref": "#/$defs/ContractMeta" },
         "buildContractId": { "type": "string" },
@@ -311,23 +435,118 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["slotId", "path", "format", "sha1", "width", "height", "transparent", "prompt", "status"],
+            "required": [
+              "slotId",
+              "status",
+              "source",
+              "path",
+              "format",
+              "sha1",
+              "width",
+              "height",
+              "transparent",
+              "semanticTags",
+              "styleTags",
+              "confidence",
+              "publishability",
+              "resolution"
+            ],
             "properties": {
               "slotId": { "type": "string" },
+              "status": { "type": "string", "enum": ["reused", "variant", "generated", "placeholder", "failed"] },
+              "source": {
+                "type": "string",
+                "enum": ["exactCache", "cloudRepo", "localProject", "generatedExternal", "runtimeFallback"]
+              },
+              "assetId": { "type": ["string", "null"] },
+              "repoAssetId": { "type": ["string", "null"] },
+              "provider": { "type": ["string", "null"] },
               "path": { "type": "string" },
               "format": { "type": "string" },
               "sha1": { "type": "string" },
               "width": { "type": "integer", "minimum": 1 },
               "height": { "type": "integer", "minimum": 1 },
               "transparent": { "type": "boolean" },
+              "semanticTags": { "type": "array", "items": { "type": "string" } },
+              "styleTags": { "type": "array", "items": { "type": "string" } },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
               "prompt": { "type": "string" },
               "negativePrompt": { "type": "string" },
               "seed": { "type": ["string", "integer", "null"] },
-              "status": { "type": "string", "enum": ["generated", "reused", "placeholder", "failed"] },
+              "reason": { "type": "string" },
+              "cost": {
+                "type": "object",
+                "required": ["currency", "estimated", "reason"],
+                "properties": {
+                  "currency": { "type": "string" },
+                  "estimated": { "type": "number", "minimum": 0 },
+                  "reason": { "type": "string" }
+                },
+                "additionalProperties": false
+              },
+              "resolution": {
+                "type": "object",
+                "required": ["strategy", "rank", "candidatesConsidered", "cacheHit", "ownerOnFailure"],
+                "properties": {
+                  "strategy": {
+                    "type": "string",
+                    "enum": ["exactCache", "repoExact", "repoSemantic", "repoStyle", "variant", "generate", "placeholder"]
+                  },
+                  "rank": { "type": "integer", "minimum": 0 },
+                  "candidatesConsidered": { "type": "integer", "minimum": 0 },
+                  "cacheHit": { "type": "boolean" },
+                  "ownerOnFailure": {
+                    "type": "string",
+                    "enum": ["RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RequirementModel"]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "transform": {
+                "type": "object",
+                "properties": {
+                  "resize": { "type": "boolean" },
+                  "recolor": { "type": "boolean" },
+                  "crop": { "type": "boolean" },
+                  "atlasPacked": { "type": "boolean" },
+                  "processedPath": { "type": ["string", "null"] }
+                },
+                "additionalProperties": false
+              },
+              "publishability": {
+                "type": "object",
+                "required": ["playable", "publishable", "repoEligible", "trainingEligible", "blocksFinalExport", "debt"],
+                "properties": {
+                  "playable": { "type": "boolean" },
+                  "publishable": { "type": "boolean" },
+                  "repoEligible": { "type": "boolean" },
+                  "trainingEligible": { "type": "boolean" },
+                  "blocksFinalExport": { "type": "boolean" },
+                  "debt": {
+                    "type": "string",
+                    "enum": ["none", "asset_missing", "asset_low_confidence", "asset_generation_failed", "asset_validation_failed"]
+                  }
+                },
+                "additionalProperties": false
+              },
               "collisionHint": { "$ref": "#/$defs/AssetSlot/properties/constraints/properties/collisionHint" }
             },
             "additionalProperties": false
           }
+        },
+        "summary": {
+          "type": "object",
+          "required": ["resolved", "generated", "reused", "placeholders", "failed", "cacheHit", "publishable"],
+          "properties": {
+            "resolved": { "type": "integer", "minimum": 0 },
+            "generated": { "type": "integer", "minimum": 0 },
+            "reused": { "type": "integer", "minimum": 0 },
+            "placeholders": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "cacheHit": { "type": "boolean" },
+            "publishable": { "type": "boolean" }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -361,7 +580,7 @@
                   "additionalProperties": false
                 }
               },
-              "ownerOnFailure": { "type": "string", "enum": ["ImageAgent", "RequirementModel", "RuntimeLinker"] }
+              "ownerOnFailure": { "type": "string", "enum": ["RuntimeAssetResolver", "ImageAgent", "RequirementModel", "RuntimeLinker"] }
             },
             "additionalProperties": false
           }
@@ -426,7 +645,7 @@
             "required": ["conflictId", "owner", "reason", "suggestedAction"],
             "properties": {
               "conflictId": { "type": "string" },
-              "owner": { "type": "string", "enum": ["RequirementModel", "DSLAgent", "ImageAgent", "VisionAgent", "RuntimeLinker"] },
+              "owner": { "type": "string", "enum": ["RequirementModel", "DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RuntimeLinker"] },
               "slotId": { "type": ["string", "null"] },
               "reason": { "type": "string" },
               "suggestedAction": { "type": "string" }
@@ -454,12 +673,12 @@
               "checkId": { "type": "string" },
               "layer": {
                 "type": "string",
-                "enum": ["schema", "contract", "gdevelopTruth", "assetFiles", "htmlManifest", "runtimeSmoke", "vision"]
+                "enum": ["schema", "contract", "gdevelopTruth", "assetResolution", "assetRepo", "assetFiles", "assetPublishability", "htmlManifest", "runtimeSmoke", "vision"]
               },
               "passed": { "type": "boolean" },
               "ownerOnFailure": {
                 "type": "string",
-                "enum": ["RequirementModel", "DSLAgent", "ImageAgent", "VisionAgent", "RuntimeLinker", "RuntimeValidator"]
+                "enum": ["RequirementModel", "DSLAgent", "RuntimeAssetResolver", "ImageAgent", "VisionAgent", "RuntimeLinker", "RuntimeValidator"]
               },
               "message": { "type": "string" },
               "evidence": { "type": "object", "additionalProperties": true }

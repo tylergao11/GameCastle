@@ -101,7 +101,69 @@ function main() {
     'stateVariables',
     'networkPolicy',
   ]);
-  requireRequiredFields(build.properties.assetContract, 'BuildContract.assetContract', ['slots', 'globalConstraints']);
+  requireRequiredFields(build.properties.assetContract, 'BuildContract.assetContract', [
+    'slots',
+    'globalConstraints',
+    'resolutionDefaults',
+  ]);
+  requireRequiredFields(build.properties.assetContract.properties.globalConstraints, 'BuildContract.assetContract.globalConstraints', [
+    'allowTextInImages',
+    'allowedFormats',
+    'outputRoot',
+    'cloudRepoRequired',
+  ]);
+  requireRequiredFields(build.properties.assetContract.properties.resolutionDefaults, 'BuildContract.assetContract.resolutionDefaults', [
+    'preferRepo',
+    'generateOnlyOnMiss',
+    'placeholderIsDebt',
+    'cacheKeyFields',
+  ]);
+
+  var assetSlot = requireObjectDef(schema, 'AssetSlot');
+  requireRequiredFields(assetSlot, 'AssetSlot', [
+    'slotId',
+    'kind',
+    'purpose',
+    'required',
+    'owner',
+    'target',
+    'semanticTags',
+    'styleTags',
+    'constraints',
+    'repoPolicy',
+    'resolutionPolicy',
+    'fallback',
+    'publishPolicy',
+  ]);
+  assert(assetSlot.properties.owner.const === 'RuntimeAssetResolver', 'AssetSlot.owner must be RuntimeAssetResolver');
+  requireRequiredFields(assetSlot.properties.repoPolicy, 'AssetSlot.repoPolicy', [
+    'preferReuse',
+    'lookupOrder',
+    'maxCandidates',
+    'allowCrossGameReuse',
+    'allowLicensedAssets',
+    'requiredLicense',
+    'minConfidence',
+  ]);
+  requireRequiredFields(assetSlot.properties.resolutionPolicy, 'AssetSlot.resolutionPolicy', [
+    'allowExactCache',
+    'allowRepoMatch',
+    'allowVariant',
+    'allowGeneration',
+    'allowPlaceholder',
+    'visionReview',
+  ]);
+  requireRequiredFields(assetSlot.properties.fallback, 'AssetSlot.fallback', [
+    'strategy',
+    'source',
+    'publishable',
+    'repoEligible',
+    'trainingEligible',
+    'blocksFinalExport',
+    'debt',
+  ]);
+  assert(assetSlot.properties.fallback.properties.source.const === 'runtimeFallback',
+    'AssetSlot.fallback.source must be runtimeFallback');
   requireRequiredFields(build.properties.parallelPlan, 'BuildContract.parallelPlan', ['canRunInParallel', 'tasks', 'joinStrategy']);
   requireRequiredFields(build.properties.cachePolicy, 'BuildContract.cachePolicy', [
     'semanticHashInputs',
@@ -121,7 +183,50 @@ function main() {
   ]);
 
   var assetManifest = requireObjectDef(schema, 'AssetManifest');
-  requireRequiredFields(assetManifest, 'AssetManifest', ['meta', 'buildContractId', 'assets']);
+  requireRequiredFields(assetManifest, 'AssetManifest', ['meta', 'buildContractId', 'assets', 'summary']);
+  assert(assetManifest['x-contractOwner'] === 'RuntimeAssetResolver', 'AssetManifest must be owned by RuntimeAssetResolver');
+  requireRequiredFields(assetManifest.properties.summary, 'AssetManifest.summary', [
+    'resolved',
+    'generated',
+    'reused',
+    'placeholders',
+    'failed',
+    'cacheHit',
+    'publishable',
+  ]);
+  var assetItem = assetManifest.properties.assets.items;
+  requireRequiredFields(assetItem, 'AssetManifest.assets[]', [
+    'slotId',
+    'status',
+    'source',
+    'path',
+    'format',
+    'sha1',
+    'width',
+    'height',
+    'transparent',
+    'semanticTags',
+    'styleTags',
+    'confidence',
+    'publishability',
+    'resolution',
+  ]);
+  assert(assetItem.properties.cost, 'AssetManifest.assets[] must allow cost evidence for expensive generated assets');
+  requireRequiredFields(assetItem.properties.publishability, 'AssetManifest.assets[].publishability', [
+    'playable',
+    'publishable',
+    'repoEligible',
+    'trainingEligible',
+    'blocksFinalExport',
+    'debt',
+  ]);
+  requireRequiredFields(assetItem.properties.resolution, 'AssetManifest.assets[].resolution', [
+    'strategy',
+    'rank',
+    'candidatesConsidered',
+    'cacheHit',
+    'ownerOnFailure',
+  ]);
   var assetReview = requireObjectDef(schema, 'AssetReview');
   requireRequiredFields(assetReview, 'AssetReview', ['meta', 'buildContractId', 'reviews', 'summary']);
 

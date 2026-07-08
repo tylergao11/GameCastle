@@ -11,6 +11,13 @@
       "description": "Title text and a start button."
     }
   },
+  "repositoryPolicy": {
+    "preferReuse": true,
+    "cloudRepoEligible": true,
+    "promoteGeneratedVariants": true,
+    "promotionTarget": "cloudModuleRepo",
+    "trainingEligible": false
+  },
   "defaults": {
     "scene": "Start",
     "targetScene": "Game",

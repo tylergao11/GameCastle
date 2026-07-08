@@ -4,6 +4,12 @@
 
 GameCastle 的目标是模块化游戏工厂。模块能力真相源已经放在 `ai/capabilities/`；本目录保留为早期完整原型样例和 DSL fixture 参考，不再作为 LLM 上下文的主要来源。
 
+Expensive generation must not stay as a one-off artifact. When a prototype,
+module variant, or asset costs an external model call to create and passes
+validation, it should be promoted as a cloud repository candidate. Templates
+remain examples only; reusable value should be moved into product modules,
+capabilities, or asset repository manifests.
+
 ## 当前样例
 
 | 样例 | 文件 | 覆盖能力 |

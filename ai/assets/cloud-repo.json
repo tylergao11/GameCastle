@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "repositoryId": "gamecastle.cloud.seed",
+  "scope": "cloud",
+  "provider": "cloud-manifest",
+  "assets": [
+    {
+      "assetId": "cloud.icon.play.arcade.001",
+      "kind": "icon",
+      "path": "cloud://gamecastle/icons/play-arcade-001.png",
+      "format": "png",
+      "sha1": "cloud-play-icon-001",
+      "width": 128,
+      "height": 128,
+      "transparent": true,
+      "license": "commercial",
+      "semanticTags": ["play", "start", "primary_action"],
+      "styleTags": ["arcade", "bright", "flat"],
+      "prompt": "Bright flat arcade play button icon."
+    },
+    {
+      "assetId": "cloud.sprite.coin.arcade.001",
+      "kind": "sprite",
+      "path": "cloud://gamecastle/sprites/coin-arcade-001.png",
+      "format": "png",
+      "sha1": "cloud-coin-sprite-001",
+      "width": 64,
+      "height": 64,
+      "transparent": true,
+      "license": "commercial",
+      "semanticTags": ["coin", "collectible", "score"],
+      "styleTags": ["arcade", "bright", "flat"],
+      "prompt": "Bright arcade collectible coin sprite."
+    }
+  ]
+}

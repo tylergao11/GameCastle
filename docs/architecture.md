@@ -78,7 +78,8 @@ The flow is contract-first:
 ```text
 RequirementModel
   -> BuildContract (frozen)
-  -> DSLAgent and ImageAgent run in parallel under the same contract
+  -> DSLAgent and RuntimeAssetResolver run in parallel under the same contract
+  -> ImageAgent only fills repo/cache/variant misses when allowed
   -> RuntimeLinker binds ModuleDslPatch + AssetManifest + optional AssetReview
   -> RuntimeValidator checks project truth, cache, assets, HTML export, smoke status
   -> owner-routed repair patch
@@ -87,16 +88,19 @@ RequirementModel
 This boundary keeps AI context small and stable. RequirementModel sees product
 module cards and creative capability hints, not full template internals. DSLAgent
 sees Module DSL capability and ProjectWorld summaries, not raw `project.json`.
-ImageAgent fills asset slots declared by the BuildContract and returns file
-manifests only. RuntimeLinker and RuntimeValidator are deterministic code, not
-LLM roles, because they own merge truth, cache truth, GDevelop truth, and repair
-routing.
+RuntimeAssetResolver resolves asset slots declared by the BuildContract by
+checking exact cache, cloud repository, semantic/style repository matches,
+project reuse, variants/edits, generation, and only then runtime placeholders.
+ImageAgent is one supplier behind the resolver, not the owner of asset truth.
+RuntimeLinker and RuntimeValidator are deterministic code, not LLM roles, because
+they own merge truth, cache truth, GDevelop truth, publishability truth, and
+repair routing.
 
 The contract types are complete runtime-facing shapes, not placeholders:
 
 - `BuildContract`: request, world summary, style guide, module intents, asset slots, parallel plan, acceptance, cache policy, repair policy.
 - `ModuleDslPatch`: DSLAgent Module DSL diff and declared asset-slot dependencies.
-- `AssetManifest`: ImageAgent output paths, hashes, dimensions, prompts, status, and collision hints.
+- `AssetManifest`: RuntimeAssetResolver output with selected source, asset ids, paths, hashes, dimensions, confidence, publishability, and placeholder debt.
 - `AssetReview`: VisionAgent semantic/visual checks over generated assets.
 - `AssemblyReport`: RuntimeLinker bindings, outputs, conflicts, and next action.
 - `ValidationReport`: RuntimeValidator checks, cache hit, owner-on-failure, and next action.
@@ -104,6 +108,20 @@ The contract types are complete runtime-facing shapes, not placeholders:
 `npm run check:ai` runs `ai/check-contracts.js`, which verifies the schema,
 local `$ref`s, required fields, owner enums, repair/cache fields, and
 `agent-workflow.js` contract owner mappings.
+
+`ai/asset-resolver.js` is the first runtime implementation of that asset side.
+It currently resolves against manifest-backed local/cloud repositories, writes
+exact-cache entries for real reused assets, emits `AssetManifest`, and records
+placeholder debt when no repository candidate is acceptable. It deliberately
+does not cache placeholders as successful assets, so future cloud repo fills or
+ImageAgent output can replace them by slot signature.
+
+`ai/asset-world.js` is the stable asset-side context. It turns `AssetManifest`
+into `AssetWorld`, preserving slot state, placeholder debt, cache hit state, and
+cloud promotion candidates. Expensive generated or edited assets that pass
+validation should not be wasted as one-off files: if they are repo eligible,
+AssetWorld places them into `cloudPromotionQueue` for cloud repository review,
+indexing, and future reuse.
 
 自动化验证由 `npm run test:ai` 覆盖。它不调用 LLM，而是用 DSL fixture 验证 new/continue 状态边界、失败报告、repair batch、缓存命中和 15 秒子进程超时防护。
 
@@ -127,6 +145,11 @@ The compiler expands those modules into the existing internal line-style DSL,
 then the current executor mutates `project.json`. Installed modules are recorded
 in `ProjectWorld.modules`; future networking metadata is recorded in
 `output/network-manifest.json`.
+
+Product modules also declare `repositoryPolicy`. The module repository is the
+gameplay-side equivalent of the asset repository: prefer reuse, and if an
+expensive generated module variant becomes useful, promote it back as a
+`cloudModuleRepo` candidate rather than leaving it as a one-off template.
 
 This keeps the product skeleton coarse: a platformer core plus shells is exposed
 as product composition, while player objects, collision events, text objects,

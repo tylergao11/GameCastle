@@ -22,6 +22,7 @@ GameCastle 的目标不是“一句话生成一个一次性小游戏”，而是
 |------|------|
 | `ai/` | 生成管线主路径，当前由 `pipeline.js` 承担设计稿、DSL 翻译、执行和 CLI |
 | `ai/capabilities/` | 模块能力真相源，描述可组合能力、DSL 映射、约束和未来同步属性 |
+| `ai/assets/` | Seed local/cloud asset repository manifests used by RuntimeAssetResolver |
 | `ai/gdevelop-truth/` | Extracted GDevelop/GDJS runtime truth snapshot generated from `D:\GDevelop-master` |
 | `dsl/` | DSL 操作语言文档，连接模块能力和 GDevelop JSON |
 | `engine/` | GDJS 浏览器运行时，负责加载 `project.json` 并运行游戏 |

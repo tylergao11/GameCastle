@@ -10,12 +10,18 @@
 | `agent-workflow.js` | Agent role/model registry：需求模型、DSL 模型、DSL repair、生图模型、识图模型 |
 | `contracts/schema.json` | Multi-agent contract schemas：BuildContract、ModuleDslPatch、AssetManifest、Linker/Validator reports |
 | `contracts.js` | Contract schema loader and owner/type constants shared by checks and future runtime assembly |
+| `asset-resolver.js` | RuntimeAssetResolver：cache/repo/variant/generation/fallback resolution skeleton and AssetManifest output |
+| `asset-world.js` | AssetWorld builder：stable resource context, asset debts, cache state, and cloud promotion queue |
+| `assets/local-repo.json` | Local asset repository manifest seed for project/local reuse |
+| `assets/cloud-repo.json` | Cloud asset repository manifest seed for repo-first asset resolution |
 | `llm-provider.js` | Responses/SSE 文本模型调用边界，负责流式输出、reasoning 可见性和 provider 日志 |
 | `requirement-agent.js` | LLM1/RequirementModel：把用户意图翻译成轻量 design brief |
 | `dsl-agent.js` | LLM2/DSLAgent：Module DSL prompt、Module DSL repair、内部 DSL repair prompt |
 | `capabilities.js` | 加载并校验能力卡，派生 LLM1 摘要和 LLM2 编译上下文 |
 | `check-agent-workflow.js` | Agent workflow 自检，防止模型角色再次散落硬编码 |
 | `check-contracts.js` | Multi-agent contract 自检，校验契约类型、owner 路由、repair/cache 字段和 workflow 映射 |
+| `check-asset-resolver.js` | RuntimeAssetResolver 自检，校验 repo lookup、exact cache、AssetManifest 和 placeholder debt |
+| `check-asset-world.js` | AssetWorld 自检，校验资源上下文、稳定 hash、placeholder debt 和生成资产云端沉淀队列 |
 | `check-capabilities.js` | 能力卡校验脚本，已接入 `npm run check:ai` |
 | `check-product-modules.js` | 产品模块校验脚本，已接入 `npm run check:ai` |
 | `module-dsl.js` | LLM2/Commander 级 Module DSL parser |
@@ -62,7 +68,7 @@ Agent roles are centralized in `agent-workflow.js`:
 - `dsl`: LLM2 / DSLAgent. Default model: `deepseek-v4-flash`.
 - `dslModuleRepair`: repairs Module DSL compile failures and inherits the DSL model.
 - `dslInternalRepair`: repairs failed internal low-level DSL batches and inherits the DSL model.
-- `imageGeneration`: reserved ImageAgent role for generated image assets. It is registered but not yet wired into the runtime asset pipeline.
+- `imageGeneration`: reserved ImageAgent role for generated or edited assets when repo/cache/variant resolution misses. It is registered but not yet wired into the runtime asset pipeline.
 - `vision`: reserved VisionAgent role for screenshots, references, and generated asset inspection. It is registered but not yet wired into the runtime asset pipeline.
 
 Override models with:
@@ -82,15 +88,55 @@ of minimal placeholders:
 
 - `BuildContract`: frozen RequirementModel output before parallel work begins.
 - `ModuleDslPatch`: DSLAgent output containing Module DSL patch text and declared asset slot usage.
-- `AssetManifest`: ImageAgent output containing generated/reused asset files, hashes, dimensions, and slot IDs.
+- `AssetManifest`: RuntimeAssetResolver output containing cache/repo/variant/generated/placeholder asset decisions, hashes, dimensions, publishability, and debt state.
 - `AssetReview`: VisionAgent output for visual/semantic asset checks.
 - `AssemblyReport`: RuntimeLinker output after deterministic module/asset binding.
 - `ValidationReport`: RuntimeValidator output with cache, schema, GDevelop truth, HTML, smoke, and owner-routed repair status.
 
 The boundary is deliberate: LLM agents propose under a contract; runtime code
-links, validates, owns facts, and routes repair to the failing owner. ImageAgent
-does not write `project.json`, DSLAgent does not invent asset file names, and
-VisionAgent does not become the source of project truth.
+links, validates, owns facts, and routes repair to the failing owner. Asset
+resolution is repo-first: exact cache, cloud repo exact match, cloud repo
+semantic/style match, project reuse, variant/edit, external generation, then
+runtime placeholder. ImageAgent does not write `project.json` or own final asset
+selection, DSLAgent does not invent asset file names, and VisionAgent does not
+become the source of project truth.
+
+Placeholders are build-continuity debt, not assets. They may appear in
+`AssetManifest` so Linker/Validator can keep a playable prototype moving, but
+they are marked `repoEligible=false`, `trainingEligible=false`, and normally
+`blocksFinalExport=true`.
+
+## Runtime Asset Resolver
+
+`ai/asset-resolver.js` is the runtime owner for asset choice. It does not call
+image or vision models yet. The current skeleton supports:
+
+- loading local and cloud repository manifests;
+- computing stable slot signatures for exact cache hits;
+- deterministic metadata/tag scoring for repo candidates;
+- writing `AssetManifest` entries for reused assets;
+- writing placeholder debt when repo/cache resolution misses;
+- keeping placeholder debt out of the resolver cache.
+
+Repository manifests are seed data, not hard-coded prompts. Future cloud
+storage, vector search, generated variants, ImageAgent, and VisionAgent should
+plug in behind this resolver contract instead of bypassing it.
+
+## AssetWorld
+
+`ai/asset-world.js` translates each `AssetManifest` into stable resource context
+for later asset-side loops. It records resolved slot state, placeholder debts,
+cache-hit state, publishability state, and `cloudPromotionQueue` for generated
+or edited assets that are repo eligible.
+
+This is the asset-side sibling of `ProjectWorld`: LLMs should not receive the
+whole asset repository or raw image corpus. They should receive a narrow
+AssetWorld summary plus the specific slot they own.
+
+Expensive generated assets must not remain one-off outputs. If an ImageAgent or
+future editor spends money to create an asset and the result passes validation,
+the generated asset should be marked `repoEligible=true` and enter
+`cloudPromotionQueue` so it can be reviewed, indexed, and reused by later games.
 
 ## Product Modules
 

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "repositoryId": "gamecastle.local.prototype",
+  "scope": "local",
+  "provider": "local-manifest",
+  "assets": [
+    {
+      "assetId": "local.sprite.hero.prototype",
+      "kind": "sprite",
+      "path": "output/player.png",
+      "format": "png",
+      "sha1": "local-player-prototype",
+      "width": 32,
+      "height": 48,
+      "transparent": true,
+      "license": "prototype",
+      "semanticTags": ["hero", "player", "runner"],
+      "styleTags": ["arcade", "prototype", "bright"],
+      "prompt": "Prototype player sprite."
+    }
+  ]
+}

@@ -11,6 +11,13 @@
       "description": "Game over text and a keyboard restart rule."
     }
   },
+  "repositoryPolicy": {
+    "preferReuse": true,
+    "cloudRepoEligible": true,
+    "promoteGeneratedVariants": true,
+    "promotionTarget": "cloudModuleRepo",
+    "trainingEligible": false
+  },
   "defaults": {
     "scene": "GameOver",
     "targetScene": "Game",
