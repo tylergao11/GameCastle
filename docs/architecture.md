@@ -55,6 +55,56 @@ LLM2 具备受限自循环：首轮输出作为 `apply` batch；如果 `Executio
 
 因此 repair loop 的“当前已应用项目”只在同一局游戏内延续；开新项目时不得继承上一局缓存。
 
+### Agent Model Registry
+
+`ai/agent-workflow.js` owns model routing. Pipeline code should call roles, not
+hard-code model names:
+
+- `requirement`: LLM1 creative/requirement model, default `deepseek-v4-flash`.
+- `dsl`: LLM2 Module DSL model, default `deepseek-v4-flash`.
+- `dslModuleRepair` and `dslInternalRepair`: bounded repair roles inheriting the DSL model.
+- `imageGeneration`: reserved asset generation role, configured by `GAMECASTLE_IMAGE_MODEL`.
+- `vision`: reserved visual inspection role, configured by `GAMECASTLE_VISION_MODEL`.
+
+Image and vision roles are intentionally registered before they are wired into
+game generation. They should enter through asset/runtime ownership, not by
+adding more prompt branches inside `pipeline.js`.
+
+### Multi-Agent Contract
+
+`ai/contracts/schema.json` owns the handoff contract between agents and runtime.
+The flow is contract-first:
+
+```text
+RequirementModel
+  -> BuildContract (frozen)
+  -> DSLAgent and ImageAgent run in parallel under the same contract
+  -> RuntimeLinker binds ModuleDslPatch + AssetManifest + optional AssetReview
+  -> RuntimeValidator checks project truth, cache, assets, HTML export, smoke status
+  -> owner-routed repair patch
+```
+
+This boundary keeps AI context small and stable. RequirementModel sees product
+module cards and creative capability hints, not full template internals. DSLAgent
+sees Module DSL capability and ProjectWorld summaries, not raw `project.json`.
+ImageAgent fills asset slots declared by the BuildContract and returns file
+manifests only. RuntimeLinker and RuntimeValidator are deterministic code, not
+LLM roles, because they own merge truth, cache truth, GDevelop truth, and repair
+routing.
+
+The contract types are complete runtime-facing shapes, not placeholders:
+
+- `BuildContract`: request, world summary, style guide, module intents, asset slots, parallel plan, acceptance, cache policy, repair policy.
+- `ModuleDslPatch`: DSLAgent Module DSL diff and declared asset-slot dependencies.
+- `AssetManifest`: ImageAgent output paths, hashes, dimensions, prompts, status, and collision hints.
+- `AssetReview`: VisionAgent semantic/visual checks over generated assets.
+- `AssemblyReport`: RuntimeLinker bindings, outputs, conflicts, and next action.
+- `ValidationReport`: RuntimeValidator checks, cache hit, owner-on-failure, and next action.
+
+`npm run check:ai` runs `ai/check-contracts.js`, which verifies the schema,
+local `$ref`s, required fields, owner enums, repair/cache fields, and
+`agent-workflow.js` contract owner mappings.
+
 自动化验证由 `npm run test:ai` 覆盖。它不调用 LLM，而是用 DSL fixture 验证 new/continue 状态边界、失败报告、repair batch、缓存命中和 15 秒子进程超时防护。
 
 ## 当前模块边界
@@ -120,17 +170,16 @@ the actual generated project.
 
 ### `ai/pipeline.js`
 
-当前主路径，包含：
+当前编排层，负责项目模式判定、状态读写、DSL 执行、approval gate、repair loop 编排和 `output/` 写入。
 
-- DSL 解析
-- 事件解析
-- 操作执行器
-- LLM1 设计稿生成
-- LLM2 DSL 翻译
-- 迭代状态读写
-- CLI 与 `output/` 写入
+Agent/model 内容不应继续堆在这里：
 
-这是当前可运行路径，但不是长期理想形态。后续应把能力库、DSL 编译器、项目状态和 LLM provider 拆开。
+- `ai/llm-provider.js` owns Responses/SSE text model calls.
+- `ai/requirement-agent.js` owns LLM1 design brief generation.
+- `ai/dsl-agent.js` owns LLM2 Module DSL prompts and repair prompts.
+- `ai/agent-workflow.js` owns role/model routing.
+
+后续接入生图/识图时，应继续通过 Agent/contract 边界接入，而不是把 prompt 分支加回 `pipeline.js`。
 
 ### `ai/project-world.js`
 

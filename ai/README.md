@@ -6,8 +6,16 @@
 
 | 文件 | 职责 |
 |------|------|
-| `pipeline.js` | 当前主路径：LLM1 设计稿、LLM2 DSL 翻译、DSL 解析、事件解析、操作执行、CLI、`output/` 写入 |
+| `pipeline.js` | 当前编排层：项目模式、状态读写、DSL 执行、approval gate、`output/` 写入 |
+| `agent-workflow.js` | Agent role/model registry：需求模型、DSL 模型、DSL repair、生图模型、识图模型 |
+| `contracts/schema.json` | Multi-agent contract schemas：BuildContract、ModuleDslPatch、AssetManifest、Linker/Validator reports |
+| `contracts.js` | Contract schema loader and owner/type constants shared by checks and future runtime assembly |
+| `llm-provider.js` | Responses/SSE 文本模型调用边界，负责流式输出、reasoning 可见性和 provider 日志 |
+| `requirement-agent.js` | LLM1/RequirementModel：把用户意图翻译成轻量 design brief |
+| `dsl-agent.js` | LLM2/DSLAgent：Module DSL prompt、Module DSL repair、内部 DSL repair prompt |
 | `capabilities.js` | 加载并校验能力卡，派生 LLM1 摘要和 LLM2 编译上下文 |
+| `check-agent-workflow.js` | Agent workflow 自检，防止模型角色再次散落硬编码 |
+| `check-contracts.js` | Multi-agent contract 自检，校验契约类型、owner 路由、repair/cache 字段和 workflow 映射 |
 | `check-capabilities.js` | 能力卡校验脚本，已接入 `npm run check:ai` |
 | `check-product-modules.js` | 产品模块校验脚本，已接入 `npm run check:ai` |
 | `module-dsl.js` | LLM2/Commander 级 Module DSL parser |
@@ -45,6 +53,44 @@ prompt
   -> output/project.json + output/game.html
   -> output/project-world.json + output/execution-ledger.json
 ```
+
+## Agent Workflow
+
+Agent roles are centralized in `agent-workflow.js`:
+
+- `requirement`: LLM1 / RequirementModel. Default model: `deepseek-v4-flash`.
+- `dsl`: LLM2 / DSLAgent. Default model: `deepseek-v4-flash`.
+- `dslModuleRepair`: repairs Module DSL compile failures and inherits the DSL model.
+- `dslInternalRepair`: repairs failed internal low-level DSL batches and inherits the DSL model.
+- `imageGeneration`: reserved ImageAgent role for generated image assets. It is registered but not yet wired into the runtime asset pipeline.
+- `vision`: reserved VisionAgent role for screenshots, references, and generated asset inspection. It is registered but not yet wired into the runtime asset pipeline.
+
+Override models with:
+
+```bash
+GAMECASTLE_REQUIREMENT_MODEL=deepseek-v4-flash
+GAMECASTLE_DSL_MODEL=deepseek-v4-flash
+GAMECASTLE_IMAGE_MODEL=<image-model>
+GAMECASTLE_VISION_MODEL=<vision-model>
+```
+
+## Multi-Agent Contracts
+
+`ai/contracts/schema.json` is the versioned contract truth source for agent
+handoffs. It intentionally describes complete runtime-facing payloads instead
+of minimal placeholders:
+
+- `BuildContract`: frozen RequirementModel output before parallel work begins.
+- `ModuleDslPatch`: DSLAgent output containing Module DSL patch text and declared asset slot usage.
+- `AssetManifest`: ImageAgent output containing generated/reused asset files, hashes, dimensions, and slot IDs.
+- `AssetReview`: VisionAgent output for visual/semantic asset checks.
+- `AssemblyReport`: RuntimeLinker output after deterministic module/asset binding.
+- `ValidationReport`: RuntimeValidator output with cache, schema, GDevelop truth, HTML, smoke, and owner-routed repair status.
+
+The boundary is deliberate: LLM agents propose under a contract; runtime code
+links, validates, owns facts, and routes repair to the failing owner. ImageAgent
+does not write `project.json`, DSLAgent does not invent asset file names, and
+VisionAgent does not become the source of project truth.
 
 ## Product Modules
 

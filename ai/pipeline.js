@@ -10,11 +10,18 @@ var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
 var htmlExporter = require("./html-exporter");
 var gdevelopTruth = require("./gdevelop-truth");
+var agentWorkflow = require("./agent-workflow");
+var requirementAgent = require("./requirement-agent");
+var dslAgent = require("./dsl-agent");
+var llmProvider = require("./llm-provider");
 
 var STATE_DIR = path.join(__dirname, "..", "output");
 var LOG_PATH = path.join(STATE_DIR, "pipeline.log");
 function gc_log(msg) {
   try { fs.appendFileSync(LOG_PATH, new Date().toISOString() + " " + msg + String.fromCharCode(10)); } catch(e) {}
+}
+function callModel(prompt, systemPrompt, opts) {
+  return llmProvider.callTextModel(prompt, systemPrompt, opts, gc_log);
 }
 var BRIEF_PATH = path.join(STATE_DIR, "design-brief.json");
 var HISTORY_PATH = path.join(STATE_DIR, "conversation.json");
@@ -670,183 +677,6 @@ function emptyProject(name) {
 }
 
 
-async function generateDesignBrief(userPrompt, history, previousBrief, creativeCapabilitySummary) {
-  var sp = [
-    "你是一个小游戏创意设计师。画布800x600。",
-    "根据用户描述设计或迭代游戏。",
-    "",
-    "严格输出以下JSON结构（不要自创字段名）：",
-    "{",
-    "  \"theme\": \"游戏主题\",",
-    "  \"objects\": [",
-    "    {\"name\":\"英文名\",\"type\":\"ShapePainter或Text\",\"shape\":\"rectangle或circle\",\"color\":\"#RRGGBB\",\"width\":数,\"height\":数,\"role\":\"player/enemy/platform/coin/bullet/ground\"}",
-    "  ],",
-    "  \"rules\": [\"中文规则短句，如：玩家碰到金币→金币消失+得分\"],",
-    "  \"layout\": {\"placements\": [{\"object\":\"对象名\",\"x\":数,\"y\":数}]},",
-    "  \"behaviors\": [{\"object\":\"对象名\",\"type\":\"PlatformBehavior::PlatformerObjectBehavior\"}],",
-    "  \"variables\": [{\"name\":\"变量名\",\"value\":初始值}],",
-    "  \"difficulty\": \"easy\",",
-    "  \"controls\": \"操作说明\",",
-    "}",
-    "",
-    "可用能力提示（只作为创意边界，不要复述为模板结构）：",
-    creativeCapabilitySummary,
-    "",
-    "每个对象必须指定 type 为 ShapePainter 或 Text。ShapePainter 必填 shape 和 color。",
-    "color 用 #RRGGBB 格式。width/height 为数字。",
-    "规则具体化：\"玩家碰到金币→金币消失+得分\" 而非 \"收集金币\"。",
-    "所有对象名用英文。player 放左下方。enemy 放右侧或上方。平台 y 分散。",
-    "颜色搭配有辨识度，不同角色用不同颜色。",
-  ].filter(Boolean).join('\n');
-
-  var messages = [{ role: "system", content: sp }];
-  if (history && history.length > 0) {
-    for (var i = 0; i < history.length; i++) messages.push(history[i]);
-  }
-  var userContent = '用户需求: ' + userPrompt;
-  if (previousBrief) {
-    userContent = '当前设计稿：\n' + JSON.stringify(previousBrief, null, 2) + '\n\n用户修改需求: ' + userPrompt + '\n请基于当前设计稿，输出更新后的完整设计稿。';
-  }
-  messages.push({ role: "user", content: userContent });
-
-  var text = await callLLM(userContent, sp, {
-    model: 'deepseek-v4-pro',
-    temperature: 0.7,
-    reasoningEffort: 'high',
-    label: 'LLM1',
-    maxTokens: 8192,
-    input: messages
-  });
-  if (!text) return null;
-  try {
-    return JSON.parse(text.trim());
-  } catch(e) {
-    console.error('[LLM1] Failed to parse JSON: ' + text.substring(0,100));
-    return null;
-  }
-}
-
-
-function cleanDslOutput(text) {
-  text = String(text || '').trim();
-  var fence = text.match(/^```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)\s*```$/);
-  if (fence) text = fence[1].trim();
-  return text;
-}
-
-function buildModuleCommanderSystemPrompt(productModuleCatalog) {
-  return [
-    'You are GameCastle Module Patch Commander.',
-    'Compile LLM1 creative intent into product Module DSL patches.',
-    'Do not output low-level object/event DSL, JSON, Markdown, explanations, or project.json.',
-    'Prefer coarse product modules. Do not expose micro-module internals to the user or to LLM1.',
-    '',
-    moduleCompiler.buildModuleDslReference(productModuleCatalog),
-    '',
-    'Rules:',
-    '- For a new game, install the minimum product modules needed for a playable first version.',
-    '- For iteration, install only missing product modules needed by the requested change.',
-    '- Do not reinstall modules already present in ProjectWorld.modules; use configure module for supported installed-module parameters.',
-    '- Include sync, authority, tickRate, and seed when the choice matters.',
-    '- Output only Module DSL lines.'
-  ].join('\n');
-}
-
-function buildInternalDslRepairSystemPrompt(capabilityCatalog) {
-  return [
-    'You are GameCastle internal DSL repair.',
-    'This is a runtime/compiler fallback, not the product module interface.',
-    'Read the ExecutionReport and output only the minimum low-level DSL diff needed to repair failed commands.',
-    'Do not repeat completed commands. Do not output Module DSL, JSON, Markdown, or explanations.',
-    '',
-    capabilities.buildCompilerPromptSection(capabilityCatalog)
-  ].join('\n');
-}
-
-function buildModulePatchUserPrompt(options) {
-  return [
-    'Original user request:',
-    options.userPrompt,
-    '',
-    'Current ProjectWorld context. This is not full project.json:',
-    JSON.stringify(options.worldContext, null, 2),
-    '',
-    'LLM1 creative design brief:',
-    JSON.stringify(options.designBrief, null, 2),
-    '',
-    'Design diff summary:',
-    JSON.stringify(options.diff, null, 2),
-    '',
-    options.isNew
-      ? 'Task: output the Module DSL patch for the first playable version.'
-      : 'Task: output only the Module DSL patch needed for this iteration.',
-    '',
-    'Remember: product modules are coarse. Prefer core.*, shell.*, system.*, meta.*, and network.* modules. Do not output object/event DSL.'
-    + ' The original user request is authoritative for explicitly requested product modules if LLM1 omitted them.'
-  ].join('\n');
-}
-
-function buildModuleCompileRepairPrompt(options) {
-  return [
-    'The previous Module DSL patch failed before execution.',
-    'Repair only the Module DSL patch. Do not output low-level DSL.',
-    '',
-    'Original user prompt:',
-    options.userPrompt,
-    '',
-    'LLM1 creative design brief:',
-    JSON.stringify(options.designBrief, null, 2),
-    '',
-    'Current ProjectWorld context:',
-    JSON.stringify(options.worldContext, null, 2),
-    '',
-    'Compiler error:',
-    String(options.error && options.error.message || options.error),
-    '',
-    'Previous Module DSL:',
-    options.moduleDslText,
-    '',
-    'Rules:',
-    '- Output only the corrected Module DSL diff.',
-    '- Do not reinstall modules already present in ProjectWorld.modules; use configure module for supported installed-module parameters.',
-    '- Keep sync policy explicit when changing networking-relevant modules.'
-  ].join('\n');
-}
-
-async function compileModulePatchWithRepair(options) {
-  var moduleDslText = cleanDslOutput(options.moduleDslText);
-  for (var attempt = 0; attempt <= MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS; attempt++) {
-    try {
-      var compiled = moduleCompiler.compileModuleDslText(moduleDslText, options.productModuleCatalog, {
-        baseModules: options.baseModules,
-        projectWorld: options.projectWorld,
-      });
-      return {
-        moduleDslText: moduleDslText,
-        compiled: compiled,
-      };
-    } catch (e) {
-      if (!options.allowLlmRepair || attempt >= MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS) throw e;
-      console.log('[ModuleCompile] repair round ' + (attempt + 1) + '/' + MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS + ': ' + e.message);
-      var repairPrompt = buildModuleCompileRepairPrompt({
-        userPrompt: options.userPrompt,
-        designBrief: options.designBrief,
-        worldContext: options.worldContext,
-        error: e,
-        moduleDslText: moduleDslText,
-      });
-      var repaired = await callLLM(repairPrompt, options.llm2SystemPrompt, {
-        temperature: 0,
-        reasoningEffort: 'high',
-        label: 'LLM2-ModuleRepair',
-      });
-      moduleDslText = cleanDslOutput(repaired);
-      if (!moduleDslText) throw new Error('LLM2 returned empty Module DSL repair');
-    }
-  }
-  throw new Error('Module DSL compile repair loop exhausted');
-}
-
 function diffDesignBriefs(oldBrief, newBrief) {
   var diff = {
     added:   { objects: [], placements: [], behaviors: [], variables: [], rules: [] },
@@ -1209,158 +1039,6 @@ function approvePendingPatch() {
   }
 }
 
-function buildInternalExecutionRepairPrompt(options) {
-  return [
-    'The previous internal low-level DSL batch executed with failures.',
-    'Output only the minimum low-level DSL diff required to repair failed commands.',
-    'Do not repeat completed commands.',
-    '',
-    'Original user prompt:',
-    options.userPrompt,
-    '',
-    'LLM1 creative design brief:',
-    JSON.stringify(options.designBrief, null, 2),
-    '',
-    'Current ProjectWorld:',
-    JSON.stringify(options.world, null, 2),
-    '',
-    'Previous ExecutionReport:',
-    JSON.stringify(options.report, null, 2),
-    '',
-    'Previous low-level DSL:',
-    options.dslText,
-    '',
-    'Repair rules:',
-    '- Only repair failed commands and missing prerequisites caused by those failures.',
-    '- Completed commands are already applied.',
-    '- Output only low-level DSL lines.'
-  ].join('\n');
-}
-
-
-// ===== LLM PROVIDER (streaming SSE with thinking visibility) =====
-async function callLLM(prompt, systemPrompt, opts) {
-  opts = opts || {};
-  var ep = process.env.LLM_ENDPOINT || "http://127.0.0.1:18081/v1";
-  var ak = process.env.DEEPSEEK_API_KEY || "";
-  var model = opts.model || process.env.LLM_MODEL || "deepseek-v4-flash";
-  var temperature = opts.temperature;
-  var reasoningEffort = opts.reasoningEffort || "xhigh";
-  var label = opts.label || "LLM";
-  var maxTokens = opts.maxTokens || 4096;
-  gc_log("[" + label + "] REQ model=" + model + " reasoning=" + reasoningEffort + " systemPrompt=" + systemPrompt.length + "chars userPrompt=" + prompt.length + "chars");
-
-  var t0 = Date.now();
-  var body = {
-    model: model,
-    input: opts.input || [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: prompt }
-    ],
-    max_output_tokens: maxTokens,
-    reasoning_effort: reasoningEffort,
-    stream: true
-  };
-  if (temperature !== undefined && temperature !== null) {
-    body.temperature = temperature;
-  }
-
-  process.stdout.write("[" + label + "] " + model + " ");
-  var r;
-  try {
-    r = await fetch(ep + "/responses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + ak },
-      body: JSON.stringify(body)
-    });
-  } catch (fetchErr) {
-    console.error(String.fromCharCode(10) + "[" + label + "] Fetch failed: " + (fetchErr.message || fetchErr));
-    return null;
-  }
-
-  if (!r.ok) {
-    var errText = "";
-    try { errText = await r.text(); } catch(e) {}
-    console.error(String.fromCharCode(10) + "[" + label + "] HTTP " + r.status + ": " + errText.substring(0, 200));
-    return null;
-  }
-
-  // SSE streaming reader
-  var text = "";
-  var reasoningText = "";
-  var reader;
-  try { reader = r.body.getReader(); } catch(e) {
-    console.error(String.fromCharCode(10) + "[" + label + "] getReader failed, json fallback");
-    try {
-      var d = await r.json();
-      var output = d.output || [];
-      for (var i = 0; i < output.length; i++) {
-        if (output[i].type === "message" && output[i].content) {
-          for (var j = 0; j < output[i].content.length; j++) {
-            if (output[i].content[j].type === "output_text") text += output[i].content[j].text;
-          }
-        }
-      }
-    } catch(e2) {}
-    var dt2 = Date.now() - t0;
-    console.log("[" + label + "] " + (dt2/1000).toFixed(1) + "s (fallback) " + text.length + " chars");
-    return text || null;
-  }
-
-  var decoder = new TextDecoder();
-  var buffer = "";
-  var thinkingShown = false;
-  var contentStarted = false;
-
-  while (true) {
-    var result;
-    try { result = await reader.read(); } catch(e) { break; }
-    if (result.done) break;
-    buffer += decoder.decode(result.value, { stream: true });
-
-    var sseLines = buffer.split(String.fromCharCode(10));
-    buffer = sseLines.pop() || "";
-
-    for (var i = 0; i < sseLines.length; i++) {
-      var line = sseLines[i].trim();
-      if (!line || line.indexOf("data: ") !== 0) continue;
-      var data = line.substring(6);
-      if (data === "[DONE]") continue;
-
-      try {
-        var event = JSON.parse(data);
-        var etype = event.type || "";
-
-        if (etype === "response.reasoning.summary_text.delta" || etype === "response.reasoning_text.delta") {
-          var delta = (event.data && event.data.delta) || event.delta || "";
-          if (delta) {
-            if (!thinkingShown) { process.stdout.write(String.fromCharCode(10) + "  [thinking] "); thinkingShown = true; }
-            process.stdout.write(delta);
-            reasoningText += delta;
-          }
-        } else if (etype === "response.output_text.delta" || etype === "response.text.delta") {
-          var d2 = (event.data && event.data.delta) || event.delta || "";
-          if (d2) {
-            if (thinkingShown && !contentStarted) { process.stdout.write(String.fromCharCode(10) + "  [output] "); contentStarted = true; }
-            process.stdout.write(d2);
-            text += d2;
-          }
-        } else if (etype === "response.completed") {
-          var usage = (event.data && event.data.response && event.data.response.usage) || event.usage || {};
-          gc_log("[" + label + "] usage " + JSON.stringify(usage));
-        }
-      } catch(e) {}
-    }
-  }
-
-  var dt = Date.now() - t0;
-  if (thinkingShown || contentStarted) process.stdout.write(String.fromCharCode(10));
-  var stats = text.length + " chars";
-  if (reasoningText.length > 0) stats += " | thinking: " + reasoningText.length + " chars";
-  console.log("[" + label + "] " + (dt/1000).toFixed(1) + "s " + stats);
-  gc_log("[" + label + "] RES " + dt + "ms output=" + text.length + "chars reasoning=" + reasoningText.length + "chars");
-  return text;
-}
 
 // ===== MAIN (two-stage: creative -> deterministic) =====
 async function run(prompt, useMock) {
@@ -1461,7 +1139,13 @@ async function run(prompt, useMock) {
     if (isContinue && previousBrief) {
       console.log('[Stage1] Previous brief loaded, ' + history.length + ' history entries');
     }
-    designBrief = await generateDesignBrief(prompt, history, previousBrief, creativeCapabilitySummary);
+    designBrief = await requirementAgent.generateDesignBrief({
+      userPrompt: prompt,
+      history: history,
+      previousBrief: previousBrief,
+      creativeCapabilitySummary: creativeCapabilitySummary,
+      callModel: callModel,
+    });
     if (!designBrief) { console.error('Failed to generate design brief'); process.exit(1); }
     console.log('[Stage1] Keys: ' + Object.keys(designBrief).join(', '));
     console.log('[Stage1] Brief: ' + JSON.stringify(designBrief).substring(0, 300));
@@ -1473,7 +1157,7 @@ async function run(prompt, useMock) {
 
     // Stage 2: 只把变更部分发给 LLM2
     console.log('[Stage2] Module Patch Commander translating...');
-    llm2SystemPrompt = buildModuleCommanderSystemPrompt(productModuleCatalog);
+    llm2SystemPrompt = dslAgent.buildModuleCommanderSystemPrompt(productModuleCatalog, moduleCompiler);
     var diff = diffDesignBriefs(previousBrief, designBrief);
     var currentWorld = compileBaseWorld;
     var currentLedger = projectMode === 'continue' ? projectWorld.loadExecutionLedger(STATE_DIR) : { runs: [] };
@@ -1491,27 +1175,34 @@ async function run(prompt, useMock) {
     }
 
     if (dslText !== '') {
-      var um = buildModulePatchUserPrompt({
+      var um = dslAgent.buildModulePatchUserPrompt({
         userPrompt: prompt,
         worldContext: worldContext,
         designBrief: designBrief,
         diff: diff,
         isNew: diff.isNew || !previousBrief,
       });
-      moduleDslText = await callLLM(um, llm2SystemPrompt, { temperature: 0, label: 'LLM2' });
+      moduleDslText = await callModel(
+        um,
+        llm2SystemPrompt,
+        agentWorkflow.buildTextCallOptions('dsl', { label: 'LLM2-DSL' })
+      );
       if (!moduleDslText) { console.error('Module DSL generation failed'); process.exit(1); }
       console.log('[Stage2] Module DSL (' + moduleDslText.split('\n').length + ' lines):');
       console.log(moduleDslText);
-      var moduleCompileResult = await compileModulePatchWithRepair({
+      var moduleCompileResult = await dslAgent.compileModulePatchWithRepair({
         moduleDslText: moduleDslText,
+        moduleCompiler: moduleCompiler,
         productModuleCatalog: productModuleCatalog,
         baseModules: compileBaseModules,
         projectWorld: compileBaseWorld,
+        maxRepairRounds: MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS,
         allowLlmRepair: !approvalGate,
         llm2SystemPrompt: llm2SystemPrompt,
         userPrompt: prompt,
         designBrief: designBrief,
         worldContext: worldContext,
+        callModel: callModel,
       });
       moduleDslText = moduleCompileResult.moduleDslText;
       compiledModulePatch = moduleCompileResult.compiled;
@@ -1554,25 +1245,25 @@ async function run(prompt, useMock) {
   if (!useMock && designBrief && llm2SystemPrompt) {
     for (var repairRound = 1; repairRound <= MAX_LLM2_REPAIR_ROUNDS && batch.report.summary.nextAction === 'repair'; repairRound++) {
       console.log('[Repair] LLM2 repair round ' + repairRound + '/' + MAX_LLM2_REPAIR_ROUNDS);
-      var repairPrompt = buildInternalExecutionRepairPrompt({
+      var repairPrompt = dslAgent.buildInternalExecutionRepairPrompt({
         userPrompt: prompt,
         designBrief: designBrief,
         world: batch.world,
         report: batch.report,
         dslText: batch.dslText,
       });
-      var repairDsl = await callLLM(repairPrompt, buildInternalDslRepairSystemPrompt(capabilityCatalog), {
-        temperature: 0,
-        reasoningEffort: 'high',
-        label: 'LLM2-InternalRepair',
-      });
+      var repairDsl = await callModel(
+        repairPrompt,
+        dslAgent.buildInternalDslRepairSystemPrompt(capabilityCatalog, capabilities),
+        agentWorkflow.buildTextCallOptions('dslInternalRepair', { label: 'LLM2-InternalRepair' })
+      );
       if (!repairDsl || !repairDsl.trim()) {
         console.error('[Repair] LLM2 returned empty repair DSL');
         break;
       }
       console.log('[Repair] DSL (' + repairDsl.split('\n').length + ' lines):');
       console.log(repairDsl);
-      repairDsl = cleanDslOutput(repairDsl);
+      repairDsl = dslAgent.cleanDslOutput(repairDsl);
       batch = executeDslBatch(project, repairDsl, 'repair_' + String(repairRound).padStart(2, '0'), {
         modules: compiledModulePatch && compiledModulePatch.installedModules,
         networkManifest: compiledModulePatch && compiledModulePatch.networkManifest,

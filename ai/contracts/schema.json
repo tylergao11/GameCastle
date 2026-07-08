@@ -1,0 +1,486 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gamecastle.local/ai/contracts/schema.json",
+  "schemaVersion": 1,
+  "description": "GameCastle multi-agent contract schemas. LLM agents produce proposals and manifests; runtime Linker/Validator owns deterministic merge and verification.",
+  "contractTypes": [
+    "BuildContract",
+    "ModuleDslPatch",
+    "AssetManifest",
+    "AssetReview",
+    "AssemblyReport",
+    "ValidationReport"
+  ],
+  "$defs": {
+    "ContractMeta": {
+      "type": "object",
+      "required": ["schemaVersion", "contractId", "createdAt", "owner", "status"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "contractId": { "type": "string", "pattern": "^[a-zA-Z0-9_.:-]+$" },
+        "createdAt": { "type": "string", "description": "ISO-8601 timestamp." },
+        "owner": {
+          "type": "string",
+          "enum": ["RequirementModel", "DSLAgent", "ImageAgent", "VisionAgent", "RuntimeLinker", "RuntimeValidator"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "ready", "partial", "blocked", "failed", "passed"]
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "userPrompt": { "type": "string" },
+            "projectWorldHash": { "type": "string" },
+            "baseProjectPath": { "type": "string" },
+            "agentRunId": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "SyncPolicy": {
+      "type": "object",
+      "required": ["sync", "authority", "tickRate", "seed", "deterministic"],
+      "properties": {
+        "sync": { "type": "string", "enum": ["local", "event", "state", "lockstep"] },
+        "authority": { "type": "string", "enum": ["client", "host", "server", "runtime"] },
+        "tickRate": { "type": "integer", "minimum": 0 },
+        "seed": { "type": ["string", "integer"] },
+        "deterministic": { "type": "boolean" },
+        "networkState": { "type": "array", "items": { "type": "string" } },
+        "networkInputs": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "AssetSlot": {
+      "type": "object",
+      "required": ["slotId", "kind", "purpose", "required", "owner", "target", "constraints", "fallback"],
+      "properties": {
+        "slotId": { "type": "string", "pattern": "^asset\\.[a-zA-Z0-9_.-]+$" },
+        "kind": {
+          "type": "string",
+          "enum": ["sprite", "background", "ui", "icon", "tile", "effect", "model3d", "texture", "audio"]
+        },
+        "purpose": { "type": "string" },
+        "required": { "type": "boolean" },
+        "owner": { "const": "ImageAgent" },
+        "target": {
+          "type": "object",
+          "required": ["scene", "object", "binding"],
+          "properties": {
+            "scene": { "type": ["string", "null"] },
+            "object": { "type": ["string", "null"] },
+            "binding": {
+              "type": "string",
+              "enum": ["objectTexture", "background", "uiImage", "animationFrame", "material", "thumbnail", "audioResource"]
+            },
+            "moduleId": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "constraints": {
+          "type": "object",
+          "required": ["width", "height", "transparent", "style", "semantic", "negative"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 },
+            "transparent": { "type": "boolean" },
+            "aspectRatio": { "type": "string" },
+            "style": { "type": "string" },
+            "palette": { "type": "array", "items": { "type": "string" } },
+            "semantic": { "type": "array", "items": { "type": "string" } },
+            "negative": { "type": "array", "items": { "type": "string" } },
+            "animation": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "states": { "type": "array", "items": { "type": "string" } },
+                "framesPerState": { "type": "integer", "minimum": 1 }
+              },
+              "additionalProperties": false
+            },
+            "collisionHint": {
+              "type": "object",
+              "properties": {
+                "shape": { "type": "string", "enum": ["none", "rectangle", "circle", "polygon"] },
+                "width": { "type": "integer", "minimum": 0 },
+                "height": { "type": "integer", "minimum": 0 },
+                "offsetX": { "type": "integer" },
+                "offsetY": { "type": "integer" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "fallback": {
+          "type": "object",
+          "required": ["strategy"],
+          "properties": {
+            "strategy": { "type": "string", "enum": ["placeholder", "shapePainter", "blockAssembly"] },
+            "placeholderColor": { "type": "string" },
+            "reason": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "cache": {
+          "type": "object",
+          "properties": {
+            "promptHash": { "type": "string" },
+            "seed": { "type": ["string", "integer"] },
+            "reuseAllowed": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ModuleIntent": {
+      "type": "object",
+      "required": ["moduleId", "preset", "action", "syncPolicy", "params"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "preset": { "type": "string" },
+        "action": { "type": "string", "enum": ["install", "configure", "remove"] },
+        "syncPolicy": { "$ref": "#/$defs/SyncPolicy" },
+        "params": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "BuildContract": {
+      "type": "object",
+      "x-contractOwner": "RequirementModel",
+      "required": [
+        "meta",
+        "request",
+        "world",
+        "styleGuide",
+        "moduleContract",
+        "assetContract",
+        "parallelPlan",
+        "acceptance",
+        "cachePolicy",
+        "repairPolicy"
+      ],
+      "properties": {
+        "meta": { "$ref": "#/$defs/ContractMeta" },
+        "request": {
+          "type": "object",
+          "required": ["rawUserPrompt", "projectMode", "iterationIntent"],
+          "properties": {
+            "rawUserPrompt": { "type": "string" },
+            "projectMode": { "type": "string", "enum": ["new", "continue", "repair"] },
+            "iterationIntent": { "type": "string" },
+            "hardRequirements": { "type": "array", "items": { "type": "string" } },
+            "nonGoals": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "world": {
+          "type": "object",
+          "required": ["projectWorldHash", "knownScenes", "knownModules"],
+          "properties": {
+            "projectWorldHash": { "type": ["string", "null"] },
+            "knownScenes": { "type": "array", "items": { "type": "string" } },
+            "knownModules": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "styleGuide": {
+          "type": "object",
+          "required": ["visualStyle", "tone", "palette", "assetReuse"],
+          "properties": {
+            "visualStyle": { "type": "string" },
+            "tone": { "type": "string" },
+            "palette": { "type": "array", "items": { "type": "string" } },
+            "assetReuse": { "type": "string", "enum": ["reuseExisting", "generateMissingOnly", "regenerateAll"] }
+          },
+          "additionalProperties": false
+        },
+        "moduleContract": {
+          "type": "object",
+          "required": ["moduleIntents", "gameplaySlots", "stateVariables", "networkPolicy"],
+          "properties": {
+            "moduleIntents": { "type": "array", "items": { "$ref": "#/$defs/ModuleIntent" } },
+            "gameplaySlots": { "type": "array", "items": { "type": "string" } },
+            "stateVariables": { "type": "array", "items": { "type": "string" } },
+            "networkPolicy": { "$ref": "#/$defs/SyncPolicy" }
+          },
+          "additionalProperties": false
+        },
+        "assetContract": {
+          "type": "object",
+          "required": ["slots", "globalConstraints"],
+          "properties": {
+            "slots": { "type": "array", "items": { "$ref": "#/$defs/AssetSlot" } },
+            "globalConstraints": {
+              "type": "object",
+              "required": ["allowTextInImages", "allowedFormats", "outputRoot"],
+              "properties": {
+                "allowTextInImages": { "type": "boolean" },
+                "allowedFormats": { "type": "array", "items": { "type": "string", "enum": ["png", "jpg", "webp", "glb", "mp3", "ogg"] } },
+                "outputRoot": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "parallelPlan": {
+          "type": "object",
+          "required": ["canRunInParallel", "tasks", "joinStrategy"],
+          "properties": {
+            "canRunInParallel": { "type": "boolean" },
+            "tasks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["taskId", "owner", "inputs", "outputs", "dependsOn"],
+                "properties": {
+                  "taskId": { "type": "string" },
+                  "owner": { "type": "string", "enum": ["DSLAgent", "ImageAgent", "VisionAgent"] },
+                  "inputs": { "type": "array", "items": { "type": "string" } },
+                  "outputs": { "type": "array", "items": { "type": "string" } },
+                  "dependsOn": { "type": "array", "items": { "type": "string" } }
+                },
+                "additionalProperties": false
+              }
+            },
+            "joinStrategy": { "type": "string", "enum": ["allRequired", "allowVisualFallbacks", "manualApproval"] }
+          },
+          "additionalProperties": false
+        },
+        "acceptance": {
+          "type": "object",
+          "required": ["runtime", "visual", "cache"],
+          "properties": {
+            "runtime": { "type": "array", "items": { "type": "string" } },
+            "visual": { "type": "array", "items": { "type": "string" } },
+            "cache": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "cachePolicy": {
+          "type": "object",
+          "required": ["semanticHashInputs", "assetHashInputs", "invalidateOn"],
+          "properties": {
+            "semanticHashInputs": { "type": "array", "items": { "type": "string" } },
+            "assetHashInputs": { "type": "array", "items": { "type": "string" } },
+            "invalidateOn": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "repairPolicy": {
+          "type": "object",
+          "required": ["maxRounds", "routeByOwner", "retryOwners"],
+          "properties": {
+            "maxRounds": { "type": "integer", "minimum": 0 },
+            "routeByOwner": { "type": "boolean" },
+            "retryOwners": { "type": "array", "items": { "type": "string", "enum": ["RequirementModel", "DSLAgent", "ImageAgent", "VisionAgent", "RuntimeLinker"] } }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ModuleDslPatch": {
+      "type": "object",
+      "x-contractOwner": "DSLAgent",
+      "required": ["meta", "buildContractId", "patchKind", "moduleDsl", "declaredAssetSlots", "expectedOutputs"],
+      "properties": {
+        "meta": { "$ref": "#/$defs/ContractMeta" },
+        "buildContractId": { "type": "string" },
+        "patchKind": { "type": "string", "enum": ["module", "internalRepair"] },
+        "moduleDsl": { "type": "string" },
+        "declaredAssetSlots": { "type": "array", "items": { "type": "string" } },
+        "expectedOutputs": { "type": "array", "items": { "type": "string" } },
+        "networkManifestPatch": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "AssetManifest": {
+      "type": "object",
+      "x-contractOwner": "ImageAgent",
+      "required": ["meta", "buildContractId", "assets"],
+      "properties": {
+        "meta": { "$ref": "#/$defs/ContractMeta" },
+        "buildContractId": { "type": "string" },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slotId", "path", "format", "sha1", "width", "height", "transparent", "prompt", "status"],
+            "properties": {
+              "slotId": { "type": "string" },
+              "path": { "type": "string" },
+              "format": { "type": "string" },
+              "sha1": { "type": "string" },
+              "width": { "type": "integer", "minimum": 1 },
+              "height": { "type": "integer", "minimum": 1 },
+              "transparent": { "type": "boolean" },
+              "prompt": { "type": "string" },
+              "negativePrompt": { "type": "string" },
+              "seed": { "type": ["string", "integer", "null"] },
+              "status": { "type": "string", "enum": ["generated", "reused", "placeholder", "failed"] },
+              "collisionHint": { "$ref": "#/$defs/AssetSlot/properties/constraints/properties/collisionHint" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "AssetReview": {
+      "type": "object",
+      "x-contractOwner": "VisionAgent",
+      "required": ["meta", "buildContractId", "reviews", "summary"],
+      "properties": {
+        "meta": { "$ref": "#/$defs/ContractMeta" },
+        "buildContractId": { "type": "string" },
+        "reviews": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slotId", "assetPath", "passed", "checks", "ownerOnFailure"],
+            "properties": {
+              "slotId": { "type": "string" },
+              "assetPath": { "type": "string" },
+              "passed": { "type": "boolean" },
+              "checks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "passed", "message"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "passed": { "type": "boolean" },
+                    "message": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "ownerOnFailure": { "type": "string", "enum": ["ImageAgent", "RequirementModel", "RuntimeLinker"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "summary": {
+          "type": "object",
+          "required": ["passed", "failedSlots"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "failedSlots": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "AssemblyReport": {
+      "type": "object",
+      "x-contractOwner": "RuntimeLinker",
+      "required": ["meta", "buildContractId", "inputs", "bindings", "outputs", "conflicts", "nextAction"],
+      "properties": {
+        "meta": { "$ref": "#/$defs/ContractMeta" },
+        "buildContractId": { "type": "string" },
+        "inputs": {
+          "type": "object",
+          "required": ["moduleDslPatch", "assetManifest", "assetReview"],
+          "properties": {
+            "moduleDslPatch": { "type": "string" },
+            "assetManifest": { "type": "string" },
+            "assetReview": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slotId", "assetPath", "target", "status"],
+            "properties": {
+              "slotId": { "type": "string" },
+              "assetPath": { "type": "string" },
+              "target": { "$ref": "#/$defs/AssetSlot/properties/target" },
+              "status": { "type": "string", "enum": ["bound", "placeholder", "skipped"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "required": ["finalPatchPath", "projectPath", "resourceManifestPath"],
+          "properties": {
+            "finalPatchPath": { "type": "string" },
+            "projectPath": { "type": "string" },
+            "resourceManifestPath": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["conflictId", "owner", "reason", "suggestedAction"],
+            "properties": {
+              "conflictId": { "type": "string" },
+              "owner": { "type": "string", "enum": ["RequirementModel", "DSLAgent", "ImageAgent", "VisionAgent", "RuntimeLinker"] },
+              "slotId": { "type": ["string", "null"] },
+              "reason": { "type": "string" },
+              "suggestedAction": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "nextAction": { "type": "string", "enum": ["validate", "repair", "blocked"] }
+      },
+      "additionalProperties": false
+    },
+    "ValidationReport": {
+      "type": "object",
+      "x-contractOwner": "RuntimeValidator",
+      "required": ["meta", "buildContractId", "checks", "summary", "nextAction"],
+      "properties": {
+        "meta": { "$ref": "#/$defs/ContractMeta" },
+        "buildContractId": { "type": "string" },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["checkId", "layer", "passed", "ownerOnFailure", "message"],
+            "properties": {
+              "checkId": { "type": "string" },
+              "layer": {
+                "type": "string",
+                "enum": ["schema", "contract", "gdevelopTruth", "assetFiles", "htmlManifest", "runtimeSmoke", "vision"]
+              },
+              "passed": { "type": "boolean" },
+              "ownerOnFailure": {
+                "type": "string",
+                "enum": ["RequirementModel", "DSLAgent", "ImageAgent", "VisionAgent", "RuntimeLinker", "RuntimeValidator"]
+              },
+              "message": { "type": "string" },
+              "evidence": { "type": "object", "additionalProperties": true }
+            },
+            "additionalProperties": false
+          }
+        },
+        "summary": {
+          "type": "object",
+          "required": ["passed", "failed", "blocked", "cacheHit"],
+          "properties": {
+            "passed": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "blocked": { "type": "integer", "minimum": 0 },
+            "cacheHit": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "nextAction": { "type": "string", "enum": ["done", "repair", "blocked"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}
