@@ -84,6 +84,16 @@ compiler 检查：
 
 ---
 
+
+
+## 联机模块
+
+网络模板和游戏模板是同级组合单元，两轴独立选择。LLM1 同时看游戏卡片和联机卡片，各自匹配。
+
+六种互动模式覆盖所有联机需求：event-room / host-snapshot / p2p-lockstep / server-authoritative / peer-event / async-state。
+
+详见 [联机同步模型](./network-sync-model.md)。
+
 ## 关键约束
 
 - 模块之间不引用实现细节。requires 只声明接口需求。

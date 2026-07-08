@@ -48,11 +48,16 @@
 
 ## Phase 5: 联机能力
 
-- [ ] 设计联机模块能力：房间、输入流、状态同步、帧同步、断线恢复
-- [ ] 标注模块的同步约束和确定性要求
-- [ ] 给可同步对象引入稳定网络 ID
-- [ ] 区分本地表现状态和权威游戏状态
-- [ ] 在 DSL/执行器中支持同步变量和同步事件
+- [x] 定义六种互动模式（轮流事件、主机照镜子、帧同步对战、服务器裁判、各自为战、异步社交）
+- [x] 四种同步模型（event / snapshot / lockstep-input / server-authoritative）+ 两种扩展（peer-event / async-state）
+- [x] 所有同步基于 GDJS getNetworkSyncData/updateFromNetworkSyncData，不依赖 GDevelop 云服务
+- [x] engine/network/ 骨架代码（transport / session / channel / bridge / index）
+- [x] 6 个 network 模板，llm1Card 反向声明互动模式
+- [x] server/signaling-server.js 信令服务器（单端口、所有游戏共用）
+- [x] game template 和 network template 两轴独立选择
+- [ ] llm1Card 接入 LLM1 卡片流（network 模板暂未喂给 LLM1）
+- [ ] 联机编译接入 html-exporter
+- [ ] 端到端联机测试
 
 ## Phase 6: 质量门
 
