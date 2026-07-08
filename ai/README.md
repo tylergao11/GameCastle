@@ -111,6 +111,26 @@ LLM2 should not configure that slot directly. This keeps composition as a
 runtime/module capability instead of another low-level detail the model must
 remember.
 
+## HTML Export
+
+`ai/html-exporter.js` owns the browser export boundary. It uses the official
+GDJS runtime cache from `engine/gdevelop-runtime/` and writes a GDevelop-style
+HTML output folder instead of copying platform packages wholesale.
+
+Generated HTML output includes:
+
+- `output/project.json`
+- `output/data.js`
+- `output/code*.js`
+- `output/html-export-manifest.json`
+- `output/index.html`
+- `output/game.html`
+
+The manifest keeps the 2D Pixi runtime available for playable browser games,
+adds 3D runtime files when the project uses 3D capabilities, and excludes
+non-HTML packages such as Cordova, Electron, debugger clients, and TypeScript
+declaration bundles.
+
 ## Approval Gate
 
 For live LLM tests, prefer:

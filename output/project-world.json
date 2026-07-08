@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "worldVersion": 1,
+  "worldVersion": 2,
   "project": {
     "name": "GameCastle",
     "firstScene": "Start",
@@ -37,6 +37,12 @@
           "color": "#8b4513",
           "width": 800,
           "height": 20,
+          "behaviors": [
+            {
+              "name": "Platform",
+              "type": "PlatformBehavior::PlatformBehavior"
+            }
+          ],
           "id": "obj_game_ground",
           "scope": "scene"
         },
@@ -48,6 +54,12 @@
           "color": "#8b4513",
           "width": 100,
           "height": 16,
+          "behaviors": [
+            {
+              "name": "Platform",
+              "type": "PlatformBehavior::PlatformBehavior"
+            }
+          ],
           "id": "obj_game_platform",
           "scope": "scene"
         },
@@ -230,7 +242,7 @@
       "objects": [
         {
           "name": "TitleText",
-          "type": "Text",
+          "type": "TextObject::Text",
           "kind": "Text",
           "text": "TitleText",
           "size": 36,
@@ -250,7 +262,7 @@
         },
         {
           "name": "StartLabel",
-          "type": "Text",
+          "type": "TextObject::Text",
           "kind": "Text",
           "text": "StartLabel",
           "size": 24,
@@ -303,28 +315,6 @@
       "events": [
         {
           "type": "standard",
-          "text": "on start -> text TitleText \"Sky Jumper\"",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "text TitleText \"Sky Jumper\""
-          ],
-          "id": "evt_start_on_start_text_titletext_sky_jumper"
-        },
-        {
-          "type": "standard",
-          "text": "on start -> text StartLabel \"Start\"",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "text StartLabel \"Start\""
-          ],
-          "id": "evt_start_on_start_text_startlabel_start_1"
-        },
-        {
-          "type": "standard",
           "text": "on mouse StartButton -> scene Game",
           "conditions": [
             "on mouse StartButton"
@@ -333,6 +323,28 @@
             "scene Game"
           ],
           "id": "evt_start_on_mouse_startbutton_scene_game_1"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> text StartLabel \"Play Now\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text StartLabel \"Play Now\""
+          ],
+          "id": "evt_start_on_start_text_startlabel_play_now_"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> text TitleText \"Moon Runner\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text TitleText \"Moon Runner\""
+          ],
+          "id": "evt_start_on_start_text_titletext_moon_runne"
         }
       ]
     },
@@ -342,7 +354,7 @@
       "objects": [
         {
           "name": "GameOverText",
-          "type": "Text",
+          "type": "TextObject::Text",
           "kind": "Text",
           "text": "GameOverText",
           "size": 40,
@@ -351,7 +363,7 @@
         },
         {
           "name": "RestartHint",
-          "type": "Text",
+          "type": "TextObject::Text",
           "kind": "Text",
           "text": "RestartHint",
           "size": 22,
@@ -394,36 +406,36 @@
       "events": [
         {
           "type": "standard",
-          "text": "on start -> text GameOverText \"Game Over\"",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "text GameOverText \"Game Over\""
-          ],
-          "id": "evt_gameover_on_start_text_gameovertext_game"
-        },
-        {
-          "type": "standard",
-          "text": "on start -> text RestartHint \"Press Space\"",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "text RestartHint \"Press Space\""
-          ],
-          "id": "evt_gameover_on_start_text_restarthint_press"
-        },
-        {
-          "type": "standard",
-          "text": "on key Space -> scene Start",
+          "text": "on key Space -> scene Game",
           "conditions": [
             "on key Space"
           ],
           "actions": [
-            "scene Start"
+            "scene Game"
           ],
-          "id": "evt_gameover_on_key_space_scene_start_1"
+          "id": "evt_gameover_on_key_space_scene_game_1"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> text RestartHint \"Space To Retry\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text RestartHint \"Space To Retry\""
+          ],
+          "id": "evt_gameover_on_start_text_restarthint_space"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> text GameOverText \"Try Again\"",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "text GameOverText \"Try Again\""
+          ],
+          "id": "evt_gameover_on_start_text_gameovertext_try_"
         }
       ]
     }
@@ -448,18 +460,18 @@
         "scene": "Game",
         "failAction": "scene GameOver",
         "preset": "basic",
-        "sync": "local",
+        "sync": "lockstep",
         "authority": "host",
         "tickRate": 20,
         "seed": "auto"
       },
       "syncPolicy": {
-        "sync": "local",
+        "sync": "lockstep",
         "authority": "host",
         "tickRate": 20,
         "seed": "auto"
       },
-      "sourceLine": 1
+      "sourceLine": 0
     },
     {
       "id": "shell.start_screen",
@@ -469,8 +481,8 @@
       "params": {
         "scene": "Start",
         "targetScene": "Game",
-        "title": "Sky Jumper",
-        "button": "Start",
+        "title": "Moon Runner",
+        "button": "Play Now",
         "preset": "basic",
         "sync": "local",
         "authority": "client",
@@ -483,7 +495,7 @@
         "tickRate": 0,
         "seed": "auto"
       },
-      "sourceLine": 2
+      "sourceLine": 0
     },
     {
       "id": "shell.game_over_screen",
@@ -492,22 +504,22 @@
       "preset": "basic",
       "params": {
         "scene": "GameOver",
-        "targetScene": "Start",
-        "title": "Game Over",
-        "hint": "Press Space",
+        "targetScene": "Game",
+        "title": "Try Again",
+        "hint": "Space To Retry",
         "preset": "basic",
-        "sync": "local",
-        "authority": "client",
+        "sync": "event",
+        "authority": "host",
         "tickRate": 0,
         "seed": "auto"
       },
       "syncPolicy": {
-        "sync": "local",
-        "authority": "client",
+        "sync": "event",
+        "authority": "host",
         "tickRate": 0,
         "seed": "auto"
       },
-      "sourceLine": 3
+      "sourceLine": 0
     }
   ],
   "idRegistry": {
@@ -549,17 +561,17 @@
       "Game|on collision Player Coin -> destroy Coin, variable Score + 1|1": "evt_game_on_collision_player_coin_destroy_co",
       "Game|on collision Player Enemy -> scene GameOver|1": "evt_game_on_collision_player_enemy_scene_gam",
       "Game|on key Space -> jump Player 500|1": "evt_game_on_key_space_jump_player_500_1",
-      "Start|on start -> text TitleText \"Sky Jumper\"|1": "evt_start_on_start_text_titletext_sky_jumper",
-      "Start|on start -> text StartLabel \"Start\"|1": "evt_start_on_start_text_startlabel_start_1",
       "Start|on mouse StartButton -> scene Game|1": "evt_start_on_mouse_startbutton_scene_game_1",
-      "GameOver|on start -> text GameOverText \"Game Over\"|1": "evt_gameover_on_start_text_gameovertext_game",
-      "GameOver|on start -> text RestartHint \"Press Space\"|1": "evt_gameover_on_start_text_restarthint_press",
-      "GameOver|on key Space -> scene Start|1": "evt_gameover_on_key_space_scene_start_1"
+      "Start|on start -> text StartLabel \"Play Now\"|1": "evt_start_on_start_text_startlabel_play_now_",
+      "Start|on start -> text TitleText \"Moon Runner\"|1": "evt_start_on_start_text_titletext_moon_runne",
+      "GameOver|on key Space -> scene Game|1": "evt_gameover_on_key_space_scene_game_1",
+      "GameOver|on start -> text RestartHint \"Space To Retry\"|1": "evt_gameover_on_start_text_restarthint_space",
+      "GameOver|on start -> text GameOverText \"Try Again\"|1": "evt_gameover_on_start_text_gameovertext_try_"
     },
     "variables": {
       "global|Score": "var_global_score"
     },
     "modules": {}
   },
-  "semanticHash": "fefeae89"
+  "semanticHash": "21c04400"
 }

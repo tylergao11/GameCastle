@@ -7,6 +7,8 @@ var crypto = require("crypto");
 var capabilities = require("./capabilities");
 var projectWorld = require("./project-world");
 var moduleCompiler = require("./module-compiler");
+var runtimeCodegen = require("./runtime-codegen");
+var htmlExporter = require("./html-exporter");
 
 var STATE_DIR = path.join(__dirname, "..", "output");
 var LOG_PATH = path.join(STATE_DIR, "pipeline.log");
@@ -17,7 +19,9 @@ var BRIEF_PATH = path.join(STATE_DIR, "design-brief.json");
 var HISTORY_PATH = path.join(STATE_DIR, "conversation.json");
 var CAPABILITIES_DIR = path.join(__dirname, "capabilities");
 var PRODUCT_MODULES_DIR = path.join(__dirname, "product-modules");
+var GDEVELOP_RUNTIME_DIR = process.env.GAMECASTLE_GDJS_RUNTIME_DIR || path.join(__dirname, '..', 'engine', 'gdevelop-runtime');
 var PROJECT_PATH = path.join(STATE_DIR, "project.json");
+var HTML_EXPORT_MANIFEST_PATH = path.join(STATE_DIR, "html-export-manifest.json");
 var NETWORK_MANIFEST_PATH = path.join(STATE_DIR, "network-manifest.json");
 var PENDING_APPROVAL_PATH = path.join(STATE_DIR, "pending-approval.json");
 var MAX_LLM2_REPAIR_ROUNDS = 2;
@@ -340,7 +344,7 @@ var EXEC = {};
 EXEC["create scene"] = function(p, ps) {
   var n = ps.name;
   if (p.layouts.find(function(l){return l.name===n;})) return {ok:false,msg:"exists: "+n};
-  p.layouts.push({name:n,instances:[],objects:[],events:[],layers:[{name:"",visibility:true,cameras:[{defaultSize:true,defaultViewport:true,height:0,width:0,viewportBottom:1,viewportLeft:0,viewportRight:1,viewportTop:0}],effects:[]}],variables:[],objectsGroups:[],behaviorsSharedData:[]});
+  p.layouts.push(createEmptyLayout(n));
   if (ps.first) p.firstLayout = n;
   return {ok:true,msg:"scene: "+n};
 };
@@ -363,6 +367,7 @@ EXEC["create object"] = function(p, ps) {
     var parsedColor = parseHexColor(color, { r: 100, g: 130, b: 240 });
     var obj = {
       name: ps.name, type: "PrimitiveDrawing::ShapePainter", variables: [], behaviors: [],
+      effects: [],
       absoluteCoordinates: false, coordinatesOrigin: {x:0,y:0},
       fillColor: parsedColor, fillOpacity: 255,
       outlineColor: {r:0,g:0,b:0}, outlineOpacity: 255, outlineSize: ps.outline || 0,
@@ -376,8 +381,31 @@ EXEC["create object"] = function(p, ps) {
     tgt.push(obj);
     return {ok:true,msg:"shape: "+ps.name+" ("+sType+" "+color+")"};
   }
-  var obj = {name:ps.name,type:ps.type,variables:[],behaviors:[]};
-  if (ps.type==="Text") { obj.string=ps.name; obj.font=""; obj.characterSize=ps.size||20; obj.color={r:255,g:255,b:255}; }
+  var obj = {name:ps.name,type:ps.type,variables:[],behaviors:[],effects:[]};
+  if (ps.type==="Text") {
+    obj.type = "TextObject::Text";
+    obj.content = {
+      text: ps.name,
+      font: "",
+      characterSize: ps.size || 20,
+      color: "255;255;255",
+      bold: false,
+      italic: false,
+      underlined: false,
+      textAlignment: "left",
+      verticalTextAlignment: "top",
+      isOutlineEnabled: false,
+      outlineThickness: 0,
+      outlineColor: "0;0;0",
+      isShadowEnabled: false,
+      shadowColor: "0;0;0",
+      shadowOpacity: 127,
+      shadowDistance: 4,
+      shadowAngle: 45,
+      shadowBlurRadius: 2,
+      lineHeight: 0
+    };
+  }
   tgt.push(obj);
   return {ok:true,msg:"object: "+ps.name+" ("+ps.type+")"};
 };
@@ -535,16 +563,118 @@ function execute(project, op) {
   try { return fn(project, op.params); } catch(e) { return {ok:false,msg:e.message}; }
 }
 
+function createDefaultLayer() {
+  return {
+    ambientLightColorB: 0,
+    ambientLightColorG: 8042920,
+    ambientLightColorR: 16,
+    followBaseLayerCamera: false,
+    isLightingLayer: false,
+    name: "",
+    visibility: true,
+    cameras: [{
+      defaultSize: true,
+      defaultViewport: true,
+      height: 0,
+      width: 0,
+      viewportBottom: 1,
+      viewportLeft: 0,
+      viewportRight: 1,
+      viewportTop: 0
+    }],
+    effects: []
+  };
+}
+
+function createDefaultUiSettings() {
+  return {
+    grid: false,
+    gridType: "rectangular",
+    gridWidth: 32,
+    gridHeight: 32,
+    gridOffsetX: 0,
+    gridOffsetY: 0,
+    gridColor: 10401023,
+    gridAlpha: 0.8,
+    snap: false,
+    zoomFactor: 0.546875,
+    windowMask: false
+  };
+}
+
+function createEmptyLayout(name) {
+  return {
+    b: 0,
+    disableInputWhenNotFocused: true,
+    mangledName: name.replace(/[^A-Za-z0-9_]/g, "_"),
+    name: name,
+    r: 0,
+    standardSortMethod: true,
+    stopSoundsOnStartup: true,
+    title: "",
+    v: 0,
+    uiSettings: createDefaultUiSettings(),
+    instances: [],
+    objects: [],
+    events: [],
+    layers: [createDefaultLayer()],
+    variables: [],
+    objectsGroups: [],
+    behaviorsSharedData: [],
+    usedResources: []
+  };
+}
+
 function emptyProject(name) {
   return {
     firstLayout:"", gdVersion:{build:96,major:4,minor:0,revision:89},
-    properties:{name:name,author:"GameCastle",windowWidth:800,windowHeight:600,maxFPS:60,minFPS:10,
+    properties:{
+      adaptGameResolutionAtRuntime: true,
+      folderProject: false,
+      orientation: "landscape",
+      packageName: "com.gamecastle.generated",
+      projectFile: "",
+      scaleMode: "linear",
+      pixelsRounding: false,
+      sizeOnStartupMode: "",
+      antialiasingMode: "MSAA",
+      antialisingEnabledOnMobile: false,
+      version: "1.0.0",
+      name:name,
+      author:"GameCastle",
+      authorIds: [],
+      authorUsernames: [],
+      windowWidth:800,
+      windowHeight:600,
+      latestCompilationDirectory: "",
+      maxFPS:60,
+      minFPS:10,
+      verticalSync:true,
+      loadingScreen: {
+        showGDevelopSplash: false,
+        backgroundImageResourceName: "",
+        backgroundColor: 0,
+        backgroundFadeInDuration: 0.2,
+        minDuration: 0,
+        logoAndProgressFadeInDuration: 0.2,
+        logoAndProgressLogoFadeInDelay: 0.2,
+        showProgressBar: true,
+        progressBarMinWidth: 40,
+        progressBarMaxWidth: 300,
+        progressBarWidthPercent: 40,
+        progressBarHeight: 20,
+        progressBarColor: 16777215
+      },
+      watermark: { showWatermark: false, placement: "bottom" },
       extensions:[{name:"BuiltinObject"},{name:"Sprite"},{name:"BuiltinCommonInstructions"},{name:"TextObject"},
         {name:"PlatformBehavior"},{name:"BuiltinVariables"},{name:"BuiltinTime"},{name:"BuiltinMouse"},
         {name:"BuiltinKeyboard"},{name:"BuiltinCamera"},{name:"BuiltinScene"},{name:"PrimitiveDrawing"}],
-      currentPlatform:"GDevelop JS platform"},
+      currentPlatform:"GDevelop JS platform",
+      extensionProperties: []
+    },
     resources:{resources:[],resourceFolders:[]}, objects:[], objectsGroups:[], variables:[], layouts:[],
-    externalEvents:[], externalLayouts:[], externalSourceFiles:[]
+    usedResources: [],
+    externalEvents:[], eventsFunctionsExtensions: [], externalLayouts:[], externalSourceFiles:[]
   };
 }
 
@@ -822,7 +952,10 @@ function resetGeneratedStateForNewProject(options) {
   options = options || {};
   [
     PROJECT_PATH,
+    path.join(STATE_DIR, 'data.js'),
     path.join(STATE_DIR, 'game.html'),
+    path.join(STATE_DIR, 'index.html'),
+    HTML_EXPORT_MANIFEST_PATH,
     NETWORK_MANIFEST_PATH,
     PENDING_APPROVAL_PATH,
     projectWorld.getWorldPath(STATE_DIR),
@@ -835,6 +968,7 @@ function resetGeneratedStateForNewProject(options) {
       throw new Error('Failed to reset generated state: ' + filePath + ' ' + e.message);
     }
   });
+  removeGeneratedRuntimeCodeFiles();
 }
 
 function clearPendingApproval() {
@@ -845,22 +979,44 @@ function clearPendingApproval() {
   }
 }
 
-function writeProjectOutputs(project) {
+function removeGeneratedRuntimeCodeFiles() {
+  if (!fs.existsSync(STATE_DIR)) return;
+  fs.readdirSync(STATE_DIR).forEach(function(file) {
+    if (/^code\d+\.js$/.test(file)) fs.unlinkSync(path.join(STATE_DIR, file));
+  });
+}
+
+function writeRuntimeExecutionFiles(project) {
+  removeGeneratedRuntimeCodeFiles();
+  fs.writeFileSync(
+    path.join(STATE_DIR, 'data.js'),
+    'gdjs.projectData = ' + JSON.stringify(project) + ';\n' +
+      'gdjs.runtimeGameOptions = {};\n'
+  );
+  var codeFiles = runtimeCodegen.generateProjectCodeFiles(project);
+  codeFiles.forEach(function(file) {
+    fs.writeFileSync(path.join(STATE_DIR, file.fileName), file.code);
+  });
+  console.log('[RuntimeCode] ' + codeFiles.map(function(file) { return file.fileName + ':' + file.sceneName; }).join(', '));
+  return codeFiles;
+}
+
+function writeProjectOutputs(project, options) {
+  options = options || {};
   fs.mkdirSync(STATE_DIR, {recursive:true});
   fs.writeFileSync(PROJECT_PATH, JSON.stringify(project, null, 2));
+  var codeFiles = writeRuntimeExecutionFiles(project);
+  var htmlManifest = htmlExporter.buildHtmlExportManifest(project, {
+    codeFiles: codeFiles,
+    modules: options.modules,
+  });
+  fs.writeFileSync(HTML_EXPORT_MANIFEST_PATH, JSON.stringify(htmlManifest, null, 2));
+  htmlExporter.syncHtmlRuntime(GDEVELOP_RUNTIME_DIR, STATE_DIR, htmlManifest);
+  htmlExporter.writeHtmlExport(STATE_DIR, htmlManifest);
+  console.log('[HtmlExport] ' + htmlManifest.scriptFiles.length + ' scripts, ' + (htmlManifest.assetFiles || []).length + ' assets -> ' + HTML_EXPORT_MANIFEST_PATH);
   console.log('[Output] ' + PROJECT_PATH + ' (' + JSON.stringify(project).length + ' bytes)');
   var s0 = project.layouts[0];
   console.log('  Scenes:'+project.layouts.length+' Objects:'+project.objects.length+' SceneObjects:'+(s0?s0.objects.length:0)+' Instances:'+(s0?s0.instances.length:0)+' Events:'+(s0?s0.events.length:0)+' Vars:'+project.variables.length);
-
-  try {
-    var engDir = path.join(__dirname, '..', 'engine', 'runtime');
-    if (fs.existsSync(engDir + '/game.html')) {
-      var html = fs.readFileSync(engDir + '/game.html', 'utf8');
-      html = html.replace('var projectData = PROJECT_DATA_PLACEHOLDER;', 'var projectData = ' + JSON.stringify(project) + ';');
-      fs.writeFileSync(STATE_DIR + '/game.html', html);
-      console.log('[GameHTML] ' + STATE_DIR + '/game.html');
-    }
-  } catch(e) {}
 }
 
 function executeDslBatch(project, dslText, batchLabel, options) {
@@ -892,7 +1048,9 @@ function executeDslBatch(project, dslText, batchLabel, options) {
   }
   console.log('[Done:' + batchLabel + '] ' + ok + '/' + ops.length + ' succeeded');
 
-  writeProjectOutputs(project);
+  writeProjectOutputs(project, {
+    modules: options.modules,
+  });
 
   var world = projectWorld.buildProjectWorld(project, previousWorld, {
     modules: options.modules,

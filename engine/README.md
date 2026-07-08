@@ -1,50 +1,30 @@
-# Engine — GDJS 游戏运行时
+# Engine - GDJS HTML Runtime
 
-从 GDevelop 源码提取的浏览器游戏运行时。
+`engine/gdevelop-runtime/` is the local cache of the official GDJS browser
+runtime built from `D:\GDevelop-master\GDJS`.
 
-## 核心文件
+Prepare or refresh it with:
 
-| 文件 | 说明 |
-|------|------|
-| `gdjs-runtime.js` | GDevelop JS 核心运行时，加载 project.json 创建游戏实例 |
-| `pixi.min.js` | PixiJS 2D 渲染引擎 |
-| `howler.min.js` | Howler.js 音频引擎 |
-| `game.html` | 启动器 HTML：加载所有 JS → 注入 projectData → `new gdjs.RuntimeGame()` → `startGameLoop()` |
-
-## 扩展（14个）
-
-`extensions/` 目录包含 14 个 GDJS 扩展脚本：
-
-| 扩展 | 说明 |
-|------|------|
-| `Sprite.js` | 精灵渲染 |
-| `TextObject.js` | 文本对象 |
-| `PlatformBehavior.js` | 平台移动行为 |
-| `AnchorBehavior.js` | 锚点行为 |
-| `DestroyOutsideBehavior.js` | 出界销毁 |
-| `DraggableBehavior.js` | 拖拽行为 |
-| `TopDownMovementBehavior.js` | 俯视角移动 |
-| `TweenBehavior.js` | 补间动画 |
-| `PanelSpriteObject.js` | 九宫格精灵 |
-| `ParticleSystem.js` | 粒子系统 |
-| `PrimitiveDrawing.js` | 几何图形绘制（ShapePainter） |
-| `PrimitiveDrawing-renderer.js` | 几何图形渲染器 |
-| `TiledSpriteObject.js` | 平铺精灵 |
-| `TextEntryObject.js` | 文本输入 |
-| `Effects.js` | 视觉效果 |
-
-## 嵌入方式
-
-平台前端通过 iframe 加载 game.html，project.json 在构建时注入：
-
-```html
-<!-- pipeline.js 自动替换 -->
-<script>
-var projectData = <project.json 内联>;
-var game = new gdjs.RuntimeGame(projectData, {});
-game.getRenderer().createStandardCanvas(document.body);
-game.loadAllAssets(function() { game.startGameLoop(); });
-</script>
+```bash
+npm run runtime:prepare
 ```
 
-pipeline.js:508-509 自动完成 `PROJECT_DATA_PLACEHOLDER` → project.json 的替换。
+Use `GDEVELOP_SOURCE_DIR` or `scripts/prepare-gdjs-runtime.js --source <path>`
+when the GDevelop checkout is not at `D:\GDevelop-master`.
+
+GameCastle does not maintain a hand-written GDJS runtime shim. The pipeline
+emits a GDevelop-style HTML export:
+
+- `output/project.json` is the generated project truth for GDJS.
+- `output/data.js` exposes `gdjs.projectData`.
+- `output/code*.js` exposes scene functions such as `gdjs.GameCode.func`.
+- `output/html-export-manifest.json` records the HTML runtime files required by
+  the current project.
+- `output/index.html` and `output/game.html` load those files and start
+  `new gdjs.RuntimeGame(...)`.
+
+The HTML export manifest owns the boundary between GameCastle modules and the
+GDJS runtime. It keeps 2D Pixi runtime available by default, adds 3D runtime
+files only when the project uses 3D capabilities, and excludes non-HTML platform
+packages such as Cordova, Electron, Facebook Instant Games, debugger clients,
+and TypeScript declaration bundles.

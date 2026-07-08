@@ -129,3 +129,26 @@ mutating `project.json`. The pending file includes Module DSL, compiled internal
 DSL, module/network metadata, and a dry-run preview with predicted semantic
 hash, cache-hit status, and command success/failure summary. Approval should be
 based on reading that file first.
+
+## HTML Runtime Cache
+
+GameCastle uses the official GDJS browser runtime built from GDevelop source.
+The local cache lives at `engine/gdevelop-runtime/` and is intentionally ignored
+by git.
+
+Prepare it before running pipeline commands on a fresh checkout:
+
+```bash
+npm run runtime:prepare
+```
+
+By default the prepare script reads `D:\GDevelop-master`. Override that with
+`GDEVELOP_SOURCE_DIR` or:
+
+```bash
+node scripts/prepare-gdjs-runtime.js --source <GDevelop checkout>
+```
+
+The generated game output is HTML-only. Cordova, Electron, debugger clients,
+TypeScript declaration bundles, and other non-browser platform packages are not
+part of the GameCastle export path.

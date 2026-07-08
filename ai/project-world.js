@@ -123,8 +123,8 @@ function describeObject(object) {
     }
   } else if (object.type === 'TextObject::Text' || object.type === 'Text') {
     described.kind = 'Text';
-    described.text = object.string || object.name;
-    described.size = object.characterSize || undefined;
+    described.text = (object.content && object.content.text) || object.string || object.name;
+    described.size = (object.content && object.content.characterSize) || object.characterSize || undefined;
   }
 
   var behaviors = (object.behaviors || []).map(function(behavior) {

@@ -44,12 +44,15 @@ export interface GDLayout {
   events: GDEvent[]; layers: GDLayer[]; variables: GDVariable[];
   objectsGroups: ObjectGroup[]; title?: string;
   stopSoundsOnStartup?: boolean; r?: number; g?: number; b?: number;
+  usedResources?: { name: string }[];
   [key: string]: any;
 }
 export interface ProjectProperties {
   name: string; author: string; windowWidth: number; windowHeight: number;
   maxFPS: number; minFPS: number; verticalSync: boolean;
   extensions: { name: string }[]; currentPlatform: string;
+  loadingScreen?: Record<string, any>; watermark?: Record<string, any>;
+  extensionProperties?: { extension: string; property: string; value: string }[];
   [key: string]: any;
 }
 export interface GDProject {
@@ -59,6 +62,8 @@ export interface GDProject {
   resources: { resources: ProjectResource[]; resourceFolders: any[] };
   objects: GDObject[]; objectsGroups: ObjectGroup[];
   variables: GDVariable[]; layouts: GDLayout[];
+  usedResources: { name: string }[];
+  eventsFunctionsExtensions: any[];
   externalEvents: any[]; externalLayouts: any[]; externalSourceFiles: any[];
 }
 

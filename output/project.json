@@ -7,12 +7,46 @@
     "revision": 89
   },
   "properties": {
+    "adaptGameResolutionAtRuntime": true,
+    "folderProject": false,
+    "orientation": "landscape",
+    "packageName": "com.gamecastle.generated",
+    "projectFile": "",
+    "scaleMode": "linear",
+    "pixelsRounding": false,
+    "sizeOnStartupMode": "",
+    "antialiasingMode": "MSAA",
+    "antialisingEnabledOnMobile": false,
+    "version": "1.0.0",
     "name": "GameCastle",
     "author": "GameCastle",
+    "authorIds": [],
+    "authorUsernames": [],
     "windowWidth": 800,
     "windowHeight": 600,
+    "latestCompilationDirectory": "",
     "maxFPS": 60,
     "minFPS": 10,
+    "verticalSync": true,
+    "loadingScreen": {
+      "showGDevelopSplash": false,
+      "backgroundImageResourceName": "",
+      "backgroundColor": 0,
+      "backgroundFadeInDuration": 0.2,
+      "minDuration": 0,
+      "logoAndProgressFadeInDuration": 0.2,
+      "logoAndProgressLogoFadeInDelay": 0.2,
+      "showProgressBar": true,
+      "progressBarMinWidth": 40,
+      "progressBarMaxWidth": 300,
+      "progressBarWidthPercent": 40,
+      "progressBarHeight": 20,
+      "progressBarColor": 16777215
+    },
+    "watermark": {
+      "showWatermark": false,
+      "placement": "bottom"
+    },
     "extensions": [
       {
         "name": "BuiltinObject"
@@ -51,7 +85,8 @@
         "name": "PrimitiveDrawing"
       }
     ],
-    "currentPlatform": "GDevelop JS platform"
+    "currentPlatform": "GDevelop JS platform",
+    "extensionProperties": []
   },
   "resources": {
     "resources": [],
@@ -68,7 +103,28 @@
   ],
   "layouts": [
     {
+      "b": 0,
+      "disableInputWhenNotFocused": true,
+      "mangledName": "Game",
       "name": "Game",
+      "r": 0,
+      "standardSortMethod": true,
+      "stopSoundsOnStartup": true,
+      "title": "",
+      "v": 0,
+      "uiSettings": {
+        "grid": false,
+        "gridType": "rectangular",
+        "gridWidth": 32,
+        "gridHeight": 32,
+        "gridOffsetX": 0,
+        "gridOffsetY": 0,
+        "gridColor": 10401023,
+        "gridAlpha": 0.8,
+        "snap": false,
+        "zoomFactor": 0.546875,
+        "windowMask": false
+      },
       "instances": [
         {
           "angle": 0,
@@ -226,6 +282,7 @@
               "type": "PlatformBehavior::PlatformerObjectBehavior"
             }
           ],
+          "effects": [],
           "absoluteCoordinates": false,
           "coordinatesOrigin": {
             "x": 0,
@@ -291,7 +348,13 @@
           "name": "Ground",
           "type": "PrimitiveDrawing::ShapePainter",
           "variables": [],
-          "behaviors": [],
+          "behaviors": [
+            {
+              "name": "Platform",
+              "type": "PlatformBehavior::PlatformBehavior"
+            }
+          ],
+          "effects": [],
           "absoluteCoordinates": false,
           "coordinatesOrigin": {
             "x": 0,
@@ -357,7 +420,13 @@
           "name": "Platform",
           "type": "PrimitiveDrawing::ShapePainter",
           "variables": [],
-          "behaviors": [],
+          "behaviors": [
+            {
+              "name": "Platform",
+              "type": "PlatformBehavior::PlatformBehavior"
+            }
+          ],
+          "effects": [],
           "absoluteCoordinates": false,
           "coordinatesOrigin": {
             "x": 0,
@@ -424,6 +493,7 @@
           "type": "PrimitiveDrawing::ShapePainter",
           "variables": [],
           "behaviors": [],
+          "effects": [],
           "absoluteCoordinates": false,
           "coordinatesOrigin": {
             "x": 0,
@@ -473,6 +543,7 @@
           "type": "PrimitiveDrawing::ShapePainter",
           "variables": [],
           "behaviors": [],
+          "effects": [],
           "absoluteCoordinates": false,
           "coordinatesOrigin": {
             "x": 0,
@@ -672,6 +743,11 @@
       ],
       "layers": [
         {
+          "ambientLightColorB": 0,
+          "ambientLightColorG": 8042920,
+          "ambientLightColorR": 16,
+          "followBaseLayerCamera": false,
+          "isLightingLayer": false,
           "name": "",
           "visibility": true,
           "cameras": [
@@ -691,10 +767,32 @@
       ],
       "variables": [],
       "objectsGroups": [],
-      "behaviorsSharedData": []
+      "behaviorsSharedData": [],
+      "usedResources": []
     },
     {
+      "b": 0,
+      "disableInputWhenNotFocused": true,
+      "mangledName": "Start",
       "name": "Start",
+      "r": 0,
+      "standardSortMethod": true,
+      "stopSoundsOnStartup": true,
+      "title": "",
+      "v": 0,
+      "uiSettings": {
+        "grid": false,
+        "gridType": "rectangular",
+        "gridWidth": 32,
+        "gridHeight": 32,
+        "gridOffsetX": 0,
+        "gridOffsetY": 0,
+        "gridColor": 10401023,
+        "gridAlpha": 0.8,
+        "snap": false,
+        "zoomFactor": 0.546875,
+        "windowMask": false
+      },
       "instances": [
         {
           "angle": 0,
@@ -748,16 +846,30 @@
       "objects": [
         {
           "name": "TitleText",
-          "type": "Text",
+          "type": "TextObject::Text",
           "variables": [],
           "behaviors": [],
-          "string": "TitleText",
-          "font": "",
-          "characterSize": 36,
-          "color": {
-            "r": 255,
-            "g": 255,
-            "b": 255
+          "effects": [],
+          "content": {
+            "text": "TitleText",
+            "font": "",
+            "characterSize": 36,
+            "color": "255;255;255",
+            "bold": false,
+            "italic": false,
+            "underlined": false,
+            "textAlignment": "left",
+            "verticalTextAlignment": "top",
+            "isOutlineEnabled": false,
+            "outlineThickness": 0,
+            "outlineColor": "0;0;0",
+            "isShadowEnabled": false,
+            "shadowColor": "0;0;0",
+            "shadowOpacity": 127,
+            "shadowDistance": 4,
+            "shadowAngle": 45,
+            "shadowBlurRadius": 2,
+            "lineHeight": 0
           }
         },
         {
@@ -765,6 +877,7 @@
           "type": "PrimitiveDrawing::ShapePainter",
           "variables": [],
           "behaviors": [],
+          "effects": [],
           "absoluteCoordinates": false,
           "coordinatesOrigin": {
             "x": 0,
@@ -828,80 +941,34 @@
         },
         {
           "name": "StartLabel",
-          "type": "Text",
+          "type": "TextObject::Text",
           "variables": [],
           "behaviors": [],
-          "string": "StartLabel",
-          "font": "",
-          "characterSize": 24,
-          "color": {
-            "r": 255,
-            "g": 255,
-            "b": 255
+          "effects": [],
+          "content": {
+            "text": "StartLabel",
+            "font": "",
+            "characterSize": 24,
+            "color": "255;255;255",
+            "bold": false,
+            "italic": false,
+            "underlined": false,
+            "textAlignment": "left",
+            "verticalTextAlignment": "top",
+            "isOutlineEnabled": false,
+            "outlineThickness": 0,
+            "outlineColor": "0;0;0",
+            "isShadowEnabled": false,
+            "shadowColor": "0;0;0",
+            "shadowOpacity": 127,
+            "shadowDistance": 4,
+            "shadowAngle": 45,
+            "shadowBlurRadius": 2,
+            "lineHeight": 0
           }
         }
       ],
       "events": [
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "TextObject::String"
-              },
-              "parameters": [
-                "TitleText",
-                "=",
-                "Sky Jumper"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "TextObject::String"
-              },
-              "parameters": [
-                "StartLabel",
-                "=",
-                "Start"
-              ]
-            }
-          ],
-          "events": []
-        },
         {
           "disabled": false,
           "folded": false,
@@ -931,10 +998,75 @@
             }
           ],
           "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "TextObject::String"
+              },
+              "parameters": [
+                "StartLabel",
+                "=",
+                "Play Now"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "TextObject::String"
+              },
+              "parameters": [
+                "TitleText",
+                "=",
+                "Moon Runner"
+              ]
+            }
+          ],
+          "events": []
         }
       ],
       "layers": [
         {
+          "ambientLightColorB": 0,
+          "ambientLightColorG": 8042920,
+          "ambientLightColorR": 16,
+          "followBaseLayerCamera": false,
+          "isLightingLayer": false,
           "name": "",
           "visibility": true,
           "cameras": [
@@ -954,10 +1086,32 @@
       ],
       "variables": [],
       "objectsGroups": [],
-      "behaviorsSharedData": []
+      "behaviorsSharedData": [],
+      "usedResources": []
     },
     {
+      "b": 0,
+      "disableInputWhenNotFocused": true,
+      "mangledName": "GameOver",
       "name": "GameOver",
+      "r": 0,
+      "standardSortMethod": true,
+      "stopSoundsOnStartup": true,
+      "title": "",
+      "v": 0,
+      "uiSettings": {
+        "grid": false,
+        "gridType": "rectangular",
+        "gridWidth": 32,
+        "gridHeight": 32,
+        "gridOffsetX": 0,
+        "gridOffsetY": 0,
+        "gridColor": 10401023,
+        "gridAlpha": 0.8,
+        "snap": false,
+        "zoomFactor": 0.546875,
+        "windowMask": false
+      },
       "instances": [
         {
           "angle": 0,
@@ -995,30 +1149,58 @@
       "objects": [
         {
           "name": "GameOverText",
-          "type": "Text",
+          "type": "TextObject::Text",
           "variables": [],
           "behaviors": [],
-          "string": "GameOverText",
-          "font": "",
-          "characterSize": 40,
-          "color": {
-            "r": 255,
-            "g": 255,
-            "b": 255
+          "effects": [],
+          "content": {
+            "text": "GameOverText",
+            "font": "",
+            "characterSize": 40,
+            "color": "255;255;255",
+            "bold": false,
+            "italic": false,
+            "underlined": false,
+            "textAlignment": "left",
+            "verticalTextAlignment": "top",
+            "isOutlineEnabled": false,
+            "outlineThickness": 0,
+            "outlineColor": "0;0;0",
+            "isShadowEnabled": false,
+            "shadowColor": "0;0;0",
+            "shadowOpacity": 127,
+            "shadowDistance": 4,
+            "shadowAngle": 45,
+            "shadowBlurRadius": 2,
+            "lineHeight": 0
           }
         },
         {
           "name": "RestartHint",
-          "type": "Text",
+          "type": "TextObject::Text",
           "variables": [],
           "behaviors": [],
-          "string": "RestartHint",
-          "font": "",
-          "characterSize": 22,
-          "color": {
-            "r": 255,
-            "g": 255,
-            "b": 255
+          "effects": [],
+          "content": {
+            "text": "RestartHint",
+            "font": "",
+            "characterSize": 22,
+            "color": "255;255;255",
+            "bold": false,
+            "italic": false,
+            "underlined": false,
+            "textAlignment": "left",
+            "verticalTextAlignment": "top",
+            "isOutlineEnabled": false,
+            "outlineThickness": 0,
+            "outlineColor": "0;0;0",
+            "isShadowEnabled": false,
+            "shadowColor": "0;0;0",
+            "shadowOpacity": 127,
+            "shadowDistance": 4,
+            "shadowAngle": 45,
+            "shadowBlurRadius": 2,
+            "lineHeight": 0
           }
         }
       ],
@@ -1031,10 +1213,11 @@
             {
               "type": {
                 "inverted": false,
-                "value": "DepartScene"
+                "value": "KeyPressed"
               },
               "parameters": [
-                ""
+                "",
+                "Space"
               ]
             }
           ],
@@ -1042,12 +1225,10 @@
             {
               "type": {
                 "inverted": false,
-                "value": "TextObject::String"
+                "value": "ChangeScene"
               },
               "parameters": [
-                "GameOverText",
-                "=",
-                "Game Over"
+                "Game"
               ]
             }
           ],
@@ -1077,7 +1258,7 @@
               "parameters": [
                 "RestartHint",
                 "=",
-                "Press Space"
+                "Space To Retry"
               ]
             }
           ],
@@ -1091,11 +1272,10 @@
             {
               "type": {
                 "inverted": false,
-                "value": "KeyPressed"
+                "value": "DepartScene"
               },
               "parameters": [
-                "",
-                "Space"
+                ""
               ]
             }
           ],
@@ -1103,10 +1283,12 @@
             {
               "type": {
                 "inverted": false,
-                "value": "ChangeScene"
+                "value": "TextObject::String"
               },
               "parameters": [
-                "Start"
+                "GameOverText",
+                "=",
+                "Try Again"
               ]
             }
           ],
@@ -1115,6 +1297,11 @@
       ],
       "layers": [
         {
+          "ambientLightColorB": 0,
+          "ambientLightColorG": 8042920,
+          "ambientLightColorR": 16,
+          "followBaseLayerCamera": false,
+          "isLightingLayer": false,
           "name": "",
           "visibility": true,
           "cameras": [
@@ -1134,10 +1321,13 @@
       ],
       "variables": [],
       "objectsGroups": [],
-      "behaviorsSharedData": []
+      "behaviorsSharedData": [],
+      "usedResources": []
     }
   ],
+  "usedResources": [],
   "externalEvents": [],
+  "eventsFunctionsExtensions": [],
   "externalLayouts": [],
   "externalSourceFiles": []
 }

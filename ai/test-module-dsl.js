@@ -1,6 +1,7 @@
 var childProcess = require('child_process');
 var fs = require('fs');
 var path = require('path');
+var htmlExporter = require('./html-exporter');
 
 var ROOT = path.join(__dirname, '..');
 var PIPELINE = path.join(__dirname, 'pipeline.js');
@@ -8,6 +9,7 @@ var OUTPUT_DIR = path.join(ROOT, 'output');
 var WORLD_PATH = path.join(OUTPUT_DIR, 'project-world.json');
 var LEDGER_PATH = path.join(OUTPUT_DIR, 'execution-ledger.json');
 var NETWORK_PATH = path.join(OUTPUT_DIR, 'network-manifest.json');
+var HTML_EXPORT_MANIFEST_PATH = path.join(OUTPUT_DIR, 'html-export-manifest.json');
 var PROJECT_PATH = path.join(OUTPUT_DIR, 'project.json');
 var PENDING_APPROVAL_PATH = path.join(OUTPUT_DIR, 'pending-approval.json');
 var TIMEOUT_MS = 15000;
@@ -43,6 +45,58 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function assertRuntimeProjectShape(project) {
+  assert(Array.isArray(project.eventsFunctionsExtensions), 'project should include eventsFunctionsExtensions array for GDJS RuntimeGame');
+  assert(Array.isArray(project.usedResources), 'project should include usedResources array for GDJS ResourceLoader');
+  assert(project.properties && project.properties.loadingScreen, 'project should include loadingScreen settings for GDJS loading');
+  assert(project.properties && project.properties.watermark, 'project should include watermark settings for GDJS startup');
+  assert(Array.isArray(project.properties.extensionProperties), 'project should include extensionProperties array');
+  project.layouts.forEach(function(scene) {
+    assert(Array.isArray(scene.usedResources), 'scene should include usedResources array: ' + scene.name);
+    assert(scene.uiSettings, 'scene should include uiSettings: ' + scene.name);
+    scene.layers.forEach(function(layer) {
+      assert(layer.followBaseLayerCamera === false, 'layer should include followBaseLayerCamera: ' + scene.name);
+      assert(layer.isLightingLayer === false, 'layer should include isLightingLayer: ' + scene.name);
+    });
+    scene.objects.forEach(function(object) {
+      assert(Array.isArray(object.effects), 'object should include effects array: ' + scene.name + '/' + object.name);
+    });
+  });
+}
+
+function assertRuntimeExecutionFiles(project) {
+  assert(fs.existsSync(path.join(OUTPUT_DIR, 'data.js')), 'runtime should emit data.js');
+  var generatedCode = '';
+  project.layouts.forEach(function(scene, index) {
+    var codePath = path.join(OUTPUT_DIR, 'code' + index + '.js');
+    assert(fs.existsSync(codePath), 'runtime should emit scene code: code' + index + '.js');
+    var code = fs.readFileSync(codePath, 'utf8');
+    generatedCode += code + '\n';
+    assert(code.indexOf('gdjs.' + scene.mangledName + 'Code.func') >= 0, 'scene code should export GDJS func for ' + scene.name);
+  });
+  var hasMouseObjectEvent = JSON.stringify(project.layouts.map(function(scene) {
+    return scene.events || [];
+  })).indexOf('SourisSurObjet') >= 0;
+  if (hasMouseObjectEvent) {
+    assert(generatedCode.indexOf('primaryPointerAction()') >= 0, 'mouse object events should use frame-safe pointer action helper');
+    assert(generatedCode.indexOf('object.cursorOnObject()') >= 0, 'mouse object events should use GDJS cursorOnObject coordinates');
+  }
+  assert(fs.existsSync(HTML_EXPORT_MANIFEST_PATH), 'runtime should emit html-export-manifest.json');
+  var manifest = readJson(HTML_EXPORT_MANIFEST_PATH);
+  assert(manifest.target === 'html', 'html export manifest should target html');
+  assert(manifest.scriptFiles.indexOf('runtimegame.js') >= 0, 'html manifest should include official GDJS runtime');
+  assert(manifest.scriptFiles.indexOf('Extensions/PrimitiveDrawing/shapepainterruntimeobject.js') >= 0, 'html manifest should include ShapePainter runtime when used');
+  assert(manifest.scriptFiles.indexOf('Extensions/PlatformBehavior/platformerobjectruntimebehavior.js') >= 0, 'html manifest should include platformer behavior runtime when used');
+  assert(fs.existsSync(path.join(OUTPUT_DIR, 'index.html')), 'runtime should emit index.html');
+  var html = fs.readFileSync(path.join(OUTPUT_DIR, 'game.html'), 'utf8');
+  assert(html.indexOf('data.js') >= 0, 'game.html should load data.js');
+  assert(html.indexOf('code0.js') >= 0, 'game.html should load generated scene code');
+  assert(!fs.existsSync(path.join(OUTPUT_DIR, 'Cordova')), 'html export should not copy Cordova runtime');
+  assert(!fs.existsSync(path.join(OUTPUT_DIR, 'Electron')), 'html export should not copy Electron runtime');
+  assert(!fs.existsSync(path.join(OUTPUT_DIR, 'types')), 'html export should not copy TypeScript declaration bundle');
+  assert(!fs.existsSync(path.join(OUTPUT_DIR, 'debugger-client')), 'html export should not copy debugger client by default');
+}
+
 function testModuleCompileCacheHit() {
   runPipeline(['--module-dsl-file', fixture('module-platformer.dsl'), 'module-platformer'], 'module platformer first run');
   var firstWorld = readJson(WORLD_PATH);
@@ -71,11 +125,17 @@ function testShellComposition() {
   var world = readJson(WORLD_PATH);
   var project = readJson(PROJECT_PATH);
   var network = readJson(NETWORK_PATH);
+  assertRuntimeProjectShape(project);
+  assertRuntimeExecutionFiles(project);
   assert(world.modules.length === 3, 'world should record three installed modules');
   assert(project.firstLayout === 'Start', 'start screen should become first scene');
   assert(project.layouts.some(function(scene) { return scene.name === 'GameOver'; }), 'game over scene should exist');
   var game = project.layouts.find(function(scene) { return scene.name === 'Game'; });
   assert(JSON.stringify(game.events).indexOf('ChangeScene') >= 0, 'platformer fail rule should link to game over scene');
+  var ground = game.objects.find(function(object) { return object.name === 'Ground'; });
+  var platform = game.objects.find(function(object) { return object.name === 'Platform'; });
+  assert(ground.behaviors.some(function(behavior) { return behavior.type === 'PlatformBehavior::PlatformBehavior'; }), 'Ground should be registered as a platform obstacle');
+  assert(platform.behaviors.some(function(behavior) { return behavior.type === 'PlatformBehavior::PlatformBehavior'; }), 'Platform should be registered as a platform obstacle');
   assert(network.modules.length === 3, 'network manifest should record three modules');
 }
 
@@ -260,8 +320,32 @@ function testApprovalGateContinueConfigure() {
   assert(ledger.runs[1].batchLabel === 'approved_configure', 'approved configure should use pending batch label');
 }
 
+function testHtmlManifestKeeps3DOwnedByRuntime() {
+  var project = {
+    objects: [],
+    layouts: [{
+      name: 'Game3D',
+      objects: [{
+        name: 'Cube',
+        type: 'Cube3D::Cube3DObject',
+        behaviors: [{ name: 'Base3D', type: 'Scene3D::Base3DBehavior' }],
+      }],
+    }],
+  };
+  var manifest = htmlExporter.buildHtmlExportManifest(project, {
+    codeFiles: [{ fileName: 'code0.js' }],
+  });
+  assert(manifest.target === 'html', 'manifest should remain an HTML export');
+  assert(manifest.scriptFiles.indexOf('pixi-renderers/three.js') >= 0, '3D project should include Three runtime');
+  assert(manifest.scriptFiles.indexOf('Extensions/3D/Scene3DTools.js') >= 0, '3D project should include Scene3D tools');
+  assert(manifest.scriptFiles.indexOf('Extensions/3D/Cube3DRuntimeObject.js') >= 0, '3D cube should include cube runtime');
+  assert(manifest.assetFiles.indexOf('pixi-renderers/draco/gltf/draco_decoder.wasm') >= 0, '3D project should copy Draco wasm asset');
+}
+
 function main() {
   console.log('[ModuleDslTest] timeout guard ' + TIMEOUT_MS + 'ms per pipeline run');
+  testHtmlManifestKeeps3DOwnedByRuntime();
+  console.log('[ModuleDslTest] html 3D manifest passed');
   testModuleCompileCacheHit();
   console.log('[ModuleDslTest] cache hit passed');
   testShellComposition();

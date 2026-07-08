@@ -8,10 +8,10 @@
       "baseWorldVersion": null,
       "targetWorldVersion": 1,
       "baseSemanticHash": null,
-      "targetSemanticHash": "fefeae89",
+      "targetSemanticHash": "627a560e",
       "summary": {
-        "total": 39,
-        "completed": 39,
+        "total": 41,
+        "completed": 41,
         "failed": 0,
         "nextAction": "done"
       },
@@ -53,163 +53,231 @@
         },
         {
           "commandId": "apply_line_008",
+          "command": "add behavior type=PlatformBehavior::PlatformBehavior to=Ground scene=Game",
+          "message": "behavior: Platform"
+        },
+        {
+          "commandId": "apply_line_009",
+          "command": "add behavior type=PlatformBehavior::PlatformBehavior to=Platform scene=Game",
+          "message": "behavior: Platform"
+        },
+        {
+          "commandId": "apply_line_010",
           "command": "set variable name=Score value=0 type=Number scope=global",
           "message": "var: Score=0"
         },
         {
-          "commandId": "apply_line_009",
+          "commandId": "apply_line_011",
           "command": "place object=Player at=100,400 scene=Game",
           "message": "placed Player x1"
         },
         {
-          "commandId": "apply_line_010",
+          "commandId": "apply_line_012",
           "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
           "message": "placed Ground x1"
         },
         {
-          "commandId": "apply_line_011",
+          "commandId": "apply_line_013",
           "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "apply_line_012",
+          "commandId": "apply_line_014",
           "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "apply_line_013",
+          "commandId": "apply_line_015",
           "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
           "message": "placed Platform x1"
         },
         {
-          "commandId": "apply_line_014",
+          "commandId": "apply_line_016",
           "command": "place object=Coin at=240,430 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "apply_line_015",
+          "commandId": "apply_line_017",
           "command": "place object=Coin at=440,350 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "apply_line_016",
+          "commandId": "apply_line_018",
           "command": "place object=Coin at=640,270 scene=Game",
           "message": "placed Coin x1"
         },
         {
-          "commandId": "apply_line_017",
+          "commandId": "apply_line_019",
           "command": "place object=Enemy at=550,400 scene=Game",
           "message": "placed Enemy x1"
         },
         {
-          "commandId": "apply_line_018",
+          "commandId": "apply_line_020",
           "command": "on start -> Score=0 scene=Game",
           "message": "event: on start -> Score=0"
         },
         {
-          "commandId": "apply_line_019",
+          "commandId": "apply_line_021",
           "command": "on collision Player Coin -> destroy Coin, score+1 scene=Game",
           "message": "event: on collision Player Coin -> destroy Coin, score+1"
         },
         {
-          "commandId": "apply_line_020",
+          "commandId": "apply_line_022",
           "command": "on collision Player Enemy -> scene GameOver scene=Game",
           "message": "event: on collision Player Enemy -> scene GameOver"
         },
         {
-          "commandId": "apply_line_021",
+          "commandId": "apply_line_023",
           "command": "on key Space -> jump Player 500 scene=Game",
           "message": "event: on key Space -> jump Player 500"
         },
         {
-          "commandId": "apply_line_022",
+          "commandId": "apply_line_024",
           "command": "create scene name=Start first=true",
           "message": "scene: Start"
         },
         {
-          "commandId": "apply_line_023",
+          "commandId": "apply_line_025",
           "command": "create object name=TitleText type=Text size=36 scene=Start",
           "message": "object: TitleText (Text)"
         },
         {
-          "commandId": "apply_line_024",
+          "commandId": "apply_line_026",
           "command": "create object name=StartButton type=ShapePainter shape=rectangle color=#2ECC71 width=180 height=56 scene=Start",
           "message": "shape: StartButton (rectangle #2ECC71)"
         },
         {
-          "commandId": "apply_line_025",
+          "commandId": "apply_line_027",
           "command": "create object name=StartLabel type=Text size=24 scene=Start",
           "message": "object: StartLabel (Text)"
         },
         {
-          "commandId": "apply_line_026",
+          "commandId": "apply_line_028",
           "command": "place object=TitleText at=280,170 scene=Start",
           "message": "placed TitleText x1"
         },
         {
-          "commandId": "apply_line_027",
+          "commandId": "apply_line_029",
           "command": "place object=StartButton at=310,300 scene=Start width=180 height=56",
           "message": "placed StartButton x1"
         },
         {
-          "commandId": "apply_line_028",
+          "commandId": "apply_line_030",
           "command": "place object=StartLabel at=360,315 scene=Start",
           "message": "placed StartLabel x1"
         },
         {
-          "commandId": "apply_line_029",
-          "command": "on start -> text TitleText Sky Jumper scene=Start",
-          "message": "event: on start -> text TitleText Sky Jumper"
+          "commandId": "apply_line_031",
+          "command": "on start -> text TitleText Sky Runner scene=Start",
+          "message": "event: on start -> text TitleText Sky Runner"
         },
         {
-          "commandId": "apply_line_030",
+          "commandId": "apply_line_032",
           "command": "on start -> text StartLabel Start scene=Start",
           "message": "event: on start -> text StartLabel Start"
         },
         {
-          "commandId": "apply_line_031",
+          "commandId": "apply_line_033",
           "command": "on mouse StartButton -> scene Game scene=Start",
           "message": "event: on mouse StartButton -> scene Game"
         },
         {
-          "commandId": "apply_line_032",
+          "commandId": "apply_line_034",
           "command": "create scene name=GameOver first=false",
           "message": "scene: GameOver"
         },
         {
-          "commandId": "apply_line_033",
+          "commandId": "apply_line_035",
           "command": "create object name=GameOverText type=Text size=40 scene=GameOver",
           "message": "object: GameOverText (Text)"
         },
         {
-          "commandId": "apply_line_034",
+          "commandId": "apply_line_036",
           "command": "create object name=RestartHint type=Text size=22 scene=GameOver",
           "message": "object: RestartHint (Text)"
         },
         {
-          "commandId": "apply_line_035",
+          "commandId": "apply_line_037",
           "command": "place object=GameOverText at=285,240 scene=GameOver",
           "message": "placed GameOverText x1"
         },
         {
-          "commandId": "apply_line_036",
+          "commandId": "apply_line_038",
           "command": "place object=RestartHint at=330,310 scene=GameOver",
           "message": "placed RestartHint x1"
         },
         {
-          "commandId": "apply_line_037",
+          "commandId": "apply_line_039",
           "command": "on start -> text GameOverText Game Over scene=GameOver",
           "message": "event: on start -> text GameOverText Game Over"
         },
         {
-          "commandId": "apply_line_038",
+          "commandId": "apply_line_040",
           "command": "on start -> text RestartHint Press Space scene=GameOver",
           "message": "event: on start -> text RestartHint Press Space"
         },
         {
-          "commandId": "apply_line_039",
-          "command": "on key Space -> scene Start scene=GameOver",
-          "message": "event: on key Space -> scene Start"
+          "commandId": "apply_line_041",
+          "command": "on key Space -> scene Game scene=GameOver",
+          "message": "event: on key Space -> scene Game"
+        }
+      ],
+      "failed": []
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run_002",
+      "batchLabel": "approved_configure",
+      "baseWorldVersion": 1,
+      "targetWorldVersion": 2,
+      "baseSemanticHash": "627a560e",
+      "targetSemanticHash": "21c04400",
+      "summary": {
+        "total": 8,
+        "completed": 8,
+        "failed": 0,
+        "nextAction": "done"
+      },
+      "completed": [
+        {
+          "commandId": "approved_configure_line_001",
+          "command": "remove event #1 scene=Start",
+          "message": "removed event #1"
+        },
+        {
+          "commandId": "approved_configure_line_002",
+          "command": "on start -> text StartLabel Play Now scene=Start",
+          "message": "event: on start -> text StartLabel Play Now"
+        },
+        {
+          "commandId": "approved_configure_line_003",
+          "command": "remove event #0 scene=Start",
+          "message": "removed event #0"
+        },
+        {
+          "commandId": "approved_configure_line_004",
+          "command": "on start -> text TitleText Moon Runner scene=Start",
+          "message": "event: on start -> text TitleText Moon Runner"
+        },
+        {
+          "commandId": "approved_configure_line_005",
+          "command": "remove event #1 scene=GameOver",
+          "message": "removed event #1"
+        },
+        {
+          "commandId": "approved_configure_line_006",
+          "command": "on start -> text RestartHint Space To Retry scene=GameOver",
+          "message": "event: on start -> text RestartHint Space To Retry"
+        },
+        {
+          "commandId": "approved_configure_line_007",
+          "command": "remove event #0 scene=GameOver",
+          "message": "removed event #0"
+        },
+        {
+          "commandId": "approved_configure_line_008",
+          "command": "on start -> text GameOverText Try Again scene=GameOver",
+          "message": "event: on start -> text GameOverText Try Again"
         }
       ],
       "failed": []

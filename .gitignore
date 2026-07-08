@@ -4,3 +4,26 @@ dist/
 *.log
 .env
 .DS_Store
+
+# Local official GDJS runtime cache. Rebuild with `npm run runtime:prepare`.
+engine/gdevelop-runtime/
+
+# Generated HTML runtime output. Rebuild with `node ai/pipeline.js ...`.
+output/*.js
+output/*.map
+output/index.html
+output/html-export-manifest.json
+output/libs/
+output/events-tools/
+output/splash/
+output/pixi-renderers/
+output/howler-sound-manager/
+output/fontfaceobserver-font-manager/
+output/object-capabilities/
+output/Extensions/
+output/Cordova/
+output/Electron/
+output/FacebookInstantGames/
+output/InGameEditor/
+output/debugger-client/
+output/types/

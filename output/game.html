@@ -1,25 +1,105 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><style>body{margin:0;padding:0;background:#000;overflow:hidden}#canvas{margin:0 auto;display:block}</style></head><body>
-<script src="pixi.min.js"></script>
-<script src="howler.min.js"></script>
-<script src="gdjs-runtime.js"></script>
-<script src="extensions/Sprite.js"></script>
-<script src="extensions/TextObject.js"></script>
-<script src="extensions/PlatformBehavior.js"></script>
-<script src="extensions/TiledSpriteObject.js"></script>
-<script>
-// Load project data
-var projectData = {"firstLayout":"Start","gdVersion":{"build":96,"major":4,"minor":0,"revision":89},"properties":{"name":"GameCastle","author":"GameCastle","windowWidth":800,"windowHeight":600,"maxFPS":60,"minFPS":10,"extensions":[{"name":"BuiltinObject"},{"name":"Sprite"},{"name":"BuiltinCommonInstructions"},{"name":"TextObject"},{"name":"PlatformBehavior"},{"name":"BuiltinVariables"},{"name":"BuiltinTime"},{"name":"BuiltinMouse"},{"name":"BuiltinKeyboard"},{"name":"BuiltinCamera"},{"name":"BuiltinScene"},{"name":"PrimitiveDrawing"}],"currentPlatform":"GDevelop JS platform"},"resources":{"resources":[],"resourceFolders":[]},"objects":[],"objectsGroups":[],"variables":[{"name":"Score","type":3,"value":"0"}],"layouts":[{"name":"Game","instances":[{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"Player","x":100,"y":400,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-c7a61a47206018f5"},{"angle":0,"customSize":false,"height":20,"width":800,"layer":"","locked":false,"name":"Ground","x":400,"y":590,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-ce5389274a11c52d"},{"angle":0,"customSize":false,"height":16,"width":100,"layer":"","locked":false,"name":"Platform","x":200,"y":460,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-75bd337fe2766d93"},{"angle":0,"customSize":false,"height":16,"width":100,"layer":"","locked":false,"name":"Platform","x":400,"y":380,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-e767a4fe2aeccdaf"},{"angle":0,"customSize":false,"height":16,"width":100,"layer":"","locked":false,"name":"Platform","x":600,"y":300,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-c82d7923ce8ac818"},{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"Coin","x":240,"y":430,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-a0808002f02aae40"},{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"Coin","x":440,"y":350,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-8f8879a2dd154fba"},{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"Coin","x":640,"y":270,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-6d4907fb1a9f261a"},{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"Enemy","x":550,"y":400,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-3bac08e131281128"}],"objects":[{"name":"Player","type":"PrimitiveDrawing::ShapePainter","variables":[],"behaviors":[{"name":"Platformer","type":"PlatformBehavior::PlatformerObjectBehavior"}],"absoluteCoordinates":false,"coordinatesOrigin":{"x":0,"y":0},"fillColor":{"r":68,"g":136,"b":255},"fillOpacity":255,"outlineColor":{"r":0,"g":0,"b":0},"outlineOpacity":255,"outlineSize":0,"thickness":2,"useGradient":false,"gradientType":"linear","gradientColor1":{"r":255,"g":255,"b":255},"gradientColor2":{"r":200,"g":200,"b":200},"gradientX1":0,"gradientY1":0,"gradientX2":100,"gradientY2":100,"shapeType":"rectangle","points":[{"x":0,"y":0},{"x":32,"y":0},{"x":32,"y":48},{"x":0,"y":48}],"centerPosition":{"x":16,"y":24},"customCenter":true,"automaticCenter":false},{"name":"Ground","type":"PrimitiveDrawing::ShapePainter","variables":[],"behaviors":[],"absoluteCoordinates":false,"coordinatesOrigin":{"x":0,"y":0},"fillColor":{"r":139,"g":69,"b":19},"fillOpacity":255,"outlineColor":{"r":0,"g":0,"b":0},"outlineOpacity":255,"outlineSize":0,"thickness":2,"useGradient":false,"gradientType":"linear","gradientColor1":{"r":255,"g":255,"b":255},"gradientColor2":{"r":200,"g":200,"b":200},"gradientX1":0,"gradientY1":0,"gradientX2":100,"gradientY2":100,"shapeType":"rectangle","points":[{"x":0,"y":0},{"x":800,"y":0},{"x":800,"y":20},{"x":0,"y":20}],"centerPosition":{"x":400,"y":10},"customCenter":true,"automaticCenter":false},{"name":"Platform","type":"PrimitiveDrawing::ShapePainter","variables":[],"behaviors":[],"absoluteCoordinates":false,"coordinatesOrigin":{"x":0,"y":0},"fillColor":{"r":139,"g":69,"b":19},"fillOpacity":255,"outlineColor":{"r":0,"g":0,"b":0},"outlineOpacity":255,"outlineSize":0,"thickness":2,"useGradient":false,"gradientType":"linear","gradientColor1":{"r":255,"g":255,"b":255},"gradientColor2":{"r":200,"g":200,"b":200},"gradientX1":0,"gradientY1":0,"gradientX2":100,"gradientY2":100,"shapeType":"rectangle","points":[{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":16},{"x":0,"y":16}],"centerPosition":{"x":50,"y":8},"customCenter":true,"automaticCenter":false},{"name":"Coin","type":"PrimitiveDrawing::ShapePainter","variables":[],"behaviors":[],"absoluteCoordinates":false,"coordinatesOrigin":{"x":0,"y":0},"fillColor":{"r":255,"g":215,"b":0},"fillOpacity":255,"outlineColor":{"r":0,"g":0,"b":0},"outlineOpacity":255,"outlineSize":0,"thickness":2,"useGradient":false,"gradientType":"linear","gradientColor1":{"r":255,"g":255,"b":255},"gradientColor2":{"r":200,"g":200,"b":200},"gradientX1":0,"gradientY1":0,"gradientX2":100,"gradientY2":100,"shapeType":"circle","points":[],"centerPosition":{"x":8,"y":8},"customCenter":true,"automaticCenter":false},{"name":"Enemy","type":"PrimitiveDrawing::ShapePainter","variables":[],"behaviors":[],"absoluteCoordinates":false,"coordinatesOrigin":{"x":0,"y":0},"fillColor":{"r":220,"g":50,"b":50},"fillOpacity":255,"outlineColor":{"r":0,"g":0,"b":0},"outlineOpacity":255,"outlineSize":0,"thickness":2,"useGradient":false,"gradientType":"linear","gradientColor1":{"r":255,"g":255,"b":255},"gradientColor2":{"r":200,"g":200,"b":200},"gradientX1":0,"gradientY1":0,"gradientX2":100,"gradientY2":100,"shapeType":"rectangle","points":[{"x":0,"y":0},{"x":32,"y":0},{"x":32,"y":32},{"x":0,"y":32}],"centerPosition":{"x":16,"y":16},"customCenter":true,"automaticCenter":false}],"events":[{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"DepartScene"},"parameters":[""]}],"actions":[{"type":{"inverted":false,"value":"SetVariable"},"parameters":["Score","=","0"]}],"events":[]},{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"CollisionNP"},"parameters":["Player","Coin",""]}],"actions":[{"type":{"inverted":false,"value":"Delete"},"parameters":["Coin",""]},{"type":{"inverted":false,"value":"SetVariable"},"parameters":["Score","+","1"]}],"events":[]},{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"CollisionNP"},"parameters":["Player","Enemy",""]}],"actions":[{"type":{"inverted":false,"value":"ChangeScene"},"parameters":["GameOver"]}],"events":[]},{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"KeyPressed"},"parameters":["","Space"]}],"actions":[{"type":{"inverted":false,"value":"AddForce"},"parameters":["Player","Up","500"]}],"events":[]}],"layers":[{"name":"","visibility":true,"cameras":[{"defaultSize":true,"defaultViewport":true,"height":0,"width":0,"viewportBottom":1,"viewportLeft":0,"viewportRight":1,"viewportTop":0}],"effects":[]}],"variables":[],"objectsGroups":[],"behaviorsSharedData":[]},{"name":"Start","instances":[{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"TitleText","x":280,"y":170,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-236dbf49c4e34c9b"},{"angle":0,"customSize":false,"height":56,"width":180,"layer":"","locked":false,"name":"StartButton","x":310,"y":300,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-4d2cae27b130bfda"},{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"StartLabel","x":360,"y":315,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-9ebce518b8f573ca"}],"objects":[{"name":"TitleText","type":"Text","variables":[],"behaviors":[],"string":"TitleText","font":"","characterSize":36,"color":{"r":255,"g":255,"b":255}},{"name":"StartButton","type":"PrimitiveDrawing::ShapePainter","variables":[],"behaviors":[],"absoluteCoordinates":false,"coordinatesOrigin":{"x":0,"y":0},"fillColor":{"r":46,"g":204,"b":113},"fillOpacity":255,"outlineColor":{"r":0,"g":0,"b":0},"outlineOpacity":255,"outlineSize":0,"thickness":2,"useGradient":false,"gradientType":"linear","gradientColor1":{"r":255,"g":255,"b":255},"gradientColor2":{"r":200,"g":200,"b":200},"gradientX1":0,"gradientY1":0,"gradientX2":100,"gradientY2":100,"shapeType":"rectangle","points":[{"x":0,"y":0},{"x":180,"y":0},{"x":180,"y":56},{"x":0,"y":56}],"centerPosition":{"x":90,"y":28},"customCenter":true,"automaticCenter":false},{"name":"StartLabel","type":"Text","variables":[],"behaviors":[],"string":"StartLabel","font":"","characterSize":24,"color":{"r":255,"g":255,"b":255}}],"events":[{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"DepartScene"},"parameters":[""]}],"actions":[{"type":{"inverted":false,"value":"TextObject::String"},"parameters":["TitleText","=","Sky Jumper"]}],"events":[]},{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"DepartScene"},"parameters":[""]}],"actions":[{"type":{"inverted":false,"value":"TextObject::String"},"parameters":["StartLabel","=","Start"]}],"events":[]},{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"SourisSurObjet"},"parameters":["LeftButton","","StartButton"]}],"actions":[{"type":{"inverted":false,"value":"ChangeScene"},"parameters":["Game"]}],"events":[]}],"layers":[{"name":"","visibility":true,"cameras":[{"defaultSize":true,"defaultViewport":true,"height":0,"width":0,"viewportBottom":1,"viewportLeft":0,"viewportRight":1,"viewportTop":0}],"effects":[]}],"variables":[],"objectsGroups":[],"behaviorsSharedData":[]},{"name":"GameOver","instances":[{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"GameOverText","x":285,"y":240,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-92895047ad7486c6"},{"angle":0,"customSize":false,"height":0,"width":0,"layer":"","locked":false,"name":"RestartHint","x":330,"y":310,"zOrder":1,"numberProperties":[],"stringProperties":[],"initialVariables":[],"persistentUuid":"gc-01f85388610431c2"}],"objects":[{"name":"GameOverText","type":"Text","variables":[],"behaviors":[],"string":"GameOverText","font":"","characterSize":40,"color":{"r":255,"g":255,"b":255}},{"name":"RestartHint","type":"Text","variables":[],"behaviors":[],"string":"RestartHint","font":"","characterSize":22,"color":{"r":255,"g":255,"b":255}}],"events":[{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"DepartScene"},"parameters":[""]}],"actions":[{"type":{"inverted":false,"value":"TextObject::String"},"parameters":["GameOverText","=","Game Over"]}],"events":[]},{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"DepartScene"},"parameters":[""]}],"actions":[{"type":{"inverted":false,"value":"TextObject::String"},"parameters":["RestartHint","=","Press Space"]}],"events":[]},{"disabled":false,"folded":false,"type":"BuiltinCommonInstructions::Standard","conditions":[{"type":{"inverted":false,"value":"KeyPressed"},"parameters":["","Space"]}],"actions":[{"type":{"inverted":false,"value":"ChangeScene"},"parameters":["Start"]}],"events":[]}],"layers":[{"name":"","visibility":true,"cameras":[{"defaultSize":true,"defaultViewport":true,"height":0,"width":0,"viewportBottom":1,"viewportLeft":0,"viewportRight":1,"viewportTop":0}],"effects":[]}],"variables":[],"objectsGroups":[],"behaviorsSharedData":[]}],"externalEvents":[],"externalLayouts":[],"externalSourceFiles":[]};
-
-// Patch pixi.js legacy API for GDevelop compatibility
-if (typeof PIXI !== "undefined") {
-  if (!PIXI.scaleModes) PIXI.scaleModes = { DEFAULT: 1, NEAREST: 0, LINEAR: 1 };
-  if (!PIXI.SCALE_MODES) PIXI.SCALE_MODS = { NEAREST: 0, LINEAR: 1 };
-}
-
-var game = new gdjs.RuntimeGame(projectData, {});
-game.getRenderer().createStandardCanvas(document.body);
-game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);
-game.loadAllAssets(function() { game.startGameLoop(); });
-</script>
-</body></html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="theme-color" content="#000000"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <style>
+    body { margin: 0; padding: 0; background-color: #000000; overflow: hidden; }
+    canvas { margin-left: auto; margin-right: auto; display: block; }
+  </style>
+<script src="libs/jshashtable.js" crossorigin="anonymous"></script>
+<script src="logger.js" crossorigin="anonymous"></script>
+<script src="gd.js" crossorigin="anonymous"></script>
+<script src="libs/rbush.js" crossorigin="anonymous"></script>
+<script src="AsyncTasksManager.js" crossorigin="anonymous"></script>
+<script src="inputmanager.js" crossorigin="anonymous"></script>
+<script src="jsonmanager.js" crossorigin="anonymous"></script>
+<script src="Model3DManager.js" crossorigin="anonymous"></script>
+<script src="ResourceLoader.js" crossorigin="anonymous"></script>
+<script src="ResourceCache.js" crossorigin="anonymous"></script>
+<script src="timemanager.js" crossorigin="anonymous"></script>
+<script src="polygon.js" crossorigin="anonymous"></script>
+<script src="runtimeobject.js" crossorigin="anonymous"></script>
+<script src="profiler.js" crossorigin="anonymous"></script>
+<script src="RuntimeInstanceContainer.js" crossorigin="anonymous"></script>
+<script src="runtimescene.js" crossorigin="anonymous"></script>
+<script src="scenestack.js" crossorigin="anonymous"></script>
+<script src="force.js" crossorigin="anonymous"></script>
+<script src="RuntimeLayer.js" crossorigin="anonymous"></script>
+<script src="layer.js" crossorigin="anonymous"></script>
+<script src="RuntimeCustomObjectLayer.js" crossorigin="anonymous"></script>
+<script src="timer.js" crossorigin="anonymous"></script>
+<script src="runtimewatermark.js" crossorigin="anonymous"></script>
+<script src="runtimegame.js" crossorigin="anonymous"></script>
+<script src="variable.js" crossorigin="anonymous"></script>
+<script src="variablescontainer.js" crossorigin="anonymous"></script>
+<script src="oncetriggers.js" crossorigin="anonymous"></script>
+<script src="runtimebehavior.js" crossorigin="anonymous"></script>
+<script src="SpriteAnimator.js" crossorigin="anonymous"></script>
+<script src="spriteruntimeobject.js" crossorigin="anonymous"></script>
+<script src="affinetransformation.js" crossorigin="anonymous"></script>
+<script src="CustomRuntimeObjectInstanceContainer.js" crossorigin="anonymous"></script>
+<script src="CustomRuntimeObject.js" crossorigin="anonymous"></script>
+<script src="CustomRuntimeObject2D.js" crossorigin="anonymous"></script>
+<script src="indexeddb.js" crossorigin="anonymous"></script>
+<script src="events-tools/commontools.js" crossorigin="anonymous"></script>
+<script src="events-tools/variabletools.js" crossorigin="anonymous"></script>
+<script src="events-tools/runtimescenetools.js" crossorigin="anonymous"></script>
+<script src="events-tools/inputtools.js" crossorigin="anonymous"></script>
+<script src="events-tools/objecttools.js" crossorigin="anonymous"></script>
+<script src="events-tools/cameratools.js" crossorigin="anonymous"></script>
+<script src="events-tools/soundtools.js" crossorigin="anonymous"></script>
+<script src="events-tools/storagetools.js" crossorigin="anonymous"></script>
+<script src="events-tools/stringtools.js" crossorigin="anonymous"></script>
+<script src="events-tools/windowtools.js" crossorigin="anonymous"></script>
+<script src="events-tools/networktools.js" crossorigin="anonymous"></script>
+<script src="splash/gd-logo-light.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/pixi.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/pixi-filters-tools.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/runtimegame-pixi-renderer.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/runtimescene-pixi-renderer.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/layer-pixi-renderer.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/pixi-image-manager.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/pixi-bitmapfont-manager.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/spriteruntimeobject-pixi-renderer.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/CustomRuntimeObject2DPixiRenderer.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/DebuggerPixiRenderer.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/loadingscreen-pixi-renderer.js" crossorigin="anonymous"></script>
+<script src="pixi-renderers/pixi-effects-manager.js" crossorigin="anonymous"></script>
+<script src="howler-sound-manager/howler.min.js" crossorigin="anonymous"></script>
+<script src="howler-sound-manager/howler-sound-manager.js" crossorigin="anonymous"></script>
+<script src="fontfaceobserver-font-manager/fontfaceobserver.js" crossorigin="anonymous"></script>
+<script src="fontfaceobserver-font-manager/fontfaceobserver-font-manager.js" crossorigin="anonymous"></script>
+<script src="object-capabilities/AnimatableBehavior.js" crossorigin="anonymous"></script>
+<script src="object-capabilities/EffectBehavior.js" crossorigin="anonymous"></script>
+<script src="object-capabilities/FlippableBehavior.js" crossorigin="anonymous"></script>
+<script src="object-capabilities/OpacityBehavior.js" crossorigin="anonymous"></script>
+<script src="object-capabilities/ResizableBehavior.js" crossorigin="anonymous"></script>
+<script src="object-capabilities/ScalableBehavior.js" crossorigin="anonymous"></script>
+<script src="object-capabilities/TextContainerBehavior.js" crossorigin="anonymous"></script>
+<script src="Extensions/PrimitiveDrawing/pixi-graphics-extras/graphics-extras.min.js" crossorigin="anonymous"></script>
+<script src="Extensions/PrimitiveDrawing/shapepainterruntimeobject-pixi-renderer.js" crossorigin="anonymous"></script>
+<script src="Extensions/PrimitiveDrawing/shapepainterruntimeobject.js" crossorigin="anonymous"></script>
+<script src="Extensions/PlatformBehavior/platformerobjectruntimebehavior.js" crossorigin="anonymous"></script>
+<script src="Extensions/PlatformBehavior/platformruntimebehavior.js" crossorigin="anonymous"></script>
+<script src="Extensions/TextObject/textruntimeobject-pixi-renderer.js" crossorigin="anonymous"></script>
+<script src="Extensions/TextObject/textruntimeobject.js" crossorigin="anonymous"></script>
+<script src="code0.js" crossorigin="anonymous"></script>
+<script src="code1.js" crossorigin="anonymous"></script>
+<script src="code2.js" crossorigin="anonymous"></script>
+<script src="data.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <script>
+    (function() {
+      var game = new gdjs.RuntimeGame(gdjs.projectData, gdjs.runtimeGameOptions || {});
+      game.getRenderer().createStandardCanvas(document.body);
+      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);
+      game.loadAllAssets(function() {
+        game.startGameLoop();
+      });
+    })();
+  </script>
+</body>
+</html>

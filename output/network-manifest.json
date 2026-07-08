@@ -5,7 +5,7 @@
       "id": "core.platformer",
       "category": "core",
       "syncPolicy": {
-        "sync": "local",
+        "sync": "lockstep",
         "authority": "host",
         "tickRate": 20,
         "seed": "auto"
@@ -42,8 +42,8 @@
       "id": "shell.game_over_screen",
       "category": "shell",
       "syncPolicy": {
-        "sync": "local",
-        "authority": "client",
+        "sync": "event",
+        "authority": "host",
         "tickRate": 0,
         "seed": "auto"
       },
