@@ -19,6 +19,7 @@ class Room {
     this._maxPlayers = Math.max(0, Number(options.maxPlayers) || 0);
 
     // Event validator: fn(name, payload, fromPlayerId) → error | null
+    this._inputDelay = Number(options.inputDelay) || 2;
     this._eventValidator = options.eventValidator || null;
 
     // Authoritative game loop (activated when tickRate > 0)
@@ -91,6 +92,8 @@ class Room {
   }
 
   // ── Authoritative Game Loop ────────────────────────────────────────────
+
+  get inputDelay() { return this._inputDelay; }
 
   get hasGameLoop() { return !!this._gameLoop; }
 

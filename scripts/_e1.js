@@ -1,2 +1,0 @@
-var fs=require("fs");var p="C:/Ai/GameCastle/ai/network-runtime/game-bridge.js";var s=fs.readFileSync(p,"utf8");var adapter="var GameCastleRuntimeAdapter = require("./runtime-adapter.js").GameCastleRuntimeAdapter;
-";if(s.indexOf("GameCastleRuntimeAdapter")<0){s=s.replace("function GameCastleNetworkBridge(config)",adapter+"function GameCastleNetworkBridge(config)");fs.writeFileSync(p,s,"utf8");console.log("e1: adapter require added")}else{console.log("e1: skip, already present")}

@@ -49,11 +49,14 @@ class GameLoop {
     // Process every tick that has at least one player's input.
     // We process sequentially — tick 0, then 1, then 2...
     // A tick is ready if ANY input exists for it.
-    while (this._running) {
+    var maxTicksPerCall = 10;
+    var processed = 0;
+    while (this._running && processed < maxTicksPerCall) {
       const tick = this._processTick;
       const entries = this._buffer[tick];
 
-      if (!entries) break; // No inputs at all for this tick yet
+      if (!entries) break;
+      processed++; // Count processed ticks (rate-limiting guard: max 10 per call)
 
       if (this._onTick) this._onTick(entries, tick);
       delete this._buffer[tick];

@@ -57,6 +57,7 @@ const handlers = {
     const room = new Room(roomId, {
       tickRate: msg.tickRate || 0,
       maxPlayers: msg.maxPlayers || 0,
+      inputDelay: msg.inputDelay || 2,
       eventValidator: msg.eventValidator || null,
     });
     room.setSender(send);
@@ -136,14 +137,18 @@ const handlers = {
   save_state(ctx, msg) {
     const room = ctx.rooms.get(ctx.roomId);
     if (!room) return { type: "error", error: "not in a room" };
-    room.saveState(msg.key, msg.data);
+    // Scope key by player for multi-tenant isolation
+    const scopedKey = ctx.playerId ? ctx.playerId + "::" + msg.key : msg.key;
+    room.saveState(scopedKey, msg.data);
     return { type: "state_saved", key: msg.key };
   },
 
   load_state(ctx, msg) {
     const room = ctx.rooms.get(ctx.roomId);
     if (!room) return { type: "error", error: "not in a room" };
-    const value = room.loadState(msg.key);
+    // Isolate state by playerId: key is scoped as playerId::key
+    const scopedKey = msg.playerId ? msg.playerId + "::" + msg.key : msg.key;
+    const value = room.loadState(scopedKey);
     if (value === undefined) {
       return { type: "error", error: "state not found: " + msg.key };
     }

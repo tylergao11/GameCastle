@@ -51,13 +51,22 @@
 - [x] 定义六种互动模式（轮流事件、主机照镜子、帧同步对战、服务器裁判、各自为战、异步社交）
 - [x] 四种同步模型（event / snapshot / lockstep-input / server-authoritative）+ 两种扩展（peer-event / async-state）
 - [x] 所有同步基于 GDJS getNetworkSyncData/updateFromNetworkSyncData，不依赖 GDevelop 云服务
-- [x] engine/network/ 骨架代码（transport / session / channel / bridge / index）
+- [x] ~~engine/network/ 骨架代码~~ → 已删除，统一为 ai/network-runtime/ + RuntimeAdapter 架构
 - [x] 6 个 network 模板，llm1Card 反向声明互动模式
 - [x] server/signaling-server.js 信令服务器（单端口、所有游戏共用）
 - [x] game template 和 network template 两轴独立选择
 - [ ] llm1Card 接入 LLM1 卡片流（network 模板暂未喂给 LLM1）
 - [ ] 联机编译接入 html-exporter
-- [ ] 端到端联机测试
+- [x] 联机冒烟测试 + lockstep 测试通过（server/test-smoke.js, server/test-lockstep.js）
+
+## Phase 5.5: 联机架构 v2（2026-07）
+
+- [x] RuntimeAdapter 隔离 GDevelop（公开 API 注入，不碰私有字段）
+- [x] game-bridge.js 重写：Bridge 接管帧推进，固定 tick + 正确输入顺序
+- [x] 删除 engine/network/ 旧层，消除双栈不兼容
+- [x] server load_state 按 playerId 隔离
+- [x] GameLoop 处理上限防死循环
+- [x] Room 支持 inputDelay 透传
 
 ## Phase 6: 质量门
 

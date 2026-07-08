@@ -50,8 +50,6 @@ function GameCastleRuntimeAdapter(game) {
 
 GameCastleRuntimeAdapter.prototype.init = function (config) {
   config = config || {};
-  var self = this;
-
   this._sceneStack = this._game.getSceneStack();
   this._inputManager = this._game.getInputManager();
   this._renderer = this._game.getRenderer();
@@ -66,18 +64,6 @@ GameCastleRuntimeAdapter.prototype.init = function (config) {
     var keyName = map[inputName];
     if (keyName) this._inputMap[inputName] = keyName;
   }
-
-  // Public API: get first scene name.
-  // Uses getSceneAndExtensionsData() without args to get first scene.
-  var sceneData = this._game.getSceneAndExtensionsData();
-  var firstScene = sceneData ? sceneData.sceneData.name : null;
-  if (!firstScene) {
-    return Promise.reject(new Error("No scene found in game data"));
-  }
-
-  return this._game.loadAllAssets(function () {
-    self._sceneStack.replace({ sceneName: firstScene, clear: true });
-  });
 };
 
 GameCastleRuntimeAdapter.prototype.startLoop = function (tickFn) {

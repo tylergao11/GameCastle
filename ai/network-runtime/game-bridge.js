@@ -1,231 +1,352 @@
-// GameCastle Game-Network Bridge
+// GameCastle Game-Network Bridge (v3)
+// Bridge OWNS the game tick and network lifecycle. GDevelop is an executor.
+// Tick order: capture -> send -> wait remote -> inject -> step -> endFrame
 //
-// Architecture: replaces GDevelop's startGameLoop with a network-aware loop.
-// Does NOT monkey-patch InputManager. Does NOT run two competing loops.
+// Lifecycle:
+//   bridge.attach(game)                          — wire up GDevelop adapter
+//   bridge.start()                               — begin local game loop
+//   bridge.host()  or  bridge.join(roomId)        — transition to network mode
 //
-//   Local mode:  game.startGameLoop() → GDevelop rAF (unchanged)
-//   Network mode: bridge.start() → setInterval(20hz) → game.step(now)
-//                 each tick: inject remote → step → capture local → send
+// codegen.js MUST NOT register transport.on() handlers — the bridge owns them all.
 
-var GC_INPUT_KEY_MAP = {
-  move_up: "ArrowUp",
-  move_down: "ArrowDown",
-  move_left: "ArrowLeft",
-  move_right: "ArrowRight",
-  shoot: "Space",
-  jump: "Space",
-  start: "Enter",
-  restart: "KeyR",
-};
-
-var GC_KEY_TO_INPUT = {};
-Object.keys(GC_INPUT_KEY_MAP).forEach(function (inputName) {
-  GC_KEY_TO_INPUT[GC_INPUT_KEY_MAP[inputName]] = inputName;
-});
-
-var GameCastleRuntimeAdapter = require('./runtime-adapter.js').GameCastleRuntimeAdapter;
+var INPUT_SYNC_CHANNEL = "gc:input";
 
 function GameCastleNetworkBridge(config) {
-  this._config = config || {};
+  config = config || {};
   this._declaredInputs = config.inputs || [];
-  this._declaredState = config.state || [];
   this._tickRate = config.tickRate || 20;
   this._sync = config.sync || "local";
   this._transport = config.transport || null;
-  this._strategy = config.strategy || null;
-
+  this._adapter = null;
   this._game = null;
   this._inputManager = null;
-  this._tickInterval = null;
   this._tick = 0;
+  this._readyTick = 0;
   this._running = false;
-
-  // Remote input buffer: tick → inputs
+  this._localInputs = {};
   this._remoteInputs = {};
   this._orderedInputs = {};
-  this._localInputs = {};
   this._peerId = null;
   this._inputDelay = config.inputDelay || 2;
+  this._autoHost = config.autoHost || false;
+  this._configRoomId = config.roomId || null;
   this._listeners = {};
-  this._remoteInputBuffer = {};
-  this._lastRemoteTick = -1;
+  this._handlersSetup = false;
 }
 
-GameCastleNetworkBridge.prototype.on = function (event, handler) {
+// ── Event bus ──────────────────────────────────────────────────────────────
+
+GameCastleNetworkBridge.prototype.on = function(event, handler) {
   if (!this._listeners[event]) this._listeners[event] = [];
   this._listeners[event].push(handler);
 };
-
-GameCastleNetworkBridge.prototype._emit = function (event) {
+GameCastleNetworkBridge.prototype._emit = function(event) {
   var args = Array.prototype.slice.call(arguments, 1);
-  var handlers = this._listeners[event];
-  if (handlers) for (var i = 0; i < handlers.length; i++) handlers[i].apply(null, args);
+  var h = this._listeners[event];
+  if (h) for (var i = 0; i < h.length; i++) h[i].apply(null, args);
 };
 
-// ── Public API ──────────────────────────────────────────────────────────
+// ── Attach GDevelop game ───────────────────────────────────────────────────
 
-GameCastleNetworkBridge.prototype.attach = function (game) {
+GameCastleNetworkBridge.prototype.attach = function(game) {
   this._game = game;
   this._adapter = new GameCastleRuntimeAdapter(game);
+  this._adapter.init({ inputs: this._declaredInputs, tickRate: this._tickRate });
   this._inputManager = game.getInputManager();
-
-  console.log("[GC:Bridge] Attached. sync=" + this._sync +
-    " tickRate=" + this._tickRate +
-    " inputs=" + this._declaredInputs.join(","));
-
-  if (this._sync === "local") {
-    // Local mode: let GDevelop run normally
-    this._startLocalLoop();
-    return true;
-  }
-
-  // Network mode: bridge controls the game loop
-  this._autoConnect();
-  return true; // true = bridge will step the game, DO NOT call startGameLoop()
 };
 
-// Called when room is joined — starts the network game loop
-GameCastleNetworkBridge.prototype._onJoined = function () {
+// ── Start (local loop) ─────────────────────────────────────────────────────
+// Always starts a local game loop. If autoHost is set, immediately calls
+// host() to transition to network mode (fire-and-forget).
+
+GameCastleNetworkBridge.prototype.start = function() {
+  var sd = this._game.getSceneAndExtensionsData();
+  var name = sd ? sd.sceneData.name : null;
+  if (name) this._game.getSceneStack().replace({ sceneName: name, clear: true });
+
+  // Always begin in local loop — host()/join() transitions to network later.
+  this._startLocalLoop();
+
+  // Auto-host: connect and create room immediately (backward-compatible default).
+  if (this._sync !== "local" && this._autoHost) {
+    this.host().catch(function(err) {
+      console.warn("[GC:Bridge] autoHost failed, staying in local mode:", err.message);
+    });
+  }
+};
+
+// ── Local loop ─────────────────────────────────────────────────────────────
+
+GameCastleNetworkBridge.prototype._startLocalLoop = function() {
   if (this._running) return;
   this._running = true;
-  this._lastFrameTime = 0;
-
   var self = this;
-  this._adapter.startLoop(function (dtMs, tickNum) {
-    return self._onNetworkTick(dtMs, tickNum);
+  this._adapter.startLoop(function(dt, tick) {
+    self._adapter.stepSimulation(dt);
+    self._adapter.endFrame();
+    self._emit("tick", tick, self._adapter.captureInputs());
+    self._tick = tick;
   });
-
-  console.log("[GC:Bridge] Network loop started at " + this._tickRate + "hz via adapter");
 };
 
+// ── Host / Join ───────────────────────────────────────────────────────────
+// These are the ONLY entry points for network mode. They connect the
+// transport, register event handlers (once), and transition to the
+// network game loop on successful room entry.
 
-GameCastleNetworkBridge.prototype._onNetworkTick = function (dtMs, tickNum) {
-  var tick = tickNum;
+GameCastleNetworkBridge.prototype.host = function() {
+  if (!this._transport) return Promise.reject(new Error("No transport configured"));
+  var self = this;
+  return this._transport.connect().then(function() {
+    self._setupTransportHandlers();
+    return new Promise(function(resolve, reject) {
+      self._transport.on("room_created", function(rid) {
+        self._transport.joinRoom(rid);
+      });
+      self._transport.on("joined", function(roomId, playerId) {
+        self._switchToNetworkLoop();
+        resolve({ roomId: roomId, playerId: playerId });
+      });
+      self._transport.on("error", function(err) {
+        reject(new Error(err));
+      });
+      self._transport.createRoom({
+        tickRate: self._tickRate,
+        inputDelay: self._inputDelay
+      });
+    });
+  }).catch(function(err) {
+    console.warn("[GC:Bridge] host() failed, staying in local mode:", err.message);
+    throw err;
+  });
+};
+
+GameCastleNetworkBridge.prototype.join = function(roomId) {
+  if (!this._transport) return Promise.reject(new Error("No transport configured"));
+  if (!roomId) return Promise.reject(new Error("roomId is required"));
+  var self = this;
+  return this._transport.connect().then(function() {
+    self._setupTransportHandlers();
+    return new Promise(function(resolve, reject) {
+      self._transport.on("joined", function(rid, playerId) {
+        self._switchToNetworkLoop();
+        resolve({ roomId: rid, playerId: playerId });
+      });
+      self._transport.on("error", function(err) {
+        reject(new Error(err));
+      });
+      self._transport.joinRoom(roomId);
+    });
+  }).catch(function(err) {
+    console.warn("[GC:Bridge] join() failed, staying in local mode:", err.message);
+    throw err;
+  });
+};
+
+// ── Transport event handlers ───────────────────────────────────────────────
+// Registered ONCE, idempotent. This is the ONLY place transport.on() is called.
+// codegen.js must NOT add its own handlers.
+
+GameCastleNetworkBridge.prototype._setupTransportHandlers = function() {
+  if (this._handlersSetup) return;
+  this._handlersSetup = true;
+  var self = this;
+
+  // Lockstep: direct peer-to-peer input relay
+  self._transport.on("game_input", function(from, tick, inputs) {
+    self._remoteInputs[tick] = inputs;
+    self._tryAdvanceLockstep();
+  });
+
+  // Server-authoritative: server-ordered inputs
+  self._transport.on("game_state", function(tick, ordered) {
+    self._orderedInputs[tick] = ordered;
+    self._tryAdvanceAuthority();
+  });
+
+  // Lockstep: sync-channel input relay with redundancy
+  self._transport.on("sync", function(from, ch, data) {
+    if (ch === INPUT_SYNC_CHANNEL && data) {
+      self._remoteInputs[data.tick] = data.inputs;
+      // Apply redundancy: fill gaps for any missing previous ticks
+      if (data.prev) {
+        for (var pt in data.prev) {
+          if (data.prev.hasOwnProperty(pt) && self._remoteInputs[pt] === undefined) {
+            self._remoteInputs[pt] = data.prev[pt];
+          }
+        }
+      }
+      self._tryAdvanceLockstep();
+    }
+  });
+
+  // Track peer presence
+  self._transport.on("player_joined", function(pid) {
+    if (pid !== self._transport.getPlayerId()) {
+      self._peerId = pid;
+      self._emit("peer_joined", pid);
+    }
+  });
+  self._transport.on("player_left", function(pid) {
+    if (pid === self._peerId) {
+      self._peerId = null;
+      self._emit("peer_left", pid);
+    }
+  });
+};
+
+// ── Switch from local to network loop ─────────────────────────────────────
+
+GameCastleNetworkBridge.prototype._switchToNetworkLoop = function() {
+  // Stop the local adapter loop
+  if (this._adapter) this._adapter.stopLoop();
+  this._running = false;
+  // Reset tick state for network mode
+  this._tick = 0;
+  this._readyTick = 0;
+  this._localInputs = {};
+  this._remoteInputs = {};
+  this._orderedInputs = {};
+  // Start network loop
+  this._startNetworkLoop();
+};
+
+// ── Network game loop ─────────────────────────────────────────────────────
+
+GameCastleNetworkBridge.prototype._startNetworkLoop = function() {
+  if (this._running) return;
+  this._running = true;
+  var self = this;
+  this._adapter.startLoop(function(dt, tick) { return self._onNetworkTick(dt, tick); });
+};
+
+GameCastleNetworkBridge.prototype._onNetworkTick = function(dt, tick) {
   switch (this._sync) {
-    case "lockstep":
-    case "lockstep-input":
-      return this._tickLockstep(dtMs, tick);
-    case "server-authoritative":
-      return this._tickAuthority(dtMs, tick);
-    default:
-      this._adapter.stepSimulation(dtMs);
-      this._adapter.endFrame();
-      return true;
+    case "lockstep": case "lockstep-input": return this._tickLockstep(dt, tick);
+    case "server-authoritative": return this._tickAuthority(dt, tick);
+    default: this._adapter.stepSimulation(dt); this._adapter.endFrame(); return true;
   }
 };
 
-GameCastleNetworkBridge.prototype._tickLockstep = function (dtMs, tick) {
-  var localInputs = this._adapter.captureInputs();
-  this._localInputs[tick] = localInputs;
-  this._sendInputs(tick, localInputs);
+// ── Lockstep tick ─────────────────────────────────────────────────────────
+// 1. Capture local keyboard state snapshot
+// 2. Send to peer (with redundancy: last 5 ticks)
+// 3. Increment local tick counter
+// 4. Try to advance ready ticks (when both local + remote inputs available)
+
+GameCastleNetworkBridge.prototype._tickLockstep = function(dt, tick) {
+  this._localInputs[tick] = this._adapter.captureInputs();
+  if (this._peerId) {
+    // Send current inputs + last 5 ticks as redundancy (UDP-style loss recovery)
+    var redundancy = {};
+    for (var i = 1; i <= 5; i++) {
+      var pt = tick - i;
+      if (this._localInputs[pt] !== undefined) redundancy[pt] = this._localInputs[pt];
+    }
+    this._transport.sync(INPUT_SYNC_CHANNEL, { tick: tick, inputs: this._localInputs[tick], prev: redundancy });
+  }
   this._tick = tick;
   this._tryAdvanceLockstep();
   return true;
 };
 
-GameCastleNetworkBridge.prototype._tryAdvanceLockstep = function () {
-  var self = this;
+// ── Lockstep advance ──────────────────────────────────────────────────────
+// Advances ready ticks where both local AND remote inputs are available.
+// CRITICAL: merges local + remote inputs into one combined frame and injects
+// them all programmatically — does NOT depend on live keyboard state for
+// deterministic replay across peers.
+
+GameCastleNetworkBridge.prototype._tryAdvanceLockstep = function() {
+  // Effective delay: 0 when solo (no network jitter), configured delay with peer
+  var effectiveDelay = this._peerId ? this._inputDelay : 0;
   while (this._running) {
     var tick = this._readyTick;
-    if (tick + this._inputDelay >= this._tick) break;
+    if (tick + effectiveDelay >= this._tick) break;
     if (this._localInputs[tick] === undefined) break;
-    if (this._remoteInputs[tick] === undefined) break;
-    this._adapter.injectInputs(this._remoteInputs[tick], false);
+    if (this._peerId && this._remoteInputs[tick] === undefined) break;
+
+    // Merge local + remote inputs for deterministic replay
+    var combined = {};
+    var localFrame = this._localInputs[tick] || {};
+    var remoteFrame = this._remoteInputs[tick] || {};
+    for (var k in localFrame) { if (localFrame.hasOwnProperty(k)) combined[k] = localFrame[k]; }
+    for (var k2 in remoteFrame) { if (remoteFrame.hasOwnProperty(k2)) combined[k2] = remoteFrame[k2]; }
+
+    // Inject combined frame (isLocal=false → force programmatic injection)
+    this._adapter.injectInputs(combined, false);
     this._adapter.stepSimulation(1000 / this._tickRate);
     this._adapter.endFrame();
-    this._emit("advance", tick, this._localInputs[tick], this._remoteInputs[tick]);
+
+    this._emit("advance", tick, combined, remoteFrame || null);
+
+    // Housekeeping
     delete this._localInputs[tick - 60];
     delete this._remoteInputs[tick - 60];
     this._readyTick++;
   }
 };
 
-GameCastleNetworkBridge.prototype._tickAuthority = function (dtMs, tick) {
-  var localInputs = this._adapter.captureInputs();
-  if (this._transport && this._transport.sendGameInput) {
-    this._transport.sendGameInput(tick, localInputs);
-  }
+// ── Authority tick ────────────────────────────────────────────────────────
+
+GameCastleNetworkBridge.prototype._tickAuthority = function(dt, tick) {
+  var inputs = this._adapter.captureInputs();
+  if (this._transport && this._transport.sendGameInput) this._transport.sendGameInput(tick, inputs);
   this._tick = tick;
   this._tryAdvanceAuthority();
   return true;
 };
 
-GameCastleNetworkBridge.prototype._tryAdvanceAuthority = function () {
+// ── Authority advance ─────────────────────────────────────────────────────
+
+GameCastleNetworkBridge.prototype._tryAdvanceAuthority = function() {
+  var effectiveDelay = this._peerId ? this._inputDelay : 0;
   while (this._running) {
     var tick = this._readyTick;
-    if (tick + this._inputDelay >= this._tick) break;
+    if (tick + effectiveDelay >= this._tick) break;
     var ordered = this._orderedInputs[tick];
     if (!ordered) break;
-    var self = this;
-    var myId = this._transport ? this._transport.getPlayerId() : null;
-    Object.keys(ordered).forEach(function (pid) {
-      if (pid !== myId) self._adapter.injectInputs(ordered[pid], false);
+    var self = this, myId = this._transport ? this._transport.getPlayerId() : null;
+
+    // Merge ALL player inputs into one combined frame
+    var combined = {};
+    Object.keys(ordered).forEach(function(pid) {
+      var frame = ordered[pid] || {};
+      for (var k in frame) { if (frame.hasOwnProperty(k)) combined[k] = frame[k]; }
     });
-    this._adapter.stepSimulation(this._adapter.getTickIntervalMs());
-    this._adapter.endFrame();
-    this._emit("advance", tick, ordered);
-    delete this._orderedInputs[tick - 60];
-    this._readyTick++;
-  }
-};
 
-// ── Network tick ────────────────────────────────────────────────────────
-
-GameCastleNetworkBridge.prototype._readInputs = function () {
-  return this._adapter ? this._adapter.captureInputs() : {};
-};
-
-// ── Sending ─────────────────────────────────────────────────────────────
-
-GameCastleNetworkBridge.prototype._sendInputs = function (tick, inputs) {
-  if (this._transport && this._transport.sendGameInput) {
-    this._transport.sendGameInput(tick, inputs);
-  }
-};
-
-// ── Auto-connect (testing) ──────────────────────────────────────────────
-
-GameCastleNetworkBridge.prototype._startLocalLoop = function () {
-  if (this._running) return;
-  this._running = true;
-  var self = this;
-  this._adapter.startLoop(function (dtMs, tickNum) {
-    self._adapter.stepSimulation(dtMs);
+    // Inject combined (isLocal=false → deterministic programmatic injection)
+    self._adapter.injectInputs(combined, false);
+    self._adapter.stepSimulation(1000 / self._tickRate);
     self._adapter.endFrame();
-    self._emit("tick", tickNum, self._adapter.captureInputs());
-    self._tick = tickNum;
-  });
-};
 
-GameCastleNetworkBridge.prototype._autoConnect = function () {
-  var self = this;
-  if (!this._transport) return;
-
-  this._transport.connect().then(function () {
-    console.log("[GC:Bridge] Connected");
-    self._transport.on("room_created", function (roomId) {
-      self._transport.joinRoom(roomId);
-    });
-    self._transport.on("joined", function () {
-      self._onJoined();
-    });
-    self._transport.createRoom({ tickRate: self._tickRate });
-  }).catch(function (err) {
-    console.warn("[GC:Bridge] Offline — " + err.message);
-  });
-};
-
-// ── Teardown ────────────────────────────────────────────────────────────
-
-GameCastleNetworkBridge.prototype.detach = function () {
-  if (this._tickInterval) {
-    clearInterval(this._tickInterval);
-    this._tickInterval = null;
+    self._emit("advance", tick, ordered);
+    delete self._orderedInputs[tick - 60];
+    self._readyTick++;
   }
-  this._running = false;
 };
 
-// Export
+// ── Queries ───────────────────────────────────────────────────────────────
+
+GameCastleNetworkBridge.prototype.getRoomId   = function() { return this._transport ? this._transport.getRoomId() : null; };
+GameCastleNetworkBridge.prototype.getPlayerId = function() { return this._transport ? this._transport.getPlayerId() : null; };
+GameCastleNetworkBridge.prototype.setRoomId   = function(id) { this._configRoomId = id; };
+GameCastleNetworkBridge.prototype.getAdapter  = function() { return this._adapter; };
+GameCastleNetworkBridge.prototype.getTick     = function() { return this._tick; };
+GameCastleNetworkBridge.prototype.getReadyTick= function() { return this._readyTick; };
+GameCastleNetworkBridge.prototype.isRunning   = function() { return this._running; };
+GameCastleNetworkBridge.prototype.getPeerId   = function() { return this._peerId; };
+GameCastleNetworkBridge.prototype.getSyncMode = function() { return this._sync; };
+
+// ── Teardown ──────────────────────────────────────────────────────────────
+
+GameCastleNetworkBridge.prototype.detach = function() {
+  this._running = false;
+  if (this._adapter) this._adapter.stopLoop();
+  if (this._transport) { this._transport.leaveRoom(); this._transport.close(); }
+};
+
+// ── Module export (Node.js only — stripped by codegen for browser) ─────────
+
 if (typeof module !== "undefined") {
-  module.exports = { GameCastleNetworkBridge: GameCastleNetworkBridge, GC_INPUT_KEY_MAP: GC_INPUT_KEY_MAP };
+  module.exports = { GameCastleNetworkBridge: GameCastleNetworkBridge, INPUT_SYNC_CHANNEL: INPUT_SYNC_CHANNEL };
 }

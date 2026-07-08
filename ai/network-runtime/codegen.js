@@ -39,7 +39,8 @@ function generate(manifest, options) {
   var entries = resolveStrategies(modules);
   var sourceFiles = collectSourceFiles(entries);
 
-  // Add game-bridge source (always included for network-aware games)
+  // Add runtime-adapter + game-bridge (always for network-aware games)
+  sourceFiles.push("runtime-adapter.js");
   sourceFiles.push("game-bridge.js");
 
   // 2. Read and clean source files
@@ -113,6 +114,8 @@ function readSourceFile(filename) {
     filePath = path.join(RUNTIME_DIR, filename);
   } else if (filename === "game-bridge.js") {
     filePath = path.join(RUNTIME_DIR, filename);
+  } else if (filename === "runtime-adapter.js") {
+    filePath = path.join(RUNTIME_DIR, filename);
   } else {
     filePath = path.join(STRATEGIES_DIR, filename);
   }
@@ -123,13 +126,40 @@ function readSourceFile(filename) {
 
   var src = fs.readFileSync(filePath, "utf8");
 
-  // Strip Node.js module export for browser bundle
-  src = src.replace(
-    /\nif\s*\(typeof\s+module\s*!==\s*"undefined"\)\s*\{\s*module\.exports\s*=\s*\w+;?\s*\}\s*\n?/g,
-    "\n"
-  );
+  // Strip ALL Node.js module-export blocks for browser bundle.
+  // Uses line-based removal to handle nested braces in object literals
+  // (e.g. module.exports = { Key: Value, Key2: Value2 };)
+  // that regex-based approaches can't handle reliably.
+  var lines = src.split("\n");
+  var result = [];
+  var inModuleExport = false;
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    // Detect the opening of an if-guarded module.exports block
+    if (/^\s*if\s*\(\s*typeof\s+module\s*!==\s*"undefined"\s*\)/.test(line)) {
+      // Single-line: if (...) { module.exports = X; }
+      if (/\}\s*$/.test(line)) continue;
+      inModuleExport = true;
+      continue;
+    }
+    if (inModuleExport) {
+      // Skip the module.exports = ... line
+      if (/module\.exports\s*=/.test(line)) continue;
+      // Skip the closing brace of the if block
+      if (/^\s*\}\s*$/.test(line)) { inModuleExport = false; continue; }
+      continue;
+    }
+    result.push(line);
+  }
+  // Also strip bare module.exports lines (without if guard)
+  var finalLines = [];
+  for (var j = 0; j < result.length; j++) {
+    if (!/^\s*module\.exports\s*=/.test(result[j])) {
+      finalLines.push(result[j]);
+    }
+  }
 
-  return src;
+  return finalLines.join("\n");
 }
 
 // ── Wiring generation ────────────────────────────────────────────��───────
@@ -204,39 +234,24 @@ function generateWiring(signalingUrl, entries, modules) {
   lines.push("  }");
   lines.push("");
 
-  // host(): connect → create room → join → return { roomId, playerId }
+  // host(): delegates to bridge.host() — bridge owns connect → createRoom → network loop
   lines.push("  function host() {");
-  lines.push("    return transport.connect().then(function () {");
-  lines.push("      return new Promise(function (resolve, reject) {");
-  lines.push("        transport.on(\"room_created\", function (roomId) {");
-  lines.push("          transport.joinRoom(roomId);");
-  lines.push("        });");
-  lines.push("        transport.on(\"joined\", function (roomId, playerId) {");
-  lines.push("          startAllStrategies();");
-  lines.push("          resolve({ roomId: roomId, playerId: playerId });");
-  lines.push("        });");
-  lines.push("        transport.on(\"error\", function (err) {");
-  lines.push("          reject(new Error(err));");
-  lines.push("        });");
-  lines.push("        transport.createRoom();");
-  lines.push("      });");
+  lines.push("    var b = window.GameCastleNetwork && window.GameCastleNetwork.bridge;");
+  lines.push("    if (!b) return Promise.reject(new Error('Bridge not initialized'));");
+  lines.push("    return b.host().then(function (result) {");
+  lines.push("      startAllStrategies();");
+  lines.push("      return result;");
   lines.push("    });");
   lines.push("  }");
   lines.push("");
 
-  // join(roomId): connect → join room → return { roomId, playerId }
+  // join(roomId): delegates to bridge.join() — bridge owns connect → joinRoom → network loop
   lines.push("  function join(roomId) {");
-  lines.push("    return transport.connect().then(function () {");
-  lines.push("      return new Promise(function (resolve, reject) {");
-  lines.push("        transport.on(\"joined\", function (rid, playerId) {");
-  lines.push("          startAllStrategies();");
-  lines.push("          resolve({ roomId: rid, playerId: playerId });");
-  lines.push("        });");
-  lines.push("        transport.on(\"error\", function (err) {");
-  lines.push("          reject(new Error(err));");
-  lines.push("        });");
-  lines.push("        transport.joinRoom(roomId);");
-  lines.push("      });");
+  lines.push("    var b = window.GameCastleNetwork && window.GameCastleNetwork.bridge;");
+  lines.push("    if (!b) return Promise.reject(new Error('Bridge not initialized'));");
+  lines.push("    return b.join(roomId).then(function (result) {");
+  lines.push("      startAllStrategies();");
+  lines.push("      return result;");
   lines.push("    });");
   lines.push("  }");
   lines.push("");
@@ -339,22 +354,15 @@ function buildBridgeInitLines(entries, modules) {
     "      tickRate: " + (config.tickRate || 20) + ",",
     "      sync: " + JSON.stringify(primary.sync) + ",",
     "      transport: transport,",
+    "      autoHost: true,",
     "      strategy: " + primary.varName + ",",
     "    };",
     "",
     "    var bridge = new GameCastleNetworkBridge(bridgeConfig);",
     "",
-    "    // Forward remote game_input from other players to bridge",
-    "    transport.on('game_input', function (from, tick, inputs) {",
-    "      bridge.receiveRemoteInputs(tick, inputs);",
-    "    });",
-    "",
-    "    // Handle sync channel for lockstep input relay",
-    "    transport.on('sync', function (from, channel, data) {",
-    "      if (channel === 'input' && data && data.tick !== undefined) {",
-    "        bridge.receiveRemoteInputs(data.tick, data.inputs);",
-    "      }",
-    "    });",
+    "    // Bridge registers ALL transport.on() handlers internally",
+    "    // via _setupTransportHandlers() (called from host()/join()).",
+    "    // Do NOT add duplicate handlers here — the bridge owns everything.",
     "",
     "    // Expose bridge on global API",
     "    window.GameCastleNetwork.bridge = bridge;",

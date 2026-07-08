@@ -214,6 +214,7 @@ GameCastleTransport.prototype.sendGameInput = function (tick, inputs) {
 GameCastleTransport.prototype.getRoomId = function () { return this._roomId; };
 GameCastleTransport.prototype.getPlayerId = function () { return this._playerId; };
 GameCastleTransport.prototype.getPlayers = function () { return this._players; };
+GameCastleTransport.prototype.getPlayerCount = function () { return this._players.size; };
 GameCastleTransport.prototype.isInRoom = function () { return !!this._roomId; };
 GameCastleTransport.prototype.isConnected = function () { return this._ws && this._ws.readyState === 1; };
 
