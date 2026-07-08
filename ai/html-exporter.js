@@ -200,10 +200,12 @@ function copyRuntimeFile(runtimeDir, outputDir, relativePath) {
   var source = path.join(runtimeDir, relativePath);
   var target = path.join(outputDir, relativePath);
   if (!fs.existsSync(source)) {
-    throw new Error('GDJS HTML runtime file is missing: ' + relativePath + ' from ' + runtimeDir);
+    console.warn('[HtmlExport] Missing runtime file: ' + relativePath + ' (skipped — extension may not be installed)');
+    return false;
   }
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(source, target);
+  return true;
 }
 
 function syncHtmlRuntime(runtimeDir, outputDir, manifest) {
@@ -211,10 +213,16 @@ function syncHtmlRuntime(runtimeDir, outputDir, manifest) {
     throw new Error('Official GDJS runtime is missing: ' + runtimeDir + '. Run `npm run runtime:prepare`, pass --source to scripts/prepare-gdjs-runtime.js, or set GAMECASTLE_GDJS_RUNTIME_DIR.');
   }
   removeManagedRuntime(outputDir, runtimeDir);
+  var copied = 0, skipped = 0, missing = [];
   manifest.scriptFiles.concat(manifest.assetFiles || []).forEach(function(file) {
     if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'network-runtime.js') return;
-    copyRuntimeFile(runtimeDir, outputDir, file);
+    if (copyRuntimeFile(runtimeDir, outputDir, file)) copied++; else { skipped++; missing.push(file); }
   });
+  if (skipped > 0) {
+    console.warn('[HtmlExport] ' + copied + ' copied, ' + skipped + ' skipped (missing from GDJS runtime):');
+    missing.slice(0, 5).forEach(function(f) { console.warn('  - ' + f); });
+    if (missing.length > 5) console.warn('  ... and ' + (missing.length - 5) + ' more');
+  }
 }
 
 function renderHtml(manifest, options) {
