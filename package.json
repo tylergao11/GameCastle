@@ -2,11 +2,12 @@
   "name": "gamecastle",
   "version": "0.1.0",
   "private": true,
-  "description": "AI 内容平台 — 一句话生成小游戏",
+  "description": "AI 游戏工厂 — 模块化生成、运行和反复迭代可玩游戏",
   "scripts": {
-    "dev": "echo 'TODO: start dev server'",
-    "build": "echo 'TODO: build platform'",
-    "gen": "echo 'TODO: run generation pipeline'"
+    "dev": "npm --prefix platform run dev",
+    "build": "npm --prefix platform run build",
+    "gen": "node ai/pipeline.js --mock platformer",
+    "check:ai": "node -c ai/pipeline.js && node -c ai/project-world.js"
   },
   "dependencies": {},
   "devDependencies": {}

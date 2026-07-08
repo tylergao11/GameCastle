@@ -1,45 +1,53 @@
-# GameCastle 实施路线图
+# GameCastle 路线图
 
-## Phase 1: 骨架搭建 ✅
+## Phase 1: 当前骨架
 
-- [x] 目录结构
-- [x] 模块 README
-- [x] 平台前端骨架 (HTML/CSS)
-- [x] System prompt 模板
-- [x] GDevelop 类型定义 (operations.ts + gdevelop-types.ts)
+- [x] 仓库目录和基础文档
+- [x] GDJS Runtime 嵌入
+- [x] DSL 解析与执行主路径
+- [x] Mock 生成 `output/project.json` + `output/game.html`
+- [x] React/Vite 平台壳
+- [x] 清理旧路径、临时拼装脚本和旧平台残留
+- [x] 生成稳定 `ProjectWorld` 和追加式 `ExecutionLedger`
 
-## Phase 2: 核心管线 ✅
+## Phase 2: 模块化生成管线
 
-- [x] 行式 DSL 解析器 (`parseLine` / `parseDSL`)
-- [x] 事件 DSL 解析器 (`parseEventDSL` / `parseTrigger` / `parseAction`)
-- [x] 事件模板引擎 (9 CONDITIONS + 15 ACTIONS)
-- [x] 操作执行器 (11 EXEC handlers: scene/object/behavior/place/var/event/layer)
-- [x] 两段式 AI 管线 (Creative LLM temp=0.7 + Deterministic LLM temp=0)
-- [x] Mock 模式（内置 platformer DSL，无需 LLM 即可测试）
-- [x] 4 个游戏模板 (platformer / avoidance / shooter / breakout)
-- [x] `output/project.json` + `output/game.html` 产出
+- [ ] 把 `templates/` 从完整原型样例升级为模块能力库
+- [ ] 定义模块能力 schema：对象、变量、事件、依赖、兼容关系、运行时限制
+- [ ] 明确 LLM1 只看轻量能力提示和当前体验摘要，不看模板结构
+- [ ] 明确 LLM2 读取模块能力库、DSL 能力、参数约束和项目状态
+- [ ] 明确只有 LLM2 输出确定性 patch
+- [ ] 把 `pipeline.js` 拆成设计、编译、执行、状态、provider 五个边界
+- [ ] 用 `ai/schema/` 统一 JavaScript 执行器和 TypeScript 操作定义
 
-## Phase 3: 引擎嵌入 ✅
+## Phase 3: 可反复迭代的项目状态
 
-- [x] GDJS 核心运行时 (gdjs-runtime.js)
-- [x] PixiJS + Howler 渲染/音频
-- [x] 14 个 GDJS 扩展 (Sprite, PlatformBehavior, ShapePainter, Text...)
-- [x] game.html 启动器 (PROJECT_DATA_PLACEHOLDER 变量注入)
-- [x] pipeline.js 自动生成 game.html
+- [ ] 完整建立项目状态模型，区分 design brief、module graph、DSL patch、ProjectWorld、project.json
+- [ ] 支持用户连续修改，例如“再难一点”“加入 Boss”“改成双人”
+- [ ] 让 LLM2 生成 DSL/operation patch，而不是每次重建全量项目
+- [ ] 保留版本历史和回滚点
+- [ ] 在平台端展示当前模块、生成步骤和可试玩版本
 
-## Phase 4: 平台打磨
+## Phase 4: 平台接入
 
-- [ ] 游戏广场（游戏列表/卡片）
-- [ ] 一句话输入 → pipeline 调用（前端对接）
-- [ ] iframe 游戏展示容器 + postMessage 通信
-- [ ] 循环迭代（"再难一点" → remix）
-- [ ] 游戏发布/分享
+- [ ] 前端创建页真正调用生成管线
+- [ ] iframe 试玩 `output/game.html`
+- [ ] postMessage 上报加载、分数、错误和游戏结束
+- [ ] 发布到发现流
+- [ ] 分享和作品管理
 
-## Phase 5: 优化 & 扩展
+## Phase 5: 联机能力
 
-- [ ] pipeline.js 与 json-engine.ts 统一（TypeScript 迁移）
-- [ ] AI 素材生成（image generation skill）
-- [ ] 用户账号
-- [ ] 游戏排行榜
-- [ ] 模板匹配（根据用户意图自动选择最接近的模板 DSL）
-- [ ] 更丰富的 DSL 条件/动作（TopDownMovement, Physics, Tween 等）
+- [ ] 设计联机模块能力：房间、输入流、状态同步、帧同步、断线恢复
+- [ ] 标注模块的同步约束和确定性要求
+- [ ] 给可同步对象引入稳定网络 ID
+- [ ] 区分本地表现状态和权威游戏状态
+- [ ] 在 DSL/执行器中支持同步变量和同步事件
+
+## Phase 6: 质量门
+
+- [ ] 生成器单元测试
+- [ ] DSL fixture 测试
+- [ ] `project.json` schema 校验
+- [ ] 浏览器运行时冒烟测试
+- [ ] 前端 lint/typecheck/build 纳入根命令

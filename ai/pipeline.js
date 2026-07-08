@@ -3,6 +3,8 @@
  */
 var fs = require("fs");
 var path = require("path");
+var crypto = require("crypto");
+var projectWorld = require("./project-world");
 
 var STATE_DIR = path.join(__dirname, "..", "output");
 var LOG_PATH = path.join(STATE_DIR, "pipeline.log");
@@ -11,6 +13,28 @@ function gc_log(msg) {
 }
 var BRIEF_PATH = path.join(STATE_DIR, "design-brief.json");
 var HISTORY_PATH = path.join(STATE_DIR, "conversation.json");
+
+function makePersistentUuid(parts) {
+  return 'gc-' + crypto
+    .createHash('sha1')
+    .update(parts.map(function(part) { return String(part); }).join('|'))
+    .digest('hex')
+    .slice(0, 16);
+}
+
+function parseHexColor(color, fallback) {
+  fallback = fallback || { r: 255, g: 255, b: 255 };
+  var hex = String(color || '').replace('#', '');
+  function read(start, key) {
+    var parsed = parseInt(hex.substring(start, start + 2), 16);
+    return isNaN(parsed) ? fallback[key] : parsed;
+  }
+  return {
+    r: read(0, 'r'),
+    g: read(2, 'g'),
+    b: read(4, 'b'),
+  };
+}
 
 // ===== DSL PARSER =====
 function parseLine(line) {
@@ -50,7 +74,7 @@ function parseLine(line) {
       var v = tokens[j].substring(eq + 1);
       if (v === "true") v = true;
       else if (v === "false") v = false;
-      else if (/^-?d+(.d+)?$/.test(v)) v = parseFloat(v);
+      else if (/^-?\d+(\.\d+)?$/.test(v)) v = parseFloat(v);
       params[k] = v;
     }
   }
@@ -214,7 +238,7 @@ function parseAction(text) {
   if (!text) return null;
 
   // Normalize: "score+1" -> "score +1"
-  text = text.replace(/^(score|jump|flip)([+-]?d+)$/, '$1 $2');
+  text = text.replace(/^(score|jump|flip)([+-]?\d+)$/, '$1 $2');
 
   // "name=value" -> set variable
   if (text.indexOf('=') > 0 && text.indexOf(' ') < 0) {
@@ -277,14 +301,11 @@ EXEC["create object"] = function(p, ps) {
     var sType = ps.shape || "rectangle";
     var color = ps.color || "#4488FF";
     var w = ps.width || 32; var h = ps.height || 32;
-    var hex = color.replace("#","");
-    var r = parseInt(hex.substring(0,2),16)||100;
-    var g = parseInt(hex.substring(2,4),16)||130;
-    var b = parseInt(hex.substring(4,6),16)||240;
+    var parsedColor = parseHexColor(color, { r: 100, g: 130, b: 240 });
     var obj = {
       name: ps.name, type: "PrimitiveDrawing::ShapePainter", variables: [], behaviors: [],
       absoluteCoordinates: false, coordinatesOrigin: {x:0,y:0},
-      fillColor: {r:r,g:g,b:b}, fillOpacity: 255,
+      fillColor: parsedColor, fillOpacity: 255,
       outlineColor: {r:0,g:0,b:0}, outlineOpacity: 255, outlineSize: ps.outline || 0,
       thickness: ps.thickness || 2, useGradient: false, gradientType: "linear",
       gradientColor1: {r:255,g:255,b:255}, gradientColor2: {r:200,g:200,b:200},
@@ -347,11 +368,17 @@ EXEC["place"] = function(p, ps) {
   var count = ps.count||1;
   var z = ps.z||1;
   for (var i=0;i<count;i++) {
+    var occurrence = scene.instances.filter(function(inst) {
+      return inst.name === objName
+        && inst.x === pos[0]
+        && inst.y === pos[1]
+        && inst.layer === (ps.layer || '');
+    }).length + 1;
     scene.instances.push({
       angle:ps.angle||0, customSize:false, height:ps.height||0, width:ps.width||0,
       layer:ps.layer||"", locked:false, name:objName, x:pos[0], y:pos[1], zOrder:z++,
       numberProperties:[], stringProperties:[], initialVariables:[],
-      persistentUuid:'u-'+Math.random().toString(36).slice(2)
+      persistentUuid: makePersistentUuid([scene.name, objName, pos[0], pos[1], ps.width || 0, ps.height || 0, ps.layer || '', occurrence])
     });
   }
   return {ok:true,msg:"placed "+objName+" x"+count};
@@ -417,7 +444,7 @@ EXEC["set object"] = function(p, ps) {
   var obj = tgt.find(function(o){return o.name===ps.name;});
   if (!obj) return {ok:false,msg:"object not found: "+ps.name};
   if (obj.type==="PrimitiveDrawing::ShapePainter") {
-    if (ps.color) { var hex=ps.color.replace("#",""); obj.fillColor={r:parseInt(hex.substring(0,2),16),g:isNaN(parseInt(hex.substring(2,4),16))?130:parseInt(hex.substring(2,4),16),b:isNaN(parseInt(hex.substring(4,6),16))?240:parseInt(hex.substring(4,6),16)}; }
+    if (ps.color) obj.fillColor = parseHexColor(ps.color, obj.fillColor || { r: 100, g: 130, b: 240 });
     if (ps.width)  { var w=parseFloat(ps.width); obj.centerPosition={x:w/2,y:obj.centerPosition?obj.centerPosition.y:16}; if (obj.shapeType!=="circle") obj.points=[{x:0,y:0},{x:w,y:0},{x:w,y:obj.points?obj.points[2].y:32},{x:0,y:obj.points?obj.points[3].y:32}]; }
     if (ps.height) { var h=parseFloat(ps.height); obj.centerPosition={x:obj.centerPosition?obj.centerPosition.x:16,y:h/2}; if (obj.shapeType!=="circle") obj.points=[{x:0,y:0},{x:obj.points?obj.points[1].x:32,y:0},{x:obj.points?obj.points[2].x:32,y:h},{x:0,y:h}]; }
     if (ps.shape)  { obj.shapeType=ps.shape; if (ps.shape==="circle") obj.points=[]; }
@@ -425,7 +452,7 @@ EXEC["set object"] = function(p, ps) {
   }
   if (obj.type==="TextObject::Text") {
     if (ps.size) obj.characterSize=parseFloat(ps.size)||20;
-    if (ps.color) { var h2=ps.color.replace("#",""); obj.color={r:isNaN(parseInt(h2.substring(0,2),16))?255:parseInt(h2.substring(0,2),16),g:isNaN(parseInt(h2.substring(2,4),16))?255:parseInt(h2.substring(2,4),16),b:isNaN(parseInt(h2.substring(4,6),16))?255:parseInt(h2.substring(4,6),16)}; }
+    if (ps.color) obj.color = parseHexColor(ps.color, obj.color || { r: 255, g: 255, b: 255 });
   }
   return {ok:true,msg:"object updated: "+ps.name};
 };
@@ -850,16 +877,30 @@ if (dslText !== '') {
     }
   }
 
+  var dslLines = dslText.split(/\r?\n/).map(function(line) {
+    return line.trim();
+  }).filter(function(line) {
+    return line && line[0] !== '#';
+  });
   var ops = parseDSL(dslText);
   if (!ops.length) { console.error('No ops parsed'); process.exit(1); }
   console.log('[Parse] ' + ops.length + ' ops');
 
+  var previousWorld = projectWorld.loadProjectWorld(STATE_DIR);
   var ok = 0;
+  var commandResults = [];
   for (var i = 0; i < ops.length; i++) {
     var r = execute(project, ops[i]);
     var label = ops[i].verb + (ops[i].target?' '+ops[i].target:'');
     console.log('  ' + (r.ok?'OK':'FAIL') + ' ' + label + ': ' + r.msg);
     if (r.ok) ok++;
+    commandResults.push({
+      index: i,
+      commandId: 'line_' + String(i + 1).padStart(3, '0'),
+      ok: !!r.ok,
+      label: label,
+      message: r.msg,
+    });
   }
   console.log('[Done] ' + ok + '/' + ops.length + ' succeeded');
 
@@ -870,6 +911,20 @@ if (dslText !== '') {
   console.log('[Output] ' + outPath + ' (' + JSON.stringify(project).length + ' bytes)');
   var s0 = project.layouts[0];
   console.log('  Scenes:'+project.layouts.length+' Objects:'+project.objects.length+' SceneObjects:'+(s0?s0.objects.length:0)+' Instances:'+(s0?s0.instances.length:0)+' Events:'+(s0?s0.events.length:0)+' Vars:'+project.variables.length);
+
+  var world = projectWorld.buildProjectWorld(project, previousWorld);
+  projectWorld.saveProjectWorld(STATE_DIR, world);
+  var ledger = projectWorld.loadExecutionLedger(STATE_DIR);
+  var report = projectWorld.makeExecutionReport({
+    previousWorld: previousWorld,
+    world: world,
+    dslLines: dslLines,
+    commandResults: commandResults,
+    runIndex: ledger.runs.length + 1,
+  });
+  projectWorld.appendExecutionReport(STATE_DIR, report);
+  console.log('[ProjectWorld] v' + world.worldVersion + ' ' + world.semanticHash + ' -> ' + projectWorld.getWorldPath(STATE_DIR));
+  console.log('[ExecutionReport] ' + report.summary.nextAction + ' ' + report.summary.completed + '/' + report.summary.total + ' -> ' + projectWorld.getLedgerPath(STATE_DIR));
 
   try {
     var engDir = path.join(__dirname, '..', 'engine', 'runtime');

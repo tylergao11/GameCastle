@@ -1,55 +1,76 @@
-# AI — 生成管线
+# AI — 模块化生成管线
 
-两段式 AI 管线：创意 LLM 生成设计稿 → 确定性 LLM 翻译为 DSL → DSL 解析执行 → project.json。
+`ai/` 当前负责把用户意图编译为可运行游戏项目。它不是“模板拷贝器”，而是游戏工厂的生成管线雏形。
 
-## 文件
+## 当前文件
 
 | 文件 | 职责 |
 |------|------|
-| `pipeline.js` | ★ 主引擎（521行），包含 DSL 解析器 + 事件模板 + 事件解析器 + 操作执行器 + 两段式 LLM + CLI |
-| `event-templates.js` | 条件/动作模板定义（9 CONDITIONS + 15 ACTIONS），独立参考模块 |
-| `event-parser.js` | 事件 DSL 解析器（`parseEventDSL` / `parseTrigger` / `parseAction`），独立参考模块 |
-| `schema/operations.ts` | 29 个 GDevelop 操作的完整 TypeScript 映射（真理之源） |
-| `schema/json-engine.ts` | TypeScript 版 JSON 操作引擎（420行，类型安全，待与 pipeline.js 统一） |
-| `schema/gdevelop-types.ts` | GDevelop project.json 的完整 TypeScript 类型定义 |
+| `pipeline.js` | 当前主路径：LLM1 设计稿、LLM2 DSL 翻译、DSL 解析、事件解析、操作执行、CLI、`output/` 写入 |
+| `project-world.js` | 把 GDevelop `project.json` 翻译为稳定的 `ProjectWorld`，并追加 `ExecutionLedger` |
+| `schema/operations.ts` | GDevelop 操作定义，后续应成为能力到 JSON 操作的真理源 |
+| `schema/json-engine.ts` | TypeScript 版 JSON 操作执行器，待与 `pipeline.js` 统一 |
+| `schema/gdevelop-types.ts` | GDevelop `project.json` 类型定义 |
 
+历史拼装脚本和硬编码旧路径已经移除。后续新增脚本必须使用仓库相对路径，并且明确属于测试、构建还是迁移。
 
-## 管线流程
+## 当前管线
 
+```text
+prompt
+  -> LLM1 generateDesignBrief
+  -> module/design brief
+  -> LLM2 translate to DSL
+  -> parseDSL
+  -> execute operations
+  -> output/project.json + output/game.html
+  -> output/project-world.json + output/execution-ledger.json
 ```
-用户一句话
-  → generateDesignBrief (temp=0.7)      设计稿 JSON {theme, objects, rules, difficulty}
-  → buildDSLPrompt                       构建填空式 DSL prompt
-  → callLLM (temp=0)                     输出行式 DSL 操作序列
-  → parseDSL                             解析为操作列表
-  → execute × N                          逐个执行操作，构建 project.json
-  → 注入 game.html → output/
+
+## 目标管线
+
+```text
+prompt / iteration request
+  -> project state summary
+  -> lightweight creative context
+  -> LLM1 creative design intent
+  -> module capability catalog for compiler
+  -> LLM2 deterministic DSL patch
+  -> typed operation executor
+  -> versioned project state
+  -> runnable build
 ```
 
-## 运行
+## LLM 可见信息边界
+
+LLM1 不记忆模板结构，也不负责输出 patch。它看到用户意图、当前游戏体验摘要和少量能力提示，负责提出高层玩法和体验变化。
+
+LLM2 才看到模块能力库、DSL 能力、参数规则、当前项目状态和 LLM1 的创意输出。它负责把意图编译成确定性 patch。
+
+完整模板不应该作为主要上下文展示给任一阶段。LLM1 只需要能力提示；LLM2 需要的是可编译的模块能力和 DSL 规则，而不是整套游戏模板。
+
+`project.json` 是 GDevelop/GDJS 的运行产物，不是 LLM2 的主要上下文。LLM2 的循环上下文应该是翻译后的 `ProjectWorld`、模块能力卡、上一轮 DSL diff 和 `ExecutionLedger`，用来判断当前世界、已完成命令和需要修复的命令。
+
+## 命令
 
 ```bash
-# Mock 模式（内置 platformer DSL，无需 LLM）
-node ai/pipeline.js --mock "一个平台跳跃游戏"
+# 离线 mock 生成
+node ai/pipeline.js --mock platformer
 
-# 真实 AI 生成
-node ai/pipeline.js "一个太空射击游戏"
+# 真实 LLM 生成
+node ai/pipeline.js "做一个平台跳跃收集金币的游戏"
 
-# 环境变量
-export LLM_ENDPOINT=http://127.0.0.1:18081/v1
-export DEEPSEEK_API_KEY=your_key
-export LLM_MODEL=deepseek-v4-pro
+# 继续迭代
+node ai/pipeline.js --continue "加入一个 Boss，并让金币更密集"
+
+# 语法检查
+npm run check:ai
 ```
 
-## Mock 模式
+## 环境变量
 
-内置一个完整的 platformer DSL（22 行操作 + 4 个事件），直接跳过 LLM 调用执行。用于测试管线全流程。
-
-## 两段式设计原理
-
-| 阶段 | 温度 | 输入 | 输出 | 用途 |
-|------|------|------|------|------|
-| Creative | 0.7 | 用户一句话 | 设计稿 JSON | 创意发散，自由设计 |
-| Deterministic | 0 | 设计稿 JSON | DSL 操作序列 | 精确翻译，格式保证 |
-
-第一阶段允许 LLM 发挥创意（随机颜色、多样布局），第二阶段严格按模板填空（保证 DSL 语法正确）。
+```bash
+LLM_ENDPOINT=http://127.0.0.1:18081/v1
+DEEPSEEK_API_KEY=your_key
+LLM_MODEL=deepseek-v4-flash
+```

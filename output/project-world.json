@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "worldVersion": 4,
+  "project": {
+    "name": "GameCastle",
+    "firstScene": "Game",
+    "width": 800,
+    "height": 600
+  },
+  "scenes": [
+    {
+      "id": "scene_game",
+      "name": "Game",
+      "objects": [
+        {
+          "name": "Player",
+          "type": "PrimitiveDrawing::ShapePainter",
+          "kind": "ShapePainter",
+          "shape": "rectangle",
+          "color": "#4488ff",
+          "width": 32,
+          "height": 48,
+          "behaviors": [
+            {
+              "name": "Platformer",
+              "type": "PlatformBehavior::PlatformerObjectBehavior"
+            }
+          ],
+          "id": "obj_game_player",
+          "scope": "scene"
+        },
+        {
+          "name": "Ground",
+          "type": "PrimitiveDrawing::ShapePainter",
+          "kind": "ShapePainter",
+          "shape": "rectangle",
+          "color": "#8b4513",
+          "width": 800,
+          "height": 20,
+          "id": "obj_game_ground",
+          "scope": "scene"
+        },
+        {
+          "name": "Platform",
+          "type": "PrimitiveDrawing::ShapePainter",
+          "kind": "ShapePainter",
+          "shape": "rectangle",
+          "color": "#8b4513",
+          "width": 100,
+          "height": 16,
+          "id": "obj_game_platform",
+          "scope": "scene"
+        },
+        {
+          "name": "Coin",
+          "type": "PrimitiveDrawing::ShapePainter",
+          "kind": "ShapePainter",
+          "shape": "circle",
+          "color": "#ffd700",
+          "width": 16,
+          "height": 16,
+          "id": "obj_game_coin",
+          "scope": "scene"
+        },
+        {
+          "name": "Enemy",
+          "type": "PrimitiveDrawing::ShapePainter",
+          "kind": "ShapePainter",
+          "shape": "rectangle",
+          "color": "#dc3232",
+          "width": 32,
+          "height": 32,
+          "id": "obj_game_enemy",
+          "scope": "scene"
+        }
+      ],
+      "instances": [
+        {
+          "id": "inst_game_player_100_400_0_0_1",
+          "object": "Player",
+          "x": 100,
+          "y": 400,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_ground_400_590_800_20_1",
+          "object": "Ground",
+          "x": 400,
+          "y": 590,
+          "width": 800,
+          "height": 20,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_platform_200_460_100_16_1",
+          "object": "Platform",
+          "x": 200,
+          "y": 460,
+          "width": 100,
+          "height": 16,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_platform_400_380_100_16_1",
+          "object": "Platform",
+          "x": 400,
+          "y": 380,
+          "width": 100,
+          "height": 16,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_platform_600_300_100_16_1",
+          "object": "Platform",
+          "x": 600,
+          "y": 300,
+          "width": 100,
+          "height": 16,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_coin_240_430_0_0_1",
+          "object": "Coin",
+          "x": 240,
+          "y": 430,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_coin_440_350_0_0_1",
+          "object": "Coin",
+          "x": 440,
+          "y": 350,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_coin_640_270_0_0_1",
+          "object": "Coin",
+          "x": 640,
+          "y": 270,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_enemy_550_400_0_0_1",
+          "object": "Enemy",
+          "x": 550,
+          "y": 400,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        }
+      ],
+      "variables": [],
+      "layers": [
+        {
+          "id": "layer_base",
+          "name": "",
+          "isBaseLayer": true,
+          "index": 0,
+          "visible": true
+        }
+      ],
+      "events": [
+        {
+          "type": "standard",
+          "text": "on start -> variable Score = 0",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "variable Score = 0"
+          ],
+          "id": "evt_game_on_start_variable_score_0_1"
+        },
+        {
+          "type": "standard",
+          "text": "on collision Player Coin -> destroy Coin, variable Score + 1",
+          "conditions": [
+            "on collision Player Coin"
+          ],
+          "actions": [
+            "destroy Coin",
+            "variable Score + 1"
+          ],
+          "id": "evt_game_on_collision_player_coin_destroy_co"
+        },
+        {
+          "type": "standard",
+          "text": "on collision Player Enemy -> restart",
+          "conditions": [
+            "on collision Player Enemy"
+          ],
+          "actions": [
+            "restart"
+          ],
+          "id": "evt_game_on_collision_player_enemy_restart_1"
+        },
+        {
+          "type": "standard",
+          "text": "on key Space -> jump Player 500",
+          "conditions": [
+            "on key Space"
+          ],
+          "actions": [
+            "jump Player 500"
+          ],
+          "id": "evt_game_on_key_space_jump_player_500_1"
+        }
+      ]
+    }
+  ],
+  "globalObjects": [],
+  "globalVariables": [
+    {
+      "name": "Score",
+      "type": 3,
+      "value": "0",
+      "id": "var_global_score",
+      "scope": "global"
+    }
+  ],
+  "modules": [],
+  "idRegistry": {
+    "scenes": {
+      "Game": "scene_game"
+    },
+    "objects": {
+      "Game|Player": "obj_game_player",
+      "Game|Ground": "obj_game_ground",
+      "Game|Platform": "obj_game_platform",
+      "Game|Coin": "obj_game_coin",
+      "Game|Enemy": "obj_game_enemy"
+    },
+    "instances": {
+      "Game|Player|100|400|0|0||1": "inst_game_player_100_400_0_0_1",
+      "Game|Ground|400|590|800|20||1": "inst_game_ground_400_590_800_20_1",
+      "Game|Platform|200|460|100|16||1": "inst_game_platform_200_460_100_16_1",
+      "Game|Platform|400|380|100|16||1": "inst_game_platform_400_380_100_16_1",
+      "Game|Platform|600|300|100|16||1": "inst_game_platform_600_300_100_16_1",
+      "Game|Coin|240|430|0|0||1": "inst_game_coin_240_430_0_0_1",
+      "Game|Coin|440|350|0|0||1": "inst_game_coin_440_350_0_0_1",
+      "Game|Coin|640|270|0|0||1": "inst_game_coin_640_270_0_0_1",
+      "Game|Enemy|550|400|0|0||1": "inst_game_enemy_550_400_0_0_1"
+    },
+    "events": {
+      "Game|on start -> variable Score = 0|1": "evt_game_on_start_variable_score_0_1",
+      "Game|on collision Player Coin -> destroy Coin, variable Score + 1|1": "evt_game_on_collision_player_coin_destroy_co",
+      "Game|on collision Player Enemy -> restart|1": "evt_game_on_collision_player_enemy_restart_1",
+      "Game|on key Space -> jump Player 500|1": "evt_game_on_key_space_jump_player_500_1"
+    },
+    "variables": {
+      "global|Score": "var_global_score"
+    },
+    "modules": {}
+  },
+  "semanticHash": "4bad9b31"
+}

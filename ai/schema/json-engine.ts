@@ -30,11 +30,17 @@ function findObject(project: GDProject, sceneName: string, objectName: string): 
   return { container, index: idx, obj: container[idx] };
 }
 
-function generateUuid(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
+function shortHash(value: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function generateStableUuid(parts: Array<string | number>): string {
+  return 'gc-' + shortHash(parts.map(part => String(part)).join('|'));
 }
 
 // ===== OPERATION HANDLERS =====
@@ -195,12 +201,25 @@ const handlers: Record<string, (project: GDProject, params: Record<string, any>)
     let zOrder = params.z_order || 1;
     for (let i = 0; i < count; i++) {
       const pos = (positions[i] || positions[0]).split(',').map(Number);
+      const occurrence = found.scene.instances.filter((inst: any) =>
+        inst.name === params.object_name
+        && inst.x === pos[0]
+        && inst.y === pos[1]
+        && inst.layer === (params.layer_name || '')
+      ).length + 1;
       found.scene.instances.push({
         angle: params.angle || 0, customSize: false, height: 0, width: 0,
         layer: params.layer_name || '', locked: false,
         name: params.object_name, x: pos[0], y: pos[1], zOrder: zOrder++,
         numberProperties: [], stringProperties: [], initialVariables: [],
-        persistentUuid: generateUuid()
+        persistentUuid: generateStableUuid([
+          params.scene_name,
+          params.object_name,
+          pos[0],
+          pos[1],
+          params.layer_name || '',
+          occurrence,
+        ])
       });
     }
     return { success: true, message: 'Placed ' + count + ' instance(s) of ' + params.object_name };
