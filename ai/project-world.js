@@ -113,14 +113,9 @@ function describeObject(object) {
     name: object.name,
     type: object.type,
   };
-  if (object.type === 'PrimitiveDrawing::ShapePainter') {
+  if (object.type === 'PrimitiveDrawing::Drawer') {
     described.kind = 'ShapePainter';
-    described.shape = object.shapeType || 'rectangle';
     described.color = colorToHex(object.fillColor);
-    if (object.centerPosition) {
-      described.width = normalizeNumber(object.centerPosition.x * 2);
-      described.height = normalizeNumber(object.centerPosition.y * 2);
-    }
   } else if (object.type === 'TextObject::Text' || object.type === 'Text') {
     described.kind = 'Text';
     described.text = (object.content && object.content.text) || object.string || object.name;
@@ -171,6 +166,10 @@ function describeAction(action) {
   if (type === 'MettreXY') return 'move ' + p[0] + ' to ' + p[2] + ',' + p[4];
   if (type === 'TextObject::String') return 'text ' + p[0] + ' "' + p[2] + '"';
   if (type === 'ChangeScene') return 'scene ' + p[0];
+  if (type === 'PrimitiveDrawing::Drawer::ClearShapes') return 'clear drawer ' + p[0];
+  if (type === 'PrimitiveDrawing::Rectangle') return 'draw rectangle ' + p[0] + ' ' + p.slice(1).join(' ');
+  if (type === 'PrimitiveDrawing::Circle') return 'draw circle ' + p[0] + ' ' + p.slice(1).join(' ');
+  if (type === 'PrimitiveDrawing::SetRectangularCollisionMask') return 'collision mask ' + p[0] + ' ' + p.slice(1).join(' ');
   if (type) return type + '(' + p.join(',') + ')';
   return 'unknown action';
 }

@@ -8,7 +8,7 @@
       "baseWorldVersion": null,
       "targetWorldVersion": 1,
       "baseSemanticHash": null,
-      "targetSemanticHash": "627a560e",
+      "targetSemanticHash": "716cdbc9",
       "summary": {
         "total": 41,
         "completed": 41,
@@ -49,7 +49,7 @@
         {
           "commandId": "apply_line_007",
           "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
-          "message": "behavior: Platformer"
+          "message": "behavior: PlatformerObject"
         },
         {
           "commandId": "apply_line_008",
@@ -227,11 +227,11 @@
     {
       "schemaVersion": 1,
       "runId": "run_002",
-      "batchLabel": "approved_configure",
+      "batchLabel": "browser_verify_configure",
       "baseWorldVersion": 1,
       "targetWorldVersion": 2,
-      "baseSemanticHash": "627a560e",
-      "targetSemanticHash": "21c04400",
+      "baseSemanticHash": "716cdbc9",
+      "targetSemanticHash": "cb1b5692",
       "summary": {
         "total": 8,
         "completed": 8,
@@ -240,42 +240,42 @@
       },
       "completed": [
         {
-          "commandId": "approved_configure_line_001",
-          "command": "remove event #1 scene=Start",
-          "message": "removed event #1"
+          "commandId": "browser_verify_configure_line_001",
+          "command": "remove event #2 scene=Start",
+          "message": "removed event #2"
         },
         {
-          "commandId": "approved_configure_line_002",
+          "commandId": "browser_verify_configure_line_002",
           "command": "on start -> text StartLabel Play Now scene=Start",
           "message": "event: on start -> text StartLabel Play Now"
         },
         {
-          "commandId": "approved_configure_line_003",
-          "command": "remove event #0 scene=Start",
-          "message": "removed event #0"
+          "commandId": "browser_verify_configure_line_003",
+          "command": "remove event #1 scene=Start",
+          "message": "removed event #1"
         },
         {
-          "commandId": "approved_configure_line_004",
+          "commandId": "browser_verify_configure_line_004",
           "command": "on start -> text TitleText Moon Runner scene=Start",
           "message": "event: on start -> text TitleText Moon Runner"
         },
         {
-          "commandId": "approved_configure_line_005",
+          "commandId": "browser_verify_configure_line_005",
           "command": "remove event #1 scene=GameOver",
           "message": "removed event #1"
         },
         {
-          "commandId": "approved_configure_line_006",
+          "commandId": "browser_verify_configure_line_006",
           "command": "on start -> text RestartHint Space To Retry scene=GameOver",
           "message": "event: on start -> text RestartHint Space To Retry"
         },
         {
-          "commandId": "approved_configure_line_007",
+          "commandId": "browser_verify_configure_line_007",
           "command": "remove event #0 scene=GameOver",
           "message": "removed event #0"
         },
         {
-          "commandId": "approved_configure_line_008",
+          "commandId": "browser_verify_configure_line_008",
           "command": "on start -> text GameOverText Try Again scene=GameOver",
           "message": "event: on start -> text GameOverText Try Again"
         }

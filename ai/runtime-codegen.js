@@ -63,6 +63,18 @@ function compileAction(action) {
   if (type === 'ResetGame') {
     return 'runtimeScene.requestChange(gdjs.SceneChangeRequest.CLEAR_SCENES, runtimeScene.getGame().getGameData().firstLayout);';
   }
+  if (type === 'PrimitiveDrawing::Drawer::ClearShapes') {
+    return 'clearDrawer(' + quote(parameters[0]) + ');';
+  }
+  if (type === 'PrimitiveDrawing::Rectangle') {
+    return 'drawRectangle(' + quote(parameters[0]) + ', ' + asNumber(parameters[1], 0) + ', ' + asNumber(parameters[2], 0) + ', ' + asNumber(parameters[3], 0) + ', ' + asNumber(parameters[4], 0) + ');';
+  }
+  if (type === 'PrimitiveDrawing::Circle') {
+    return 'drawCircle(' + quote(parameters[0]) + ', ' + asNumber(parameters[1], 0) + ', ' + asNumber(parameters[2], 0) + ', ' + asNumber(parameters[3], 0) + ');';
+  }
+  if (type === 'PrimitiveDrawing::SetRectangularCollisionMask') {
+    return 'setRectangularCollisionMask(' + quote(parameters[0]) + ', ' + asNumber(parameters[1], 0) + ', ' + asNumber(parameters[2], 0) + ', ' + asNumber(parameters[3], 0) + ', ' + asNumber(parameters[4], 0) + ');';
+  }
   if (type === 'CreateObject') {
     return [
       'createObject(' + quote(parameters[0]) + ', ' + asNumber(parameters[1], 0) + ', ' + asNumber(parameters[2], 0) + ');',
@@ -118,6 +130,7 @@ function indent(text, spaces) {
 function runtimeHelpers() {
   return [
     '  var input = runtimeScene.getGame().getInputManager();',
+    '  if (typeof document !== "undefined" && document.body) document.body.dataset.gamecastleScene = runtimeScene.getName();',
     '  function objects(name) { return runtimeScene.getObjects(name).slice(); }',
     '  function gameVar(name) { return runtimeScene.getGame().getVariables().get(name); }',
     '  function numeric(value) { var n = parseFloat(value); return isNaN(n) ? 0 : n; }',
@@ -156,6 +169,26 @@ function runtimeHelpers() {
     '  }',
     '  function setObjectPosition(name, x, y) {',
     '    objects(name).forEach(function(object) { object.setPosition(x, y); });',
+    '  }',
+    '  function clearDrawer(name) {',
+    '    objects(name).forEach(function(object) {',
+    '      if (typeof object.clear === "function") object.clear();',
+    '    });',
+    '  }',
+    '  function drawRectangle(name, x1, y1, x2, y2) {',
+    '    objects(name).forEach(function(object) {',
+    '      if (typeof object.drawRectangle === "function") object.drawRectangle(x1, y1, x2, y2);',
+    '    });',
+    '  }',
+    '  function drawCircle(name, x, y, radius) {',
+    '    objects(name).forEach(function(object) {',
+    '      if (typeof object.drawCircle === "function") object.drawCircle(x, y, radius);',
+    '    });',
+    '  }',
+    '  function setRectangularCollisionMask(name, x1, y1, x2, y2) {',
+    '    objects(name).forEach(function(object) {',
+    '      if (typeof object.setRectangularCollisionMask === "function") object.setRectangularCollisionMask(x1, y1, x2, y2);',
+    '    });',
     '  }',
     '  function objectsCollide(leftName, rightName) {',
     '    var left = objects(leftName);',

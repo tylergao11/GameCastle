@@ -82,7 +82,7 @@ var TYPE_INCLUDES = {
     'Extensions/TextObject/textruntimeobject-pixi-renderer.js',
     'Extensions/TextObject/textruntimeobject.js',
   ],
-  'PrimitiveDrawing::ShapePainter': [
+  'PrimitiveDrawing::Drawer': [
     'Extensions/PrimitiveDrawing/pixi-graphics-extras/graphics-extras.min.js',
     'Extensions/PrimitiveDrawing/shapepainterruntimeobject-pixi-renderer.js',
     'Extensions/PrimitiveDrawing/shapepainterruntimeobject.js',

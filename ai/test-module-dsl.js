@@ -60,6 +60,12 @@ function assertRuntimeProjectShape(project) {
     });
     scene.objects.forEach(function(object) {
       assert(Array.isArray(object.effects), 'object should include effects array: ' + scene.name + '/' + object.name);
+      assert(object.type !== 'PrimitiveDrawing::ShapePainter', 'project must not emit non-GDevelop object type PrimitiveDrawing::ShapePainter');
+      if (object.type === 'PrimitiveDrawing::Drawer') {
+        assert(object.clearBetweenFrames === false, 'Drawer static shapes should persist between frames: ' + scene.name + '/' + object.name);
+        assert(object.antialiasing === 'low', 'Drawer should include official antialiasing value: ' + scene.name + '/' + object.name);
+        assert(object.fillColor && typeof object.fillColor.r === 'number', 'Drawer should use official fillColor object: ' + scene.name + '/' + object.name);
+      }
     });
   });
 }
@@ -80,6 +86,14 @@ function assertRuntimeExecutionFiles(project) {
   if (hasMouseObjectEvent) {
     assert(generatedCode.indexOf('primaryPointerAction()') >= 0, 'mouse object events should use frame-safe pointer action helper');
     assert(generatedCode.indexOf('object.cursorOnObject()') >= 0, 'mouse object events should use GDJS cursorOnObject coordinates');
+  }
+  var projectJson = JSON.stringify(project);
+  assert(projectJson.indexOf('PrimitiveDrawing::ShapePainter') < 0, 'project should never contain the stale ShapePainter runtime type');
+  if (projectJson.indexOf('PrimitiveDrawing::Drawer') >= 0) {
+    assert(projectJson.indexOf('PrimitiveDrawing::Rectangle') >= 0 || projectJson.indexOf('PrimitiveDrawing::Circle') >= 0, 'Drawer objects should be drawn by official PrimitiveDrawing actions');
+    assert(projectJson.indexOf('PrimitiveDrawing::SetRectangularCollisionMask') >= 0, 'Drawer objects should receive an official collision mask action');
+    assert(generatedCode.indexOf('drawRectangle(') >= 0 || generatedCode.indexOf('drawCircle(') >= 0, 'runtime code should execute official Drawer draw actions');
+    assert(generatedCode.indexOf('setRectangularCollisionMask(') >= 0, 'runtime code should execute official Drawer collision masks');
   }
   assert(fs.existsSync(HTML_EXPORT_MANIFEST_PATH), 'runtime should emit html-export-manifest.json');
   var manifest = readJson(HTML_EXPORT_MANIFEST_PATH);
@@ -136,6 +150,12 @@ function testShellComposition() {
   var platform = game.objects.find(function(object) { return object.name === 'Platform'; });
   assert(ground.behaviors.some(function(behavior) { return behavior.type === 'PlatformBehavior::PlatformBehavior'; }), 'Ground should be registered as a platform obstacle');
   assert(platform.behaviors.some(function(behavior) { return behavior.type === 'PlatformBehavior::PlatformBehavior'; }), 'Platform should be registered as a platform obstacle');
+  var player = game.objects.find(function(object) { return object.name === 'Player'; });
+  var platformer = player.behaviors.find(function(behavior) { return behavior.type === 'PlatformBehavior::PlatformerObjectBehavior'; });
+  assert(platformer && platformer.name === 'PlatformerObject', 'Player should use official PlatformerObject behavior name');
+  assert(typeof platformer.gravity === 'number' && typeof platformer.jumpSpeed === 'number', 'PlatformerObject behavior should include official movement defaults');
+  var platformBehavior = ground.behaviors.find(function(behavior) { return behavior.type === 'PlatformBehavior::PlatformBehavior'; });
+  assert(platformBehavior.platformType === 'NormalPlatform', 'Platform behavior should include official platformType default');
   assert(network.modules.length === 3, 'network manifest should record three modules');
 }
 

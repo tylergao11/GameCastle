@@ -14,15 +14,12 @@
       "objects": [
         {
           "name": "Player",
-          "type": "PrimitiveDrawing::ShapePainter",
+          "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
-          "shape": "rectangle",
           "color": "#4488ff",
-          "width": 32,
-          "height": 48,
           "behaviors": [
             {
-              "name": "Platformer",
+              "name": "PlatformerObject",
               "type": "PlatformBehavior::PlatformerObjectBehavior"
             }
           ],
@@ -31,12 +28,9 @@
         },
         {
           "name": "Ground",
-          "type": "PrimitiveDrawing::ShapePainter",
+          "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
-          "shape": "rectangle",
           "color": "#8b4513",
-          "width": 800,
-          "height": 20,
           "behaviors": [
             {
               "name": "Platform",
@@ -48,12 +42,9 @@
         },
         {
           "name": "Platform",
-          "type": "PrimitiveDrawing::ShapePainter",
+          "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
-          "shape": "rectangle",
           "color": "#8b4513",
-          "width": 100,
-          "height": 16,
           "behaviors": [
             {
               "name": "Platform",
@@ -65,23 +56,17 @@
         },
         {
           "name": "Coin",
-          "type": "PrimitiveDrawing::ShapePainter",
+          "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
-          "shape": "circle",
           "color": "#ffd700",
-          "width": 16,
-          "height": 16,
           "id": "obj_game_coin",
           "scope": "scene"
         },
         {
           "name": "Enemy",
-          "type": "PrimitiveDrawing::ShapePainter",
+          "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
-          "shape": "rectangle",
           "color": "#dc3232",
-          "width": 32,
-          "height": 32,
           "id": "obj_game_enemy",
           "scope": "scene"
         }
@@ -191,6 +176,71 @@
       "events": [
         {
           "type": "standard",
+          "text": "on start -> clear drawer Player, draw rectangle Player 0 0 32 48, collision mask Player 0 0 32 48",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "clear drawer Player",
+            "draw rectangle Player 0 0 32 48",
+            "collision mask Player 0 0 32 48"
+          ],
+          "id": "evt_game_on_start_clear_drawer_player_draw_r"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> clear drawer Ground, draw rectangle Ground 0 0 800 20, collision mask Ground 0 0 800 20",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "clear drawer Ground",
+            "draw rectangle Ground 0 0 800 20",
+            "collision mask Ground 0 0 800 20"
+          ],
+          "id": "evt_game_on_start_clear_drawer_ground_draw_r"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> clear drawer Platform, draw rectangle Platform 0 0 100 16, collision mask Platform 0 0 100 16",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "clear drawer Platform",
+            "draw rectangle Platform 0 0 100 16",
+            "collision mask Platform 0 0 100 16"
+          ],
+          "id": "evt_game_on_start_clear_drawer_platform_draw"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> clear drawer Coin, draw circle Coin 8 8 8, collision mask Coin 0 0 16 16",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "clear drawer Coin",
+            "draw circle Coin 8 8 8",
+            "collision mask Coin 0 0 16 16"
+          ],
+          "id": "evt_game_on_start_clear_drawer_coin_draw_cir"
+        },
+        {
+          "type": "standard",
+          "text": "on start -> clear drawer Enemy, draw rectangle Enemy 0 0 32 32, collision mask Enemy 0 0 32 32",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "clear drawer Enemy",
+            "draw rectangle Enemy 0 0 32 32",
+            "collision mask Enemy 0 0 32 32"
+          ],
+          "id": "evt_game_on_start_clear_drawer_enemy_draw_re"
+        },
+        {
+          "type": "standard",
           "text": "on start -> variable Score = 0",
           "conditions": [
             "on start"
@@ -251,12 +301,9 @@
         },
         {
           "name": "StartButton",
-          "type": "PrimitiveDrawing::ShapePainter",
+          "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
-          "shape": "rectangle",
           "color": "#2ecc71",
-          "width": 180,
-          "height": 56,
           "id": "obj_start_startbutton",
           "scope": "scene"
         },
@@ -313,6 +360,19 @@
         }
       ],
       "events": [
+        {
+          "type": "standard",
+          "text": "on start -> clear drawer StartButton, draw rectangle StartButton 0 0 180 56, collision mask StartButton 0 0 180 56",
+          "conditions": [
+            "on start"
+          ],
+          "actions": [
+            "clear drawer StartButton",
+            "draw rectangle StartButton 0 0 180 56",
+            "collision mask StartButton 0 0 180 56"
+          ],
+          "id": "evt_start_on_start_clear_drawer_startbutton_"
+        },
         {
           "type": "standard",
           "text": "on mouse StartButton -> scene Game",
@@ -557,10 +617,16 @@
       "GameOver|RestartHint|330|310|0|0||1": "inst_gameover_restarthint_330_310_0_0_1"
     },
     "events": {
+      "Game|on start -> clear drawer Player, draw rectangle Player 0 0 32 48, collision mask Player 0 0 32 48|1": "evt_game_on_start_clear_drawer_player_draw_r",
+      "Game|on start -> clear drawer Ground, draw rectangle Ground 0 0 800 20, collision mask Ground 0 0 800 20|1": "evt_game_on_start_clear_drawer_ground_draw_r",
+      "Game|on start -> clear drawer Platform, draw rectangle Platform 0 0 100 16, collision mask Platform 0 0 100 16|1": "evt_game_on_start_clear_drawer_platform_draw",
+      "Game|on start -> clear drawer Coin, draw circle Coin 8 8 8, collision mask Coin 0 0 16 16|1": "evt_game_on_start_clear_drawer_coin_draw_cir",
+      "Game|on start -> clear drawer Enemy, draw rectangle Enemy 0 0 32 32, collision mask Enemy 0 0 32 32|1": "evt_game_on_start_clear_drawer_enemy_draw_re",
       "Game|on start -> variable Score = 0|1": "evt_game_on_start_variable_score_0_1",
       "Game|on collision Player Coin -> destroy Coin, variable Score + 1|1": "evt_game_on_collision_player_coin_destroy_co",
       "Game|on collision Player Enemy -> scene GameOver|1": "evt_game_on_collision_player_enemy_scene_gam",
       "Game|on key Space -> jump Player 500|1": "evt_game_on_key_space_jump_player_500_1",
+      "Start|on start -> clear drawer StartButton, draw rectangle StartButton 0 0 180 56, collision mask StartButton 0 0 180 56|1": "evt_start_on_start_clear_drawer_startbutton_",
       "Start|on mouse StartButton -> scene Game|1": "evt_start_on_mouse_startbutton_scene_game_1",
       "Start|on start -> text StartLabel \"Play Now\"|1": "evt_start_on_start_text_startlabel_play_now_",
       "Start|on start -> text TitleText \"Moon Runner\"|1": "evt_start_on_start_text_titletext_moon_runne",
@@ -573,5 +639,5 @@
     },
     "modules": {}
   },
-  "semanticHash": "21c04400"
+  "semanticHash": "cb1b5692"
 }

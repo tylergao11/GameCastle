@@ -95,6 +95,25 @@ function parseHexColor(color, fallback) {
   };
 }
 
+function makeInstruction(type, parameters) {
+  return {
+    type: { inverted: false, value: type },
+    parameters: parameters.map(function(parameter) { return String(parameter); }),
+    subInstructions: [],
+  };
+}
+
+function makeStandardEvent(conditions, actions) {
+  return {
+    disabled: false,
+    folded: false,
+    type: 'BuiltinCommonInstructions::Standard',
+    conditions: conditions,
+    actions: actions,
+    events: [],
+  };
+}
+
 // ===== DSL PARSER =====
 function parseLine(line) {
   line = line.trim();
@@ -210,6 +229,12 @@ var ACTIONS = {
   'sim_left': function(obj) { return { type: {inverted:false, value:'PlatformBehavior::SimulateLeftKey'}, parameters:[obj, 'PlatformerObject'] }; },
   'sim_right': function(obj) { return { type: {inverted:false, value:'PlatformBehavior::SimulateRightKey'}, parameters:[obj, 'PlatformerObject'] }; },
   'sim_jump': function(obj) { return { type: {inverted:false, value:'PlatformBehavior::SimulateJumpKey'}, parameters:[obj, 'PlatformerObject'] }; },
+
+  // Official GDevelop PrimitiveDrawing actions.
+  'drawer_clear': function(obj) { return makeInstruction('PrimitiveDrawing::Drawer::ClearShapes', [obj]); },
+  'drawer_rectangle': function(obj, x1, y1, x2, y2) { return makeInstruction('PrimitiveDrawing::Rectangle', [obj, x1, y1, x2, y2]); },
+  'drawer_circle': function(obj, x, y, radius) { return makeInstruction('PrimitiveDrawing::Circle', [obj, x, y, radius]); },
+  'drawer_rect_mask': function(obj, x1, y1, x2, y2) { return makeInstruction('PrimitiveDrawing::SetRectangularCollisionMask', [obj, x1, y1, x2, y2]); },
 };
 
 
@@ -341,6 +366,19 @@ function parseAction(text) {
 
 var EXEC = {};
 
+function addStaticDrawerBootstrapEvent(scene, objectName, shape, width, height) {
+  var drawActions = [
+    ACTIONS.drawer_clear(objectName),
+  ];
+  if (shape === 'circle') {
+    drawActions.push(ACTIONS.drawer_circle(objectName, width / 2, height / 2, Math.min(width, height) / 2));
+  } else {
+    drawActions.push(ACTIONS.drawer_rectangle(objectName, 0, 0, width, height));
+  }
+  drawActions.push(ACTIONS.drawer_rect_mask(objectName, 0, 0, width, height));
+  scene.events.push(makeStandardEvent([CONDITIONS.start()], drawActions));
+}
+
 EXEC["create scene"] = function(p, ps) {
   var n = ps.name;
   if (p.layouts.find(function(l){return l.name===n;})) return {ok:false,msg:"exists: "+n};
@@ -358,7 +396,8 @@ EXEC["delete scene"] = function(p, ps) {
 };
 
 EXEC["create object"] = function(p, ps) {
-  var tgt = ps.scene ? (p.layouts.find(function(l){return l.name===ps.scene;})||{}).objects : p.objects;
+  var scene = ps.scene ? p.layouts.find(function(l){return l.name===ps.scene;}) : null;
+  var tgt = ps.scene ? (scene||{}).objects : p.objects;
   if (!tgt) return {ok:false,msg:"scene not found: "+ps.scene};
   if (ps.type === "ShapePainter") {
     var sType = ps.shape || "rectangle";
@@ -366,19 +405,16 @@ EXEC["create object"] = function(p, ps) {
     var w = ps.width || 32; var h = ps.height || 32;
     var parsedColor = parseHexColor(color, { r: 100, g: 130, b: 240 });
     var obj = {
-      name: ps.name, type: "PrimitiveDrawing::ShapePainter", variables: [], behaviors: [],
+      name: ps.name, tags: '', type: "PrimitiveDrawing::Drawer", variables: [], behaviors: [],
       effects: [],
-      absoluteCoordinates: false, coordinatesOrigin: {x:0,y:0},
+      absoluteCoordinates: false,
+      clearBetweenFrames: false,
+      antialiasing: 'low',
       fillColor: parsedColor, fillOpacity: 255,
       outlineColor: {r:0,g:0,b:0}, outlineOpacity: 255, outlineSize: ps.outline || 0,
-      thickness: ps.thickness || 2, useGradient: false, gradientType: "linear",
-      gradientColor1: {r:255,g:255,b:255}, gradientColor2: {r:200,g:200,b:200},
-      gradientX1:0, gradientY1:0, gradientX2:100, gradientY2:100,
-      shapeType: sType,
-      points: sType==="circle" ? [] : [{x:0,y:0},{x:w,y:0},{x:w,y:h},{x:0,y:h}],
-      centerPosition: {x:w/2,y:h/2}, customCenter: true, automaticCenter: false
     };
     tgt.push(obj);
+    if (scene) addStaticDrawerBootstrapEvent(scene, ps.name, sType, Number(w) || 32, Number(h) || 32);
     return {ok:true,msg:"shape: "+ps.name+" ("+sType+" "+color+")"};
   }
   var obj = {name:ps.name,type:ps.type,variables:[],behaviors:[],effects:[]};
@@ -432,8 +468,35 @@ EXEC["add behavior"] = function(p, ps) {
   if (last.endsWith("ObjectBehavior")) last=last.replace("ObjectBehavior","");
   if (last.endsWith("Behavior")) last=last.replace("Behavior","");
   var bn = ps.as || last;
-  obj.behaviors.push({name:bn,type:ps.type});
-  return {ok:true,msg:"behavior: "+bn};
+  var behavior = {name:bn,type:ps.type};
+  if (ps.type === 'PlatformBehavior::PlatformerObjectBehavior') {
+    behavior = {
+      name: ps.as || 'PlatformerObject',
+      type: ps.type,
+      acceleration: ps.acceleration || 1500,
+      canGrabPlatforms: false,
+      deceleration: ps.deceleration || 1500,
+      gravity: ps.gravity || 1300,
+      ignoreDefaultControls: false,
+      jumpSpeed: ps.jumpSpeed || 1000,
+      maxFallingSpeed: ps.maxFallingSpeed || 1000,
+      maxSpeed: ps.maxSpeed || 250,
+      roundCoordinates: true,
+      slopeMaxAngle: ps.slopeMaxAngle || 60,
+      xGrabTolerance: 10,
+      yGrabOffset: 0
+    };
+  } else if (ps.type === 'PlatformBehavior::PlatformBehavior') {
+    behavior = {
+      name: ps.as || 'Platform',
+      type: ps.type,
+      canBeGrabbed: true,
+      platformType: ps.platformType || 'NormalPlatform',
+      yGrabOffset: 0
+    };
+  }
+  obj.behaviors.push(behavior);
+  return {ok:true,msg:"behavior: "+behavior.name};
 };
 
 EXEC["remove behavior"] = function(p, ps) {
@@ -530,11 +593,8 @@ EXEC["set object"] = function(p, ps) {
   if (!tgt) return {ok:false,msg:"scene not found"};
   var obj = tgt.find(function(o){return o.name===ps.name;});
   if (!obj) return {ok:false,msg:"object not found: "+ps.name};
-  if (obj.type==="PrimitiveDrawing::ShapePainter") {
+  if (obj.type==="PrimitiveDrawing::Drawer") {
     if (ps.color) obj.fillColor = parseHexColor(ps.color, obj.fillColor || { r: 100, g: 130, b: 240 });
-    if (ps.width)  { var w=parseFloat(ps.width); obj.centerPosition={x:w/2,y:obj.centerPosition?obj.centerPosition.y:16}; if (obj.shapeType!=="circle") obj.points=[{x:0,y:0},{x:w,y:0},{x:w,y:obj.points?obj.points[2].y:32},{x:0,y:obj.points?obj.points[3].y:32}]; }
-    if (ps.height) { var h=parseFloat(ps.height); obj.centerPosition={x:obj.centerPosition?obj.centerPosition.x:16,y:h/2}; if (obj.shapeType!=="circle") obj.points=[{x:0,y:0},{x:obj.points?obj.points[1].x:32,y:0},{x:obj.points?obj.points[2].x:32,y:h},{x:0,y:h}]; }
-    if (ps.shape)  { obj.shapeType=ps.shape; if (ps.shape==="circle") obj.points=[]; }
     if (ps.outline!==undefined) obj.outlineSize=parseFloat(ps.outline)||0;
   }
   if (obj.type==="TextObject::Text") {
