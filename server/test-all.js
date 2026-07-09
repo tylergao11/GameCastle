@@ -1,7 +1,7 @@
 var path = require("path");
 var { fork } = require("child_process");
 var GameCastleTransport = require(path.join(__dirname, "..", "ai", "network-runtime", "transport.js"));
-var FrameSyncSession = require(path.join(__dirname, "..", "ai", "network-runtime", "frame-sync.js")).GameCastleFrameSyncSession;
+var TickIntentRuntime = require(path.join(__dirname, "..", "ai", "network-runtime", "tick-intent-runtime.js")).GameCastleTickIntentRuntime;
 var AsyncPersistenceStrategy = require(path.join(__dirname, "..", "ai", "network-runtime", "async-persistence.js")).AsyncPersistenceStrategy;
 var EventRelayStrategy = require(path.join(__dirname, "..", "ai", "network-runtime", "event-relay.js")).EventRelayStrategy;
 var ServerOrderedInputSession = require(path.join(__dirname, "server-ordered-input.js")).ServerOrderedInputSession;
@@ -18,15 +18,15 @@ var server = fork(path.join(__dirname, "signaling-server.js"), [], {
 
 function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
-function testFrameSyncTemplate() {
-  var s = new FrameSyncSession({ inputDelay: 0 });
+function testTickIntentTemplate() {
+  var s = new TickIntentRuntime({ inputDelay: 0 });
   s.setLocalPlayer("p1", "p1");
   s.setPeerPlayer("p2", "p2");
-  s.captureLocalFrame({ right: true });
-  s.receiveRemoteFrame("p2", { tick: 0, inputs: { left: true } });
-  var frames = s.nextLockstepFrames();
-  if (frames.length === 1 && frames[0].inputs.p1_right && frames[0].inputs.p2_left) pass("frame_sync_template");
-  else fl("frame_sync_template", JSON.stringify(frames));
+  s.captureLocalIntent({ right: true });
+  s.receiveRemoteIntent("p2", { tick: 0, intent: { left: true } });
+  var frames = s.nextLockstepTicks();
+  if (frames.length === 1 && frames[0].inputs.p1_right && frames[0].inputs.p2_left) pass("tick_intent_runtime");
+  else fl("tick_intent_runtime", JSON.stringify(frames));
 }
 
 function testServerOrderedInputTemplate() {
@@ -87,7 +87,7 @@ async function testEventRelay() {
 
 async function main() {
   await sleep(500);
-  testFrameSyncTemplate();
+  testTickIntentTemplate();
   testServerOrderedInputTemplate();
   await testAsyncPersistence();
   await testEventRelay();

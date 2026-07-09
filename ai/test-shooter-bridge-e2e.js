@@ -3,7 +3,7 @@ var path = require("path");
 var childProcess = require("child_process");
 
 global.GameCastleRuntimeAdapter = require("./network-runtime/runtime-adapter").GameCastleRuntimeAdapter;
-var GameCastleNetworkBridge = require("./network-runtime/game-bridge").GameCastleNetworkBridge;
+var GameCastleTickIntentBridge = require("./network-runtime/tick-intent-bridge").GameCastleTickIntentBridge;
 var GameCastleTransport = require("./network-runtime/transport");
 
 var PORT = 3007;
@@ -108,7 +108,7 @@ async function main() {
     var hostGame = makeFakeShooterGame("Game", { 39: true, 32: true });
     var joinGame = makeFakeShooterGame("Game", { 38: true });
 
-    hostBridge = new GameCastleNetworkBridge({
+    hostBridge = new GameCastleTickIntentBridge({
       inputs: inputs,
       tickRate: 20,
       sync: "lockstep",
@@ -116,7 +116,7 @@ async function main() {
       autoHost: false,
       inputDelay: 1,
     });
-    joinBridge = new GameCastleNetworkBridge({
+    joinBridge = new GameCastleTickIntentBridge({
       inputs: inputs,
       tickRate: 20,
       sync: "lockstep",

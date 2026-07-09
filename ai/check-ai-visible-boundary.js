@@ -221,7 +221,7 @@ async function buildRuntimeSurfaces(productModules, components) {
     compileResultCard: compiled.resultCard,
     dslText: compiled.bridgePlan.dslText,
     modules: compiled.bridgePlan.installedModules,
-    networkManifest: compiled.bridgePlan.networkManifest,
+    tickRuntimeManifest: compiled.bridgePlan.tickRuntimeManifest,
     runtimeAdapterRequirements: compiled.bridgePlan.runtimeAdapterRequirements,
     designBrief: makeDangerousDesignBrief(),
     diff: { isNew: true }

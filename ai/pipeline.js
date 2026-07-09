@@ -10,7 +10,7 @@ var pipelineState = require("./pipeline-state");
 var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
 var htmlExporter = require("./html-exporter");
-var networkCodegen = require("./network-runtime/codegen");
+var tickRuntimeCodegen = require("./network-runtime/codegen");
 var intentRuntimeCodegen = require("./intent-runtime-codegen");
 var textureProvider = require("./texture-provider");
 var gdevelopTruth = require("./gdevelop-truth");
@@ -37,7 +37,7 @@ var PRODUCT_MODULES_DIR = path.join(__dirname, "product-modules");
 var GDEVELOP_RUNTIME_DIR = process.env.GAMECASTLE_GDJS_RUNTIME_DIR || path.join(__dirname, '..', 'engine', 'gdevelop-runtime');
 var PROJECT_PATH = path.join(STATE_DIR, "project.json");
 var HTML_EXPORT_MANIFEST_PATH = path.join(STATE_DIR, "html-export-manifest.json");
-var NETWORK_MANIFEST_PATH = path.join(STATE_DIR, "network-manifest.json");
+var TICK_RUNTIME_MANIFEST_PATH = path.join(STATE_DIR, "tick-runtime-manifest.json");
 var INTENT_RUNTIME_REQUIREMENTS_PATH = path.join(STATE_DIR, "intent-runtime-requirements.json");
 var PENDING_APPROVAL_PATH = path.join(STATE_DIR, "pending-approval.json");
 var PIPELINE_STATE_PATH = path.join(STATE_DIR, "pipeline-state.json");
@@ -854,7 +854,7 @@ function resetGeneratedStateForNewProject(options) {
     path.join(STATE_DIR, 'game.html'),
     path.join(STATE_DIR, 'index.html'),
     HTML_EXPORT_MANIFEST_PATH,
-    NETWORK_MANIFEST_PATH,
+    TICK_RUNTIME_MANIFEST_PATH,
     INTENT_RUNTIME_REQUIREMENTS_PATH,
     PENDING_APPROVAL_PATH,
     projectWorld.getWorldPath(STATE_DIR),
@@ -907,13 +907,13 @@ function writeProjectOutputs(project, options) {
   gdevelopTruth.validateProject(project);
   fs.writeFileSync(PROJECT_PATH, JSON.stringify(project, null, 2));
   var codeFiles = writeRuntimeExecutionFiles(project);
-  // Regenerate network runtime from cached manifest
-  var networkManifestPath = path.join(STATE_DIR, 'network-manifest.json');
-  if (fs.existsSync(networkManifestPath)) {
-    var cachedManifest = JSON.parse(fs.readFileSync(networkManifestPath, 'utf8'));
-    var networkRuntimeJs = networkCodegen.generate(cachedManifest, { signalingUrl: options.signalingUrl });
-    fs.writeFileSync(path.join(STATE_DIR, 'network-runtime.js'), networkRuntimeJs);
-    console.log('[NetworkRuntime] regenerated (' + networkRuntimeJs.length + ' bytes)');
+  // Regenerate tick runtime from cached manifest
+  var tickRuntimeManifestPath = path.join(STATE_DIR, 'tick-runtime-manifest.json');
+  if (fs.existsSync(tickRuntimeManifestPath)) {
+    var cachedManifest = JSON.parse(fs.readFileSync(tickRuntimeManifestPath, 'utf8'));
+    var tickRuntimeJs = tickRuntimeCodegen.generate(cachedManifest, { signalingUrl: options.signalingUrl });
+    fs.writeFileSync(path.join(STATE_DIR, 'tick-runtime.js'), tickRuntimeJs);
+    console.log('[TickRuntime] regenerated (' + tickRuntimeJs.length + ' bytes)');
   }
   var intentRuntimeRequirements = options.runtimeAdapterRequirements || null;
   if (!intentRuntimeRequirements && fs.existsSync(INTENT_RUNTIME_REQUIREMENTS_PATH)) {
@@ -936,8 +936,8 @@ function writeProjectOutputs(project, options) {
   fs.writeFileSync(HTML_EXPORT_MANIFEST_PATH, JSON.stringify(htmlManifest, null, 2));
   try {
     htmlExporter.syncHtmlRuntime(GDEVELOP_RUNTIME_DIR, STATE_DIR, htmlManifest);
-    var hasNetwork = fs.existsSync(NETWORK_MANIFEST_PATH);
-    htmlExporter.writeHtmlExport(STATE_DIR, htmlManifest, { hasNetwork: hasNetwork });
+    var hasTickRuntime = fs.existsSync(TICK_RUNTIME_MANIFEST_PATH);
+    htmlExporter.writeHtmlExport(STATE_DIR, htmlManifest, { hasTickRuntime: hasTickRuntime });
     console.log('[HtmlExport] ' + htmlManifest.scriptFiles.length + ' scripts, ' + (htmlManifest.assetFiles || []).length + ' assets -> ' + HTML_EXPORT_MANIFEST_PATH);
   } catch (e) {
     console.warn('[HtmlExport] Skipped — GDJS runtime not available: ' + e.message);
@@ -979,13 +979,13 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   }
   console.log('[Done:' + batchLabel + '] ' + ok + '/' + ops.length + ' succeeded');
 
-  // Save network manifest BEFORE writeProjectOutputs so HTML can detect it
-  if (options.networkManifest) {
-    var networkPath = moduleCompiler.saveNetworkManifest(STATE_DIR, options.networkManifest);
-    console.log('[NetworkManifest] ' + networkPath);
-    var networkRuntimeJs = networkCodegen.generate(options.networkManifest, { signalingUrl: options.signalingUrl });
-    fs.writeFileSync(path.join(STATE_DIR, "network-runtime.js"), networkRuntimeJs);
-    console.log("[NetworkRuntime] " + path.join(STATE_DIR, "network-runtime.js") + " (" + networkRuntimeJs.length + " bytes)");
+  // Save tick runtime manifest BEFORE writeProjectOutputs so HTML can detect it
+  if (options.tickRuntimeManifest) {
+    var networkPath = moduleCompiler.saveTickRuntimeManifest(STATE_DIR, options.tickRuntimeManifest);
+    console.log('[TickRuntimeManifest] ' + networkPath);
+    var tickRuntimeJs = tickRuntimeCodegen.generate(options.tickRuntimeManifest, { signalingUrl: options.signalingUrl });
+    fs.writeFileSync(path.join(STATE_DIR, "tick-runtime.js"), tickRuntimeJs);
+    console.log("[TickRuntime] " + path.join(STATE_DIR, "tick-runtime.js") + " (" + tickRuntimeJs.length + " bytes)");
   }
 
   writeProjectOutputs(project, {
@@ -1265,7 +1265,7 @@ async function makePendingApprovalPacket(options) {
       return line.trim() && line.trim()[0] !== '#';
     }),
     modules: options.modules || null,
-    networkManifest: options.networkManifest || null,
+    tickRuntimeManifest: options.tickRuntimeManifest || null,
     runtimeAdapterRequirements: options.runtimeAdapterRequirements || null,
     designBrief: options.designBrief || null,
     diff: options.diff || null,
@@ -1315,7 +1315,7 @@ async function approvePendingPatch() {
     designBrief: pending.designBrief,
     diff: pending.diff,
     modules: pending.modules,
-    networkManifest: pending.networkManifest,
+    tickRuntimeManifest: pending.tickRuntimeManifest,
     runtimeAdapterRequirements: pending.runtimeAdapterRequirements,
     allowEmpty: pending.patchKind === 'module',
     intent: pending.patchKind === 'intent' ? {
@@ -1541,7 +1541,7 @@ async function run(prompt, useMock) {
       moduleDslText: moduleDslText,
       dslText: dslText,
       modules: compiledIntentPatch ? compiledIntentPatch.bridgePlan.installedModules : (compiledModulePatch && compiledModulePatch.installedModules),
-      networkManifest: compiledIntentPatch ? compiledIntentPatch.bridgePlan.networkManifest : (compiledModulePatch && compiledModulePatch.networkManifest),
+      tickRuntimeManifest: compiledIntentPatch ? compiledIntentPatch.bridgePlan.tickRuntimeManifest : (compiledModulePatch && compiledModulePatch.tickRuntimeManifest),
       runtimeAdapterRequirements: compiledIntentPatch ? compiledIntentPatch.bridgePlan.runtimeAdapterRequirements : (compiledModulePatch && compiledModulePatch.runtimeAdapterRequirements),
       designBrief: designBrief,
       diff: diff,
@@ -1555,7 +1555,7 @@ async function run(prompt, useMock) {
     designBrief: designBrief,
     diff: diff,
     modules: compiledIntentPatch ? compiledIntentPatch.bridgePlan.installedModules : (compiledModulePatch && compiledModulePatch.installedModules),
-    networkManifest: compiledIntentPatch ? compiledIntentPatch.bridgePlan.networkManifest : (compiledModulePatch && compiledModulePatch.networkManifest),
+    tickRuntimeManifest: compiledIntentPatch ? compiledIntentPatch.bridgePlan.tickRuntimeManifest : (compiledModulePatch && compiledModulePatch.tickRuntimeManifest),
     runtimeAdapterRequirements: compiledIntentPatch ? compiledIntentPatch.bridgePlan.runtimeAdapterRequirements : (compiledModulePatch && compiledModulePatch.runtimeAdapterRequirements),
     intent: compiledIntentPatch ? {
       patchKind: 'intent',
@@ -1602,7 +1602,7 @@ async function run(prompt, useMock) {
       repairDsl = dslAgent.cleanDslOutput(repairDsl);
       batch = await executeDslBatch(project, repairDsl, 'repair_' + String(repairRound).padStart(2, '0'), {
         modules: compiledModulePatch && compiledModulePatch.installedModules,
-        networkManifest: compiledModulePatch && compiledModulePatch.networkManifest,
+        tickRuntimeManifest: compiledModulePatch && compiledModulePatch.tickRuntimeManifest,
       });
     }
     if (batch.report.summary.nextAction === 'repair') {

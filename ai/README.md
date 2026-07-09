@@ -34,7 +34,7 @@
 | `check-capabilities.js` | 能力卡校验脚本，已接入 `npm run check:ai` |
 | `check-product-modules.js` | 产品模块校验脚本，已接入 `npm run check:ai` |
 | `module-dsl.js` | LLM2/Commander 级 Module DSL parser |
-| `module-compiler.js` | 产品模块编译器，把 Module DSL 展开为内部低层 DSL，并产出 network manifest |
+| `module-compiler.js` | 产品模块编译器，把 Module DSL 展开为内部低层 DSL，并产出 tick runtime manifest |
 | `project-world.js` | 把 GDevelop `project.json` 翻译为稳定的 `ProjectWorld`，并追加 `ExecutionLedger` |
 | `gdevelop-truth.js` | 项目内唯一 GDevelop runtime truth 入口，负责官方类型/include/字段读取和校验 |
 | `gdevelop-truth/runtime-truth.json` | 从 `D:\GDevelop-master` 提取的官方 GDevelop/GDJS runtime truth snapshot |
@@ -212,7 +212,7 @@ LLM1 design brief
 
 On `--continue`, existing `ProjectWorld.modules` are treated as the base module
 set. The compiler rejects duplicate module installs, merges new modules into
-the module state, rewrites the full network manifest, and can generate narrow
+the module state, rewrites the full tick runtime manifest, and can generate narrow
 slot patches against the existing `ProjectWorld` instead of replaying a whole
 template.
 
@@ -227,7 +227,7 @@ The compiler only accepts keys declared by `compiler.configurePatches` or sync
 policy fields. Text and navigation changes become targeted event replacement
 diffs. Sync-only changes are metadata-only batches with zero internal DSL
 commands, but still update `ProjectWorld.modules`, `ExecutionLedger`, and
-`output/network-manifest.json`.
+`output/tick-runtime-manifest.json`.
 
 Module manifests also own fixed interaction contracts. Display parameters such
 as `button` and `hint` may be configurable, but they cannot invent triggers that
@@ -277,7 +277,7 @@ node ai/pipeline.js --approve-pending
 - LLM2 Intent DSL.
 - Typed Intent Graph, Placement Plan, Bridge Plan, and Compile ResultCard.
 - Compiled internal low-level DSL.
-- Installed module state and network manifest.
+- Installed module state and tick runtime manifest.
 - Dry-run preview: `nextAction`, predicted semantic hash, cache-hit status, and
   failed command summaries.
 

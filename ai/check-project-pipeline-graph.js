@@ -22,7 +22,7 @@ function main() {
     'asset-resolver',
     'asset-world',
     'runtime-linker',
-    'network-runtime',
+    'tick-runtime',
     'server-runtime',
     'html-export',
     'runtime-validator',
@@ -43,7 +43,7 @@ function main() {
   );
   assert.deepStrictEqual(
     projectPipelineGraph.getLayerNodes('runtime-assembly'),
-    ['runtime-linker', 'network-runtime', 'html-export', 'runtime'],
+    ['runtime-linker', 'tick-runtime', 'html-export', 'runtime'],
     'runtime-assembly layer should own assembly and execution nodes'
   );
   assert.deepStrictEqual(
@@ -66,7 +66,7 @@ function main() {
       'asset-resolver',
       'asset-world',
       'runtime-linker',
-      'network-runtime',
+      'tick-runtime',
       'server-runtime',
       'html-export',
       'runtime-validator',
@@ -96,7 +96,7 @@ function main() {
     'ai/html-exporter.js',
     'ai/network-runtime/codegen.js',
     'ai/network-runtime/transport.js',
-    'ai/network-runtime/game-bridge.js',
+    'ai/network-runtime/tick-intent-bridge.js',
     'server/signaling-server.js',
     'server/room.js',
     'server/game-loop.js',

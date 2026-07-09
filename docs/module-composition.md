@@ -64,7 +64,7 @@ compiler 做机械匹配，不做语义猜测。
     }
   },
   "compiler": {
-    "dsl": [ "install network sync=lockstep tickRate=20", "sync input {{inputs}}" ]
+    "dsl": [ "install remote tick intent=lockstep tickRate=20", "sync input {{inputs}}" ]
   }
 }
 ```
@@ -103,7 +103,7 @@ compiler 检查：
 
 ## Network Plan
 
-`output/network-manifest.json` keeps the per-module `syncPolicy` records for
+`output/tick-runtime-manifest.json` keeps the per-module `syncPolicy` records for
 traceability, but runtime assembly must consume the compiler-owned `plan`.
 
 The plan has one realtime owner and zero or more side channels:
@@ -127,7 +127,7 @@ The plan has one realtime owner and zero or more side channels:
 Runtime ownership follows the plan:
 
 - `lockstep`, `lockstep-input`, and `server-authoritative` are realtime modes.
-  `GameCastleNetworkBridge` owns the GDJS frame loop for these modes, but it
+  `GameCastleTickIntentBridge` owns the GDJS frame loop for these modes, but it
   does not own the netcode protocol.
 - `event`, `peer-event`, `async-state`, and `snapshot` are channels.
   They may share the room/transport, but they must not create another GDJS tick
@@ -139,11 +139,11 @@ Runtime ownership follows the plan:
 
 Realtime modules compile into a stable three-layer runtime:
 
-1. `GameCastleFrameSyncSession` is the pure netcode core. It owns frame numbers,
+1. `GameCastleTickIntentRuntime` is the pure netcode core. It owns frame numbers,
    local/remote input buffers, player slot mapping (`p1_*`, `p2_*`), input
    delay, redundant input packets, ready-frame ACKs, history pruning, and the
    disconnected/reconnected advance gate.
-2. `GameCastleNetworkBridge` is only the GDJS adapter. It captures physical
+2. `GameCastleTickIntentBridge` is only the GDJS adapter. It captures physical
    inputs, sends frame packets through transport, injects replay inputs, and
    steps GDJS at the fixed tick rate.
 3. Gameplay modules only declare `networking.inputs` and `networking.state`.
@@ -151,7 +151,7 @@ Realtime modules compile into a stable three-layer runtime:
 
 This follows the standard lockstep/rollback split: deterministic games exchange
 input frames, not object positions. Rollback-style prediction can replace or
-extend the frame-sync session later by implementing the same save/load/replay
+extend the tick-intent-runtime session later by implementing the same save/load/replay
 boundary, while module DSL and GDJS bridge code remain stable.
 
 Current template behavior:
@@ -192,8 +192,8 @@ runtime protocol template is `snapshot`.
 
 Canonical protocol/server templates:
 
-- `frame-sync`: deterministic input-frame sync. Runtime owner:
-  `GameCastleFrameSyncSession`; GDJS adapter: `GameCastleNetworkBridge`.
+- `tick-intent-runtime`: deterministic tick intent ordering. Runtime owner:
+  `GameCastleTickIntentRuntime`; GDJS adapter: `GameCastleTickIntentBridge`.
 - `snapshot`: authoritative snapshot sync. Runtime owner:
   `GameCastleSnapshotSyncSession`; transport adapter: `SnapshotSyncStrategy`.
 - `event`: room/peer event relay. Runtime owner:

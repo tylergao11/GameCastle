@@ -670,7 +670,7 @@ function compileModuleCommands(commands, catalog, options) {
     dslText: lines.join('\n'),
     dslLines: lines,
     installedModules: installedModules,
-    networkManifest: {
+    tickRuntimeManifest: {
       schemaVersion: NETWORK_MANIFEST_SCHEMA_VERSION,
       modules: networkModules,
       plan: makeNetworkPlan(networkModules)
@@ -678,9 +678,9 @@ function compileModuleCommands(commands, catalog, options) {
   };
 }
 
-function saveNetworkManifest(stateDir, manifest) {
+function saveTickRuntimeManifest(stateDir, manifest) {
   fs.mkdirSync(stateDir, { recursive: true });
-  var filePath = path.join(stateDir, 'network-manifest.json');
+  var filePath = path.join(stateDir, 'tick-runtime-manifest.json');
   fs.writeFileSync(filePath, JSON.stringify(manifest, null, 2));
   return filePath;
 }
@@ -693,5 +693,5 @@ module.exports = {
   compileModuleDslText: compileModuleDslText,
   compileModuleCommands: compileModuleCommands,
   makeNetworkPlan: makeNetworkPlan,
-  saveNetworkManifest: saveNetworkManifest
+  saveTickRuntimeManifest: saveTickRuntimeManifest
 };

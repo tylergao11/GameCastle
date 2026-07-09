@@ -581,7 +581,7 @@
   },
   "schemaVersion": 1,
   "source": {
-    "dir": "D:\\GDevelop-master",
+    "dir": "C:\\Ai\\GDevelop-master",
     "files": [
       {
         "path": "Extensions/3D/Base3DBehavior.ts",

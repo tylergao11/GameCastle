@@ -102,7 +102,7 @@ install module id=shell.game_over_screen preset=basic sync=event authority=host
 
 `ai/module-compiler.js` compiles product modules into the existing internal
 line-style DSL, records installed modules in `ProjectWorld.modules`, and writes
-future networking metadata to `output/network-manifest.json`.
+future networking metadata to `output/tick-runtime-manifest.json`.
 
 The AI-first Intent refactor replaces this as the live product surface instead
 of keeping it as a parallel compatibility path. Low-level DSL and Module DSL are
@@ -124,7 +124,7 @@ configure module id=shell.start_screen sync=event authority=host
 
 Only parameters declared in the product module manifest are configurable. The
 compiler patches existing generated events through `ProjectWorld`, updates
-`ProjectWorld.modules`, and rewrites the network manifest for sync-only changes.
+`ProjectWorld.modules`, and rewrites the tick runtime manifest for sync-only changes.
 Fixed runtime interactions are also part of the product module truth source.
 For example, a start-screen label can describe the button, but it cannot claim
 an Enter-key trigger unless the module exposes that trigger. LLM2 sees only the

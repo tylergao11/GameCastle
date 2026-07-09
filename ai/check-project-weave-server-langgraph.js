@@ -3,11 +3,11 @@ var fs = require('fs');
 var path = require('path');
 
 var langGraphRuntime = require('./langgraph-runtime');
-var networkCodegen = require('./network-runtime/codegen');
+var tickRuntimeCodegen = require('./network-runtime/codegen');
 
 var ROOT = path.join(__dirname, '..');
 
-function makeNetworkManifest() {
+function makeTickRuntimeManifest() {
   return {
     schemaVersion: 1,
     modules: [],
@@ -37,7 +37,7 @@ function assertFile(relativePath) {
 
 async function compileServerGraph(langGraph) {
   var State = langGraph.Annotation.Root({
-    networkRuntime: langGraph.Annotation({
+    tickRuntime: langGraph.Annotation({
       reducer: function(left, right) { return Object.assign({}, left || {}, right || {}); },
       default: function() { return {}; },
     }),
@@ -56,13 +56,13 @@ async function compileServerGraph(langGraph) {
   }
 
   return new langGraph.StateGraph(State)
-    .addNode('network-runtime', function(state) {
-      var manifest = makeNetworkManifest();
-      var bundle = networkCodegen.generate(manifest, { signalingUrl: 'ws://example.test' });
-      assert(bundle.indexOf('new GameCastleNetworkBridge') >= 0, 'network runtime should include bridge');
-      assert(bundle.indexOf('function GameCastleFrameSyncSession') >= 0, 'network runtime should include frame sync core');
+    .addNode('tick-runtime', function(state) {
+      var manifest = makeTickRuntimeManifest();
+      var bundle = tickRuntimeCodegen.generate(manifest, { signalingUrl: 'ws://example.test' });
+      assert(bundle.indexOf('new GameCastleTickIntentBridge') >= 0, 'tick intent runtime should include bridge');
+      assert(bundle.indexOf('function GameCastleTickIntentRuntime') >= 0, 'tick intent runtime should include tick intent runtime core');
       return {
-        networkRuntime: {
+        tickRuntime: {
           manifest: manifest,
           bundle: bundle,
           summary: {
@@ -72,11 +72,11 @@ async function compileServerGraph(langGraph) {
             state: manifest.plan.allState.length,
           },
         },
-        graphTrace: appendTrace(state, 'network-runtime', ['networkRuntime.manifest', 'networkRuntime.bundle', 'networkRuntime.summary']),
+        graphTrace: appendTrace(state, 'tick-runtime', ['tickRuntime.manifest', 'tickRuntime.bundle', 'tickRuntime.summary']),
       };
     })
     .addNode('server-runtime', function(state) {
-      assert(state.networkRuntime.summary, 'server runtime should receive network runtime summary');
+      assert(state.tickRuntime.summary, 'server runtime should receive tick intent runtime summary');
       var serverFiles = [
         'server/signaling-server.js',
         'server/room.js',
@@ -99,14 +99,14 @@ async function compileServerGraph(langGraph) {
             status: 'ready',
             owner: 'ServerRuntime',
             files: serverFiles,
-            networkSync: state.networkRuntime.summary.sync,
+            tickMode: state.tickRuntime.summary.sync,
           },
         },
         graphTrace: appendTrace(state, 'server-runtime', ['serverRuntime.report']),
       };
     })
-    .addEdge(langGraph.START, 'network-runtime')
-    .addEdge('network-runtime', 'server-runtime')
+    .addEdge(langGraph.START, 'tick-runtime')
+    .addEdge('tick-runtime', 'server-runtime')
     .addEdge('server-runtime', langGraph.END)
     .compile();
 }
@@ -118,7 +118,7 @@ async function main() {
   assert.strictEqual(result.serverRuntime.report.status, 'ready', 'server runtime report should be ready');
   assert.deepStrictEqual(
     result.graphTrace.map(function(entry) { return entry.node; }),
-    ['network-runtime', 'server-runtime'],
+    ['tick-runtime', 'server-runtime'],
     'server weave StateGraph trace should preserve server composition order'
   );
   console.log('[ProjectWeaveServerLangGraph] server weave StateGraph passed');

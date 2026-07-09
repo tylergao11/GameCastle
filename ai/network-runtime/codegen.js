@@ -1,6 +1,6 @@
-// GameCastle Network Runtime — Code Generator
+// GameCastle Tick Intent Runtime — Code Generator
 //
-// Reads the network manifest produced by the module compiler
+// Reads the tick runtime manifest produced by the module compiler
 // and assembles a self-contained JavaScript file containing:
 //   1. Transport class
 //   2. Required sync strategies
@@ -22,13 +22,13 @@ var BRIDGE_OWNED_SYNC = {
 // ── Strategy registry ────────────────────────────────────────────────────
 // Maps sync model → { file, constructor, description }
 var REGISTRY = {
-  "lockstep":             { file: "frame-sync.js",    ctor: "GameCastleFrameSyncSession", desc: "Deterministic frame input sync" },
-  "lockstep-input":       { file: "frame-sync.js",    ctor: "GameCastleFrameSyncSession", desc: "Deterministic frame input sync" },
+  "lockstep":             { file: "tick-intent-runtime.js",    ctor: "GameCastleTickIntentRuntime", desc: "Deterministic frame input sync" },
+  "lockstep-input":       { file: "tick-intent-runtime.js",    ctor: "GameCastleTickIntentRuntime", desc: "Deterministic frame input sync" },
   "snapshot":             { file: "snapshot-sync.js", ctor: "SnapshotSyncStrategy", desc: "Authoritative state snapshots" },
   "event":                { file: "event-relay.js",   ctor: "EventRelayStrategy",   desc: "Event-driven room relay" },
   "peer-event":           { file: "event-relay.js",   ctor: "EventRelayStrategy",   desc: "Directed peer event relay" },
   "async-state":          { file: "async-persistence.js", ctor: "AsyncPersistenceStrategy", desc: "Save/load state to server" },
-  "server-authoritative": { file: "frame-sync.js", ctor: "GameCastleFrameSyncSession", desc: "Server-ordered inputs, clients replay deterministic frames" },
+  "server-authoritative": { file: "tick-intent-runtime.js", ctor: "GameCastleTickIntentRuntime", desc: "Server-ordered inputs, clients replay deterministic frames" },
 };
 
 // ── Public API ────────────────────────────────────────────────────────────
@@ -45,10 +45,10 @@ function generate(manifest, options) {
   var sourceFiles = collectSourceFiles(entries, bridgeModule);
 
   if (bridgeModule) {
-    // Add runtime-adapter + game-bridge once for network-aware games.
-    sourceFiles.push("frame-sync.js");
+    // Add runtime-adapter + tick-intent bridge once for tick-driven games.
+    sourceFiles.push("tick-intent-runtime.js");
     sourceFiles.push("runtime-adapter.js");
-    sourceFiles.push("game-bridge.js");
+    sourceFiles.push("tick-intent-bridge.js");
   }
 
   // 2. Read and clean source files
@@ -72,8 +72,8 @@ function resolvePlan(manifest) {
 function resolveBridgeModule(modules, plan) {
   if (plan && plan.realtime) {
     return {
-      id: "network.realtime",
-      category: "network-plan",
+      id: "tick.realtime",
+      category: "tick-runtime-plan",
       syncPolicy: {
         sync: plan.realtime.sync,
         tickRate: plan.realtime.tickRate,
@@ -100,7 +100,7 @@ function resolveStrategies(modules, plan) {
     plan.channels.forEach(function (channel) {
       var entry = REGISTRY[channel.sync];
       if (!entry) {
-        console.warn("[NetworkCodegen] unsupported sync channel: " + channel.sync + " (module " + channel.id + ")");
+        console.warn("[TickRuntimeCodegen] unsupported sync channel: " + channel.sync + " (module " + channel.id + ")");
         return;
       }
       entries.push({
@@ -128,11 +128,11 @@ function resolveStrategies(modules, plan) {
 
     var entry = REGISTRY[policy.sync];
     if (!entry) {
-      console.warn("[NetworkCodegen] unsupported sync model: " + policy.sync + " (module " + mod.id + ")");
+      console.warn("[TickRuntimeCodegen] unsupported sync model: " + policy.sync + " (module " + mod.id + ")");
       return;
     }
     if (!entry.file) {
-      console.warn("[NetworkCodegen] not yet implemented: " + policy.sync + " — " + entry.desc);
+      console.warn("[TickRuntimeCodegen] not yet implemented: " + policy.sync + " — " + entry.desc);
       return;
     }
 
@@ -175,9 +175,9 @@ function readSourceFile(filename) {
   var filePath;
   if (filename === "transport.js") {
     filePath = path.join(RUNTIME_DIR, filename);
-  } else if (filename === "game-bridge.js") {
+  } else if (filename === "tick-intent-bridge.js") {
     filePath = path.join(RUNTIME_DIR, filename);
-  } else if (filename === "frame-sync.js") {
+  } else if (filename === "tick-intent-runtime.js") {
     filePath = path.join(RUNTIME_DIR, filename);
   } else if (filename === "snapshot-sync.js") {
     filePath = path.join(RUNTIME_DIR, filename);
@@ -192,7 +192,7 @@ function readSourceFile(filename) {
   }
 
   if (!fs.existsSync(filePath)) {
-    throw new Error("Network runtime source missing: " + filePath);
+    throw new Error("Tick runtime source missing: " + filePath);
   }
 
   var src = fs.readFileSync(filePath, "utf8");
@@ -245,12 +245,12 @@ function generateWiring(signalingUrl, entries, modules, bridgeModule) {
 
   if (entries.length === 0 && !bridgeModule) {
     return lines.concat([
-      "  // No network sync needed (all modules are local-only).",
-      "  window.GameCastleNetwork = {",
+      "  // No remote tick intent source needed (all modules are local-only).",
+      "  window.GameCastleTickRuntime = {",
       "    transport: null,",
       "    strategies: {},",
-      "    host: function () { return Promise.reject(new Error('No network sync configured')); },",
-      "    join: function () { return Promise.reject(new Error('No network sync configured')); },",
+      "    host: function () { return Promise.reject(new Error('No remote tick intent source configured')); },",
+      "    join: function () { return Promise.reject(new Error('No remote tick intent source configured')); },",
       "  };",
     ]).join("\n");
   }
@@ -276,7 +276,7 @@ function generateWiring(signalingUrl, entries, modules, bridgeModule) {
   lines.push("  };");
   lines.push("");
 
-  // Typed accessor variables (e.g. GameCastleNetwork.platformer)
+  // Typed accessor variables (e.g. GameCastleTickRuntime.platformer)
   var accessorVars = [];
   entries.forEach(function (e) {
     var alias = e.id.replace(/^[^.]+\./, "").replace(/[^a-zA-Z0-9_]/g, "_");
@@ -305,7 +305,7 @@ function generateWiring(signalingUrl, entries, modules, bridgeModule) {
   lines.push("  }");
   lines.push("");
 
-  // host(): delegates to bridge.host() — bridge owns connect → createRoom → network loop
+  // host(): delegates to bridge.host() — bridge owns connect → createRoom → tick loop
   lines.push("  function hostWithoutBridge() {");
   lines.push("    return transport.connect().then(function () {");
   lines.push("      return new Promise(function (resolve, reject) {");
@@ -336,7 +336,7 @@ function generateWiring(signalingUrl, entries, modules, bridgeModule) {
   lines.push("");
 
   lines.push("  function host() {");
-  lines.push("    var b = window.GameCastleNetwork && window.GameCastleNetwork.bridge;");
+  lines.push("    var b = window.GameCastleTickRuntime && window.GameCastleTickRuntime.bridge;");
   lines.push("    if (!b) return hostWithoutBridge();");
   lines.push("    return b.host().then(function (result) {");
   lines.push("      startAllStrategies();");
@@ -345,9 +345,9 @@ function generateWiring(signalingUrl, entries, modules, bridgeModule) {
   lines.push("  }");
   lines.push("");
 
-  // join(roomId): delegates to bridge.join() — bridge owns connect → joinRoom → network loop
+  // join(roomId): delegates to bridge.join() — bridge owns connect → joinRoom → tick loop
   lines.push("  function join(roomId) {");
-  lines.push("    var b = window.GameCastleNetwork && window.GameCastleNetwork.bridge;");
+  lines.push("    var b = window.GameCastleTickRuntime && window.GameCastleTickRuntime.bridge;");
   lines.push("    if (!b) return joinWithoutBridge(roomId);");
   lines.push("    return b.join(roomId).then(function (result) {");
   lines.push("      startAllStrategies();");
@@ -358,7 +358,7 @@ function generateWiring(signalingUrl, entries, modules, bridgeModule) {
 
   // Section: Public API
   lines.push("  // ── Public API ──");
-  lines.push("  window.GameCastleNetwork = {");
+  lines.push("  window.GameCastleTickRuntime = {");
   lines.push("    transport: transport,");
   lines.push("    strategies: strategies,");
 
@@ -397,8 +397,8 @@ function assembleOutput(entries, bridgeModule, sourceBlocks, wiring) {
       : "none";
 
   return [
-    "// GameCastle Network Runtime",
-    "// Auto-generated from network manifest",
+    "// GameCastle Tick Intent Runtime",
+    "// Auto-generated from tick runtime manifest",
     "// Sync strategies: " + syncSummary,
     "(function () {",
     '  "use strict";',
@@ -409,7 +409,7 @@ function assembleOutput(entries, bridgeModule, sourceBlocks, wiring) {
     sourceBlocks.join("\n"),
     "",
     "  // ═══════════════════════════════════════════════════════════════",
-    "  // Wiring + Bridge Init (generated from network manifest)",
+    "  // Wiring + Bridge Init (generated from tick runtime manifest)",
     "  // ═══════════════════════════════════════════════════════════════",
     wiring,
     "",
@@ -449,8 +449,8 @@ function buildBridgeInitLines(bridgeModule, modules) {
   var config = buildConfig(bridgeModule, policy);
 
   return [
-    "  // ── Game-Network Bridge ──",
-    "  // Creates the bridge instance that connects GDevelop to the network.",
+    "  // ── Tick Intent Bridge ──",
+    "  // Creates the bridge instance that connects GDevelop to tick intent sources.",
     "  // Runs in the same scope as classes + strategies, so all symbols are visible.",
     "  (function () {",
     "    if (!transport) {",
@@ -467,14 +467,14 @@ function buildBridgeInitLines(bridgeModule, modules) {
     "      autoHost: false,",
     "    };",
     "",
-    "    var bridge = new GameCastleNetworkBridge(bridgeConfig);",
+    "    var bridge = new GameCastleTickIntentBridge(bridgeConfig);",
     "",
     "    // Bridge registers ALL transport.on() handlers internally",
     "    // via _setupTransportHandlers() (called from host()/join()).",
     "    // Do NOT add duplicate handlers here — the bridge owns everything.",
     "",
     "    // Expose bridge on global API",
-    "    window.GameCastleNetwork.bridge = bridge;",
+    "    window.GameCastleTickRuntime.bridge = bridge;",
     "",
     "    console.log('[GC:Bridge] Ready. inputs=' + bridgeConfig.inputs.join(',') + ' state=' + bridgeConfig.state.join(',') + ' sync=' + bridgeConfig.sync);",
     "  })();",

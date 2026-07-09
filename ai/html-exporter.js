@@ -178,7 +178,7 @@ function buildHtmlExportManifest(project, options) {
   (options.codeFiles || []).forEach(function(file) { addUnique(scriptFiles, file.fileName || file); });
   addUnique(scriptFiles, 'data.js');
   if (options.hasIntentRuntime) addUnique(scriptFiles, 'intent-runtime.js');
-  addUnique(scriptFiles, 'network-runtime.js');
+  addUnique(scriptFiles, 'tick-runtime.js');
 return {
     schemaVersion: 1,
     target: 'html',
@@ -216,7 +216,7 @@ function syncHtmlRuntime(runtimeDir, outputDir, manifest) {
   removeManagedRuntime(outputDir, runtimeDir);
   var copied = 0, skipped = 0, missing = [];
   manifest.scriptFiles.concat(manifest.assetFiles || []).forEach(function(file) {
-    if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'network-runtime.js' || file === 'intent-runtime.js') return;
+    if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'tick-runtime.js' || file === 'intent-runtime.js') return;
     if (copyRuntimeFile(runtimeDir, outputDir, file)) copied++; else { skipped++; missing.push(file); }
   });
   if (skipped > 0) {
@@ -228,14 +228,14 @@ function syncHtmlRuntime(runtimeDir, outputDir, manifest) {
 
 function renderHtml(manifest, options) {
   options = options || {};
-  var hasNetwork = options.hasNetwork || false;
+  var hasTickRuntime = options.hasTickRuntime || false;
   var scriptTags = manifest.scriptFiles.map(function(file) {
     return '<script src="' + file.replace(/\\/g, '/') + '" crossorigin="anonymous"></script>';
   }).join('\n');
 
   var gameStartScript;
-  if (hasNetwork) {
-    // Network mode: bridge controls the game loop
+  if (hasTickRuntime) {
+    // Tick mode: bridge controls the game loop
     gameStartScript = [
       '    (function() {',
       '      var game = new gdjs.RuntimeGame(gdjs.projectData, gdjs.runtimeGameOptions || {});',
@@ -243,7 +243,7 @@ function renderHtml(manifest, options) {
       '      game.getRenderer().createStandardCanvas(document.body);',
       '      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);',
       '      if (window.GameCastleIntentRuntime) window.GameCastleIntentRuntime.attach(game);',
-      '      var gcBridge = window.GameCastleNetwork && window.GameCastleNetwork.bridge;',
+      '      var gcBridge = window.GameCastleTickRuntime && window.GameCastleTickRuntime.bridge;',
       '      if (gcBridge) gcBridge.attach(game);',
       '      game.loadAllAssets(function() {',
       '        if (gcBridge) {',
@@ -295,7 +295,7 @@ function renderHtml(manifest, options) {
 
 function writeHtmlExport(outputDir, manifest, options) {
   options = options || {};
-  var html = renderHtml(manifest, { hasNetwork: !!options.hasNetwork });
+  var html = renderHtml(manifest, { hasTickRuntime: !!options.hasTickRuntime });
   fs.writeFileSync(path.join(outputDir, 'index.html'), html);
   fs.writeFileSync(path.join(outputDir, 'game.html'), html);
 }

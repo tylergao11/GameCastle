@@ -246,8 +246,8 @@ async function main() {
     hostPage = await newPage(HOST_DEBUG_PORT, url);
     joinPage = await newPage(JOIN_DEBUG_PORT, url);
 
-    await waitForPage(hostPage, "!!(window.GameCastleNetwork && window.GameCastleNetwork.bridge && document.querySelector('canvas'))", "host bridge and canvas", 10000);
-    await waitForPage(joinPage, "!!(window.GameCastleNetwork && window.GameCastleNetwork.bridge && document.querySelector('canvas'))", "join bridge and canvas", 10000);
+    await waitForPage(hostPage, "!!(window.GameCastleTickRuntime && window.GameCastleTickRuntime.bridge && document.querySelector('canvas'))", "host bridge and canvas", 10000);
+    await waitForPage(joinPage, "!!(window.GameCastleTickRuntime && window.GameCastleTickRuntime.bridge && document.querySelector('canvas'))", "join bridge and canvas", 10000);
     await waitForPage(hostPage, "!!(window.GameCastleRuntimeGame && window.GameCastleRuntimeGame.getSceneStack().getCurrentScene() && window.GameCastleRuntimeGame.getSceneStack().getCurrentScene().getObjects('Player1')[0] && window.GameCastleRuntimeGame.getSceneStack().getCurrentScene().getObjects('Player2')[0])", "host player objects", 10000);
 
     var beforeMove = await objectPosition(hostPage, "Player1");
@@ -258,21 +258,21 @@ async function main() {
     assert(afterMove.x > beforeMove.x + 4, "ArrowRight should move Player1 right");
     assert(afterMove.y > beforeMove.y + 4, "ArrowDown should move Player1 down");
 
-    var hostRoom = await evalInPage(hostPage, "(async function(){ var result = await window.GameCastleNetwork.host(); return result.roomId; })()");
+    var hostRoom = await evalInPage(hostPage, "(async function(){ var result = await window.GameCastleTickRuntime.host(); return result.roomId; })()");
     assert(hostRoom, "host should create a room");
-    await evalInPage(joinPage, "(async function(){ await window.GameCastleNetwork.join(" + JSON.stringify(hostRoom) + "); return true; })()");
+    await evalInPage(joinPage, "(async function(){ await window.GameCastleTickRuntime.join(" + JSON.stringify(hostRoom) + "); return true; })()");
 
     try {
-      await waitForPage(hostPage, "window.GameCastleNetwork.bridge.getPeerId() && window.GameCastleNetwork.bridge.getReadyTick() >= 2", "host peer and ticks", 10000);
-      await waitForPage(joinPage, "window.GameCastleNetwork.bridge.getPeerId() && window.GameCastleNetwork.bridge.getReadyTick() >= 2", "join peer and ticks", 10000);
+      await waitForPage(hostPage, "window.GameCastleTickRuntime.bridge.getPeerId() && window.GameCastleTickRuntime.bridge.getReadyTick() >= 2", "host peer and ticks", 10000);
+      await waitForPage(joinPage, "window.GameCastleTickRuntime.bridge.getPeerId() && window.GameCastleTickRuntime.bridge.getReadyTick() >= 2", "join peer and ticks", 10000);
     } catch (e) {
-      var hostDebug = await evalInPage(hostPage, "({ room: window.GameCastleNetwork.bridge.getRoomId(), player: window.GameCastleNetwork.bridge.getPlayerId(), peer: window.GameCastleNetwork.bridge.getPeerId(), tick: window.GameCastleNetwork.bridge.getTick(), ready: window.GameCastleNetwork.bridge.getReadyTick(), running: window.GameCastleNetwork.bridge.isRunning(), connected: window.GameCastleNetwork.transport.isConnected(), inRoom: window.GameCastleNetwork.transport.isInRoom() })").catch(function(err) { return { error: err.message }; });
-      var joinDebug = await evalInPage(joinPage, "({ room: window.GameCastleNetwork.bridge.getRoomId(), player: window.GameCastleNetwork.bridge.getPlayerId(), peer: window.GameCastleNetwork.bridge.getPeerId(), tick: window.GameCastleNetwork.bridge.getTick(), ready: window.GameCastleNetwork.bridge.getReadyTick(), running: window.GameCastleNetwork.bridge.isRunning(), connected: window.GameCastleNetwork.transport.isConnected(), inRoom: window.GameCastleNetwork.transport.isInRoom() })").catch(function(err) { return { error: err.message }; });
+      var hostDebug = await evalInPage(hostPage, "({ room: window.GameCastleTickRuntime.bridge.getRoomId(), player: window.GameCastleTickRuntime.bridge.getPlayerId(), peer: window.GameCastleTickRuntime.bridge.getPeerId(), tick: window.GameCastleTickRuntime.bridge.getTick(), ready: window.GameCastleTickRuntime.bridge.getReadyTick(), running: window.GameCastleTickRuntime.bridge.isRunning(), connected: window.GameCastleTickRuntime.transport.isConnected(), inRoom: window.GameCastleTickRuntime.transport.isInRoom() })").catch(function(err) { return { error: err.message }; });
+      var joinDebug = await evalInPage(joinPage, "({ room: window.GameCastleTickRuntime.bridge.getRoomId(), player: window.GameCastleTickRuntime.bridge.getPlayerId(), peer: window.GameCastleTickRuntime.bridge.getPeerId(), tick: window.GameCastleTickRuntime.bridge.getTick(), ready: window.GameCastleTickRuntime.bridge.getReadyTick(), running: window.GameCastleTickRuntime.bridge.isRunning(), connected: window.GameCastleTickRuntime.transport.isConnected(), inRoom: window.GameCastleTickRuntime.transport.isInRoom() })").catch(function(err) { return { error: err.message }; });
       throw new Error(e.message + "\nhost=" + JSON.stringify(hostDebug) + "\njoin=" + JSON.stringify(joinDebug) + "\nhost events:\n" + renderEvents(hostPage) + "\njoin events:\n" + renderEvents(joinPage));
     }
 
-    var hostState = await evalInPage(hostPage, "({ tick: window.GameCastleNetwork.bridge.getTick(), ready: window.GameCastleNetwork.bridge.getReadyTick(), sync: window.GameCastleNetwork.bridge.getSyncMode(), canvas: !!document.querySelector('canvas') })");
-    var joinState = await evalInPage(joinPage, "({ tick: window.GameCastleNetwork.bridge.getTick(), ready: window.GameCastleNetwork.bridge.getReadyTick(), sync: window.GameCastleNetwork.bridge.getSyncMode(), canvas: !!document.querySelector('canvas') })");
+    var hostState = await evalInPage(hostPage, "({ tick: window.GameCastleTickRuntime.bridge.getTick(), ready: window.GameCastleTickRuntime.bridge.getReadyTick(), sync: window.GameCastleTickRuntime.bridge.getSyncMode(), canvas: !!document.querySelector('canvas') })");
+    var joinState = await evalInPage(joinPage, "({ tick: window.GameCastleTickRuntime.bridge.getTick(), ready: window.GameCastleTickRuntime.bridge.getReadyTick(), sync: window.GameCastleTickRuntime.bridge.getSyncMode(), canvas: !!document.querySelector('canvas') })");
 
     assert(hostState.canvas && joinState.canvas, "both pages should render canvas");
     assert.strictEqual(hostState.sync, "lockstep", "host should run lockstep");

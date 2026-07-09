@@ -3,7 +3,7 @@ var fs = require('fs');
 var path = require('path');
 
 var ROOT = path.join(__dirname, '..');
-var DEFAULT_SOURCE_DIR = 'D:\\GDevelop-master';
+var DEFAULT_SOURCE_DIR = 'C:\\Ai\\GDevelop-master';
 var SOURCE_DIR = process.env.GAMECASTLE_GDEVELOP_SOURCE_DIR || DEFAULT_SOURCE_DIR;
 var OUT_DIR = path.join(ROOT, 'ai', 'gdevelop-truth');
 var OUT_PATH = path.join(OUT_DIR, 'runtime-truth.json');

@@ -87,7 +87,7 @@
 <script src="code0.js" crossorigin="anonymous"></script>
 <script src="data.js" crossorigin="anonymous"></script>
 <script src="intent-runtime.js" crossorigin="anonymous"></script>
-<script src="network-runtime.js" crossorigin="anonymous"></script>
+<script src="tick-runtime.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <script>
@@ -97,7 +97,7 @@
       game.getRenderer().createStandardCanvas(document.body);
       game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);
       if (window.GameCastleIntentRuntime) window.GameCastleIntentRuntime.attach(game);
-      var gcBridge = window.GameCastleNetwork && window.GameCastleNetwork.bridge;
+      var gcBridge = window.GameCastleTickRuntime && window.GameCastleTickRuntime.bridge;
       if (gcBridge) gcBridge.attach(game);
       game.loadAllAssets(function() {
         if (gcBridge) {

@@ -167,7 +167,7 @@ install module id=shell.game_over_screen preset=basic sync=event authority=host
 The compiler expands those modules into the existing internal line-style DSL,
 then the current executor mutates `project.json`. Installed modules are recorded
 in `ProjectWorld.modules`; future networking metadata is recorded in
-`output/network-manifest.json`.
+`output/tick-runtime-manifest.json`.
 
 Product modules also declare `repositoryPolicy`. The module repository is the
 gameplay-side equivalent of the asset repository: prefer reuse, and if an
@@ -338,7 +338,7 @@ Layer names:
 - `Briefing Layer`: user request and creative design brief.
 - `World Intent Layer`: natural Intent DSL, Intent Graph, resolver, bridge plan.
 - `Asset Weave Layer`: asset library lookup, image generation, asset review, slot resolution, reuse/generation debt, AssetWorld.
-- `Runtime Assembly Layer`: asset/bridge binding, network runtime codegen, runtime files, HTML export, execution.
+- `Runtime Assembly Layer`: asset/bridge binding, tick runtime codegen, runtime files, HTML export, execution.
 - `Server Weave Layer`: signaling server, rooms, ordered input, game loop, and state store.
 - `Validation Layer`: fulfillment, asset debt, export health, owner routing.
 - `World Summary Layer`: ProjectWorld and ledger feedback for the next turn.

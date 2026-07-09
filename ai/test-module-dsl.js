@@ -8,7 +8,7 @@ var PIPELINE = path.join(__dirname, 'pipeline.js');
 var OUTPUT_DIR = path.join(ROOT, 'output');
 var WORLD_PATH = path.join(OUTPUT_DIR, 'project-world.json');
 var LEDGER_PATH = path.join(OUTPUT_DIR, 'execution-ledger.json');
-var NETWORK_PATH = path.join(OUTPUT_DIR, 'network-manifest.json');
+var TICK_RUNTIME_MANIFEST_PATH = path.join(OUTPUT_DIR, 'tick-runtime-manifest.json');
 var HTML_EXPORT_MANIFEST_PATH = path.join(OUTPUT_DIR, 'html-export-manifest.json');
 var PROJECT_PATH = path.join(OUTPUT_DIR, 'project.json');
 var PENDING_APPROVAL_PATH = path.join(OUTPUT_DIR, 'pending-approval.json');
@@ -120,19 +120,19 @@ function testModuleCompileCacheHit() {
   runPipeline(['--module-dsl-file', fixture('module-platformer.dsl'), 'module-platformer'], 'module platformer first run');
   var firstWorld = readJson(WORLD_PATH);
   var firstProject = fs.readFileSync(PROJECT_PATH, 'utf8');
-  var firstNetwork = readJson(NETWORK_PATH);
+  var firstNetwork = readJson(TICK_RUNTIME_MANIFEST_PATH);
 
   runPipeline(['--module-dsl-file', fixture('module-platformer.dsl'), 'module-platformer'], 'module platformer second run');
   var secondWorld = readJson(WORLD_PATH);
   var secondProject = fs.readFileSync(PROJECT_PATH, 'utf8');
-  var secondNetwork = readJson(NETWORK_PATH);
+  var secondNetwork = readJson(TICK_RUNTIME_MANIFEST_PATH);
   var ledger = readJson(LEDGER_PATH);
 
   assert(firstWorld.worldVersion === 1, 'first module new project worldVersion should be 1');
   assert(secondWorld.worldVersion === 1, 'second module new project worldVersion should reset to 1');
   assert(firstWorld.semanticHash === secondWorld.semanticHash, 'module semanticHash should be stable');
   assert(firstProject === secondProject, 'module project.json should be byte-stable');
-  assert(JSON.stringify(firstNetwork) === JSON.stringify(secondNetwork), 'network manifest should be stable');
+  assert(JSON.stringify(firstNetwork) === JSON.stringify(secondNetwork), 'tick runtime manifest should be stable');
   assert(ledger.runs.length === 1, 'new module run should reset ledger');
   assert(secondWorld.modules.length === 1, 'world should record one installed module');
   assert(secondWorld.modules[0].id === 'core.platformer', 'world should record core.platformer');
@@ -143,7 +143,7 @@ function testShellComposition() {
   runPipeline(['--module-dsl-file', fixture('module-platformer-shells.dsl'), 'module-shells'], 'module shells run');
   var world = readJson(WORLD_PATH);
   var project = readJson(PROJECT_PATH);
-  var network = readJson(NETWORK_PATH);
+  var tickRuntime = readJson(TICK_RUNTIME_MANIFEST_PATH);
   assertRuntimeProjectShape(project);
   assertRuntimeExecutionFiles(project);
   assert(world.modules.length === 3, 'world should record three installed modules');
@@ -161,36 +161,36 @@ function testShellComposition() {
   assert(typeof platformer.gravity === 'number' && typeof platformer.jumpSpeed === 'number', 'PlatformerObject behavior should include official movement defaults');
   var platformBehavior = ground.behaviors.find(function(behavior) { return behavior.type === 'PlatformBehavior::PlatformBehavior'; });
   assert(platformBehavior.platformType === 'NormalPlatform', 'Platform behavior should include official platformType default');
-  assert(network.modules.length === 3, 'network manifest should record three modules');
-  assert(network.plan && network.plan.realtime, 'network manifest should include compiler-owned realtime plan');
-  assert(network.plan.realtime.sync === 'lockstep', 'realtime plan should select lockstep from core module');
-  assert(network.plan.realtime.moduleIds.indexOf('core.platformer') >= 0, 'realtime plan should name owner modules');
-  assert(network.plan.channels.length === 1, 'network plan should keep shell event as side-channel');
-  assert(network.plan.channels[0].id === 'shell.game_over_screen', 'event side-channel should be owned by game over shell');
+  assert(tickRuntime.modules.length === 3, 'tick runtime manifest should record three modules');
+  assert(tickRuntime.plan && tickRuntime.plan.realtime, 'tick runtime manifest should include compiler-owned realtime plan');
+  assert(tickRuntime.plan.realtime.sync === 'lockstep', 'realtime plan should select lockstep from core module');
+  assert(tickRuntime.plan.realtime.moduleIds.indexOf('core.platformer') >= 0, 'realtime plan should name owner modules');
+  assert(tickRuntime.plan.channels.length === 1, 'tick runtime plan should keep shell event as side-channel');
+  assert(tickRuntime.plan.channels[0].id === 'shell.game_over_screen', 'event side-channel should be owned by game over shell');
 }
 
-function testShooterNetworkComposition() {
+function testShooterTickRuntimeComposition() {
   runPipeline(['--module-dsl-file', fixture('module-shooter.dsl'), 'module-shooter-network'], 'module shooter network run');
   var world = readJson(WORLD_PATH);
   var project = readJson(PROJECT_PATH);
-  var network = readJson(NETWORK_PATH);
+  var tickRuntime = readJson(TICK_RUNTIME_MANIFEST_PATH);
   assertRuntimeProjectShape(project);
   assertRuntimeExecutionFiles(project);
   assert(world.modules.length === 1, 'shooter world should record one installed module');
   assert(world.modules[0].id === 'core.shooter', 'world should record core.shooter');
-  assert(network.plan && network.plan.realtime, 'shooter network manifest should include realtime plan');
-  assert(network.plan.realtime.sync === 'lockstep', 'shooter realtime plan should use lockstep');
-  assert(network.plan.realtime.moduleIds.indexOf('core.shooter') >= 0, 'shooter realtime plan should name core.shooter');
+  assert(tickRuntime.plan && tickRuntime.plan.realtime, 'shooter tick runtime manifest should include realtime plan');
+  assert(tickRuntime.plan.realtime.sync === 'lockstep', 'shooter realtime plan should use lockstep');
+  assert(tickRuntime.plan.realtime.moduleIds.indexOf('core.shooter') >= 0, 'shooter realtime plan should name core.shooter');
   ['move_up', 'move_down', 'move_left', 'move_right', 'shoot'].forEach(function(input) {
-    assert(network.plan.realtime.inputs.indexOf(input) >= 0, 'shooter realtime plan should include input: ' + input);
+    assert(tickRuntime.plan.realtime.inputs.indexOf(input) >= 0, 'shooter realtime plan should include input: ' + input);
   });
   ['Score', 'Wave', 'Player1', 'Player2', 'Player1Health', 'Player2Health', 'Bullet1', 'Bullet2', 'Enemy', 'PowerUp'].forEach(function(state) {
-    assert(network.plan.realtime.state.indexOf(state) >= 0, 'shooter realtime plan should include state: ' + state);
+    assert(tickRuntime.plan.realtime.state.indexOf(state) >= 0, 'shooter realtime plan should include state: ' + state);
   });
-  assert(network.plan.channels.length === 0, 'shooter lockstep-only module should not create side channels');
-  var runtime = fs.readFileSync(path.join(OUTPUT_DIR, 'network-runtime.js'), 'utf8');
+  assert(tickRuntime.plan.channels.length === 0, 'shooter lockstep-only module should not create side channels');
+  var runtime = fs.readFileSync(path.join(OUTPUT_DIR, 'tick-runtime.js'), 'utf8');
   var code0 = fs.readFileSync(path.join(OUTPUT_DIR, 'code0.js'), 'utf8');
-  assert(runtime.indexOf('new GameCastleNetworkBridge') >= 0, 'shooter runtime should create bridge');
+  assert(runtime.indexOf('new GameCastleTickIntentBridge') >= 0, 'shooter runtime should create bridge');
   assert(runtime.indexOf('new InputSyncStrategy') < 0, 'shooter runtime should not instantiate legacy lockstep strategy');
   assert(runtime.indexOf('inputs: ["move_up","move_down","move_left","move_right","shoot"]') >= 0, 'shooter bridge should receive declared input plan');
   assert(code0.indexOf('if (!op) return current;') >= 0, 'runtime should preserve unchanged movement axes');
@@ -214,7 +214,7 @@ function testContinueAddsShellModulesFromProjectWorld() {
   var world = readJson(WORLD_PATH);
   var project = readJson(PROJECT_PATH);
   var ledger = readJson(LEDGER_PATH);
-  var network = readJson(NETWORK_PATH);
+  var tickRuntime = readJson(TICK_RUNTIME_MANIFEST_PATH);
   assert(world.modules.length === 3, 'continue patch should merge base and new modules');
   assert(project.firstLayout === 'Start', 'continue patch should make start screen first');
   assert(project.layouts.some(function(scene) { return scene.name === 'GameOver'; }), 'continue patch should add game over scene');
@@ -222,8 +222,8 @@ function testContinueAddsShellModulesFromProjectWorld() {
   assert(JSON.stringify(game.events).indexOf('ChangeScene') >= 0, 'continue patch should replace core fail action');
   assert(ledger.runs.length === 2, 'continue patch should append ledger run');
   assert(ledger.runs[1].batchLabel === 'module_patch_01', 'continue patch should use requested batch label');
-  assert(network.modules.length === 3, 'continue patch should rewrite full network manifest');
-  assert(network.plan && network.plan.realtime && network.plan.realtime.sync === 'lockstep', 'continue patch should preserve realtime plan');
+  assert(tickRuntime.modules.length === 3, 'continue patch should rewrite full tick runtime manifest');
+  assert(tickRuntime.plan && tickRuntime.plan.realtime && tickRuntime.plan.realtime.sync === 'lockstep', 'continue patch should preserve realtime plan');
 }
 
 function testInvalidSyncFailsFast() {
@@ -271,13 +271,13 @@ function testConfigureSyncOnlyMetadataPatch() {
   runPipeline(['--continue', '--module-dsl-file', fixture('module-configure-sync-only.dsl'), '--batch-label', 'module_configure_sync', 'module-configure-sync'], 'module configure sync-only patch');
   var world = readJson(WORLD_PATH);
   var ledger = readJson(LEDGER_PATH);
-  var network = readJson(NETWORK_PATH);
+  var tickRuntime = readJson(TICK_RUNTIME_MANIFEST_PATH);
   var startModule = world.modules.find(function(module) { return module.id === 'shell.start_screen'; });
-  var networkStart = network.modules.find(function(module) { return module.id === 'shell.start_screen'; });
+  var tickRuntimeStart = tickRuntime.modules.find(function(module) { return module.id === 'shell.start_screen'; });
   assert(startModule.syncPolicy.sync === 'event', 'sync-only configure should update ProjectWorld module sync');
   assert(startModule.syncPolicy.authority === 'host', 'sync-only configure should update ProjectWorld module authority');
-  assert(networkStart.syncPolicy.sync === 'event', 'sync-only configure should update network manifest sync');
-  assert(network.plan.channels.some(function(channel) { return channel.id === 'shell.start_screen' && channel.sync === 'event'; }), 'sync-only configure should update network plan side-channel');
+  assert(tickRuntimeStart.syncPolicy.sync === 'event', 'sync-only configure should update tick runtime manifest sync');
+  assert(tickRuntime.plan.channels.some(function(channel) { return channel.id === 'shell.start_screen' && channel.sync === 'event'; }), 'sync-only configure should update tick runtime plan side-channel');
   assert(ledger.runs.length === 2, 'sync-only configure should append a ledger run');
   assert(ledger.runs[1].summary.total === 0, 'sync-only configure should be metadata-only with zero internal commands');
   assert(ledger.runs[1].summary.nextAction === 'done', 'sync-only configure should finish cleanly');
@@ -413,8 +413,8 @@ function main() {
   console.log('[ModuleDslTest] cache hit passed');
   testShellComposition();
   console.log('[ModuleDslTest] shell composition passed');
-  testShooterNetworkComposition();
-  console.log('[ModuleDslTest] shooter network composition passed');
+  testShooterTickRuntimeComposition();
+  console.log('[ModuleDslTest] shooter tick runtime composition passed');
   testModuleOrderIsCompilerOwned();
   console.log('[ModuleDslTest] compiler-owned ordering passed');
   testContinueAddsShellModulesFromProjectWorld();

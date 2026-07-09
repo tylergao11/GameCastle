@@ -34,7 +34,7 @@ async function main() {
     compileResultCard: compiled.resultCard,
     dslText: compiled.bridgePlan.dslText,
     modules: compiled.bridgePlan.installedModules,
-    networkManifest: compiled.bridgePlan.networkManifest,
+    tickRuntimeManifest: compiled.bridgePlan.tickRuntimeManifest,
     runtimeAdapterRequirements: compiled.bridgePlan.runtimeAdapterRequirements,
     designBrief: {
       theme: 'mobile platformer',

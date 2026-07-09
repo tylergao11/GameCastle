@@ -95,7 +95,7 @@ function compileModules(graph, options) {
     return {
       dslLines: [],
       installedModules: [],
-      networkManifest: null
+      tickRuntimeManifest: null
     };
   }
   return moduleCompiler.compileModuleCommands(commands, catalog, options.moduleCompileOptions || {});
@@ -318,7 +318,7 @@ function createEmptyPlan() {
     emitted: [],
     runtimeAdapterRequirements: [],
     installedModules: [],
-    networkManifest: null,
+    tickRuntimeManifest: null,
     satisfiedBy: [],
     diagnostics: [],
     _lineSeen: {},
@@ -348,7 +348,7 @@ function compileBridge(compiledIntent, options) {
     });
   });
   plan.installedModules = clone(moduleResult.installedModules || []);
-  plan.networkManifest = clone(moduleResult.networkManifest || null);
+  plan.tickRuntimeManifest = clone(moduleResult.tickRuntimeManifest || null);
 
   (graph.components || []).forEach(function(component) {
     emitComponent(plan, component, catalog, placementPlan, options);

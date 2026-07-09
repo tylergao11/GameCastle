@@ -2632,7 +2632,7 @@
           "sourceLine": 1
         }
       ],
-      "networkManifest": {
+      "tickRuntimeManifest": {
         "schemaVersion": 1,
         "modules": [
           {

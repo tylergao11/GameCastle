@@ -12,13 +12,13 @@
 - [x] 建立 `ai/product-modules/` 唯一真相源（合并 capabilities），接入 LLM1/LLM2 上下文派生
 - [x] 接入 LLM2 repair loop：失败报告 -> 追加修复 DSL diff -> 再执行
 - [x] 建立 DSL fixture 测试器，覆盖状态边界、repair batch、缓存命中和超时防护
-- [x] 建立产品模块 DSL 骨架：product module manifests -> Module DSL -> compiler -> internal DSL -> ProjectWorld/network manifest
+- [x] 建立产品模块 DSL 骨架：product module manifests -> Module DSL -> compiler -> internal DSL -> ProjectWorld/tick runtime manifest
 
 ## Phase 2: 模块化生成管线
 
 - [x] 清理 `templates/` 游戏原型样例，能力迁移到 product-modules
 - [x] 定义 AI-facing 产品模块 schema，保持 `core.*`、`shell.*`、`system.*`、`meta.*` 等粗颗粒模块边界
-- [x] 为产品模块预留 sync/authority/tickRate/seed，同步策略写入 `output/network-manifest.json`
+- [x] 为产品模块预留 sync/authority/tickRate/seed，同步策略写入 `output/tick-runtime-manifest.json`
 - [x] Historical baseline: 将在线 LLM2 主路径切到 Module Patch Commander：Module DSL -> compiler -> internal DSL -> executor
 - [x] 支持 `--continue` 基于 `ProjectWorld.modules` 追加模块，并拒绝重复安装已有模块
 - [x] 闭合 `configure module`：支持已安装模块参数 patch、sync-only metadata patch、非法配置 fail-fast
@@ -103,7 +103,7 @@
 ## Phase 5.5: 联机架构 v2（2026-07）
 
 - [x] RuntimeAdapter 隔离 GDevelop（公开 API 注入，不碰私有字段）
-- [x] game-bridge.js 重写：Bridge 接管帧推进，固定 tick + 正确输入顺序
+- [x] tick-intent-bridge.js 重写：Bridge 接管帧推进，固定 tick + 正确输入顺序
 - [x] 删除 engine/network/ 旧层，消除双栈不兼容
 - [x] server load_state 按 playerId 隔离
 - [x] GameLoop 处理上限防死循环

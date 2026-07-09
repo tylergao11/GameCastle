@@ -22,13 +22,13 @@ function render(sync) {
 }
 
 var lockstepJs = render("lockstep");
-assert(lockstepJs.includes("new GameCastleNetworkBridge"), "lockstep build should include bridge");
-assert(lockstepJs.includes("function GameCastleFrameSyncSession"), "lockstep build should include frame-sync core");
+assert(lockstepJs.includes("new GameCastleTickIntentBridge"), "lockstep build should include bridge");
+assert(lockstepJs.includes("function GameCastleTickIntentRuntime"), "lockstep build should include tick-intent runtime core");
 assert(!lockstepJs.includes("new InputSyncStrategy"), "lockstep build should not instantiate legacy input strategy");
 
 var authorityJs = render("server-authoritative");
-assert(authorityJs.includes("new GameCastleNetworkBridge"), "authority build should include bridge");
-assert(authorityJs.includes("function GameCastleFrameSyncSession"), "authority build should include frame-sync core");
+assert(authorityJs.includes("new GameCastleTickIntentBridge"), "authority build should include bridge");
+assert(authorityJs.includes("function GameCastleTickIntentRuntime"), "authority build should include tick-intent runtime core");
 assert(!authorityJs.includes("new AuthoritySyncStrategy"), "authority build should not instantiate legacy authority strategy");
 
 var asyncJs = render("async-state");
@@ -72,11 +72,11 @@ var mixedPlanJs = codegen.generate({
 }, {
   signalingUrl: "ws://example.test",
 });
-assert(mixedPlanJs.includes("new GameCastleNetworkBridge"), "mixed plan should include realtime bridge");
-assert(mixedPlanJs.includes("function GameCastleFrameSyncSession"), "mixed plan should include frame-sync core");
+assert(mixedPlanJs.includes("new GameCastleTickIntentBridge"), "mixed plan should include realtime bridge");
+assert(mixedPlanJs.includes("function GameCastleTickIntentRuntime"), "mixed plan should include tick-intent runtime core");
 assert(mixedPlanJs.includes("new EventRelayStrategy"), "mixed plan should include event side-channel strategy");
 assert(!mixedPlanJs.includes("new InputSyncStrategy"), "mixed plan should not instantiate legacy lockstep strategy");
-assert(mixedPlanJs.includes('inputs: ["move_left","move_right","jump","restart"]'), "bridge inputs should come from network plan");
+assert(mixedPlanJs.includes('inputs: ["move_left","move_right","jump","restart"]'), "bridge inputs should come from tick runtime plan");
 
 var eventOnlyJs = codegen.generate({
   schemaVersion: 1,
@@ -99,7 +99,7 @@ var eventOnlyJs = codegen.generate({
 }, {
   signalingUrl: "ws://example.test",
 });
-assert(!eventOnlyJs.includes("new GameCastleNetworkBridge"), "event-only plan should not create a bridge");
+assert(!eventOnlyJs.includes("new GameCastleTickIntentBridge"), "event-only plan should not create a bridge");
 assert(eventOnlyJs.includes("new EventRelayStrategy"), "event-only plan should include event strategy");
 assert(eventOnlyJs.includes("function hostWithoutBridge()"), "event-only plan should expose non-bridge room lifecycle");
 

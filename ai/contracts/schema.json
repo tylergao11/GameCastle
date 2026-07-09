@@ -995,7 +995,7 @@
             "type": "string"
           }
         },
-        "networkManifestPatch": {
+        "tickRuntimeManifestPatch": {
           "type": "object",
           "additionalProperties": true
         }

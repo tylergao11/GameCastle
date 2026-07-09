@@ -550,7 +550,7 @@ backend complexity?"
 | Inventory needs storage variables plus UI grid | Component expansion | `emitted: variables + UI panel + open binding` |
 | Inventory persistence needs save/load details | Runtime adapter or component compiler manifest | `runtimeAdapters: inventory-storage` |
 | Attack button should trigger melee in one game and projectile in another | Action binding + inherited module combat model | `resolved: action attack -> projectile_attack` |
-| Networked touch input must feed lockstep input frames | binding compiler + network runtime adapter | `emitted: action binding to network input` |
+| Touch input must feed tick intent frames | binding compiler + tick runtime adapter | `emitted: action binding to tick intent input` |
 | A GDJS runtime file/include is missing | GDJS bridge / html exporter / gdevelop truth | `diagnostics.owner: gdjs-bridge` |
 | User asks for a new reusable system such as crafting | New component/module candidate | `diagnostics.owner: component-catalog` |
 
