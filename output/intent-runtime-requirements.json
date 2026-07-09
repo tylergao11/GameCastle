@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "requirements": [
+    {
+      "adapter": "virtual-joystick",
+      "componentId": "input.virtual_joystick",
+      "thing": "Joystick",
+      "target": "Player",
+      "config": {
+        "action": "move",
+        "deadZone": "standard",
+        "radius": "medium",
+        "axisSmoothing": "standard"
+      },
+      "placement": {
+        "subject": "Joystick",
+        "space": "ui",
+        "anchor": "screen.safeArea",
+        "resolved": {
+          "x": 128,
+          "y": 472
+        }
+      },
+      "status": "pending",
+      "ownerTrace": "component compiler manifest"
+    },
+    {
+      "adapter": "touch-button",
+      "componentId": "input.jump_button",
+      "thing": "JumpButton",
+      "target": "Player",
+      "config": {
+        "action": "jump",
+        "pressMode": "tap",
+        "cooldown": "none"
+      },
+      "placement": {
+        "subject": "JumpButton",
+        "space": "ui",
+        "anchor": "screen.safeArea",
+        "resolved": {
+          "x": 672,
+          "y": 472
+        }
+      },
+      "status": "pending",
+      "ownerTrace": "component compiler manifest"
+    },
+    {
+      "adapter": "touch-button",
+      "componentId": "input.attack_button",
+      "thing": "AttackButton",
+      "target": "Player",
+      "config": {
+        "action": "attack",
+        "pressMode": "tap",
+        "cooldown": "short"
+      },
+      "placement": {
+        "subject": "AttackButton",
+        "space": "ui",
+        "anchor": "JumpButton",
+        "resolved": {
+          "x": 576,
+          "y": 472
+        }
+      },
+      "status": "pending",
+      "ownerTrace": "component compiler manifest"
+    },
+    {
+      "adapter": "inventory-storage",
+      "componentId": "system.inventory",
+      "thing": "Inventory",
+      "owner": "Player",
+      "config": {
+        "slots": 24,
+        "persistence": "session",
+        "uiMode": "panel"
+      },
+      "placement": {
+        "subject": "Inventory",
+        "space": "ui",
+        "anchor": "screen.safeArea",
+        "resolved": {
+          "x": 672,
+          "y": 300
+        }
+      },
+      "status": "pending",
+      "ownerTrace": "component compiler manifest"
+    },
+    {
+      "adapter": "inventory-panel",
+      "componentId": "system.inventory",
+      "thing": "Inventory",
+      "owner": "Player",
+      "config": {
+        "slots": 24,
+        "persistence": "session",
+        "uiMode": "panel"
+      },
+      "placement": {
+        "subject": "Inventory",
+        "space": "ui",
+        "anchor": "screen.safeArea",
+        "resolved": {
+          "x": 672,
+          "y": 300
+        }
+      },
+      "status": "pending",
+      "ownerTrace": "component compiler manifest"
+    }
+  ]
+}

@@ -19,7 +19,7 @@
 - [x] 清理 `templates/` 游戏原型样例，能力迁移到 product-modules
 - [x] 定义 AI-facing 产品模块 schema，保持 `core.*`、`shell.*`、`system.*`、`meta.*` 等粗颗粒模块边界
 - [x] 为产品模块预留 sync/authority/tickRate/seed，同步策略写入 `output/network-manifest.json`
-- [x] 将在线 LLM2 主路径切到 Module Patch Commander：Module DSL -> compiler -> internal DSL -> executor
+- [x] Historical baseline: 将在线 LLM2 主路径切到 Module Patch Commander：Module DSL -> compiler -> internal DSL -> executor
 - [x] 支持 `--continue` 基于 `ProjectWorld.modules` 追加模块，并拒绝重复安装已有模块
 - [x] 闭合 `configure module`：支持已安装模块参数 patch、sync-only metadata patch、非法配置 fail-fast
 - [x] 增加测试审批闸门：`--approval-gate` 生成 pending approval，人工审查后 `--approve-pending` 执行
@@ -32,6 +32,35 @@
 
 ## Phase 3: 可反复迭代的项目状态
 
+- [ ] AI-first Intent refactor: make Intent DSL the only live LLM2 product surface; do not keep Module DSL as a parallel compatibility path
+- [x] Add `ai/intent-dsl.js`: parse natural Intent DSL into an AST that rejects coordinates, event indexes, GDJS instruction names, module ids, component ids, runtime adapter names, and `key=value` machine fields in the LLM2 surface
+- [x] Add `ai/intent-compiler.js`: compile Intent AST into a typed Intent Graph with things, components, relations, placements, semantic values, bindings, requirements, and diagnostics
+- [x] Add `ai/components/` component library schema and first manifests with split AI Manifest and Compiler Manifest views: virtual joystick, jump button, attack button, inventory
+- [x] Add component inheritance/override contracts: default config keys are classified as exposed natural overrides or sealed internal defaults, and ResultCard records both inherited defaults and overrides
+- [x] Add compiler-only component family inheritance: abstract parents such as `input.touch_button`, `system.storage`, and `ui.panel` provide shared defaults, bindings, bridge expansions, and runtime adapter ownership without entering the LLM2 prompt
+- [x] Move runtime adapter keys, labels, panel titles, and sizing into sealed component defaults so generated runtime code consumes config instead of inferring behavior from component ids
+- [x] Move runtime adapter route metadata into component manifests via `gdjsBridge.adapterRoutes`, so the GDJS bridge copies owner/mechanism evidence instead of branching on adapter ids
+- [x] Enforce runtime adapter config contracts so keys, labels, inputs, panel titles, slots, persistence, and dimensions must come from inherited component config rather than codegen fallbacks
+- [x] Move GDJS component object emission into manifest `gdjsBridge.objectSpec`, so target object type, visual defaults, and object/layer/placement route evidence come from inheritance instead of bridge fallbacks
+- [x] Add Intent Rewrite Contract: ResultCard rewrites must carry owner, mechanism, and stage for module inference, component aliases, natural anchors, and semantic groups
+- [x] Enforce rewrite/emission/runtime adapter contracts in the compiler and bridge return paths, not only in standalone checks
+- [x] Add aggregate Intent Compile Contract: compiled Intent artifacts must validate graph, ResultCard, diagnostics, rewrites, placement, bridge emission, and runtime adapter evidence before returning, then expose the passed contract summary to downstream runtime surfaces
+- [x] Add `ai/placement-resolver.js`: implement the Placement Contract, resolving `near/direction/distance/pattern` with screen/world/camera/object context and traceability
+- [x] Add Placement Resolution Contract: resolved placements carry route evidence for safe-area placement, UI overlap avoidance, object-relative placement, contextual direction rewrite, and semantic pattern placement
+- [x] Add semantic placement emission metadata: pattern/group placements carry bridge emission evidence from the Placement Plan instead of hard-coded bridge route labels
+- [x] Add `ai/gdjs-bridge.js`: compile Intent Graph and placement plan into internal low-level DSL and runtime adapter requirements
+- [x] Add GDJS Bridge Emission Contract: every emitted internal DSL target line carries owner/source/mechanism and optional route evidence
+- [x] Add Runtime Adapter Requirement Contract: adapter needs carry runtime owner/source/mechanism/route evidence for touch controls and inventory systems
+- [x] Add `ai/intent-runtime-codegen.js` and `--intent-dsl-file`: generate HTML intent runtime adapters from bridge requirements and execute Intent fixtures through the bridge path
+- [x] Switch live Stage2 LLM2 path to Intent Commander: Intent DSL -> Intent Compiler -> Bridge Plan -> internal DSL -> executor; keep Module DSL only as explicit fixture/internal migration input
+- [x] Add Compile ResultCard with input, resolved symbols, auto-added defaults, placement decisions, emitted target code, warnings, and owner trace
+- [x] Add DSL Growth Control and Rewrite Contract checks: GDJS bridge issues must route to symbol rewrite, inheritance, component manifest, placement, bridge target rewrite, or owner diagnostics before any new LLM2-facing DSL concept is admitted
+- [x] Add bridge issue routing fixtures for touch controls, UI overlap, collision masks, inventory persistence, networked input, and awkward GDJS parameters; each fixture must prove no new LLM2-facing syntax was needed
+- [x] Add owner-routed diagnostics for compiler, placement, and bridge failures so failures carry `routeId`, `routeOwner`, `routeMechanism`, and `nextAction`
+- [x] Enforce Intent compile repair routing: parser/surface errors may use LLM2 repair, but system-owner diagnostics fail fast instead of leaking into LLM2 repair
+- [x] Update approval gate to include Intent DSL, typed Intent Graph, Bridge Plan, aggregate Intent compile contract, Compile ResultCard, compiled internal DSL, runtime adapter requirements, and dry-run command results
+- [x] Store AI-first Intent, aggregate compile contract, and GDJS Bridge summaries in `ProjectWorld` and `ExecutionReport`, while keeping raw Intent wording out of `semanticHash`
+- [ ] Finish migrating stale docs and approval surfaces from Module DSL primary examples to Intent DSL primary examples; stale primary forms fail fast
 - [ ] 完整建立项目状态模型，区分 design brief、module graph、DSL patch、ProjectWorld、project.json
 - [ ] 支持用户连续修改，例如“再难一点”“加入 Boss”“改成双人”
 - [ ] 让 LLM2 生成 DSL/operation patch，而不是每次重建全量项目

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "id": "input.jump_button",
+  "kind": "control",
+  "name": "Jump Button",
+  "aiManifest": {
+    "summary": "A mobile button for making the player jump.",
+    "aliases": [
+      "jump button",
+      "jump control"
+    ],
+    "actions": [
+      "jump"
+    ],
+    "targetRoles": [
+      "player",
+      "character"
+    ],
+    "safeExamples": [
+      "add jump button controls Player near screen bottom-right"
+    ]
+  },
+  "compilerManifest": {
+    "componentId": "input.jump_button",
+    "extends": "input.touch_button",
+    "thingName": "JumpButton",
+    "thingArchetype": "ui",
+    "role": "control",
+    "defaultAction": "jump",
+    "defaultConfig": {
+      "action": "jump",
+      "cooldown": "none",
+      "color": "#27AE60",
+      "keyboardKey": "Space",
+      "controlLabel": "J"
+    },
+    "inheritance": {
+      "contracts": [
+        "input.jump_button"
+      ],
+      "defaultOwner": "component-manifest",
+      "exposedOverrides": [
+        "action"
+      ],
+      "sealedDefaults": [
+        "cooldown",
+        "color",
+        "keyboardKey",
+        "controlLabel"
+      ]
+    },
+    "provides": [
+      "input.jump.button"
+    ],
+    "requires": [
+      {
+        "componentId": "movement.platformer",
+        "target": "sameTarget",
+        "reason": "jump button needs a jump-capable movement receiver"
+      }
+    ],
+    "placement": {
+      "space": "ui",
+      "preferredAnchor": "screen",
+      "preferredDirection": "bottom-right"
+    }
+  }
+}

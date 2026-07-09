@@ -13,35 +13,53 @@
       "name": "Game",
       "objects": [
         {
-          "name": "Player1",
+          "name": "Player",
           "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
           "color": "#4488ff",
-          "id": "obj_game_player1",
+          "behaviors": [
+            {
+              "name": "PlatformerObject",
+              "type": "PlatformBehavior::PlatformerObjectBehavior"
+            }
+          ],
+          "id": "obj_game_player",
           "scope": "scene"
         },
         {
-          "name": "Player2",
+          "name": "Ground",
           "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
-          "color": "#2eccff",
-          "id": "obj_game_player2",
+          "color": "#8b4513",
+          "behaviors": [
+            {
+              "name": "Platform",
+              "type": "PlatformBehavior::PlatformBehavior"
+            }
+          ],
+          "id": "obj_game_ground",
           "scope": "scene"
         },
         {
-          "name": "Bullet1",
+          "name": "Platform",
+          "type": "PrimitiveDrawing::Drawer",
+          "kind": "ShapePainter",
+          "color": "#8b4513",
+          "behaviors": [
+            {
+              "name": "Platform",
+              "type": "PlatformBehavior::PlatformBehavior"
+            }
+          ],
+          "id": "obj_game_platform",
+          "scope": "scene"
+        },
+        {
+          "name": "Coin",
           "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
           "color": "#ffd700",
-          "id": "obj_game_bullet1",
-          "scope": "scene"
-        },
-        {
-          "name": "Bullet2",
-          "type": "PrimitiveDrawing::Drawer",
-          "kind": "ShapePainter",
-          "color": "#ffffff",
-          "id": "obj_game_bullet2",
+          "id": "obj_game_coin",
           "scope": "scene"
         },
         {
@@ -53,47 +71,103 @@
           "scope": "scene"
         },
         {
-          "name": "PowerUp",
+          "name": "Joystick",
           "type": "PrimitiveDrawing::Drawer",
           "kind": "ShapePainter",
-          "color": "#2ecc71",
-          "id": "obj_game_powerup",
+          "color": "#2d9cdb",
+          "id": "obj_game_joystick",
           "scope": "scene"
         },
         {
-          "name": "HudScore",
-          "type": "TextObject::Text",
-          "kind": "Text",
-          "text": "HudScore",
-          "size": 20,
-          "id": "obj_game_hudscore",
+          "name": "JumpButton",
+          "type": "PrimitiveDrawing::Drawer",
+          "kind": "ShapePainter",
+          "color": "#27ae60",
+          "id": "obj_game_jumpbutton",
           "scope": "scene"
         },
         {
-          "name": "HudWave",
-          "type": "TextObject::Text",
-          "kind": "Text",
-          "text": "HudWave",
-          "size": 20,
-          "id": "obj_game_hudwave",
+          "name": "AttackButton",
+          "type": "PrimitiveDrawing::Drawer",
+          "kind": "ShapePainter",
+          "color": "#eb5757",
+          "id": "obj_game_attackbutton",
+          "scope": "scene"
+        },
+        {
+          "name": "Inventory",
+          "type": "PrimitiveDrawing::Drawer",
+          "kind": "ShapePainter",
+          "color": "#4f4f4f",
+          "id": "obj_game_inventory",
           "scope": "scene"
         }
       ],
       "instances": [
         {
-          "id": "inst_game_player1_100_250_0_0_1",
-          "object": "Player1",
+          "id": "inst_game_player_100_400_0_0_1",
+          "object": "Player",
           "x": 100,
-          "y": 250,
+          "y": 400,
           "width": 0,
           "height": 0,
           "layer": "",
           "zOrder": 1
         },
         {
-          "id": "inst_game_player2_100_350_0_0_1",
-          "object": "Player2",
-          "x": 100,
+          "id": "inst_game_ground_400_590_800_20_1",
+          "object": "Ground",
+          "x": 400,
+          "y": 590,
+          "width": 800,
+          "height": 20,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_platform_200_460_100_16_1",
+          "object": "Platform",
+          "x": 200,
+          "y": 460,
+          "width": 100,
+          "height": 16,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_platform_400_380_100_16_1",
+          "object": "Platform",
+          "x": 400,
+          "y": 380,
+          "width": 100,
+          "height": 16,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_platform_600_300_100_16_1",
+          "object": "Platform",
+          "x": 600,
+          "y": 300,
+          "width": 100,
+          "height": 16,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_coin_240_430_0_0_1",
+          "object": "Coin",
+          "x": 240,
+          "y": 430,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_coin_440_350_0_0_1",
+          "object": "Coin",
+          "x": 440,
           "y": 350,
           "width": 0,
           "height": 0,
@@ -101,23 +175,63 @@
           "zOrder": 1
         },
         {
-          "id": "inst_game_hudscore_16_16_0_0_1",
-          "object": "HudScore",
-          "x": 16,
-          "y": 16,
+          "id": "inst_game_coin_640_270_0_0_1",
+          "object": "Coin",
+          "x": 640,
+          "y": 270,
           "width": 0,
           "height": 0,
           "layer": "",
           "zOrder": 1
         },
         {
-          "id": "inst_game_hudwave_16_44_0_0_1",
-          "object": "HudWave",
-          "x": 16,
-          "y": 44,
+          "id": "inst_game_enemy_550_400_0_0_1",
+          "object": "Enemy",
+          "x": 550,
+          "y": 400,
           "width": 0,
           "height": 0,
           "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_joystick_128_472_96_96_ui_1",
+          "object": "Joystick",
+          "x": 128,
+          "y": 472,
+          "width": 96,
+          "height": 96,
+          "layer": "UI",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_jumpbutton_672_472_72_72_ui_1",
+          "object": "JumpButton",
+          "x": 672,
+          "y": 472,
+          "width": 72,
+          "height": 72,
+          "layer": "UI",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_attackbutton_576_472_72_72_ui_1",
+          "object": "AttackButton",
+          "x": 576,
+          "y": 472,
+          "width": 72,
+          "height": 72,
+          "layer": "UI",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_inventory_672_300_160_220_ui_1",
+          "object": "Inventory",
+          "x": 672,
+          "y": 300,
+          "width": 160,
+          "height": 220,
+          "layer": "UI",
           "zOrder": 1
         }
       ],
@@ -129,340 +243,177 @@
           "isBaseLayer": true,
           "index": 0,
           "visible": true
+        },
+        {
+          "id": "layer_ui",
+          "name": "UI",
+          "isBaseLayer": false,
+          "index": 1,
+          "visible": true
         }
       ],
       "events": [
         {
           "type": "standard",
-          "text": "on start -> clear drawer Player1, draw rectangle Player1 0 0 32 32, collision mask Player1 0 0 32 32",
+          "text": "on start -> clear drawer Player, draw rectangle Player 0 0 32 48, collision mask Player 0 0 32 48",
           "conditions": [
             "on start"
           ],
           "actions": [
-            "clear drawer Player1",
-            "draw rectangle Player1 0 0 32 32",
-            "collision mask Player1 0 0 32 32"
+            "clear drawer Player",
+            "draw rectangle Player 0 0 32 48",
+            "collision mask Player 0 0 32 48"
           ],
-          "id": "evt_game_on_start_clear_drawer_player1_draw_"
+          "id": "evt_game_on_start_clear_drawer_player_draw_r"
         },
         {
           "type": "standard",
-          "text": "on start -> clear drawer Player2, draw rectangle Player2 0 0 32 32, collision mask Player2 0 0 32 32",
+          "text": "on start -> clear drawer Ground, draw rectangle Ground 0 0 800 20, collision mask Ground 0 0 800 20",
           "conditions": [
             "on start"
           ],
           "actions": [
-            "clear drawer Player2",
-            "draw rectangle Player2 0 0 32 32",
-            "collision mask Player2 0 0 32 32"
+            "clear drawer Ground",
+            "draw rectangle Ground 0 0 800 20",
+            "collision mask Ground 0 0 800 20"
           ],
-          "id": "evt_game_on_start_clear_drawer_player2_draw_"
+          "id": "evt_game_on_start_clear_drawer_ground_draw_r"
         },
         {
           "type": "standard",
-          "text": "on start -> clear drawer Bullet1, draw rectangle Bullet1 0 0 12 6, collision mask Bullet1 0 0 12 6",
+          "text": "on start -> clear drawer Platform, draw rectangle Platform 0 0 100 16, collision mask Platform 0 0 100 16",
           "conditions": [
             "on start"
           ],
           "actions": [
-            "clear drawer Bullet1",
-            "draw rectangle Bullet1 0 0 12 6",
-            "collision mask Bullet1 0 0 12 6"
+            "clear drawer Platform",
+            "draw rectangle Platform 0 0 100 16",
+            "collision mask Platform 0 0 100 16"
           ],
-          "id": "evt_game_on_start_clear_drawer_bullet1_draw_"
+          "id": "evt_game_on_start_clear_drawer_platform_draw"
         },
         {
           "type": "standard",
-          "text": "on start -> clear drawer Bullet2, draw rectangle Bullet2 0 0 12 6, collision mask Bullet2 0 0 12 6",
+          "text": "on start -> clear drawer Coin, draw circle Coin 8 8 8, collision mask Coin 0 0 16 16",
           "conditions": [
             "on start"
           ],
           "actions": [
-            "clear drawer Bullet2",
-            "draw rectangle Bullet2 0 0 12 6",
-            "collision mask Bullet2 0 0 12 6"
+            "clear drawer Coin",
+            "draw circle Coin 8 8 8",
+            "collision mask Coin 0 0 16 16"
           ],
-          "id": "evt_game_on_start_clear_drawer_bullet2_draw_"
+          "id": "evt_game_on_start_clear_drawer_coin_draw_cir"
         },
         {
           "type": "standard",
-          "text": "on start -> clear drawer Enemy, draw rectangle Enemy 0 0 28 28, collision mask Enemy 0 0 28 28",
+          "text": "on start -> clear drawer Enemy, draw rectangle Enemy 0 0 32 32, collision mask Enemy 0 0 32 32",
           "conditions": [
             "on start"
           ],
           "actions": [
             "clear drawer Enemy",
-            "draw rectangle Enemy 0 0 28 28",
-            "collision mask Enemy 0 0 28 28"
+            "draw rectangle Enemy 0 0 32 32",
+            "collision mask Enemy 0 0 32 32"
           ],
           "id": "evt_game_on_start_clear_drawer_enemy_draw_re"
         },
         {
           "type": "standard",
-          "text": "on start -> clear drawer PowerUp, draw circle PowerUp 8 8 8, collision mask PowerUp 0 0 16 16",
+          "text": "on start -> variable Score = 0",
           "conditions": [
             "on start"
           ],
           "actions": [
-            "clear drawer PowerUp",
-            "draw circle PowerUp 8 8 8",
-            "collision mask PowerUp 0 0 16 16"
+            "variable Score = 0"
           ],
-          "id": "evt_game_on_start_clear_drawer_powerup_draw_"
+          "id": "evt_game_on_start_variable_score_0_1"
         },
         {
           "type": "standard",
-          "text": "on start -> variable Score = 0, variable Wave = 1, variable Player1Health = 3, variable Player2Health = 3",
+          "text": "on collision Player Coin -> destroy Coin, variable Score + 1",
           "conditions": [
-            "on start"
+            "on collision Player Coin"
           ],
           "actions": [
-            "variable Score = 0",
-            "variable Wave = 1",
-            "variable Player1Health = 3",
-            "variable Player2Health = 3"
+            "destroy Coin",
+            "variable Score + 1"
           ],
-          "id": "evt_game_on_start_variable_score_0_variable_"
+          "id": "evt_game_on_collision_player_coin_destroy_co"
         },
         {
           "type": "standard",
-          "text": "on start -> text HudScore \"Score\"",
+          "text": "on collision Player Enemy -> restart",
           "conditions": [
-            "on start"
+            "on collision Player Enemy"
           ],
           "actions": [
-            "text HudScore \"Score\""
+            "restart"
           ],
-          "id": "evt_game_on_start_text_hudscore_score_1"
+          "id": "evt_game_on_collision_player_enemy_restart_1"
         },
         {
           "type": "standard",
-          "text": "on start -> text HudWave \"Wave\"",
-          "conditions": [
-            "on start"
-          ],
-          "actions": [
-            "text HudWave \"Wave\""
-          ],
-          "id": "evt_game_on_start_text_hudwave_wave_1"
-        },
-        {
-          "type": "standard",
-          "text": "on key ArrowUp -> move Player1 to 0,4",
-          "conditions": [
-            "on key ArrowUp"
-          ],
-          "actions": [
-            "move Player1 to 0,4"
-          ],
-          "id": "evt_game_on_key_arrowup_move_player1_to_0_4_"
-        },
-        {
-          "type": "standard",
-          "text": "on key ArrowDown -> move Player1 to 0,4",
-          "conditions": [
-            "on key ArrowDown"
-          ],
-          "actions": [
-            "move Player1 to 0,4"
-          ],
-          "id": "evt_game_on_key_arrowdown_move_player1_to_0_"
-        },
-        {
-          "type": "standard",
-          "text": "on key ArrowLeft -> move Player1 to 4,0",
-          "conditions": [
-            "on key ArrowLeft"
-          ],
-          "actions": [
-            "move Player1 to 4,0"
-          ],
-          "id": "evt_game_on_key_arrowleft_move_player1_to_4_"
-        },
-        {
-          "type": "standard",
-          "text": "on key ArrowRight -> move Player1 to 4,0",
-          "conditions": [
-            "on key ArrowRight"
-          ],
-          "actions": [
-            "move Player1 to 4,0"
-          ],
-          "id": "evt_game_on_key_arrowright_move_player1_to_4"
-        },
-        {
-          "type": "standard",
-          "text": "on key Space -> spawn Bullet1 at 120,260",
+          "text": "on key Space -> jump Player 500",
           "conditions": [
             "on key Space"
           ],
           "actions": [
-            "spawn Bullet1 at 120,260"
+            "jump Player 500"
           ],
-          "id": "evt_game_on_key_space_spawn_bullet1_at_120_2"
+          "id": "evt_game_on_key_space_jump_player_500_1"
         },
         {
           "type": "standard",
-          "text": "on key KeyW -> move Player2 to 0,4",
+          "text": "on start -> clear drawer Joystick, draw circle Joystick 48 48 48, collision mask Joystick 0 0 96 96",
           "conditions": [
-            "on key KeyW"
+            "on start"
           ],
           "actions": [
-            "move Player2 to 0,4"
+            "clear drawer Joystick",
+            "draw circle Joystick 48 48 48",
+            "collision mask Joystick 0 0 96 96"
           ],
-          "id": "evt_game_on_key_keyw_move_player2_to_0_4_1"
+          "id": "evt_game_on_start_clear_drawer_joystick_draw"
         },
         {
           "type": "standard",
-          "text": "on key KeyS -> move Player2 to 0,4",
+          "text": "on start -> clear drawer JumpButton, draw rectangle JumpButton 0 0 72 72, collision mask JumpButton 0 0 72 72",
           "conditions": [
-            "on key KeyS"
+            "on start"
           ],
           "actions": [
-            "move Player2 to 0,4"
+            "clear drawer JumpButton",
+            "draw rectangle JumpButton 0 0 72 72",
+            "collision mask JumpButton 0 0 72 72"
           ],
-          "id": "evt_game_on_key_keys_move_player2_to_0_4_1"
+          "id": "evt_game_on_start_clear_drawer_jumpbutton_dr"
         },
         {
           "type": "standard",
-          "text": "on key KeyA -> move Player2 to 4,0",
+          "text": "on start -> clear drawer AttackButton, draw rectangle AttackButton 0 0 72 72, collision mask AttackButton 0 0 72 72",
           "conditions": [
-            "on key KeyA"
+            "on start"
           ],
           "actions": [
-            "move Player2 to 4,0"
+            "clear drawer AttackButton",
+            "draw rectangle AttackButton 0 0 72 72",
+            "collision mask AttackButton 0 0 72 72"
           ],
-          "id": "evt_game_on_key_keya_move_player2_to_4_0_1"
+          "id": "evt_game_on_start_clear_drawer_attackbutton_"
         },
         {
           "type": "standard",
-          "text": "on key KeyD -> move Player2 to 4,0",
+          "text": "on start -> clear drawer Inventory, draw rectangle Inventory 0 0 160 220, collision mask Inventory 0 0 160 220",
           "conditions": [
-            "on key KeyD"
+            "on start"
           ],
           "actions": [
-            "move Player2 to 4,0"
+            "clear drawer Inventory",
+            "draw rectangle Inventory 0 0 160 220",
+            "collision mask Inventory 0 0 160 220"
           ],
-          "id": "evt_game_on_key_keyd_move_player2_to_4_0_1"
-        },
-        {
-          "type": "standard",
-          "text": "on key KeyF -> spawn Bullet2 at 120,360",
-          "conditions": [
-            "on key KeyF"
-          ],
-          "actions": [
-            "spawn Bullet2 at 120,360"
-          ],
-          "id": "evt_game_on_key_keyf_spawn_bullet2_at_120_36"
-        },
-        {
-          "type": "standard",
-          "text": "on collision Bullet1 Enemy -> destroy Bullet1, destroy Enemy, variable Score + 10",
-          "conditions": [
-            "on collision Bullet1 Enemy"
-          ],
-          "actions": [
-            "destroy Bullet1",
-            "destroy Enemy",
-            "variable Score + 10"
-          ],
-          "id": "evt_game_on_collision_bullet1_enemy_destroy_"
-        },
-        {
-          "type": "standard",
-          "text": "on collision Bullet2 Enemy -> destroy Bullet2, destroy Enemy, variable Score + 10",
-          "conditions": [
-            "on collision Bullet2 Enemy"
-          ],
-          "actions": [
-            "destroy Bullet2",
-            "destroy Enemy",
-            "variable Score + 10"
-          ],
-          "id": "evt_game_on_collision_bullet2_enemy_destroy_"
-        },
-        {
-          "type": "standard",
-          "text": "on collision Player1 PowerUp -> destroy PowerUp, variable Player1Health = 3",
-          "conditions": [
-            "on collision Player1 PowerUp"
-          ],
-          "actions": [
-            "destroy PowerUp",
-            "variable Player1Health = 3"
-          ],
-          "id": "evt_game_on_collision_player1_powerup_destro"
-        },
-        {
-          "type": "standard",
-          "text": "on collision Player2 PowerUp -> destroy PowerUp, variable Player2Health = 3",
-          "conditions": [
-            "on collision Player2 PowerUp"
-          ],
-          "actions": [
-            "destroy PowerUp",
-            "variable Player2Health = 3"
-          ],
-          "id": "evt_game_on_collision_player2_powerup_destro"
-        },
-        {
-          "type": "standard",
-          "text": "on collision Player1 Enemy -> restart",
-          "conditions": [
-            "on collision Player1 Enemy"
-          ],
-          "actions": [
-            "restart"
-          ],
-          "id": "evt_game_on_collision_player1_enemy_restart_"
-        },
-        {
-          "type": "standard",
-          "text": "on collision Player2 Enemy -> restart",
-          "conditions": [
-            "on collision Player2 Enemy"
-          ],
-          "actions": [
-            "restart"
-          ],
-          "id": "evt_game_on_collision_player2_enemy_restart_"
-        },
-        {
-          "type": "repeat",
-          "text": "every 2s -> spawn Enemy at 780,100",
-          "actions": [
-            "spawn Enemy at 780,100"
-          ],
-          "children": 1,
-          "id": "evt_game_every_2s_spawn_enemy_at_780_100_1"
-        },
-        {
-          "type": "repeat",
-          "text": "every 2s -> spawn Enemy at 780,250",
-          "actions": [
-            "spawn Enemy at 780,250"
-          ],
-          "children": 1,
-          "id": "evt_game_every_2s_spawn_enemy_at_780_250_1"
-        },
-        {
-          "type": "repeat",
-          "text": "every 3s -> spawn Enemy at 780,400",
-          "actions": [
-            "spawn Enemy at 780,400"
-          ],
-          "children": 1,
-          "id": "evt_game_every_3s_spawn_enemy_at_780_400_1"
-        },
-        {
-          "type": "repeat",
-          "text": "every 15s -> spawn PowerUp at 400,300",
-          "actions": [
-            "spawn PowerUp at 400,300"
-          ],
-          "children": 1,
-          "id": "evt_game_every_15s_spawn_powerup_at_400_300_"
+          "id": "evt_game_on_start_clear_drawer_inventory_dra"
         }
       ]
     }
@@ -477,44 +428,26 @@
       "scope": "global"
     },
     {
-      "name": "Wave",
+      "name": "InventorySlots",
       "type": 3,
-      "value": "1",
-      "id": "var_global_wave",
-      "scope": "global"
-    },
-    {
-      "name": "Player1Health",
-      "type": 3,
-      "value": "3",
-      "id": "var_global_player1health",
-      "scope": "global"
-    },
-    {
-      "name": "Player2Health",
-      "type": 3,
-      "value": "3",
-      "id": "var_global_player2health",
+      "value": "24",
+      "id": "var_global_inventoryslots",
       "scope": "global"
     }
   ],
   "modules": [
     {
-      "id": "core.shooter",
-      "name": "Shooter Core",
+      "id": "core.platformer",
+      "name": "Platformer Core",
       "category": "core",
-      "preset": "basic",
+      "preset": "mobile",
       "params": {
         "scene": "Game",
         "failAction": "restart",
-        "preset": "basic",
-        "sync": "lockstep",
-        "authority": "host",
-        "tickRate": 20,
-        "seed": "auto"
+        "preset": "mobile"
       },
       "syncPolicy": {
-        "sync": "lockstep",
+        "sync": "local",
         "authority": "host",
         "tickRate": 20,
         "seed": "auto"
@@ -522,64 +455,553 @@
       "sourceLine": 1
     }
   ],
+  "intent": {
+    "schemaVersion": 1,
+    "patchKind": "intent",
+    "intentDslLines": [
+      "make a mobile platformer",
+      "add joystick controls Player near screen bottom-left",
+      "add jump button controls Player near screen bottom-right",
+      "add attack button controls Player near jump button left",
+      "add inventory owned by Player with 24 slots near screen right",
+      "place coins near Player front as trail count 3"
+    ],
+    "intentGraph": {
+      "counts": {
+        "modules": 1,
+        "things": 6,
+        "components": 5,
+        "relations": 5,
+        "placements": 5,
+        "bindings": 3,
+        "requirements": 2,
+        "diagnostics": 0
+      },
+      "modules": [
+        {
+          "id": "core.platformer",
+          "preset": "mobile",
+          "source": "make a mobile platformer"
+        }
+      ],
+      "things": [
+        {
+          "name": "Player",
+          "archetype": "player",
+          "role": "hero"
+        },
+        {
+          "name": "Joystick",
+          "archetype": "ui",
+          "role": "control"
+        },
+        {
+          "name": "JumpButton",
+          "archetype": "ui",
+          "role": "control"
+        },
+        {
+          "name": "AttackButton",
+          "archetype": "ui",
+          "role": "control"
+        },
+        {
+          "name": "Inventory",
+          "archetype": "inventory",
+          "role": "inventory"
+        },
+        {
+          "name": "CoinsGroup",
+          "archetype": "coin",
+          "role": "group"
+        }
+      ],
+      "components": [
+        {
+          "componentId": "movement.platformer",
+          "thing": null,
+          "owner": null,
+          "target": "Player",
+          "control": null,
+          "configKeys": []
+        },
+        {
+          "componentId": "input.virtual_joystick",
+          "thing": "Joystick",
+          "owner": null,
+          "target": "Player",
+          "control": null,
+          "configKeys": [
+            "action",
+            "axisSmoothing",
+            "deadZone",
+            "radius"
+          ]
+        },
+        {
+          "componentId": "input.jump_button",
+          "thing": "JumpButton",
+          "owner": null,
+          "target": "Player",
+          "control": null,
+          "configKeys": [
+            "action",
+            "cooldown",
+            "pressMode"
+          ]
+        },
+        {
+          "componentId": "input.attack_button",
+          "thing": "AttackButton",
+          "owner": null,
+          "target": "Player",
+          "control": null,
+          "configKeys": [
+            "action",
+            "cooldown",
+            "pressMode"
+          ]
+        },
+        {
+          "componentId": "system.inventory",
+          "thing": "Inventory",
+          "owner": "Player",
+          "target": null,
+          "control": null,
+          "configKeys": [
+            "persistence",
+            "slots",
+            "uiMode"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "type": "controls",
+          "from": "Joystick",
+          "to": "Player",
+          "params": {
+            "action": "move"
+          }
+        },
+        {
+          "type": "controls",
+          "from": "JumpButton",
+          "to": "Player",
+          "params": {
+            "action": "jump"
+          }
+        },
+        {
+          "type": "controls",
+          "from": "AttackButton",
+          "to": "Player",
+          "params": {
+            "action": "attack"
+          }
+        },
+        {
+          "type": "owns",
+          "from": "Player",
+          "to": "Inventory"
+        },
+        {
+          "type": "near",
+          "from": "CoinsGroup",
+          "to": "Player",
+          "params": {
+            "direction": "front",
+            "pattern": "trail",
+            "count": 3
+          }
+        }
+      ],
+      "placements": [
+        {
+          "subject": "Joystick",
+          "anchor": "screen",
+          "space": "ui",
+          "direction": "bottom-left",
+          "pattern": null
+        },
+        {
+          "subject": "JumpButton",
+          "anchor": "screen",
+          "space": "ui",
+          "direction": "bottom-right",
+          "pattern": null
+        },
+        {
+          "subject": "AttackButton",
+          "anchor": "JumpButton",
+          "space": "ui_relative",
+          "direction": "left",
+          "pattern": null
+        },
+        {
+          "subject": "Inventory",
+          "anchor": "screen",
+          "space": "ui",
+          "direction": "right",
+          "pattern": null
+        },
+        {
+          "subject": "CoinsGroup",
+          "anchor": "Player",
+          "space": "object_relative",
+          "direction": "front",
+          "pattern": "trail",
+          "count": 3
+        }
+      ],
+      "bindings": [
+        {
+          "action": "move",
+          "source": "Joystick",
+          "target": "Player",
+          "inputKind": "joystick_axis"
+        },
+        {
+          "action": "jump",
+          "source": "JumpButton",
+          "target": "Player",
+          "inputKind": "touch_button"
+        },
+        {
+          "action": "attack",
+          "source": "AttackButton",
+          "target": "Player",
+          "inputKind": "touch_button"
+        }
+      ],
+      "diagnostics": []
+    },
+    "placementPlan": {
+      "context": {
+        "screenSize": {
+          "width": 800,
+          "height": 600
+        },
+        "safeArea": {
+          "left": 32,
+          "right": 32,
+          "top": 32,
+          "bottom": 32
+        },
+        "cameraMode": "side",
+        "movementDirection": "left_to_right",
+        "worldGravity": "down"
+      },
+      "placements": [
+        {
+          "subject": "Joystick",
+          "space": "ui",
+          "anchor": "screen.safeArea",
+          "layer": "UI",
+          "directionRewrite": null,
+          "pattern": null,
+          "resolved": {
+            "x": 128,
+            "y": 472
+          },
+          "points": []
+        },
+        {
+          "subject": "JumpButton",
+          "space": "ui",
+          "anchor": "screen.safeArea",
+          "layer": "UI",
+          "directionRewrite": null,
+          "pattern": null,
+          "resolved": {
+            "x": 672,
+            "y": 472
+          },
+          "points": []
+        },
+        {
+          "subject": "AttackButton",
+          "space": "ui",
+          "anchor": "JumpButton",
+          "layer": "UI",
+          "directionRewrite": "left -> left",
+          "pattern": "single",
+          "count": 1,
+          "resolved": {
+            "x": 576,
+            "y": 472
+          },
+          "points": [
+            {
+              "x": 576,
+              "y": 472
+            }
+          ]
+        },
+        {
+          "subject": "Inventory",
+          "space": "ui",
+          "anchor": "screen.safeArea",
+          "layer": "UI",
+          "directionRewrite": null,
+          "pattern": null,
+          "resolved": {
+            "x": 672,
+            "y": 300
+          },
+          "points": []
+        },
+        {
+          "subject": "CoinsGroup",
+          "space": "object_relative",
+          "anchor": "Player",
+          "layer": null,
+          "directionRewrite": null,
+          "pattern": null,
+          "resolved": null,
+          "points": []
+        }
+      ],
+      "diagnostics": [
+        {
+          "owner": "placement-resolver",
+          "category": "missing-anchor",
+          "message": "Missing placement anchor bounds: Player",
+          "target": null
+        }
+      ]
+    },
+    "bridgePlan": {
+      "target": "gdjs-internal-dsl",
+      "internalDslLines": 33,
+      "installedModules": [
+        {
+          "id": "core.platformer",
+          "preset": "mobile",
+          "syncPolicy": {
+            "sync": "local",
+            "authority": "host",
+            "tickRate": 20,
+            "seed": "auto"
+          }
+        }
+      ],
+      "runtimeAdapterRequirements": 5,
+      "diagnostics": []
+    },
+    "resultCard": {
+      "resolved": 6,
+      "rewrites": [
+        {
+          "from": "mobile platformer",
+          "to": "core.platformer",
+          "owner": "intent-compiler"
+        },
+        {
+          "from": "joystick",
+          "to": "input.virtual_joystick",
+          "owner": "component catalog"
+        },
+        {
+          "from": "jump button",
+          "to": "input.jump_button",
+          "owner": "component catalog"
+        },
+        {
+          "from": "jump button",
+          "to": "JumpButton",
+          "owner": "intent-compiler"
+        },
+        {
+          "from": "attack button",
+          "to": "input.attack_button",
+          "owner": "component catalog"
+        },
+        {
+          "from": "inventory",
+          "to": "system.inventory",
+          "owner": "component catalog"
+        },
+        {
+          "from": "coins",
+          "to": "thing.coinsgroup",
+          "owner": "intent-compiler"
+        }
+      ],
+      "autoAdded": [
+        {
+          "kind": "thing",
+          "id": "thing.player",
+          "reason": "module preset provides Player"
+        },
+        {
+          "kind": "component",
+          "id": "cmp.movement_platformer_player",
+          "reason": "module preset provides movement"
+        },
+        {
+          "kind": "thing",
+          "id": "thing.joystick",
+          "reason": "control thing from component"
+        },
+        {
+          "kind": "thing",
+          "id": "thing.jumpbutton",
+          "reason": "control thing from component"
+        },
+        {
+          "kind": "thing",
+          "id": "thing.attackbutton",
+          "reason": "control thing from component"
+        },
+        {
+          "kind": "thing",
+          "id": "thing.inventory",
+          "reason": "inventory component thing"
+        }
+      ],
+      "diagnostics": [
+        {
+          "owner": "placement-resolver",
+          "category": "missing-anchor",
+          "message": "Missing placement anchor bounds: Player",
+          "target": null
+        }
+      ],
+      "warnings": [],
+      "ownerTrace": [
+        {
+          "stage": "Parse",
+          "owner": "intent-dsl"
+        },
+        {
+          "stage": "Resolve Symbols",
+          "owner": "intent-compiler"
+        },
+        {
+          "stage": "Build Intent Graph",
+          "owner": "intent-compiler"
+        },
+        {
+          "stage": "Validate Requirements",
+          "owner": "intent-compiler"
+        },
+        {
+          "stage": "Fill Defaults",
+          "owner": "intent-compiler"
+        },
+        {
+          "stage": "Resolve Placement",
+          "owner": "placement-resolver"
+        },
+        {
+          "stage": "Expand Components",
+          "owner": "component-expander"
+        },
+        {
+          "stage": "Emit Internal DSL",
+          "owner": "gdjs-bridge"
+        }
+      ],
+      "emitted": [
+        "intent graph things=6",
+        "intent graph components=5",
+        "intent graph relations=5",
+        "intent graph placements=5",
+        "intent graph bindings=3",
+        "placement plan placements=5",
+        "bridge plan internalDslLines=33",
+        "bridge plan runtimeAdapters=5"
+      ]
+    },
+    "runtimeAdapterRequirements": [
+      {
+        "adapter": "virtual-joystick",
+        "componentId": "input.virtual_joystick",
+        "thing": "Joystick",
+        "target": "Player",
+        "action": null
+      },
+      {
+        "adapter": "touch-button",
+        "componentId": "input.jump_button",
+        "thing": "JumpButton",
+        "target": "Player",
+        "action": null
+      },
+      {
+        "adapter": "touch-button",
+        "componentId": "input.attack_button",
+        "thing": "AttackButton",
+        "target": "Player",
+        "action": null
+      },
+      {
+        "adapter": "inventory-storage",
+        "componentId": "system.inventory",
+        "thing": "Inventory",
+        "target": null,
+        "action": null
+      },
+      {
+        "adapter": "inventory-panel",
+        "componentId": "system.inventory",
+        "thing": "Inventory",
+        "target": null,
+        "action": null
+      }
+    ]
+  },
   "idRegistry": {
     "scenes": {
       "Game": "scene_game"
     },
     "objects": {
-      "Game|Player1": "obj_game_player1",
-      "Game|Player2": "obj_game_player2",
-      "Game|Bullet1": "obj_game_bullet1",
-      "Game|Bullet2": "obj_game_bullet2",
+      "Game|Player": "obj_game_player",
+      "Game|Ground": "obj_game_ground",
+      "Game|Platform": "obj_game_platform",
+      "Game|Coin": "obj_game_coin",
       "Game|Enemy": "obj_game_enemy",
-      "Game|PowerUp": "obj_game_powerup",
-      "Game|HudScore": "obj_game_hudscore",
-      "Game|HudWave": "obj_game_hudwave"
+      "Game|Joystick": "obj_game_joystick",
+      "Game|JumpButton": "obj_game_jumpbutton",
+      "Game|AttackButton": "obj_game_attackbutton",
+      "Game|Inventory": "obj_game_inventory"
     },
     "instances": {
-      "Game|Player1|100|250|0|0||1": "inst_game_player1_100_250_0_0_1",
-      "Game|Player2|100|350|0|0||1": "inst_game_player2_100_350_0_0_1",
-      "Game|HudScore|16|16|0|0||1": "inst_game_hudscore_16_16_0_0_1",
-      "Game|HudWave|16|44|0|0||1": "inst_game_hudwave_16_44_0_0_1"
+      "Game|Player|100|400|0|0||1": "inst_game_player_100_400_0_0_1",
+      "Game|Ground|400|590|800|20||1": "inst_game_ground_400_590_800_20_1",
+      "Game|Platform|200|460|100|16||1": "inst_game_platform_200_460_100_16_1",
+      "Game|Platform|400|380|100|16||1": "inst_game_platform_400_380_100_16_1",
+      "Game|Platform|600|300|100|16||1": "inst_game_platform_600_300_100_16_1",
+      "Game|Coin|240|430|0|0||1": "inst_game_coin_240_430_0_0_1",
+      "Game|Coin|440|350|0|0||1": "inst_game_coin_440_350_0_0_1",
+      "Game|Coin|640|270|0|0||1": "inst_game_coin_640_270_0_0_1",
+      "Game|Enemy|550|400|0|0||1": "inst_game_enemy_550_400_0_0_1",
+      "Game|Joystick|128|472|96|96|UI|1": "inst_game_joystick_128_472_96_96_ui_1",
+      "Game|JumpButton|672|472|72|72|UI|1": "inst_game_jumpbutton_672_472_72_72_ui_1",
+      "Game|AttackButton|576|472|72|72|UI|1": "inst_game_attackbutton_576_472_72_72_ui_1",
+      "Game|Inventory|672|300|160|220|UI|1": "inst_game_inventory_672_300_160_220_ui_1"
     },
     "events": {
-      "Game|on start -> clear drawer Player1, draw rectangle Player1 0 0 32 32, collision mask Player1 0 0 32 32|1": "evt_game_on_start_clear_drawer_player1_draw_",
-      "Game|on start -> clear drawer Player2, draw rectangle Player2 0 0 32 32, collision mask Player2 0 0 32 32|1": "evt_game_on_start_clear_drawer_player2_draw_",
-      "Game|on start -> clear drawer Bullet1, draw rectangle Bullet1 0 0 12 6, collision mask Bullet1 0 0 12 6|1": "evt_game_on_start_clear_drawer_bullet1_draw_",
-      "Game|on start -> clear drawer Bullet2, draw rectangle Bullet2 0 0 12 6, collision mask Bullet2 0 0 12 6|1": "evt_game_on_start_clear_drawer_bullet2_draw_",
-      "Game|on start -> clear drawer Enemy, draw rectangle Enemy 0 0 28 28, collision mask Enemy 0 0 28 28|1": "evt_game_on_start_clear_drawer_enemy_draw_re",
-      "Game|on start -> clear drawer PowerUp, draw circle PowerUp 8 8 8, collision mask PowerUp 0 0 16 16|1": "evt_game_on_start_clear_drawer_powerup_draw_",
-      "Game|on start -> variable Score = 0, variable Wave = 1, variable Player1Health = 3, variable Player2Health = 3|1": "evt_game_on_start_variable_score_0_variable_",
-      "Game|on start -> text HudScore \"Score\"|1": "evt_game_on_start_text_hudscore_score_1",
-      "Game|on start -> text HudWave \"Wave\"|1": "evt_game_on_start_text_hudwave_wave_1",
-      "Game|on key ArrowUp -> move Player1 to 0,4|1": "evt_game_on_key_arrowup_move_player1_to_0_4_",
-      "Game|on key ArrowDown -> move Player1 to 0,4|1": "evt_game_on_key_arrowdown_move_player1_to_0_",
-      "Game|on key ArrowLeft -> move Player1 to 4,0|1": "evt_game_on_key_arrowleft_move_player1_to_4_",
-      "Game|on key ArrowRight -> move Player1 to 4,0|1": "evt_game_on_key_arrowright_move_player1_to_4",
-      "Game|on key Space -> spawn Bullet1 at 120,260|1": "evt_game_on_key_space_spawn_bullet1_at_120_2",
-      "Game|on key KeyW -> move Player2 to 0,4|1": "evt_game_on_key_keyw_move_player2_to_0_4_1",
-      "Game|on key KeyS -> move Player2 to 0,4|1": "evt_game_on_key_keys_move_player2_to_0_4_1",
-      "Game|on key KeyA -> move Player2 to 4,0|1": "evt_game_on_key_keya_move_player2_to_4_0_1",
-      "Game|on key KeyD -> move Player2 to 4,0|1": "evt_game_on_key_keyd_move_player2_to_4_0_1",
-      "Game|on key KeyF -> spawn Bullet2 at 120,360|1": "evt_game_on_key_keyf_spawn_bullet2_at_120_36",
-      "Game|on collision Bullet1 Enemy -> destroy Bullet1, destroy Enemy, variable Score + 10|1": "evt_game_on_collision_bullet1_enemy_destroy_",
-      "Game|on collision Bullet2 Enemy -> destroy Bullet2, destroy Enemy, variable Score + 10|1": "evt_game_on_collision_bullet2_enemy_destroy_",
-      "Game|on collision Player1 PowerUp -> destroy PowerUp, variable Player1Health = 3|1": "evt_game_on_collision_player1_powerup_destro",
-      "Game|on collision Player2 PowerUp -> destroy PowerUp, variable Player2Health = 3|1": "evt_game_on_collision_player2_powerup_destro",
-      "Game|on collision Player1 Enemy -> restart|1": "evt_game_on_collision_player1_enemy_restart_",
-      "Game|on collision Player2 Enemy -> restart|1": "evt_game_on_collision_player2_enemy_restart_",
-      "Game|every 2s -> spawn Enemy at 780,100|1": "evt_game_every_2s_spawn_enemy_at_780_100_1",
-      "Game|every 2s -> spawn Enemy at 780,250|1": "evt_game_every_2s_spawn_enemy_at_780_250_1",
-      "Game|every 3s -> spawn Enemy at 780,400|1": "evt_game_every_3s_spawn_enemy_at_780_400_1",
-      "Game|every 15s -> spawn PowerUp at 400,300|1": "evt_game_every_15s_spawn_powerup_at_400_300_"
+      "Game|on start -> clear drawer Player, draw rectangle Player 0 0 32 48, collision mask Player 0 0 32 48|1": "evt_game_on_start_clear_drawer_player_draw_r",
+      "Game|on start -> clear drawer Ground, draw rectangle Ground 0 0 800 20, collision mask Ground 0 0 800 20|1": "evt_game_on_start_clear_drawer_ground_draw_r",
+      "Game|on start -> clear drawer Platform, draw rectangle Platform 0 0 100 16, collision mask Platform 0 0 100 16|1": "evt_game_on_start_clear_drawer_platform_draw",
+      "Game|on start -> clear drawer Coin, draw circle Coin 8 8 8, collision mask Coin 0 0 16 16|1": "evt_game_on_start_clear_drawer_coin_draw_cir",
+      "Game|on start -> clear drawer Enemy, draw rectangle Enemy 0 0 32 32, collision mask Enemy 0 0 32 32|1": "evt_game_on_start_clear_drawer_enemy_draw_re",
+      "Game|on start -> variable Score = 0|1": "evt_game_on_start_variable_score_0_1",
+      "Game|on collision Player Coin -> destroy Coin, variable Score + 1|1": "evt_game_on_collision_player_coin_destroy_co",
+      "Game|on collision Player Enemy -> restart|1": "evt_game_on_collision_player_enemy_restart_1",
+      "Game|on key Space -> jump Player 500|1": "evt_game_on_key_space_jump_player_500_1",
+      "Game|on start -> clear drawer Joystick, draw circle Joystick 48 48 48, collision mask Joystick 0 0 96 96|1": "evt_game_on_start_clear_drawer_joystick_draw",
+      "Game|on start -> clear drawer JumpButton, draw rectangle JumpButton 0 0 72 72, collision mask JumpButton 0 0 72 72|1": "evt_game_on_start_clear_drawer_jumpbutton_dr",
+      "Game|on start -> clear drawer AttackButton, draw rectangle AttackButton 0 0 72 72, collision mask AttackButton 0 0 72 72|1": "evt_game_on_start_clear_drawer_attackbutton_",
+      "Game|on start -> clear drawer Inventory, draw rectangle Inventory 0 0 160 220, collision mask Inventory 0 0 160 220|1": "evt_game_on_start_clear_drawer_inventory_dra"
     },
     "variables": {
       "global|Score": "var_global_score",
-      "global|Wave": "var_global_wave",
-      "global|Player1Health": "var_global_player1health",
-      "global|Player2Health": "var_global_player2health"
+      "global|InventorySlots": "var_global_inventoryslots"
     },
     "modules": {}
   },
-  "semanticHash": "41120f2b"
+  "semanticHash": "75dab6c3"
 }

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "system.storage",
+  "kind": "system",
+  "name": "Storage Base",
+  "aiManifest": {
+    "summary": "Internal base for item storage systems.",
+    "aliases": [],
+    "actions": [],
+    "safeExamples": [],
+    "exposeToLlm2": false
+  },
+  "compilerManifest": {
+    "componentId": "system.storage",
+    "abstract": true,
+    "defaultConfig": {
+      "slots": 24,
+      "persistence": "session"
+    },
+    "inheritance": {
+      "contracts": [
+        "system.storage"
+      ],
+      "defaultOwner": "component-manifest",
+      "exposedOverrides": [
+        "slots"
+      ],
+      "sealedDefaults": [
+        "persistence"
+      ]
+    },
+    "provides": [
+      "storage.item_slots"
+    ],
+    "requires": [],
+    "gdjsBridge": {
+      "runtimeAdapters": [
+        "inventory-storage"
+      ],
+      "adapterRoutes": {
+        "inventory-storage": {
+          "owner": "runtime-adapter",
+          "mechanism": "inventory-storage-adapter",
+          "routeId": "inventory-persistence",
+          "routeOwner": "runtime-adapter",
+          "routeMechanism": "adapter-config"
+        }
+      },
+      "configExpansions": [
+        {
+          "kind": "global-variable",
+          "name": "InventorySlots",
+          "configKey": "slots",
+          "type": "Number",
+          "scope": "global",
+          "routeId": "inventory-expansion",
+          "routeMechanism": "component-expansion"
+        }
+      ],
+      "status": "pending"
+    }
+  }
+}

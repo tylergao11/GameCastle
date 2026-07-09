@@ -66,8 +66,11 @@ npm run test:ai
 npm run truth:extract
 npm run truth:check
 
-# Product Module DSL: compile product modules to internal low-level DSL
+# Legacy/internal Module DSL: compile product modules to internal low-level DSL
 node ai/pipeline.js --module-dsl-file ai/fixtures/module-platformer-shells.dsl "module composition"
+
+# AI-first Intent DSL: compile natural intent through bridge plan to internal DSL
+node ai/pipeline.js --intent-dsl-file ai/fixtures/intent-mobile-platformer.dsl
 ```
 
 前端依赖位于 `platform/`。首次运行前需要执行：
@@ -78,11 +81,14 @@ npm --prefix platform install
 
 ## Product Module Skeleton
 
-The AI-facing module layer lives in `ai/product-modules/`. LLM1 should see
+This is the current pre-refactor module baseline. The AI-facing module layer
+lives in `ai/product-modules/`. LLM1 should see
 product module cards, such as `core.platformer`, `shell.start_screen`, and
 `shell.game_over_screen`, not low-level object/event templates.
 
-LLM2 can emit Module DSL:
+Historically, before the AI-first Intent refactor, LLM2 emitted Module DSL.
+Treat this as a migration baseline and internal compiler target shape, not the
+new LLM2 product surface:
 
 ```text
 install module id=core.platformer preset=basic sync=lockstep authority=host tickRate=20 seed=auto
@@ -94,9 +100,13 @@ install module id=shell.game_over_screen preset=basic sync=event authority=host
 line-style DSL, records installed modules in `ProjectWorld.modules`, and writes
 future networking metadata to `output/network-manifest.json`.
 
-The online LLM2 path now uses this same Module DSL surface. Low-level DSL stays
-an internal compiler/runtime protocol and is only used by the execution repair
-fallback after a compiled batch reaches `ExecutionReport.summary.nextAction=repair`.
+The AI-first Intent refactor replaces this as the live product surface instead
+of keeping it as a parallel compatibility path. Low-level DSL and Module DSL are
+machine/compiler shapes only; LLM2 should speak natural game intent, and the
+compiler/runtime bridge should choose ids, modules, components, adapters, and
+coordinates. Low-level DSL stays an internal compiler/runtime protocol and is
+only used by the execution repair fallback after a compiled batch reaches
+`ExecutionReport.summary.nextAction=repair`.
 On `--continue`, the compiler reads existing `ProjectWorld.modules` as the base
 module set, rejects duplicate reinstalls, and emits only the low-level diff
 needed for newly installed modules or module link patches.
@@ -120,6 +130,40 @@ Module-link slots stay internal: installing `shell.game_over_screen` wires the
 platformer fail action through the compiler, so LLM2 does not need to configure
 that low-level slot directly.
 
+## AI-first Intent Refactor
+
+The live LLM2 surface is Intent DSL, not GDJS events and not a parallel
+compatibility wrapper around Module DSL. This is a breaking refactor: the live
+LLM2 product path uses Intent DSL as the single canonical surface. Module DSL is
+kept for explicit fixture/internal migration input only.
+
+Intent DSL describes human game-world concepts:
+
+```text
+make a mobile platformer
+give Player platformer movement
+add joystick controls Player near screen bottom-left
+add jump button controls Player near screen bottom-right
+add inventory owned by Player with 24 slots near screen right
+place coins near Player front as trail count 8
+```
+
+The runtime/compiler bridge owns id selection, component expansion,
+`near/direction` placement resolution, internal low-level DSL, GDevelop project
+data, generated scene code, and GDJS runtime adapters. In other words: no
+machine-shaped commands are part of the intended LLM2 product language.
+The first component catalog lives in `ai/components/`: its AI Manifest side is
+natural-language component cards, while its Compiler Manifest side owns
+component ids, inherited defaults, requirements, bindings, placement policy, and
+GDJS adapter requirements.
+The first bridge owner is `ai/gdjs-bridge.js`: it emits internal low-level DSL
+for product modules, component UI objects, resolved placements, semantic group
+placements, and records touch/joystick/inventory runtime adapter requirements.
+`ai/intent-runtime-codegen.js` turns those requirements into `intent-runtime.js`,
+which the HTML export attaches to the GDJS game as `GameCastleIntentRuntime`.
+
+See [AI-first Intent Runtime Bridge](docs/ai-first-intent-runtime-bridge.md).
+
 ## Approval Gate
 
 During real LLM testing, use an approval gate instead of pure self-loop:
@@ -130,10 +174,11 @@ node ai/pipeline.js --approve-pending
 ```
 
 `--approval-gate` writes `output/pending-approval.json` and stops before
-mutating `project.json`. The pending file includes Module DSL, compiled internal
-DSL, module/network metadata, and a dry-run preview with predicted semantic
-hash, cache-hit status, and command success/failure summary. Approval should be
-based on reading that file first.
+mutating `project.json`. For Intent patches, the pending file includes Intent
+DSL, typed Intent Graph, Placement Plan, Bridge Plan, Compile ResultCard,
+compiled internal DSL, runtime adapter requirements, module/network metadata,
+and a dry-run preview with every command result, predicted semantic hash, and
+cache-hit status. Approval should be based on reading that file first.
 
 ## GDevelop Runtime Truth
 

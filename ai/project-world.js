@@ -34,6 +34,217 @@ function clone(value) {
   return value ? JSON.parse(JSON.stringify(value)) : value;
 }
 
+function compactList(list, mapper) {
+  return (list || []).map(mapper).filter(Boolean);
+}
+
+function normalizeDslLines(textOrLines) {
+  var lines = Array.isArray(textOrLines) ? textOrLines : String(textOrLines || '').split(/\r?\n/);
+  return lines.map(function(line) {
+    return String(line || '').trim();
+  }).filter(function(line) {
+    return line && line[0] !== '#';
+  });
+}
+
+function summarizeDiagnostics(list) {
+  return compactList(list, function(item) {
+    return {
+      owner: item.owner || null,
+      category: item.category || item.code || null,
+      routeId: item.routeId || null,
+      routeOwner: item.routeOwner || null,
+      routeMechanism: item.routeMechanism || null,
+      nextAction: item.nextAction || null,
+      message: item.message || null,
+      target: item.target || null,
+    };
+  });
+}
+
+function countBy(list, key) {
+  var result = {};
+  (list || []).forEach(function(item) {
+    var value = item && item[key];
+    if (!value) return;
+    result[value] = (result[value] || 0) + 1;
+  });
+  return result;
+}
+
+function summarizeIntentArtifacts(options) {
+  options = options || {};
+  var intentGraph = options.intentGraph || null;
+  var placementPlan = options.placementPlan || null;
+  var bridgePlan = options.bridgePlan || null;
+  var intentContracts = options.intentContracts || options.contracts || null;
+  var resultCard = options.compileResultCard || options.resultCard || null;
+  var runtimeAdapterRequirements = options.runtimeAdapterRequirements ||
+    (bridgePlan && bridgePlan.runtimeAdapterRequirements) ||
+    [];
+  var intentDslLines = normalizeDslLines(options.intentDslLines || options.intentDslText);
+
+  if (!intentDslLines.length && !intentGraph && !placementPlan && !bridgePlan && !resultCard && !runtimeAdapterRequirements.length) {
+    return null;
+  }
+
+  return {
+    schemaVersion: 1,
+    patchKind: options.patchKind || 'intent',
+    intentDslLines: intentDslLines,
+    contracts: intentContracts || null,
+    intentGraph: intentGraph ? {
+      counts: {
+        modules: (intentGraph.modules || []).length,
+        things: (intentGraph.things || []).length,
+        components: (intentGraph.components || []).length,
+        relations: (intentGraph.relations || []).length,
+        placements: (intentGraph.placements || []).length,
+        bindings: (intentGraph.bindings || []).length,
+        requirements: (intentGraph.requirements || []).length,
+        diagnostics: (intentGraph.diagnostics || []).length,
+      },
+      modules: compactList(intentGraph.modules, function(module) {
+        return { id: module.id, preset: module.preset || null, source: module.source || null };
+      }),
+      things: compactList(intentGraph.things, function(thing) {
+        return { name: thing.name, archetype: thing.archetype || null, role: thing.role || null };
+      }),
+      components: compactList(intentGraph.components, function(component) {
+        return {
+          componentId: component.componentId,
+          thing: component.thing || null,
+          owner: component.owner || null,
+          target: component.target || null,
+          control: component.control || null,
+          configKeys: Object.keys(component.config || {}).sort(),
+        };
+      }),
+      relations: compactList(intentGraph.relations, function(relation) {
+        return {
+          type: relation.type,
+          from: relation.from || null,
+          to: relation.to || null,
+          params: relation.params || undefined,
+        };
+      }),
+      placements: compactList(intentGraph.placements, function(placement) {
+        return {
+          subject: placement.subject,
+          anchor: placement.anchor,
+          space: placement.space || null,
+          direction: placement.direction || null,
+          pattern: placement.pattern || null,
+          count: placement.count,
+        };
+      }),
+      bindings: compactList(intentGraph.bindings, function(binding) {
+        return {
+          action: binding.action || null,
+          source: binding.source || null,
+          target: binding.target || null,
+          inputKind: binding.inputKind || null,
+        };
+      }),
+      diagnostics: summarizeDiagnostics(intentGraph.diagnostics),
+    } : null,
+    placementPlan: placementPlan ? {
+      context: placementPlan.context || null,
+      placements: compactList(placementPlan.placements, function(placement) {
+        return {
+          subject: placement.subject,
+          space: placement.space || null,
+          anchor: placement.anchor || null,
+          layer: placement.layer || null,
+          directionRewrite: placement.directionRewrite || null,
+          routeEvidence: compactList(placement.routeEvidence, function(item) {
+            return {
+              owner: item.owner || null,
+              mechanism: item.mechanism || null,
+              routeId: item.routeId || null,
+              routeMechanism: item.routeMechanism || null,
+            };
+          }),
+          pattern: placement.pattern || null,
+          count: placement.count,
+          emission: placement.emission ? {
+            mechanism: placement.emission.mechanism || null,
+            routeId: placement.emission.routeId || null,
+            routeMechanism: placement.emission.routeMechanism || null,
+          } : null,
+          resolved: placement.resolved || null,
+          points: placement.points || [],
+        };
+      }),
+      diagnostics: summarizeDiagnostics(placementPlan.diagnostics),
+    } : null,
+    bridgePlan: bridgePlan ? {
+      target: bridgePlan.target || null,
+      internalDslLines: (bridgePlan.dslLines || []).length,
+      contracts: bridgePlan.contracts || null,
+      emittedMechanisms: countBy(bridgePlan.emitted, 'mechanism'),
+      emittedRoutes: countBy(bridgePlan.emitted, 'routeId'),
+      installedModules: compactList(bridgePlan.installedModules, function(module) {
+        return { id: module.id, preset: module.preset || null, syncPolicy: module.syncPolicy || null };
+      }),
+      runtimeAdapterRequirements: runtimeAdapterRequirements.length,
+      diagnostics: summarizeDiagnostics(bridgePlan.diagnostics),
+    } : null,
+    resultCard: resultCard ? {
+      resolved: (resultCard.resolved || []).length,
+      rewrites: compactList(resultCard.rewrites, function(rewrite) {
+        return {
+          from: rewrite.from || null,
+          to: rewrite.to || null,
+          owner: rewrite.owner || null,
+          mechanism: rewrite.mechanism || null,
+          stage: rewrite.stage || null,
+        };
+      }),
+      overrides: compactList(resultCard.overrides, function(override) {
+        return {
+          component: override.component || null,
+          key: override.key || null,
+          value: override.value,
+          owner: override.owner || null,
+          source: override.source || null,
+        };
+      }),
+      autoAdded: compactList(resultCard.autoAdded, function(item) {
+        return { kind: item.kind || null, id: item.id || null, reason: item.reason || null };
+      }),
+      diagnostics: summarizeDiagnostics(resultCard.diagnostics),
+      warnings: (resultCard.warnings || []).slice(),
+      ownerTrace: compactList(resultCard.ownerTrace, function(item) {
+        return { stage: item.stage || null, owner: item.owner || null };
+      }),
+      emitted: (resultCard.emitted || []).slice(),
+    } : null,
+    runtimeAdapterRequirements: compactList(runtimeAdapterRequirements, function(requirement) {
+      return {
+        adapter: requirement.adapter,
+        componentId: requirement.componentId || null,
+        thing: requirement.thing || null,
+        target: requirement.target || null,
+        owner: requirement.owner || null,
+        source: requirement.source || null,
+        mechanism: requirement.mechanism || null,
+        routeId: requirement.routeId || null,
+        routeOwner: requirement.routeOwner || null,
+        routeMechanism: requirement.routeMechanism || null,
+        action: requirement.action || null,
+      };
+    }),
+  };
+}
+
+function intentSemanticPayload(intentSummary) {
+  if (!intentSummary) return null;
+  var summary = clone(intentSummary);
+  delete summary.intentDslLines;
+  return summary;
+}
+
 function makeEmptyRegistry() {
   return {
     scenes: {},
@@ -229,6 +440,7 @@ function buildProjectWorld(project, previousWorld, options) {
       return described;
     }),
     modules: options.modules ? clone(options.modules) : (clone(previousWorld && previousWorld.modules) || []),
+    intent: options.intent ? summarizeIntentArtifacts(options.intent) : (clone(previousWorld && previousWorld.intent) || null),
     idRegistry: nextRegistry,
   };
 
@@ -323,6 +535,7 @@ function buildProjectWorld(project, previousWorld, options) {
     globalObjects: world.globalObjects,
     globalVariables: world.globalVariables,
     modules: world.modules,
+    intent: intentSemanticPayload(world.intent),
   };
   world.semanticHash = shortHash(stableStringify(semanticPayload));
   if (previousWorld && previousWorld.semanticHash === world.semanticHash) {
@@ -358,6 +571,7 @@ function makeExecutionReport(options) {
       failed: failed.length,
       nextAction: failed.length ? 'repair' : 'done',
     },
+    intent: options.intent ? summarizeIntentArtifacts(options.intent) : null,
     completed: completed.map(function(result) {
       return {
         commandId: result.commandId,
@@ -388,6 +602,7 @@ function saveProjectWorld(stateDir, world) {
 
 module.exports = {
   buildProjectWorld: buildProjectWorld,
+  summarizeIntentArtifacts: summarizeIntentArtifacts,
   loadProjectWorld: loadProjectWorld,
   saveProjectWorld: saveProjectWorld,
   loadExecutionLedger: loadExecutionLedger,

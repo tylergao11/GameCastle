@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "movement.platformer",
+  "kind": "ability",
+  "name": "Platformer Movement",
+  "aiManifest": {
+    "summary": "Let a character move and jump in a side-view platform game.",
+    "aliases": [
+      "platformer movement",
+      "platform movement",
+      "move and jump"
+    ],
+    "targetRoles": [
+      "player",
+      "character"
+    ],
+    "safeExamples": [
+      "give Player platformer movement"
+    ]
+  },
+  "compilerManifest": {
+    "componentId": "movement.platformer",
+    "thingArchetype": "player",
+    "defaultConfig": {
+      "moveSpeed": "standard",
+      "jumpStrength": "standard"
+    },
+    "inheritance": {
+      "contracts": [
+        "movement.platformer"
+      ],
+      "defaultOwner": "component-manifest",
+      "exposedOverrides": [],
+      "sealedDefaults": [
+        "moveSpeed",
+        "jumpStrength"
+      ]
+    },
+    "provides": [
+      "movement.platformer",
+      "input.move.accepts_axis",
+      "input.jump.accepts_button"
+    ],
+    "requires": [],
+    "gdjsBridge": {
+      "runtimeAdapters": [],
+      "status": "owned-by-module-or-bridge"
+    }
+  }
+}

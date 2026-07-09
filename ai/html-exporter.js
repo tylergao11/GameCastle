@@ -177,6 +177,7 @@ function buildHtmlExportManifest(project, options) {
 
   (options.codeFiles || []).forEach(function(file) { addUnique(scriptFiles, file.fileName || file); });
   addUnique(scriptFiles, 'data.js');
+  if (options.hasIntentRuntime) addUnique(scriptFiles, 'intent-runtime.js');
   addUnique(scriptFiles, 'network-runtime.js');
 return {
     schemaVersion: 1,
@@ -215,7 +216,7 @@ function syncHtmlRuntime(runtimeDir, outputDir, manifest) {
   removeManagedRuntime(outputDir, runtimeDir);
   var copied = 0, skipped = 0, missing = [];
   manifest.scriptFiles.concat(manifest.assetFiles || []).forEach(function(file) {
-    if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'network-runtime.js') return;
+    if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'network-runtime.js' || file === 'intent-runtime.js') return;
     if (copyRuntimeFile(runtimeDir, outputDir, file)) copied++; else { skipped++; missing.push(file); }
   });
   if (skipped > 0) {
@@ -241,6 +242,7 @@ function renderHtml(manifest, options) {
       '      window.GameCastleRuntimeGame = game;',
       '      game.getRenderer().createStandardCanvas(document.body);',
       '      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);',
+      '      if (window.GameCastleIntentRuntime) window.GameCastleIntentRuntime.attach(game);',
       '      var gcBridge = window.GameCastleNetwork && window.GameCastleNetwork.bridge;',
       '      if (gcBridge) gcBridge.attach(game);',
       '      game.loadAllAssets(function() {',
@@ -260,6 +262,7 @@ function renderHtml(manifest, options) {
       '      window.GameCastleRuntimeGame = game;',
       '      game.getRenderer().createStandardCanvas(document.body);',
       '      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);',
+      '      if (window.GameCastleIntentRuntime) window.GameCastleIntentRuntime.attach(game);',
       '      game.loadAllAssets(function() {',
       '        game.startGameLoop();',
       '      });',

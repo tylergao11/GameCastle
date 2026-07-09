@@ -9,6 +9,9 @@
   "presets": {
     "basic": {
       "description": "Side-scrolling shooter with wave-based enemies, score tracking, and power-up drops."
+    },
+    "mobile": {
+      "description": "Shooter core prepared for mobile controls supplied by the Intent component bridge."
     }
   },
   "repositoryPolicy": {

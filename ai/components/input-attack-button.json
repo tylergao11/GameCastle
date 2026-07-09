@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "input.attack_button",
+  "kind": "control",
+  "name": "Attack Button",
+  "aiManifest": {
+    "summary": "A mobile button for attacking.",
+    "aliases": [
+      "attack button",
+      "attack control",
+      "fire button"
+    ],
+    "actions": [
+      "attack",
+      "fire"
+    ],
+    "targetRoles": [
+      "player",
+      "character"
+    ],
+    "safeExamples": [
+      "add attack button controls Player near jump button left"
+    ]
+  },
+  "compilerManifest": {
+    "componentId": "input.attack_button",
+    "extends": "input.touch_button",
+    "thingName": "AttackButton",
+    "thingArchetype": "ui",
+    "role": "control",
+    "defaultAction": "attack",
+    "defaultConfig": {
+      "action": "attack",
+      "cooldown": "short",
+      "color": "#EB5757",
+      "keyboardKey": "KeyZ",
+      "controlLabel": "A"
+    },
+    "inheritance": {
+      "contracts": [
+        "input.attack_button"
+      ],
+      "defaultOwner": "component-manifest",
+      "exposedOverrides": [
+        "action"
+      ],
+      "sealedDefaults": [
+        "cooldown",
+        "color",
+        "keyboardKey",
+        "controlLabel"
+      ]
+    },
+    "provides": [
+      "input.attack.button"
+    ],
+    "requires": [],
+    "placement": {
+      "space": "ui",
+      "preferredAnchor": "jump button",
+      "preferredDirection": "left"
+    }
+  }
+}

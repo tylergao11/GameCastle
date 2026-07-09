@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "system.inventory",
+  "kind": "system",
+  "name": "Inventory",
+  "aiManifest": {
+    "summary": "A player-owned item storage system with an optional on-screen panel.",
+    "aliases": [
+      "inventory",
+      "backpack",
+      "bag"
+    ],
+    "ownerRoles": [
+      "player",
+      "character"
+    ],
+    "safeExamples": [
+      "add inventory owned by Player with 24 slots near screen right"
+    ]
+  },
+  "compilerManifest": {
+    "componentId": "system.inventory",
+    "extends": [
+      "system.storage",
+      "ui.panel"
+    ],
+    "thingName": "Inventory",
+    "thingArchetype": "inventory",
+    "role": "inventory",
+    "defaultConfig": {
+      "panelTitle": "Inventory"
+    },
+    "inheritance": {
+      "contracts": [
+        "system.inventory"
+      ],
+      "defaultOwner": "component-manifest",
+      "exposedOverrides": [],
+      "sealedDefaults": [
+        "panelTitle"
+      ]
+    },
+    "provides": [
+      "ui.inventory_panel"
+    ],
+    "requires": [],
+    "relations": [
+      {
+        "type": "owns",
+        "from": "owner",
+        "to": "componentThing"
+      }
+    ],
+    "placement": {
+      "preferredDirection": "right"
+    }
+  }
+}

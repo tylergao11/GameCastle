@@ -79,7 +79,7 @@
         "name": "PrimitiveDrawing"
       },
       {
-        "name": "TextObject"
+        "name": "PlatformBehavior"
       }
     ],
     "currentPlatform": "GDevelop JS platform",
@@ -98,19 +98,9 @@
       "value": "0"
     },
     {
-      "name": "Wave",
+      "name": "InventorySlots",
       "type": 3,
-      "value": "1"
-    },
-    {
-      "name": "Player1Health",
-      "type": 3,
-      "value": "3"
-    },
-    {
-      "name": "Player2Health",
-      "type": 3,
-      "value": "3"
+      "value": "24"
     }
   ],
   "layouts": [
@@ -145,14 +135,78 @@
           "width": 0,
           "layer": "",
           "locked": false,
-          "name": "Player1",
+          "name": "Player",
           "x": 100,
-          "y": 250,
+          "y": 400,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-c20cbc9598bf47b0"
+          "persistentUuid": "gc-c7a61a47206018f5"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 20,
+          "width": 800,
+          "layer": "",
+          "locked": false,
+          "name": "Ground",
+          "x": 400,
+          "y": 590,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-ce5389274a11c52d"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 16,
+          "width": 100,
+          "layer": "",
+          "locked": false,
+          "name": "Platform",
+          "x": 200,
+          "y": 460,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-75bd337fe2766d93"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 16,
+          "width": 100,
+          "layer": "",
+          "locked": false,
+          "name": "Platform",
+          "x": 400,
+          "y": 380,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-e767a4fe2aeccdaf"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 16,
+          "width": 100,
+          "layer": "",
+          "locked": false,
+          "name": "Platform",
+          "x": 600,
+          "y": 300,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-c82d7923ce8ac818"
         },
         {
           "angle": 0,
@@ -161,14 +215,30 @@
           "width": 0,
           "layer": "",
           "locked": false,
-          "name": "Player2",
-          "x": 100,
+          "name": "Coin",
+          "x": 240,
+          "y": 430,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-a0808002f02aae40"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "Coin",
+          "x": 440,
           "y": 350,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-03bdedacb0c2d823"
+          "persistentUuid": "gc-8f8879a2dd154fba"
         },
         {
           "angle": 0,
@@ -177,14 +247,14 @@
           "width": 0,
           "layer": "",
           "locked": false,
-          "name": "HudScore",
-          "x": 16,
-          "y": 16,
+          "name": "Coin",
+          "x": 640,
+          "y": 270,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-519bd6f1a54b9ea1"
+          "persistentUuid": "gc-6d4907fb1a9f261a"
         },
         {
           "angle": 0,
@@ -193,23 +263,109 @@
           "width": 0,
           "layer": "",
           "locked": false,
-          "name": "HudWave",
-          "x": 16,
-          "y": 44,
+          "name": "Enemy",
+          "x": 550,
+          "y": 400,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-be5ef3833e8982a7"
+          "persistentUuid": "gc-3bac08e131281128"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 96,
+          "width": 96,
+          "layer": "UI",
+          "locked": false,
+          "name": "Joystick",
+          "x": 128,
+          "y": 472,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-5477fe8b12b55530"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 72,
+          "width": 72,
+          "layer": "UI",
+          "locked": false,
+          "name": "JumpButton",
+          "x": 672,
+          "y": 472,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-d91080e08da9b737"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 72,
+          "width": 72,
+          "layer": "UI",
+          "locked": false,
+          "name": "AttackButton",
+          "x": 576,
+          "y": 472,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-dcffa4aa5a2a6030"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 220,
+          "width": 160,
+          "layer": "UI",
+          "locked": false,
+          "name": "Inventory",
+          "x": 672,
+          "y": 300,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-12860f75a0d8fa8b"
         }
       ],
       "objects": [
         {
-          "name": "Player1",
+          "name": "Player",
           "tags": "",
           "type": "PrimitiveDrawing::Drawer",
           "variables": [],
-          "behaviors": [],
+          "behaviors": [
+            {
+              "name": "PlatformerObject",
+              "type": "PlatformBehavior::PlatformerObjectBehavior",
+              "acceleration": 1500,
+              "canGoDownFromJumpthru": true,
+              "canGrabPlatforms": false,
+              "canGrabWithoutMoving": true,
+              "deceleration": 1500,
+              "gravity": 1300,
+              "ignoreDefaultControls": false,
+              "jumpSpeed": 1000,
+              "jumpSustainTime": 0,
+              "ladderClimbingSpeed": 150,
+              "maxFallingSpeed": 1000,
+              "maxSpeed": 250,
+              "slopeMaxAngle": 60,
+              "useLegacyTrajectory": false,
+              "useRepeatedJump": false,
+              "xGrabTolerance": 10,
+              "yGrabOffset": 0
+            }
+          ],
           "effects": [],
           "absoluteCoordinates": false,
           "clearBetweenFrames": false,
@@ -229,19 +385,27 @@
           "outlineSize": 0
         },
         {
-          "name": "Player2",
+          "name": "Ground",
           "tags": "",
           "type": "PrimitiveDrawing::Drawer",
           "variables": [],
-          "behaviors": [],
+          "behaviors": [
+            {
+              "name": "Platform",
+              "type": "PlatformBehavior::PlatformBehavior",
+              "canBeGrabbed": true,
+              "platformType": "NormalPlatform",
+              "yGrabOffset": 0
+            }
+          ],
           "effects": [],
           "absoluteCoordinates": false,
           "clearBetweenFrames": false,
           "antialiasing": "low",
           "fillColor": {
-            "r": 46,
-            "g": 204,
-            "b": 255
+            "r": 139,
+            "g": 69,
+            "b": 19
           },
           "fillOpacity": 255,
           "outlineColor": {
@@ -253,7 +417,39 @@
           "outlineSize": 0
         },
         {
-          "name": "Bullet1",
+          "name": "Platform",
+          "tags": "",
+          "type": "PrimitiveDrawing::Drawer",
+          "variables": [],
+          "behaviors": [
+            {
+              "name": "Platform",
+              "type": "PlatformBehavior::PlatformBehavior",
+              "canBeGrabbed": true,
+              "platformType": "NormalPlatform",
+              "yGrabOffset": 0
+            }
+          ],
+          "effects": [],
+          "absoluteCoordinates": false,
+          "clearBetweenFrames": false,
+          "antialiasing": "low",
+          "fillColor": {
+            "r": 139,
+            "g": 69,
+            "b": 19
+          },
+          "fillOpacity": 255,
+          "outlineColor": {
+            "r": 0,
+            "g": 0,
+            "b": 0
+          },
+          "outlineOpacity": 255,
+          "outlineSize": 0
+        },
+        {
+          "name": "Coin",
           "tags": "",
           "type": "PrimitiveDrawing::Drawer",
           "variables": [],
@@ -266,30 +462,6 @@
             "r": 255,
             "g": 215,
             "b": 0
-          },
-          "fillOpacity": 255,
-          "outlineColor": {
-            "r": 0,
-            "g": 0,
-            "b": 0
-          },
-          "outlineOpacity": 255,
-          "outlineSize": 0
-        },
-        {
-          "name": "Bullet2",
-          "tags": "",
-          "type": "PrimitiveDrawing::Drawer",
-          "variables": [],
-          "behaviors": [],
-          "effects": [],
-          "absoluteCoordinates": false,
-          "clearBetweenFrames": false,
-          "antialiasing": "low",
-          "fillColor": {
-            "r": 255,
-            "g": 255,
-            "b": 255
           },
           "fillOpacity": 255,
           "outlineColor": {
@@ -325,7 +497,7 @@
           "outlineSize": 0
         },
         {
-          "name": "PowerUp",
+          "name": "Joystick",
           "tags": "",
           "type": "PrimitiveDrawing::Drawer",
           "variables": [],
@@ -335,9 +507,9 @@
           "clearBetweenFrames": false,
           "antialiasing": "low",
           "fillColor": {
-            "r": 46,
-            "g": 204,
-            "b": 113
+            "r": 45,
+            "g": 156,
+            "b": 219
           },
           "fillOpacity": 255,
           "outlineColor": {
@@ -349,62 +521,76 @@
           "outlineSize": 0
         },
         {
-          "name": "HudScore",
+          "name": "JumpButton",
           "tags": "",
-          "type": "TextObject::Text",
+          "type": "PrimitiveDrawing::Drawer",
           "variables": [],
           "behaviors": [],
           "effects": [],
-          "content": {
-            "text": "HudScore",
-            "font": "",
-            "characterSize": 20,
-            "color": "255;255;255",
-            "bold": false,
-            "italic": false,
-            "underlined": false,
-            "textAlignment": "left",
-            "verticalTextAlignment": "top",
-            "isOutlineEnabled": false,
-            "outlineThickness": 0,
-            "outlineColor": "0;0;0",
-            "isShadowEnabled": false,
-            "shadowColor": "0;0;0",
-            "shadowOpacity": 127,
-            "shadowDistance": 4,
-            "shadowAngle": 45,
-            "shadowBlurRadius": 2,
-            "lineHeight": 0
-          }
+          "absoluteCoordinates": false,
+          "clearBetweenFrames": false,
+          "antialiasing": "low",
+          "fillColor": {
+            "r": 39,
+            "g": 174,
+            "b": 96
+          },
+          "fillOpacity": 255,
+          "outlineColor": {
+            "r": 0,
+            "g": 0,
+            "b": 0
+          },
+          "outlineOpacity": 255,
+          "outlineSize": 0
         },
         {
-          "name": "HudWave",
+          "name": "AttackButton",
           "tags": "",
-          "type": "TextObject::Text",
+          "type": "PrimitiveDrawing::Drawer",
           "variables": [],
           "behaviors": [],
           "effects": [],
-          "content": {
-            "text": "HudWave",
-            "font": "",
-            "characterSize": 20,
-            "color": "255;255;255",
-            "bold": false,
-            "italic": false,
-            "underlined": false,
-            "textAlignment": "left",
-            "verticalTextAlignment": "top",
-            "isOutlineEnabled": false,
-            "outlineThickness": 0,
-            "outlineColor": "0;0;0",
-            "isShadowEnabled": false,
-            "shadowColor": "0;0;0",
-            "shadowOpacity": 127,
-            "shadowDistance": 4,
-            "shadowAngle": 45,
-            "shadowBlurRadius": 2,
-            "lineHeight": 0
-          }
+          "absoluteCoordinates": false,
+          "clearBetweenFrames": false,
+          "antialiasing": "low",
+          "fillColor": {
+            "r": 235,
+            "g": 87,
+            "b": 87
+          },
+          "fillOpacity": 255,
+          "outlineColor": {
+            "r": 0,
+            "g": 0,
+            "b": 0
+          },
+          "outlineOpacity": 255,
+          "outlineSize": 0
+        },
+        {
+          "name": "Inventory",
+          "tags": "",
+          "type": "PrimitiveDrawing::Drawer",
+          "variables": [],
+          "behaviors": [],
+          "effects": [],
+          "absoluteCoordinates": false,
+          "clearBetweenFrames": false,
+          "antialiasing": "low",
+          "fillColor": {
+            "r": 79,
+            "g": 79,
+            "b": 79
+          },
+          "fillOpacity": 255,
+          "outlineColor": {
+            "r": 0,
+            "g": 0,
+            "b": 0
+          },
+          "outlineOpacity": 255,
+          "outlineSize": 0
         }
       ],
       "events": [
@@ -430,7 +616,7 @@
                 "value": "PrimitiveDrawing::Drawer::ClearShapes"
               },
               "parameters": [
-                "Player1"
+                "Player"
               ],
               "subInstructions": []
             },
@@ -440,11 +626,11 @@
                 "value": "PrimitiveDrawing::Rectangle"
               },
               "parameters": [
-                "Player1",
+                "Player",
                 "0",
                 "0",
                 "32",
-                "32"
+                "48"
               ],
               "subInstructions": []
             },
@@ -454,11 +640,11 @@
                 "value": "PrimitiveDrawing::SetRectangularCollisionMask"
               },
               "parameters": [
-                "Player1",
+                "Player",
                 "0",
                 "0",
                 "32",
-                "32"
+                "48"
               ],
               "subInstructions": []
             }
@@ -487,7 +673,7 @@
                 "value": "PrimitiveDrawing::Drawer::ClearShapes"
               },
               "parameters": [
-                "Player2"
+                "Ground"
               ],
               "subInstructions": []
             },
@@ -497,11 +683,11 @@
                 "value": "PrimitiveDrawing::Rectangle"
               },
               "parameters": [
-                "Player2",
+                "Ground",
                 "0",
                 "0",
-                "32",
-                "32"
+                "800",
+                "20"
               ],
               "subInstructions": []
             },
@@ -511,11 +697,11 @@
                 "value": "PrimitiveDrawing::SetRectangularCollisionMask"
               },
               "parameters": [
-                "Player2",
+                "Ground",
                 "0",
                 "0",
-                "32",
-                "32"
+                "800",
+                "20"
               ],
               "subInstructions": []
             }
@@ -544,7 +730,7 @@
                 "value": "PrimitiveDrawing::Drawer::ClearShapes"
               },
               "parameters": [
-                "Bullet1"
+                "Platform"
               ],
               "subInstructions": []
             },
@@ -554,11 +740,11 @@
                 "value": "PrimitiveDrawing::Rectangle"
               },
               "parameters": [
-                "Bullet1",
+                "Platform",
                 "0",
                 "0",
-                "12",
-                "6"
+                "100",
+                "16"
               ],
               "subInstructions": []
             },
@@ -568,11 +754,11 @@
                 "value": "PrimitiveDrawing::SetRectangularCollisionMask"
               },
               "parameters": [
-                "Bullet1",
+                "Platform",
                 "0",
                 "0",
-                "12",
-                "6"
+                "100",
+                "16"
               ],
               "subInstructions": []
             }
@@ -601,21 +787,20 @@
                 "value": "PrimitiveDrawing::Drawer::ClearShapes"
               },
               "parameters": [
-                "Bullet2"
+                "Coin"
               ],
               "subInstructions": []
             },
             {
               "type": {
                 "inverted": false,
-                "value": "PrimitiveDrawing::Rectangle"
+                "value": "PrimitiveDrawing::Circle"
               },
               "parameters": [
-                "Bullet2",
-                "0",
-                "0",
-                "12",
-                "6"
+                "Coin",
+                "8",
+                "8",
+                "8"
               ],
               "subInstructions": []
             },
@@ -625,11 +810,11 @@
                 "value": "PrimitiveDrawing::SetRectangularCollisionMask"
               },
               "parameters": [
-                "Bullet2",
+                "Coin",
                 "0",
                 "0",
-                "12",
-                "6"
+                "16",
+                "16"
               ],
               "subInstructions": []
             }
@@ -671,8 +856,8 @@
                 "Enemy",
                 "0",
                 "0",
-                "28",
-                "28"
+                "32",
+                "32"
               ],
               "subInstructions": []
             },
@@ -685,8 +870,195 @@
                 "Enemy",
                 "0",
                 "0",
-                "28",
-                "28"
+                "32",
+                "32"
+              ],
+              "subInstructions": []
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "SetVariable"
+              },
+              "parameters": [
+                "Score",
+                "=",
+                "0"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "CollisionNP"
+              },
+              "parameters": [
+                "Player",
+                "Coin",
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "Delete"
+              },
+              "parameters": [
+                "Coin",
+                ""
+              ]
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "SetVariable"
+              },
+              "parameters": [
+                "Score",
+                "+",
+                "1"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "CollisionNP"
+              },
+              "parameters": [
+                "Player",
+                "Enemy",
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "ResetGame"
+              },
+              "parameters": []
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "KeyPressed"
+              },
+              "parameters": [
+                "",
+                "Space"
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "AddForce"
+              },
+              "parameters": [
+                "Player",
+                "Up",
+                "500"
+              ]
+            }
+          ],
+          "events": []
+        },
+        {
+          "disabled": false,
+          "folded": false,
+          "type": "BuiltinCommonInstructions::Standard",
+          "conditions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "DepartScene"
+              },
+              "parameters": [
+                ""
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": {
+                "inverted": false,
+                "value": "PrimitiveDrawing::Drawer::ClearShapes"
+              },
+              "parameters": [
+                "Joystick"
+              ],
+              "subInstructions": []
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "PrimitiveDrawing::Circle"
+              },
+              "parameters": [
+                "Joystick",
+                "48",
+                "48",
+                "48"
+              ],
+              "subInstructions": []
+            },
+            {
+              "type": {
+                "inverted": false,
+                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
+              },
+              "parameters": [
+                "Joystick",
+                "0",
+                "0",
+                "96",
+                "96"
               ],
               "subInstructions": []
             }
@@ -715,20 +1087,21 @@
                 "value": "PrimitiveDrawing::Drawer::ClearShapes"
               },
               "parameters": [
-                "PowerUp"
+                "JumpButton"
               ],
               "subInstructions": []
             },
             {
               "type": {
                 "inverted": false,
-                "value": "PrimitiveDrawing::Circle"
+                "value": "PrimitiveDrawing::Rectangle"
               },
               "parameters": [
-                "PowerUp",
-                "8",
-                "8",
-                "8"
+                "JumpButton",
+                "0",
+                "0",
+                "72",
+                "72"
               ],
               "subInstructions": []
             },
@@ -738,11 +1111,11 @@
                 "value": "PrimitiveDrawing::SetRectangularCollisionMask"
               },
               "parameters": [
-                "PowerUp",
+                "JumpButton",
                 "0",
                 "0",
-                "16",
-                "16"
+                "72",
+                "72"
               ],
               "subInstructions": []
             }
@@ -768,46 +1141,40 @@
             {
               "type": {
                 "inverted": false,
-                "value": "SetVariable"
+                "value": "PrimitiveDrawing::Drawer::ClearShapes"
               },
               "parameters": [
-                "Score",
-                "=",
-                "0"
-              ]
+                "AttackButton"
+              ],
+              "subInstructions": []
             },
             {
               "type": {
                 "inverted": false,
-                "value": "SetVariable"
+                "value": "PrimitiveDrawing::Rectangle"
               },
               "parameters": [
-                "Wave",
-                "=",
-                "1"
-              ]
+                "AttackButton",
+                "0",
+                "0",
+                "72",
+                "72"
+              ],
+              "subInstructions": []
             },
             {
               "type": {
                 "inverted": false,
-                "value": "SetVariable"
+                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
               },
               "parameters": [
-                "Player1Health",
-                "=",
-                "3"
-              ]
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "SetVariable"
-              },
-              "parameters": [
-                "Player2Health",
-                "=",
-                "3"
-              ]
+                "AttackButton",
+                "0",
+                "0",
+                "72",
+                "72"
+              ],
+              "subInstructions": []
             }
           ],
           "events": []
@@ -831,744 +1198,43 @@
             {
               "type": {
                 "inverted": false,
-                "value": "TextObject::String"
+                "value": "PrimitiveDrawing::Drawer::ClearShapes"
               },
               "parameters": [
-                "HudScore",
-                "=",
-                "Score"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "TextObject::String"
-              },
-              "parameters": [
-                "HudWave",
-                "=",
-                "Wave"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "ArrowUp"
+                "Inventory"
               ],
-              "_held": true
-            }
-          ],
-          "actions": [
+              "subInstructions": []
+            },
             {
               "type": {
                 "inverted": false,
-                "value": "MettreXY"
+                "value": "PrimitiveDrawing::Rectangle"
               },
               "parameters": [
-                "Player1",
-                "",
+                "Inventory",
                 "0",
-                "-",
-                "4"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "ArrowDown"
-              ],
-              "_held": true
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "MettreXY"
-              },
-              "parameters": [
-                "Player1",
-                "",
                 "0",
-                "+",
-                "4"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "ArrowLeft"
+                "160",
+                "220"
               ],
-              "_held": true
-            }
-          ],
-          "actions": [
+              "subInstructions": []
+            },
             {
               "type": {
                 "inverted": false,
-                "value": "MettreXY"
+                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
               },
               "parameters": [
-                "Player1",
-                "-",
-                "4",
-                "",
-                "0"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "ArrowRight"
-              ],
-              "_held": true
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "MettreXY"
-              },
-              "parameters": [
-                "Player1",
-                "+",
-                "4",
-                "",
-                "0"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "Space"
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "CreateObject"
-              },
-              "parameters": [
-                "Bullet1",
-                "120",
-                "260"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "KeyW"
-              ],
-              "_held": true
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "MettreXY"
-              },
-              "parameters": [
-                "Player2",
-                "",
+                "Inventory",
                 "0",
-                "-",
-                "4"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "KeyS"
-              ],
-              "_held": true
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "MettreXY"
-              },
-              "parameters": [
-                "Player2",
-                "",
                 "0",
-                "+",
-                "4"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "KeyA"
+                "160",
+                "220"
               ],
-              "_held": true
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "MettreXY"
-              },
-              "parameters": [
-                "Player2",
-                "-",
-                "4",
-                "",
-                "0"
-              ]
+              "subInstructions": []
             }
           ],
           "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "KeyD"
-              ],
-              "_held": true
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "MettreXY"
-              },
-              "parameters": [
-                "Player2",
-                "+",
-                "4",
-                "",
-                "0"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "KeyPressed"
-              },
-              "parameters": [
-                "",
-                "KeyF"
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "CreateObject"
-              },
-              "parameters": [
-                "Bullet2",
-                "120",
-                "360"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "CollisionNP"
-              },
-              "parameters": [
-                "Bullet1",
-                "Enemy",
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "Delete"
-              },
-              "parameters": [
-                "Bullet1",
-                ""
-              ]
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "Delete"
-              },
-              "parameters": [
-                "Enemy",
-                ""
-              ]
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "SetVariable"
-              },
-              "parameters": [
-                "Score",
-                "+",
-                "10"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "CollisionNP"
-              },
-              "parameters": [
-                "Bullet2",
-                "Enemy",
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "Delete"
-              },
-              "parameters": [
-                "Bullet2",
-                ""
-              ]
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "Delete"
-              },
-              "parameters": [
-                "Enemy",
-                ""
-              ]
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "SetVariable"
-              },
-              "parameters": [
-                "Score",
-                "+",
-                "10"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "CollisionNP"
-              },
-              "parameters": [
-                "Player1",
-                "PowerUp",
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "Delete"
-              },
-              "parameters": [
-                "PowerUp",
-                ""
-              ]
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "SetVariable"
-              },
-              "parameters": [
-                "Player1Health",
-                "=",
-                "3"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "CollisionNP"
-              },
-              "parameters": [
-                "Player2",
-                "PowerUp",
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "Delete"
-              },
-              "parameters": [
-                "PowerUp",
-                ""
-              ]
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "SetVariable"
-              },
-              "parameters": [
-                "Player2Health",
-                "=",
-                "3"
-              ]
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "CollisionNP"
-              },
-              "parameters": [
-                "Player1",
-                "Enemy",
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "ResetGame"
-              },
-              "parameters": []
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "CollisionNP"
-              },
-              "parameters": [
-                "Player2",
-                "Enemy",
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "ResetGame"
-              },
-              "parameters": []
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Repeat",
-          "repeatExpression": "2",
-          "conditions": [],
-          "actions": [],
-          "events": [
-            {
-              "disabled": false,
-              "folded": false,
-              "type": "BuiltinCommonInstructions::Standard",
-              "conditions": [],
-              "actions": [
-                {
-                  "type": {
-                    "inverted": false,
-                    "value": "CreateObject"
-                  },
-                  "parameters": [
-                    "Enemy",
-                    "780",
-                    "100"
-                  ]
-                }
-              ],
-              "events": []
-            }
-          ]
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Repeat",
-          "repeatExpression": "2",
-          "conditions": [],
-          "actions": [],
-          "events": [
-            {
-              "disabled": false,
-              "folded": false,
-              "type": "BuiltinCommonInstructions::Standard",
-              "conditions": [],
-              "actions": [
-                {
-                  "type": {
-                    "inverted": false,
-                    "value": "CreateObject"
-                  },
-                  "parameters": [
-                    "Enemy",
-                    "780",
-                    "250"
-                  ]
-                }
-              ],
-              "events": []
-            }
-          ]
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Repeat",
-          "repeatExpression": "3",
-          "conditions": [],
-          "actions": [],
-          "events": [
-            {
-              "disabled": false,
-              "folded": false,
-              "type": "BuiltinCommonInstructions::Standard",
-              "conditions": [],
-              "actions": [
-                {
-                  "type": {
-                    "inverted": false,
-                    "value": "CreateObject"
-                  },
-                  "parameters": [
-                    "Enemy",
-                    "780",
-                    "400"
-                  ]
-                }
-              ],
-              "events": []
-            }
-          ]
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Repeat",
-          "repeatExpression": "15",
-          "conditions": [],
-          "actions": [],
-          "events": [
-            {
-              "disabled": false,
-              "folded": false,
-              "type": "BuiltinCommonInstructions::Standard",
-              "conditions": [],
-              "actions": [
-                {
-                  "type": {
-                    "inverted": false,
-                    "value": "CreateObject"
-                  },
-                  "parameters": [
-                    "PowerUp",
-                    "400",
-                    "300"
-                  ]
-                }
-              ],
-              "events": []
-            }
-          ]
         }
       ],
       "layers": [
@@ -1579,6 +1245,23 @@
           "followBaseLayerCamera": false,
           "isLightingLayer": false,
           "name": "",
+          "visibility": true,
+          "cameras": [
+            {
+              "defaultSize": true,
+              "defaultViewport": true,
+              "height": 0,
+              "width": 0,
+              "viewportBottom": 1,
+              "viewportLeft": 0,
+              "viewportRight": 1,
+              "viewportTop": 0
+            }
+          ],
+          "effects": []
+        },
+        {
+          "name": "UI",
           "visibility": true,
           "cameras": [
             {

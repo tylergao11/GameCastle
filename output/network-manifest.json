@@ -2,86 +2,42 @@
   "schemaVersion": 1,
   "modules": [
     {
-      "id": "core.shooter",
+      "id": "core.platformer",
       "category": "core",
       "syncPolicy": {
-        "sync": "lockstep",
+        "sync": "local",
         "authority": "host",
         "tickRate": 20,
         "seed": "auto"
       },
       "deterministic": true,
       "inputs": [
-        "move_up",
-        "move_down",
         "move_left",
         "move_right",
-        "shoot"
+        "jump"
       ],
       "state": [
         "Score",
-        "Wave",
-        "Player1",
-        "Player2",
-        "Player1Health",
-        "Player2Health",
-        "Bullet1",
-        "Bullet2",
-        "Enemy",
-        "PowerUp"
+        "Player",
+        "Coin",
+        "Enemy"
       ]
     }
   ],
   "plan": {
     "schemaVersion": 1,
-    "realtime": {
-      "sync": "lockstep",
-      "authority": "host",
-      "tickRate": 20,
-      "seed": "auto",
-      "deterministic": true,
-      "inputs": [
-        "move_up",
-        "move_down",
-        "move_left",
-        "move_right",
-        "shoot"
-      ],
-      "state": [
-        "Score",
-        "Wave",
-        "Player1",
-        "Player2",
-        "Player1Health",
-        "Player2Health",
-        "Bullet1",
-        "Bullet2",
-        "Enemy",
-        "PowerUp"
-      ],
-      "moduleIds": [
-        "core.shooter"
-      ]
-    },
+    "realtime": null,
     "channels": [],
     "allInputs": [
-      "move_up",
-      "move_down",
       "move_left",
       "move_right",
-      "shoot"
+      "jump"
     ],
     "allState": [
       "Score",
-      "Wave",
-      "Player1",
-      "Player2",
-      "Player1Health",
-      "Player2Health",
-      "Bullet1",
-      "Bullet2",
-      "Enemy",
-      "PowerUp"
+      "Player",
+      "Coin",
+      "Enemy"
     ]
   }
 }

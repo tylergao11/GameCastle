@@ -9,6 +9,9 @@
   "presets": {
     "basic": {
       "description": "Small playable platformer suitable as a first generated version."
+    },
+    "mobile": {
+      "description": "Platformer core prepared for mobile controls supplied by the Intent component bridge."
     }
   },
   "repositoryPolicy": {
