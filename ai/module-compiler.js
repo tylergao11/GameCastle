@@ -4,9 +4,31 @@ var moduleDsl = require('./module-dsl');
 
 var PRODUCT_MODULE_SCHEMA_VERSION = 1;
 var NETWORK_MANIFEST_SCHEMA_VERSION = 1;
-var SYNC_MODES = ['local', 'lockstep', 'state', 'event'];
+var SYNC_MODES = [
+  'local',
+  'lockstep',
+  'lockstep-input',
+  'state',
+  'snapshot',
+  'event',
+  'peer-event',
+  'async-state',
+  'server-authoritative'
+];
 var AUTHORITIES = ['client', 'host', 'server'];
 var MODULE_COMMAND_KEYS = ['id', 'preset', 'sync', 'authority', 'tickRate', 'seed'];
+var BRIDGE_SYNC_MODES = {
+  'lockstep': true,
+  'lockstep-input': true,
+  'server-authoritative': true
+};
+var CHANNEL_SYNC_MODES = {
+  'state': true,
+  'snapshot': true,
+  'event': true,
+  'peer-event': true,
+  'async-state': true
+};
 
 function clone(value) {
   return value ? JSON.parse(JSON.stringify(value)) : value;
@@ -400,6 +422,92 @@ function validateInstallCompatibility(installs) {
   });
 }
 
+function addUnique(list, seen, values) {
+  (values || []).forEach(function(value) {
+    if (!seen[value]) {
+      seen[value] = true;
+      list.push(value);
+    }
+  });
+}
+
+function makeNetworkPlan(networkModules) {
+  var plan = {
+    schemaVersion: NETWORK_MANIFEST_SCHEMA_VERSION,
+    realtime: null,
+    channels: [],
+    allInputs: [],
+    allState: []
+  };
+  var seenInputs = {};
+  var seenState = {};
+
+  networkModules.forEach(function(mod) {
+    addUnique(plan.allInputs, seenInputs, mod.inputs || []);
+    addUnique(plan.allState, seenState, mod.state || []);
+  });
+
+  networkModules.forEach(function(mod) {
+    var policy = mod.syncPolicy || {};
+    var sync = policy.sync || 'local';
+    if (sync === 'local') return;
+
+    if (BRIDGE_SYNC_MODES[sync]) {
+      if (!plan.realtime) {
+        plan.realtime = {
+          sync: sync,
+          authority: policy.authority || 'host',
+          tickRate: Number(policy.tickRate) || 20,
+          seed: policy.seed,
+          deterministic: !!mod.deterministic,
+          inputs: [],
+          state: [],
+          moduleIds: []
+        };
+      } else {
+        if (plan.realtime.sync !== sync) {
+          throw new Error('Conflicting realtime network sync modes: ' + plan.realtime.sync + ' and ' + sync);
+        }
+        if ((policy.authority || 'host') !== plan.realtime.authority) {
+          throw new Error('Conflicting realtime network authority for sync=' + sync);
+        }
+        if (policy.tickRate && Number(policy.tickRate) !== plan.realtime.tickRate) {
+          throw new Error('Conflicting realtime network tickRate for sync=' + sync);
+        }
+        plan.realtime.deterministic = plan.realtime.deterministic && !!mod.deterministic;
+      }
+      addUnique(plan.realtime.inputs, {}, mod.inputs || []);
+      addUnique(plan.realtime.state, {}, mod.state || []);
+      plan.realtime.moduleIds.push(mod.id);
+      return;
+    }
+
+    if (CHANNEL_SYNC_MODES[sync]) {
+      plan.channels.push({
+        id: mod.id,
+        sync: sync,
+        category: mod.category,
+        authority: policy.authority || 'host',
+        tickRate: Number(policy.tickRate) || 0,
+        seed: policy.seed,
+        deterministic: !!mod.deterministic,
+        inputs: clone(mod.inputs || []),
+        state: clone(mod.state || [])
+      });
+      return;
+    }
+
+    throw new Error('Unsupported network sync mode in plan: ' + sync);
+  });
+
+  if (plan.realtime) {
+    plan.realtime.inputs = clone(plan.allInputs);
+    plan.realtime.state = clone(plan.allState);
+  }
+
+  return plan;
+}
+
 function renderTemplate(text, values) {
   return String(text).replace(/\{\{([a-zA-Z0-9_.-]+)\}\}/g, function(_, key) {
     if (values[key] === undefined || values[key] === null) {
@@ -552,7 +660,8 @@ function compileModuleCommands(commands, catalog, options) {
     installedModules: installedModules,
     networkManifest: {
       schemaVersion: NETWORK_MANIFEST_SCHEMA_VERSION,
-      modules: networkModules
+      modules: networkModules,
+      plan: makeNetworkPlan(networkModules)
     }
   };
 }
@@ -571,5 +680,6 @@ module.exports = {
   buildModuleDslReference: buildModuleDslReference,
   compileModuleDslText: compileModuleDslText,
   compileModuleCommands: compileModuleCommands,
+  makeNetworkPlan: makeNetworkPlan,
   saveNetworkManifest: saveNetworkManifest
 };

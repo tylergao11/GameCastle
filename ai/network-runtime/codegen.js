@@ -15,12 +15,18 @@ var RUNTIME_DIR = __dirname;
 var STRATEGIES_DIR = path.join(RUNTIME_DIR, "strategies");
 
 var DEFAULT_SIGNALING_URL = "ws://localhost:3001";
+var BRIDGE_OWNED_SYNC = {
+  "lockstep": true,
+  "lockstep-input": true,
+  "server-authoritative": true,
+};
 
 // ── Strategy registry ────────────────────────────────────────────────────
 // Maps sync model → { file, constructor, description }
 var REGISTRY = {
   "lockstep":             { file: "input-sync.js",    ctor: "InputSyncStrategy",    desc: "Deterministic input forwarding (2P)" },
   "lockstep-input":       { file: "input-sync.js",    ctor: "InputSyncStrategy",    desc: "Deterministic input forwarding (2P)" },
+  "state":                { file: "state-sync.js",    ctor: "StateSyncStrategy",    desc: "Host broadcasts state snapshots" },
   "snapshot":             { file: "state-sync.js",    ctor: "StateSyncStrategy",    desc: "Host broadcasts state snapshots" },
   "event":                { file: "event-relay.js",   ctor: "EventRelayStrategy",   desc: "Event-driven, server-validated" },
   "peer-event":           { file: "event-relay.js",   ctor: "EventRelayStrategy",   desc: "Event relay between peers" },
@@ -34,14 +40,18 @@ function generate(manifest, options) {
   options = options || {};
   var signalingUrl = options.signalingUrl || DEFAULT_SIGNALING_URL;
   var modules = manifest.modules || [];
+  var plan = resolvePlan(manifest);
+  var bridgeModule = resolveBridgeModule(modules, plan);
 
   // 1. Collect strategies from manifest
-  var entries = resolveStrategies(modules);
-  var sourceFiles = collectSourceFiles(entries);
+  var entries = resolveStrategies(modules, plan);
+  var sourceFiles = collectSourceFiles(entries, bridgeModule);
 
-  // Add runtime-adapter + game-bridge (always for network-aware games)
-  sourceFiles.push("runtime-adapter.js");
-  sourceFiles.push("game-bridge.js");
+  if (bridgeModule) {
+    // Add runtime-adapter + game-bridge once for network-aware games.
+    sourceFiles.push("runtime-adapter.js");
+    sourceFiles.push("game-bridge.js");
+  }
 
   // 2. Read and clean source files
   var sourceBlocks = sourceFiles.map(function (file) {
@@ -49,20 +59,74 @@ function generate(manifest, options) {
   });
 
   // 3. Generate wiring (includes bridge init inside the same IIFE)
-  var wiring = generateWiring(signalingUrl, entries, modules);
+  var wiring = generateWiring(signalingUrl, entries, modules, bridgeModule);
 
   // 4. Assemble final output (single IIFE: classes + wiring + bridge)
-  return assembleOutput(entries, sourceBlocks, wiring);
+  return assembleOutput(entries, bridgeModule, sourceBlocks, wiring);
 }
 
 // ── Manifest processing ──────────────────────────────────────────────────
 
-function resolveStrategies(modules) {
+function resolvePlan(manifest) {
+  return manifest && manifest.plan ? manifest.plan : null;
+}
+
+function resolveBridgeModule(modules, plan) {
+  if (plan && plan.realtime) {
+    return {
+      id: "network.realtime",
+      category: "network-plan",
+      syncPolicy: {
+        sync: plan.realtime.sync,
+        tickRate: plan.realtime.tickRate,
+        authority: plan.realtime.authority,
+        seed: plan.realtime.seed
+      },
+      inputs: plan.realtime.inputs || plan.allInputs || [],
+      state: plan.realtime.state || plan.allState || [],
+      deterministic: !!plan.realtime.deterministic,
+      moduleIds: plan.realtime.moduleIds || []
+    };
+  }
+  for (var i = 0; i < modules.length; i++) {
+    var policy = modules[i].syncPolicy;
+    if (policy && policy.sync && BRIDGE_OWNED_SYNC[policy.sync]) return modules[i];
+  }
+  return null;
+}
+
+function resolveStrategies(modules, plan) {
   var entries = [];
+
+  if (plan && plan.channels) {
+    plan.channels.forEach(function (channel) {
+      var entry = REGISTRY[channel.sync];
+      if (!entry) {
+        console.warn("[NetworkCodegen] unsupported sync channel: " + channel.sync + " (module " + channel.id + ")");
+        return;
+      }
+      entries.push({
+        id: channel.id,
+        sync: channel.sync,
+        file: entry.file,
+        ctor: entry.ctor,
+        config: {
+          tickRate: channel.tickRate || 0,
+          authority: channel.authority || "host",
+          inputs: channel.inputs || [],
+          state: channel.state || [],
+          deterministic: !!channel.deterministic
+        },
+        varName: "strategy_" + channel.id.replace(/[^a-zA-Z0-9_]/g, "_"),
+      });
+    });
+    return entries;
+  }
 
   modules.forEach(function (mod) {
     var policy = mod.syncPolicy;
     if (!policy || policy.sync === "local") return;
+    if (BRIDGE_OWNED_SYNC[policy.sync]) return;
 
     var entry = REGISTRY[policy.sync];
     if (!entry) {
@@ -87,8 +151,9 @@ function resolveStrategies(modules) {
   return entries;
 }
 
-function collectSourceFiles(entries) {
-  var files = ["transport.js"];
+function collectSourceFiles(entries, bridgeModule) {
+  var files = [];
+  if (entries.length > 0 || bridgeModule) files.push("transport.js");
   entries.forEach(function (e) {
     if (files.indexOf(e.file) < 0) files.push(e.file);
   });
@@ -164,7 +229,7 @@ function readSourceFile(filename) {
 
 // ── Wiring generation ────────────────────────────────────────────��───────
 
-function generateWiring(signalingUrl, entries, modules) {
+function generateWiring(signalingUrl, entries, modules, bridgeModule) {
   var lines = [];
 
   // Section: Config
@@ -172,7 +237,7 @@ function generateWiring(signalingUrl, entries, modules) {
   lines.push("  var SIGNALING_URL = " + JSON.stringify(signalingUrl) + ";");
   lines.push("");
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && !bridgeModule) {
     return lines.concat([
       "  // No network sync needed (all modules are local-only).",
       "  window.GameCastleNetwork = {",
@@ -235,9 +300,38 @@ function generateWiring(signalingUrl, entries, modules) {
   lines.push("");
 
   // host(): delegates to bridge.host() — bridge owns connect → createRoom → network loop
+  lines.push("  function hostWithoutBridge() {");
+  lines.push("    return transport.connect().then(function () {");
+  lines.push("      return new Promise(function (resolve, reject) {");
+  lines.push("        transport.on('room_created', function (rid) { transport.joinRoom(rid); });");
+  lines.push("        transport.on('joined', function (roomId, playerId) {");
+  lines.push("          startAllStrategies();");
+  lines.push("          resolve({ roomId: roomId, playerId: playerId });");
+  lines.push("        });");
+  lines.push("        transport.on('error', function (err) { reject(new Error(err)); });");
+  lines.push("        transport.createRoom({});");
+  lines.push("      });");
+  lines.push("    });");
+  lines.push("  }");
+  lines.push("");
+  lines.push("  function joinWithoutBridge(roomId) {");
+  lines.push("    if (!roomId) return Promise.reject(new Error('roomId is required'));");
+  lines.push("    return transport.connect().then(function () {");
+  lines.push("      return new Promise(function (resolve, reject) {");
+  lines.push("        transport.on('joined', function (rid, playerId) {");
+  lines.push("          startAllStrategies();");
+  lines.push("          resolve({ roomId: rid, playerId: playerId });");
+  lines.push("        });");
+  lines.push("        transport.on('error', function (err) { reject(new Error(err)); });");
+  lines.push("        transport.joinRoom(roomId);");
+  lines.push("      });");
+  lines.push("    });");
+  lines.push("  }");
+  lines.push("");
+
   lines.push("  function host() {");
   lines.push("    var b = window.GameCastleNetwork && window.GameCastleNetwork.bridge;");
-  lines.push("    if (!b) return Promise.reject(new Error('Bridge not initialized'));");
+  lines.push("    if (!b) return hostWithoutBridge();");
   lines.push("    return b.host().then(function (result) {");
   lines.push("      startAllStrategies();");
   lines.push("      return result;");
@@ -248,7 +342,7 @@ function generateWiring(signalingUrl, entries, modules) {
   // join(roomId): delegates to bridge.join() — bridge owns connect → joinRoom → network loop
   lines.push("  function join(roomId) {");
   lines.push("    var b = window.GameCastleNetwork && window.GameCastleNetwork.bridge;");
-  lines.push("    if (!b) return Promise.reject(new Error('Bridge not initialized'));");
+  lines.push("    if (!b) return joinWithoutBridge(roomId);");
   lines.push("    return b.join(roomId).then(function (result) {");
   lines.push("      startAllStrategies();");
   lines.push("      return result;");
@@ -280,7 +374,7 @@ function generateWiring(signalingUrl, entries, modules) {
   lines.push("  };");
 
   // ── Bridge init (inside IIFE, same scope as classes + strategies) ──
-  var bridgeLines = buildBridgeInitLines(entries, modules);
+  var bridgeLines = buildBridgeInitLines(bridgeModule, modules);
   lines.push("");
   lines = lines.concat(bridgeLines);
 
@@ -289,10 +383,12 @@ function generateWiring(signalingUrl, entries, modules) {
 
 // ── Output assembly ──────────────────────────────────────────────────────
 
-function assembleOutput(entries, sourceBlocks, wiring) {
+function assembleOutput(entries, bridgeModule, sourceBlocks, wiring) {
   var syncSummary = entries.length > 0
     ? entries.map(function (e) { return e.id + " (" + e.sync + ")"; }).join(", ")
-    : "none";
+    : bridgeModule && bridgeModule.syncPolicy
+      ? bridgeModule.id + " (" + bridgeModule.syncPolicy.sync + ", bridge-owned)"
+      : "none";
 
   return [
     "// GameCastle Network Runtime",
@@ -318,25 +414,33 @@ function assembleOutput(entries, sourceBlocks, wiring) {
 
 // ── Bridge init (runs inside the main IIFE, same scope as classes) ────────
 
-function buildBridgeInitLines(entries, modules) {
-  if (entries.length === 0) return [];
+function buildBridgeInitLines(bridgeModule, modules) {
+  if (!bridgeModule || !bridgeModule.syncPolicy) return [];
 
   var allInputs = [];
   var allState = [];
   var seenInputs = {};
   var seenState = {};
 
-  modules.forEach(function (mod) {
-    (mod.inputs || []).forEach(function (input) {
-      if (!seenInputs[input]) { seenInputs[input] = true; allInputs.push(input); }
-    });
-    (mod.state || []).forEach(function (s) {
-      if (!seenState[s]) { seenState[s] = true; allState.push(s); }
-    });
+  (bridgeModule.inputs || []).forEach(function (input) {
+    if (!seenInputs[input]) { seenInputs[input] = true; allInputs.push(input); }
   });
+  (bridgeModule.state || []).forEach(function (s) {
+    if (!seenState[s]) { seenState[s] = true; allState.push(s); }
+  });
+  if (!allInputs.length && !allState.length) {
+    modules.forEach(function (mod) {
+      (mod.inputs || []).forEach(function (input) {
+        if (!seenInputs[input]) { seenInputs[input] = true; allInputs.push(input); }
+      });
+      (mod.state || []).forEach(function (s) {
+        if (!seenState[s]) { seenState[s] = true; allState.push(s); }
+      });
+    });
+  }
 
-  var primary = entries[0];
-  var config = primary.config || {};
+  var policy = bridgeModule.syncPolicy;
+  var config = buildConfig(bridgeModule, policy);
 
   return [
     "  // ── Game-Network Bridge ──",
@@ -352,10 +456,9 @@ function buildBridgeInitLines(entries, modules) {
     "      inputs: " + JSON.stringify(allInputs) + ",",
     "      state: " + JSON.stringify(allState) + ",",
     "      tickRate: " + (config.tickRate || 20) + ",",
-    "      sync: " + JSON.stringify(primary.sync) + ",",
+    "      sync: " + JSON.stringify(policy.sync) + ",",
     "      transport: transport,",
     "      autoHost: true,",
-    "      strategy: " + primary.varName + ",",
     "    };",
     "",
     "    var bridge = new GameCastleNetworkBridge(bridgeConfig);",

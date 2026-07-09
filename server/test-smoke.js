@@ -1,15 +1,16 @@
 // GameCastle — Smoke test
 // Room lifecycle: create, join, relay, leave, error paths.
 // Self-contained: forks its own signaling server.
+var path = require("path");
 var { fork } = require("child_process");
-var { WebSocket } = require("./node_modules/ws");
+var { WebSocket } = require("ws");
 
 var PORT = 3007;
 var passed = 0, failed = 0;
 function pass(n) { passed++; console.log("PASS " + n); }
 function fl(n, why) { failed++; console.log("FAIL " + n + ": " + why); }
 
-var server = fork("./signaling-server.js", [], {
+var server = fork(path.join(__dirname, "signaling-server.js"), [], {
   env: Object.assign({}, process.env, { PORT: String(PORT) }),
   silent: true,
 });

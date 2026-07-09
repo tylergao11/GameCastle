@@ -9,7 +9,7 @@ function pass(n) { passed++; console.log("PASS " + n); }
 function fl(n, why) { failed++; console.log("FAIL " + n + ": " + why); }
 
 var { fork } = require("child_process");
-var server = fork("./signaling-server.js", [], {
+var server = fork(path.join(__dirname, "signaling-server.js"), [], {
   env: Object.assign({}, process.env, { PORT: String(PORT) }),
   silent: true,
 });
@@ -79,7 +79,7 @@ async function testAsyncState() {
   var s = new AsyncStateStrategy(t, { authority: "server" });
 
   var roomId;
-  t.on("room_created", function(rid) { roomId = rid; t.joinRoom(rid); });
+  t.on("room_created", function(rid) { roomId = rid; t.joinRoom(rid, "p1"); });
 
   var joined = false;
   t.on("joined", function() { joined = true; });
@@ -106,7 +106,7 @@ async function testAsyncState() {
   // List states
   try {
     var list = await s.list("p1_");
-    if (list.length >= 1) pass("state_list"); else fl("state_list", "empty");
+    if (list.length >= 1 && list[0].key === "p1_world") pass("state_list"); else fl("state_list", JSON.stringify(list));
   } catch (e) { fl("state_list", e.message); }
 
   // Load non-existent

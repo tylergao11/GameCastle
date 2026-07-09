@@ -7,7 +7,7 @@
 //   on(event, handler)    — "loaded"(key, data), "saved"(key)
 //   save(key, data)       — persist state to server
 //   load(playerId, key)   — load another player's state
-//   list(prefix)          — list saved states
+//   list(prefix)          — list current player's saved state keys
 //   start() / stop()      — lifecycle (no-op for this strategy)
 //
 // Wire format (over transport state persistence):

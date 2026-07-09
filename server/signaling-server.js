@@ -158,7 +158,15 @@ const handlers = {
   list_states(ctx, msg) {
     const room = ctx.rooms.get(ctx.roomId);
     if (!room) return { type: "error", error: "not in a room" };
-    return { type: "state_list", entries: room.listStates(msg.prefix || "") };
+    const namespace = ctx.playerId ? ctx.playerId + "::" : "";
+    const scopedPrefix = namespace + (msg.prefix || "");
+    const entries = room.listStates(scopedPrefix).map((entry) => ({
+      key: namespace && entry.key.startsWith(namespace)
+        ? entry.key.slice(namespace.length)
+        : entry.key,
+      updatedAt: entry.updatedAt,
+    }));
+    return { type: "state_list", entries };
   },
 
   send_event(ctx, msg) {

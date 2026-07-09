@@ -160,6 +160,11 @@ function testShellComposition() {
   var platformBehavior = ground.behaviors.find(function(behavior) { return behavior.type === 'PlatformBehavior::PlatformBehavior'; });
   assert(platformBehavior.platformType === 'NormalPlatform', 'Platform behavior should include official platformType default');
   assert(network.modules.length === 3, 'network manifest should record three modules');
+  assert(network.plan && network.plan.realtime, 'network manifest should include compiler-owned realtime plan');
+  assert(network.plan.realtime.sync === 'lockstep', 'realtime plan should select lockstep from core module');
+  assert(network.plan.realtime.moduleIds.indexOf('core.platformer') >= 0, 'realtime plan should name owner modules');
+  assert(network.plan.channels.length === 1, 'network plan should keep shell event as side-channel');
+  assert(network.plan.channels[0].id === 'shell.game_over_screen', 'event side-channel should be owned by game over shell');
 }
 
 function testModuleOrderIsCompilerOwned() {
@@ -185,6 +190,7 @@ function testContinueAddsShellModulesFromProjectWorld() {
   assert(ledger.runs.length === 2, 'continue patch should append ledger run');
   assert(ledger.runs[1].batchLabel === 'module_patch_01', 'continue patch should use requested batch label');
   assert(network.modules.length === 3, 'continue patch should rewrite full network manifest');
+  assert(network.plan && network.plan.realtime && network.plan.realtime.sync === 'lockstep', 'continue patch should preserve realtime plan');
 }
 
 function testInvalidSyncFailsFast() {
@@ -238,6 +244,7 @@ function testConfigureSyncOnlyMetadataPatch() {
   assert(startModule.syncPolicy.sync === 'event', 'sync-only configure should update ProjectWorld module sync');
   assert(startModule.syncPolicy.authority === 'host', 'sync-only configure should update ProjectWorld module authority');
   assert(networkStart.syncPolicy.sync === 'event', 'sync-only configure should update network manifest sync');
+  assert(network.plan.channels.some(function(channel) { return channel.id === 'shell.start_screen' && channel.sync === 'event'; }), 'sync-only configure should update network plan side-channel');
   assert(ledger.runs.length === 2, 'sync-only configure should append a ledger run');
   assert(ledger.runs[1].summary.total === 0, 'sync-only configure should be metadata-only with zero internal commands');
   assert(ledger.runs[1].summary.nextAction === 'done', 'sync-only configure should finish cleanly');

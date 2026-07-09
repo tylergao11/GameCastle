@@ -100,3 +100,36 @@ compiler 检查：
 - network 模块是契约声明，不包含协议代码。compiler 按 transport/codec 择入实现文件。
 - 一个游戏最多一个 network 模块。
 - compiler 做确定性匹配，AI 只负责从候选集选择模块。
+
+## Network Plan
+
+`output/network-manifest.json` keeps the per-module `syncPolicy` records for
+traceability, but runtime assembly must consume the compiler-owned `plan`.
+
+The plan has one realtime owner and zero or more side channels:
+
+```json
+{
+  "realtime": {
+    "sync": "lockstep",
+    "authority": "host",
+    "tickRate": 20,
+    "inputs": ["move_left", "move_right", "jump"],
+    "state": ["Player", "Score"],
+    "moduleIds": ["core.platformer"]
+  },
+  "channels": [
+    { "id": "shell.game_over_screen", "sync": "event", "authority": "host" }
+  ]
+}
+```
+
+Runtime ownership follows the plan:
+
+- `lockstep`, `lockstep-input`, and `server-authoritative` are realtime modes.
+  `GameCastleNetworkBridge` owns the GDJS frame loop for these modes.
+- `event`, `peer-event`, `async-state`, `state`, and `snapshot` are channels.
+  They may share the room/transport, but they must not create another GDJS tick
+  owner.
+- Channel-only games connect through transport lifecycle helpers and keep the
+  normal GDJS local loop.
