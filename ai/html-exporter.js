@@ -238,6 +238,7 @@ function renderHtml(manifest, options) {
     gameStartScript = [
       '    (function() {',
       '      var game = new gdjs.RuntimeGame(gdjs.projectData, gdjs.runtimeGameOptions || {});',
+      '      window.GameCastleRuntimeGame = game;',
       '      game.getRenderer().createStandardCanvas(document.body);',
       '      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);',
       '      var gcBridge = window.GameCastleNetwork && window.GameCastleNetwork.bridge;',
@@ -256,6 +257,7 @@ function renderHtml(manifest, options) {
     gameStartScript = [
       '    (function() {',
       '      var game = new gdjs.RuntimeGame(gdjs.projectData, gdjs.runtimeGameOptions || {});',
+      '      window.GameCastleRuntimeGame = game;',
       '      game.getRenderer().createStandardCanvas(document.body);',
       '      game.getRenderer().bindStandardEvents(game.getInputManager(), window, document);',
       '      game.loadAllAssets(function() {',

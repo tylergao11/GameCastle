@@ -8,10 +8,10 @@
       "baseWorldVersion": null,
       "targetWorldVersion": 1,
       "baseSemanticHash": null,
-      "targetSemanticHash": "716cdbc9",
+      "targetSemanticHash": "41120f2b",
       "summary": {
-        "total": 41,
-        "completed": 41,
+        "total": 40,
+        "completed": 40,
         "failed": 0,
         "nextAction": "done"
       },
@@ -23,43 +23,43 @@
         },
         {
           "commandId": "apply_line_002",
-          "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
-          "message": "object: Player (PrimitiveDrawing::Drawer)"
+          "command": "create object name=Player1 type=ShapePainter shape=rectangle color=#4488FF width=32 height=32 scene=Game",
+          "message": "object: Player1 (PrimitiveDrawing::Drawer)"
         },
         {
           "commandId": "apply_line_003",
-          "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
-          "message": "object: Ground (PrimitiveDrawing::Drawer)"
+          "command": "create object name=Player2 type=ShapePainter shape=rectangle color=#2ECCFF width=32 height=32 scene=Game",
+          "message": "object: Player2 (PrimitiveDrawing::Drawer)"
         },
         {
           "commandId": "apply_line_004",
-          "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
-          "message": "object: Platform (PrimitiveDrawing::Drawer)"
+          "command": "create object name=Bullet1 type=ShapePainter shape=rectangle color=#FFD700 width=12 height=6 scene=Game",
+          "message": "object: Bullet1 (PrimitiveDrawing::Drawer)"
         },
         {
           "commandId": "apply_line_005",
-          "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
-          "message": "object: Coin (PrimitiveDrawing::Drawer)"
+          "command": "create object name=Bullet2 type=ShapePainter shape=rectangle color=#FFFFFF width=12 height=6 scene=Game",
+          "message": "object: Bullet2 (PrimitiveDrawing::Drawer)"
         },
         {
           "commandId": "apply_line_006",
-          "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
+          "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=28 height=28 scene=Game",
           "message": "object: Enemy (PrimitiveDrawing::Drawer)"
         },
         {
           "commandId": "apply_line_007",
-          "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
-          "message": "behavior: PlatformerObject"
+          "command": "create object name=PowerUp type=ShapePainter shape=circle color=#2ECC71 width=16 height=16 scene=Game",
+          "message": "object: PowerUp (PrimitiveDrawing::Drawer)"
         },
         {
           "commandId": "apply_line_008",
-          "command": "add behavior type=PlatformBehavior::PlatformBehavior to=Ground scene=Game",
-          "message": "behavior: Platform"
+          "command": "create object name=HudScore type=Text size=20 scene=Game",
+          "message": "object: HudScore (TextObject::Text)"
         },
         {
           "commandId": "apply_line_009",
-          "command": "add behavior type=PlatformBehavior::PlatformBehavior to=Platform scene=Game",
-          "message": "behavior: Platform"
+          "command": "create object name=HudWave type=Text size=20 scene=Game",
+          "message": "object: HudWave (TextObject::Text)"
         },
         {
           "commandId": "apply_line_010",
@@ -68,216 +68,153 @@
         },
         {
           "commandId": "apply_line_011",
-          "command": "place object=Player at=100,400 scene=Game",
-          "message": "placed Player x1"
+          "command": "set variable name=Wave value=1 type=Number scope=global",
+          "message": "var: Wave=1"
         },
         {
           "commandId": "apply_line_012",
-          "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
-          "message": "placed Ground x1"
+          "command": "set variable name=Player1Health value=3 type=Number scope=global",
+          "message": "var: Player1Health=3"
         },
         {
           "commandId": "apply_line_013",
-          "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
+          "command": "set variable name=Player2Health value=3 type=Number scope=global",
+          "message": "var: Player2Health=3"
         },
         {
           "commandId": "apply_line_014",
-          "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
+          "command": "place object=Player1 at=100,250 scene=Game",
+          "message": "placed Player1 x1"
         },
         {
           "commandId": "apply_line_015",
-          "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
-          "message": "placed Platform x1"
+          "command": "place object=Player2 at=100,350 scene=Game",
+          "message": "placed Player2 x1"
         },
         {
           "commandId": "apply_line_016",
-          "command": "place object=Coin at=240,430 scene=Game",
-          "message": "placed Coin x1"
+          "command": "place object=HudScore at=16,16 scene=Game",
+          "message": "placed HudScore x1"
         },
         {
           "commandId": "apply_line_017",
-          "command": "place object=Coin at=440,350 scene=Game",
-          "message": "placed Coin x1"
+          "command": "place object=HudWave at=16,44 scene=Game",
+          "message": "placed HudWave x1"
         },
         {
           "commandId": "apply_line_018",
-          "command": "place object=Coin at=640,270 scene=Game",
-          "message": "placed Coin x1"
+          "command": "on start -> Score=0, Wave=1, Player1Health=3, Player2Health=3 scene=Game",
+          "message": "event: on start -> Score=0, Wave=1, Player1Health=3, Play"
         },
         {
           "commandId": "apply_line_019",
-          "command": "place object=Enemy at=550,400 scene=Game",
-          "message": "placed Enemy x1"
+          "command": "on start -> text HudScore Score scene=Game",
+          "message": "event: on start -> text HudScore Score"
         },
         {
           "commandId": "apply_line_020",
-          "command": "on start -> Score=0 scene=Game",
-          "message": "event: on start -> Score=0"
+          "command": "on start -> text HudWave Wave scene=Game",
+          "message": "event: on start -> text HudWave Wave"
         },
         {
           "commandId": "apply_line_021",
-          "command": "on collision Player Coin -> destroy Coin, score+1 scene=Game",
-          "message": "event: on collision Player Coin -> destroy Coin, score+1"
+          "command": "on key ArrowUp held -> move Player1 y=-4 scene=Game",
+          "message": "event: on key ArrowUp held -> move Player1 y=-4"
         },
         {
           "commandId": "apply_line_022",
-          "command": "on collision Player Enemy -> scene GameOver scene=Game",
-          "message": "event: on collision Player Enemy -> scene GameOver"
+          "command": "on key ArrowDown held -> move Player1 y=+4 scene=Game",
+          "message": "event: on key ArrowDown held -> move Player1 y=+4"
         },
         {
           "commandId": "apply_line_023",
-          "command": "on key Space -> jump Player 500 scene=Game",
-          "message": "event: on key Space -> jump Player 500"
+          "command": "on key ArrowLeft held -> move Player1 x=-4 scene=Game",
+          "message": "event: on key ArrowLeft held -> move Player1 x=-4"
         },
         {
           "commandId": "apply_line_024",
-          "command": "create scene name=Start first=true",
-          "message": "scene: Start"
+          "command": "on key ArrowRight held -> move Player1 x=+4 scene=Game",
+          "message": "event: on key ArrowRight held -> move Player1 x=+4"
         },
         {
           "commandId": "apply_line_025",
-          "command": "create object name=TitleText type=Text size=36 scene=Start",
-          "message": "object: TitleText (TextObject::Text)"
+          "command": "on key Space -> spawn Bullet1 at 120 260 scene=Game",
+          "message": "event: on key Space -> spawn Bullet1 at 120 260"
         },
         {
           "commandId": "apply_line_026",
-          "command": "create object name=StartButton type=ShapePainter shape=rectangle color=#2ECC71 width=180 height=56 scene=Start",
-          "message": "object: StartButton (PrimitiveDrawing::Drawer)"
+          "command": "on key KeyW held -> move Player2 y=-4 scene=Game",
+          "message": "event: on key KeyW held -> move Player2 y=-4"
         },
         {
           "commandId": "apply_line_027",
-          "command": "create object name=StartLabel type=Text size=24 scene=Start",
-          "message": "object: StartLabel (TextObject::Text)"
+          "command": "on key KeyS held -> move Player2 y=+4 scene=Game",
+          "message": "event: on key KeyS held -> move Player2 y=+4"
         },
         {
           "commandId": "apply_line_028",
-          "command": "place object=TitleText at=280,170 scene=Start",
-          "message": "placed TitleText x1"
+          "command": "on key KeyA held -> move Player2 x=-4 scene=Game",
+          "message": "event: on key KeyA held -> move Player2 x=-4"
         },
         {
           "commandId": "apply_line_029",
-          "command": "place object=StartButton at=310,300 scene=Start width=180 height=56",
-          "message": "placed StartButton x1"
+          "command": "on key KeyD held -> move Player2 x=+4 scene=Game",
+          "message": "event: on key KeyD held -> move Player2 x=+4"
         },
         {
           "commandId": "apply_line_030",
-          "command": "place object=StartLabel at=360,315 scene=Start",
-          "message": "placed StartLabel x1"
+          "command": "on key KeyF -> spawn Bullet2 at 120 360 scene=Game",
+          "message": "event: on key KeyF -> spawn Bullet2 at 120 360"
         },
         {
           "commandId": "apply_line_031",
-          "command": "on start -> text TitleText Sky Runner scene=Start",
-          "message": "event: on start -> text TitleText Sky Runner"
+          "command": "on collision Bullet1 Enemy -> destroy Bullet1, destroy Enemy, score+10 scene=Game",
+          "message": "event: on collision Bullet1 Enemy -> destroy Bullet1, des"
         },
         {
           "commandId": "apply_line_032",
-          "command": "on start -> text StartLabel Start scene=Start",
-          "message": "event: on start -> text StartLabel Start"
+          "command": "on collision Bullet2 Enemy -> destroy Bullet2, destroy Enemy, score+10 scene=Game",
+          "message": "event: on collision Bullet2 Enemy -> destroy Bullet2, des"
         },
         {
           "commandId": "apply_line_033",
-          "command": "on mouse StartButton -> scene Game scene=Start",
-          "message": "event: on mouse StartButton -> scene Game"
+          "command": "on collision Player1 PowerUp -> destroy PowerUp, variable Player1Health = 3 scene=Game",
+          "message": "event: on collision Player1 PowerUp -> destroy PowerUp, v"
         },
         {
           "commandId": "apply_line_034",
-          "command": "create scene name=GameOver first=false",
-          "message": "scene: GameOver"
+          "command": "on collision Player2 PowerUp -> destroy PowerUp, variable Player2Health = 3 scene=Game",
+          "message": "event: on collision Player2 PowerUp -> destroy PowerUp, v"
         },
         {
           "commandId": "apply_line_035",
-          "command": "create object name=GameOverText type=Text size=40 scene=GameOver",
-          "message": "object: GameOverText (TextObject::Text)"
+          "command": "on collision Player1 Enemy -> restart scene=Game",
+          "message": "event: on collision Player1 Enemy -> restart"
         },
         {
           "commandId": "apply_line_036",
-          "command": "create object name=RestartHint type=Text size=22 scene=GameOver",
-          "message": "object: RestartHint (TextObject::Text)"
+          "command": "on collision Player2 Enemy -> restart scene=Game",
+          "message": "event: on collision Player2 Enemy -> restart"
         },
         {
           "commandId": "apply_line_037",
-          "command": "place object=GameOverText at=285,240 scene=GameOver",
-          "message": "placed GameOverText x1"
+          "command": "every 2s -> spawn Enemy at 780 100 scene=Game",
+          "message": "event: every 2s -> spawn Enemy at 780 100"
         },
         {
           "commandId": "apply_line_038",
-          "command": "place object=RestartHint at=330,310 scene=GameOver",
-          "message": "placed RestartHint x1"
+          "command": "every 2s -> spawn Enemy at 780 250 scene=Game",
+          "message": "event: every 2s -> spawn Enemy at 780 250"
         },
         {
           "commandId": "apply_line_039",
-          "command": "on start -> text GameOverText Game Over scene=GameOver",
-          "message": "event: on start -> text GameOverText Game Over"
+          "command": "every 3s -> spawn Enemy at 780 400 scene=Game",
+          "message": "event: every 3s -> spawn Enemy at 780 400"
         },
         {
           "commandId": "apply_line_040",
-          "command": "on start -> text RestartHint Press Space scene=GameOver",
-          "message": "event: on start -> text RestartHint Press Space"
-        },
-        {
-          "commandId": "apply_line_041",
-          "command": "on key Space -> scene Game scene=GameOver",
-          "message": "event: on key Space -> scene Game"
-        }
-      ],
-      "failed": []
-    },
-    {
-      "schemaVersion": 1,
-      "runId": "run_002",
-      "batchLabel": "approved_configure",
-      "baseWorldVersion": 1,
-      "targetWorldVersion": 2,
-      "baseSemanticHash": "716cdbc9",
-      "targetSemanticHash": "cb1b5692",
-      "summary": {
-        "total": 8,
-        "completed": 8,
-        "failed": 0,
-        "nextAction": "done"
-      },
-      "completed": [
-        {
-          "commandId": "approved_configure_line_001",
-          "command": "remove event #2 scene=Start",
-          "message": "removed event #2"
-        },
-        {
-          "commandId": "approved_configure_line_002",
-          "command": "on start -> text StartLabel Play Now scene=Start",
-          "message": "event: on start -> text StartLabel Play Now"
-        },
-        {
-          "commandId": "approved_configure_line_003",
-          "command": "remove event #1 scene=Start",
-          "message": "removed event #1"
-        },
-        {
-          "commandId": "approved_configure_line_004",
-          "command": "on start -> text TitleText Moon Runner scene=Start",
-          "message": "event: on start -> text TitleText Moon Runner"
-        },
-        {
-          "commandId": "approved_configure_line_005",
-          "command": "remove event #1 scene=GameOver",
-          "message": "removed event #1"
-        },
-        {
-          "commandId": "approved_configure_line_006",
-          "command": "on start -> text RestartHint Space To Retry scene=GameOver",
-          "message": "event: on start -> text RestartHint Space To Retry"
-        },
-        {
-          "commandId": "approved_configure_line_007",
-          "command": "remove event #0 scene=GameOver",
-          "message": "removed event #0"
-        },
-        {
-          "commandId": "approved_configure_line_008",
-          "command": "on start -> text GameOverText Try Again scene=GameOver",
-          "message": "event: on start -> text GameOverText Try Again"
+          "command": "every 15s -> spawn PowerUp at 400 300 scene=Game",
+          "message": "event: every 15s -> spawn PowerUp at 400 300"
         }
       ],
       "failed": []

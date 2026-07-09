@@ -93,7 +93,7 @@
           "enum": [
             "local",
             "event",
-            "state",
+            "snapshot",
             "lockstep"
           ]
         },

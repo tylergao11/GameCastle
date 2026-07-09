@@ -30,40 +30,52 @@
       "failAction": {
         "findEvent": {
           "sceneParam": "scene",
-          "textPrefix": "on collision Player Enemy ->",
+          "textPrefix": "on collision Player1 Enemy ->",
           "indexParam": "failEventIndex"
         },
         "dsl": [
           "remove event #{{failEventIndex}} scene={{scene}}",
-          "on collision Player Enemy -> {{failAction}} scene={{scene}}"
+          "on collision Player1 Enemy -> {{failAction}} scene={{scene}}"
         ]
       }
     },
     "dsl": [
       "create scene name={{scene}} first=true",
-      "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=32 scene={{scene}}",
-      "create object name=Bullet type=ShapePainter shape=rectangle color=#FFD700 width=12 height=6 scene={{scene}}",
+      "create object name=Player1 type=ShapePainter shape=rectangle color=#4488FF width=32 height=32 scene={{scene}}",
+      "create object name=Player2 type=ShapePainter shape=rectangle color=#2ECCFF width=32 height=32 scene={{scene}}",
+      "create object name=Bullet1 type=ShapePainter shape=rectangle color=#FFD700 width=12 height=6 scene={{scene}}",
+      "create object name=Bullet2 type=ShapePainter shape=rectangle color=#FFFFFF width=12 height=6 scene={{scene}}",
       "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=28 height=28 scene={{scene}}",
       "create object name=PowerUp type=ShapePainter shape=circle color=#2ECC71 width=16 height=16 scene={{scene}}",
       "create object name=HudScore type=Text size=20 scene={{scene}}",
       "create object name=HudWave type=Text size=20 scene={{scene}}",
       "set variable name=Score value=0 type=Number scope=global",
       "set variable name=Wave value=1 type=Number scope=global",
-      "set variable name=PlayerHealth value=3 type=Number scope=global",
-      "place object=Player at=100,300 scene={{scene}}",
+      "set variable name=Player1Health value=3 type=Number scope=global",
+      "set variable name=Player2Health value=3 type=Number scope=global",
+      "place object=Player1 at=100,250 scene={{scene}}",
+      "place object=Player2 at=100,350 scene={{scene}}",
       "place object=HudScore at=16,16 scene={{scene}}",
       "place object=HudWave at=16,44 scene={{scene}}",
-      "on start -> Score=0, Wave=1, PlayerHealth=3 scene={{scene}}",
+      "on start -> Score=0, Wave=1, Player1Health=3, Player2Health=3 scene={{scene}}",
       "on start -> text HudScore Score scene={{scene}}",
       "on start -> text HudWave Wave scene={{scene}}",
-      "on key ArrowUp held -> move Player y=-4 scene={{scene}}",
-      "on key ArrowDown held -> move Player y=+4 scene={{scene}}",
-      "on key ArrowLeft held -> move Player x=-4 scene={{scene}}",
-      "on key ArrowRight held -> move Player x=+4 scene={{scene}}",
-      "on key Space -> spawn Bullet at 100 300 scene={{scene}}",
-      "on collision Bullet Enemy -> destroy Bullet, destroy Enemy, score+10 scene={{scene}}",
-      "on collision Player PowerUp -> destroy PowerUp, variable PlayerHealth = 3 scene={{scene}}",
-      "on collision Player Enemy -> {{failAction}} scene={{scene}}",
+      "on key ArrowUp held -> move Player1 y=-4 scene={{scene}}",
+      "on key ArrowDown held -> move Player1 y=+4 scene={{scene}}",
+      "on key ArrowLeft held -> move Player1 x=-4 scene={{scene}}",
+      "on key ArrowRight held -> move Player1 x=+4 scene={{scene}}",
+      "on key Space -> spawn Bullet1 at 120 260 scene={{scene}}",
+      "on key KeyW held -> move Player2 y=-4 scene={{scene}}",
+      "on key KeyS held -> move Player2 y=+4 scene={{scene}}",
+      "on key KeyA held -> move Player2 x=-4 scene={{scene}}",
+      "on key KeyD held -> move Player2 x=+4 scene={{scene}}",
+      "on key KeyF -> spawn Bullet2 at 120 360 scene={{scene}}",
+      "on collision Bullet1 Enemy -> destroy Bullet1, destroy Enemy, score+10 scene={{scene}}",
+      "on collision Bullet2 Enemy -> destroy Bullet2, destroy Enemy, score+10 scene={{scene}}",
+      "on collision Player1 PowerUp -> destroy PowerUp, variable Player1Health = 3 scene={{scene}}",
+      "on collision Player2 PowerUp -> destroy PowerUp, variable Player2Health = 3 scene={{scene}}",
+      "on collision Player1 Enemy -> {{failAction}} scene={{scene}}",
+      "on collision Player2 Enemy -> {{failAction}} scene={{scene}}",
       "every 2s -> spawn Enemy at 780 100 scene={{scene}}",
       "every 2s -> spawn Enemy at 780 250 scene={{scene}}",
       "every 3s -> spawn Enemy at 780 400 scene={{scene}}",
@@ -100,9 +112,12 @@
     "state": [
       "Score",
       "Wave",
-      "Player",
-      "PlayerHealth",
-      "Bullet",
+      "Player1",
+      "Player2",
+      "Player1Health",
+      "Player2Health",
+      "Bullet1",
+      "Bullet2",
       "Enemy",
       "PowerUp"
     ],
@@ -120,8 +135,10 @@
       "max": 2
     },
     "objects": [
-      "Player",
-      "Bullet",
+      "Player1",
+      "Player2",
+      "Bullet1",
+      "Bullet2",
       "Enemy",
       "PowerUp"
     ],
@@ -131,7 +148,12 @@
       "arrow_down",
       "arrow_left",
       "arrow_right",
-      "space"
+      "space",
+      "w",
+      "a",
+      "s",
+      "d",
+      "f"
     ]
   },
   "requires": {

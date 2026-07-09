@@ -8,7 +8,6 @@ var SYNC_MODES = [
   'local',
   'lockstep',
   'lockstep-input',
-  'state',
   'snapshot',
   'event',
   'peer-event',
@@ -23,7 +22,6 @@ var BRIDGE_SYNC_MODES = {
   'server-authoritative': true
 };
 var CHANNEL_SYNC_MODES = {
-  'state': true,
   'snapshot': true,
   'event': true,
   'peer-event': true,
@@ -171,7 +169,7 @@ function buildModuleDslReference(catalog) {
     JSON.stringify(cards, null, 2),
     '',
     '=== Module DSL ===',
-    'install module id=<module.id> preset=<preset> sync=<local|lockstep|state|event> authority=<client|host|server> tickRate=<number> seed=<seed>',
+    'install module id=<module.id> preset=<preset> sync=<local|lockstep|snapshot|event> authority=<client|host|server> tickRate=<number> seed=<seed>',
     'configure module id=<installed.module.id> key=value ...',
     '',
     'Only output Module DSL lines. Do not output low-level DSL, JSON, Markdown, or project.json.'

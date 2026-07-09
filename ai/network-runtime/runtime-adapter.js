@@ -10,6 +10,16 @@ var GC_ADAPTER_KEY_MAP = {
   move_left:  "ArrowLeft",
   move_right: "ArrowRight",
   shoot:      "Space",
+  p1_move_up:    "ArrowUp",
+  p1_move_down:  "ArrowDown",
+  p1_move_left:  "ArrowLeft",
+  p1_move_right: "ArrowRight",
+  p1_shoot:      "Space",
+  p2_move_up:    "KeyW",
+  p2_move_down:  "KeyS",
+  p2_move_left:  "KeyA",
+  p2_move_right: "KeyD",
+  p2_shoot:      "KeyF",
   jump:       "Space",
   start:      "Enter",
   restart:    "KeyR",
@@ -22,7 +32,7 @@ var _KEY_NAME_TO_CODE = {
   "ArrowUp":38, "ArrowDown":40, "ArrowLeft":37, "ArrowRight":39,
   "Space":32, "Enter":13, "KeyR":82,
   "KeyZ":90, "KeyX":88, "KeyC":67,
-  "KeyA":65, "KeyS":83, "KeyD":68, "KeyW":87,
+  "KeyA":65, "KeyS":83, "KeyD":68, "KeyF":70, "KeyW":87,
   "ShiftLeft":16, "ShiftRight":16,
   "Escape":27, "Tab":9,
 };
@@ -37,6 +47,7 @@ function GameCastleRuntimeAdapter(game) {
   this._inputManager = null;
   this._renderer = null;
   this._declaredInputs = [];
+  this._captureInputs = [];
   this._inputMap = {};
   this._rAFId = null;
   this._tickFn = null;
@@ -46,6 +57,8 @@ function GameCastleRuntimeAdapter(game) {
   this._accumulator = 0;
   this._lastFrameTime = 0;
   this._totalTicks = 0;
+  this._rawPressedCodes = {};
+  this._rawInputBound = false;
 }
 
 GameCastleRuntimeAdapter.prototype.init = function (config) {
@@ -54,16 +67,36 @@ GameCastleRuntimeAdapter.prototype.init = function (config) {
   this._inputManager = this._game.getInputManager();
   this._renderer = this._game.getRenderer();
   this._declaredInputs = config.inputs || [];
+  this._captureInputs = config.captureInputs || this._declaredInputs;
   this._tickRate = config.tickRate || 20;
   this._tickIntervalMs = Math.round(1000 / this._tickRate);
 
   this._inputMap = {};
   var map = config.keyMap || GC_ADAPTER_KEY_MAP;
-  for (var i = 0; i < this._declaredInputs.length; i++) {
-    var inputName = this._declaredInputs[i];
+  var mappedInputs = this._declaredInputs.concat(this._captureInputs);
+  for (var i = 0; i < mappedInputs.length; i++) {
+    var inputName = mappedInputs[i];
     var keyName = map[inputName];
     if (keyName) this._inputMap[inputName] = keyName;
   }
+  this._bindRawInputListeners();
+};
+
+GameCastleRuntimeAdapter.prototype._bindRawInputListeners = function () {
+  if (this._rawInputBound || typeof window === "undefined") return;
+  this._rawInputBound = true;
+  var self = this;
+  window.addEventListener("keydown", function (event) {
+    var code = event && event.keyCode;
+    if (code != null) self._rawPressedCodes[code] = true;
+  }, true);
+  window.addEventListener("keyup", function (event) {
+    var code = event && event.keyCode;
+    if (code != null) self._rawPressedCodes[code] = false;
+  }, true);
+  window.addEventListener("blur", function () {
+    self._rawPressedCodes = {};
+  }, true);
 };
 
 GameCastleRuntimeAdapter.prototype.startLoop = function (tickFn) {
@@ -109,11 +142,13 @@ GameCastleRuntimeAdapter.prototype.stepSimulation = function (dtMs) {
 GameCastleRuntimeAdapter.prototype.captureInputs = function () {
   if (!this._inputManager) return {};
   var frame = {};
+  var useRawInput = this._rawInputBound;
   var im = this._inputManager;
-  for (var i = 0; i < this._declaredInputs.length; i++) {
-    var name = this._declaredInputs[i];
+  for (var i = 0; i < this._captureInputs.length; i++) {
+    var name = this._captureInputs[i];
     var key = this._inputMap[name];
-    if (key) frame[name] = im.isKeyPressed(key);
+    var code = key ? _keyNameToCode(key) : null;
+    if (code !== null) frame[name] = useRawInput ? !!this._rawPressedCodes[code] : im.isKeyPressed(code);
   }
   return frame;
 };

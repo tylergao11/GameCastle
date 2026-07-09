@@ -127,9 +127,82 @@ The plan has one realtime owner and zero or more side channels:
 Runtime ownership follows the plan:
 
 - `lockstep`, `lockstep-input`, and `server-authoritative` are realtime modes.
-  `GameCastleNetworkBridge` owns the GDJS frame loop for these modes.
-- `event`, `peer-event`, `async-state`, `state`, and `snapshot` are channels.
+  `GameCastleNetworkBridge` owns the GDJS frame loop for these modes, but it
+  does not own the netcode protocol.
+- `event`, `peer-event`, `async-state`, and `snapshot` are channels.
   They may share the room/transport, but they must not create another GDJS tick
   owner.
 - Channel-only games connect through transport lifecycle helpers and keep the
   normal GDJS local loop.
+
+## Frame Sync Template
+
+Realtime modules compile into a stable three-layer runtime:
+
+1. `GameCastleFrameSyncSession` is the pure netcode core. It owns frame numbers,
+   local/remote input buffers, player slot mapping (`p1_*`, `p2_*`), input
+   delay, redundant input packets, ready-frame ACKs, history pruning, and the
+   disconnected/reconnected advance gate.
+2. `GameCastleNetworkBridge` is only the GDJS adapter. It captures physical
+   inputs, sends frame packets through transport, injects replay inputs, and
+   steps GDJS at the fixed tick rate.
+3. Gameplay modules only declare `networking.inputs` and `networking.state`.
+   They must not implement networking behavior directly.
+
+This follows the standard lockstep/rollback split: deterministic games exchange
+input frames, not object positions. Rollback-style prediction can replace or
+extend the frame-sync session later by implementing the same save/load/replay
+boundary, while module DSL and GDJS bridge code remain stable.
+
+Current template behavior:
+
+- Lockstep waits until every required player has input for a frame before
+  advancing that frame.
+- Packets include recent previous frames so a later packet can fill gaps after
+  packet loss or reconnect.
+- Packets include the latest locally executed frame as an ACK so old history can
+  be pruned.
+- A disconnected session freezes advancement but keeps buffered frames; after
+  reconnect it resumes from the first missing ready frame.
+- Player input is always mapped through slots before replay, so two players
+  never drive one shared entity by accident.
+
+## Snapshot Sync Template
+
+`snapshot` is the canonical realtime state template. Do not use `state` as a
+sync mode name; `networking.state` remains the data contract that lists which
+variables and objects a module exposes for synchronization.
+
+Snapshot sync is also split into layers:
+
+1. `GameCastleSnapshotSyncSession` owns snapshot sequence numbers, snapshot
+   buffers, latest/full snapshot records, interpolation delay metadata, and
+   history pruning.
+2. `SnapshotSyncStrategy` adapts the session to transport. In `authority=host`
+   mode the first player in the room publishes snapshots on the `snapshot`
+   channel; clients receive and emit `snapshot` events.
+3. A GDJS snapshot bridge/codec can be added above this template to read and
+   apply `getNetworkSyncData` / `updateFromNetworkSyncData` without changing
+   module declarations.
+
+Product interaction names such as `host-snapshot` are selection cards. The
+runtime protocol template is `snapshot`.
+
+## Template Matrix
+
+Canonical protocol/server templates:
+
+- `frame-sync`: deterministic input-frame sync. Runtime owner:
+  `GameCastleFrameSyncSession`; GDJS adapter: `GameCastleNetworkBridge`.
+- `snapshot`: authoritative snapshot sync. Runtime owner:
+  `GameCastleSnapshotSyncSession`; transport adapter: `SnapshotSyncStrategy`.
+- `event`: room/peer event relay. Runtime owner:
+  `GameCastleEventRelaySession`; transport adapter: `EventRelayStrategy`.
+- `async-state`: asynchronous persistence. Runtime owner:
+  `GameCastleAsyncPersistenceSession`; transport adapter:
+  `AsyncPersistenceStrategy`.
+- `server-ordered-input`: server-side input ordering. Server owner:
+  `ServerOrderedInputSession`; timer wrapper: `GameLoop`.
+
+The old `strategies/` directory is intentionally removed. New templates must be
+added as canonical runtime/server files, not as compatibility wrappers.

@@ -12,8 +12,6 @@ var fs = require("fs");
 var path = require("path");
 
 var RUNTIME_DIR = __dirname;
-var STRATEGIES_DIR = path.join(RUNTIME_DIR, "strategies");
-
 var DEFAULT_SIGNALING_URL = "ws://localhost:3001";
 var BRIDGE_OWNED_SYNC = {
   "lockstep": true,
@@ -24,14 +22,13 @@ var BRIDGE_OWNED_SYNC = {
 // ── Strategy registry ────────────────────────────────────────────────────
 // Maps sync model → { file, constructor, description }
 var REGISTRY = {
-  "lockstep":             { file: "input-sync.js",    ctor: "InputSyncStrategy",    desc: "Deterministic input forwarding (2P)" },
-  "lockstep-input":       { file: "input-sync.js",    ctor: "InputSyncStrategy",    desc: "Deterministic input forwarding (2P)" },
-  "state":                { file: "state-sync.js",    ctor: "StateSyncStrategy",    desc: "Host broadcasts state snapshots" },
-  "snapshot":             { file: "state-sync.js",    ctor: "StateSyncStrategy",    desc: "Host broadcasts state snapshots" },
-  "event":                { file: "event-relay.js",   ctor: "EventRelayStrategy",   desc: "Event-driven, server-validated" },
-  "peer-event":           { file: "event-relay.js",   ctor: "EventRelayStrategy",   desc: "Event relay between peers" },
-  "async-state":          { file: "async-state.js",   ctor: "AsyncStateStrategy",   desc: "Save/load state to server" },
-  "server-authoritative": { file: "authority-sync.js", ctor: "AuthoritySyncStrategy", desc: "Server orders inputs, clients run deterministic sim" },
+  "lockstep":             { file: "frame-sync.js",    ctor: "GameCastleFrameSyncSession", desc: "Deterministic frame input sync" },
+  "lockstep-input":       { file: "frame-sync.js",    ctor: "GameCastleFrameSyncSession", desc: "Deterministic frame input sync" },
+  "snapshot":             { file: "snapshot-sync.js", ctor: "SnapshotSyncStrategy", desc: "Authoritative state snapshots" },
+  "event":                { file: "event-relay.js",   ctor: "EventRelayStrategy",   desc: "Event-driven room relay" },
+  "peer-event":           { file: "event-relay.js",   ctor: "EventRelayStrategy",   desc: "Directed peer event relay" },
+  "async-state":          { file: "async-persistence.js", ctor: "AsyncPersistenceStrategy", desc: "Save/load state to server" },
+  "server-authoritative": { file: "frame-sync.js", ctor: "GameCastleFrameSyncSession", desc: "Server-ordered inputs, clients replay deterministic frames" },
 };
 
 // ── Public API ────────────────────────────────────────────────────────────
@@ -49,6 +46,7 @@ function generate(manifest, options) {
 
   if (bridgeModule) {
     // Add runtime-adapter + game-bridge once for network-aware games.
+    sourceFiles.push("frame-sync.js");
     sourceFiles.push("runtime-adapter.js");
     sourceFiles.push("game-bridge.js");
   }
@@ -179,10 +177,18 @@ function readSourceFile(filename) {
     filePath = path.join(RUNTIME_DIR, filename);
   } else if (filename === "game-bridge.js") {
     filePath = path.join(RUNTIME_DIR, filename);
+  } else if (filename === "frame-sync.js") {
+    filePath = path.join(RUNTIME_DIR, filename);
+  } else if (filename === "snapshot-sync.js") {
+    filePath = path.join(RUNTIME_DIR, filename);
+  } else if (filename === "event-relay.js") {
+    filePath = path.join(RUNTIME_DIR, filename);
+  } else if (filename === "async-persistence.js") {
+    filePath = path.join(RUNTIME_DIR, filename);
   } else if (filename === "runtime-adapter.js") {
     filePath = path.join(RUNTIME_DIR, filename);
   } else {
-    filePath = path.join(STRATEGIES_DIR, filename);
+    filePath = path.join(RUNTIME_DIR, filename);
   }
 
   if (!fs.existsSync(filePath)) {
@@ -458,7 +464,7 @@ function buildBridgeInitLines(bridgeModule, modules) {
     "      tickRate: " + (config.tickRate || 20) + ",",
     "      sync: " + JSON.stringify(policy.sync) + ",",
     "      transport: transport,",
-    "      autoHost: true,",
+    "      autoHost: false,",
     "    };",
     "",
     "    var bridge = new GameCastleNetworkBridge(bridgeConfig);",

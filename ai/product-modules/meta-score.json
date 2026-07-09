@@ -38,7 +38,7 @@
       "syncModels": [
         "local",
         "lockstep",
-        "state"
+        "snapshot"
       ],
       "authority": [
         "host",

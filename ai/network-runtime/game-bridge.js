@@ -11,9 +11,31 @@
 
 var INPUT_SYNC_CHANNEL = "gc:input";
 
+if (typeof require !== "undefined" && typeof GameCastleFrameSyncSession === "undefined") {
+  var GameCastleFrameSyncSession = require("./frame-sync").GameCastleFrameSyncSession;
+}
+
+function expandSlotInputs(inputs, slots) {
+  var result = [];
+  var seen = {};
+  function push(name) {
+    if (!seen[name]) {
+      seen[name] = true;
+      result.push(name);
+    }
+  }
+  inputs = inputs || [];
+  slots = slots || ["p1", "p2"];
+  for (var i = 0; i < inputs.length; i++) {
+    for (var s = 0; s < slots.length; s++) push(slots[s] + "_" + inputs[i]);
+  }
+  return result;
+}
+
 function GameCastleNetworkBridge(config) {
   config = config || {};
-  this._declaredInputs = config.inputs || [];
+  this._captureInputs = config.captureInputs || config.inputs || [];
+  this._declaredInputs = config.replayInputs || expandSlotInputs(this._captureInputs, config.playerSlots);
   this._tickRate = config.tickRate || 20;
   this._sync = config.sync || "local";
   this._transport = config.transport || null;
@@ -23,13 +45,21 @@ function GameCastleNetworkBridge(config) {
   this._tick = 0;
   this._readyTick = 0;
   this._running = false;
-  this._localInputs = {};
-  this._remoteInputs = {};
-  this._orderedInputs = {};
   this._peerId = null;
-  this._inputDelay = config.inputDelay || 2;
+  this._inputDelay = config.inputDelay !== undefined ? config.inputDelay : 2;
+  this._historySize = config.historySize !== undefined ? config.historySize : 120;
+  this._redundancy = config.redundancy !== undefined ? config.redundancy : 5;
   this._autoHost = config.autoHost || false;
   this._configRoomId = config.roomId || null;
+  this._localSlot = config.localSlot || "p1";
+  this._remoteSlot = config.remoteSlot || "p2";
+  this._session = new GameCastleFrameSyncSession({
+    inputDelay: this._inputDelay,
+    historySize: this._historySize,
+    redundancy: this._redundancy,
+    localSlot: this._localSlot,
+    remoteSlot: this._remoteSlot,
+  });
   this._listeners = {};
   this._handlersSetup = false;
 }
@@ -51,7 +81,7 @@ GameCastleNetworkBridge.prototype._emit = function(event) {
 GameCastleNetworkBridge.prototype.attach = function(game) {
   this._game = game;
   this._adapter = new GameCastleRuntimeAdapter(game);
-  this._adapter.init({ inputs: this._declaredInputs, tickRate: this._tickRate });
+  this._adapter.init({ inputs: this._declaredInputs, captureInputs: this._captureInputs, tickRate: this._tickRate });
   this._inputManager = game.getInputManager();
 };
 
@@ -104,6 +134,9 @@ GameCastleNetworkBridge.prototype.host = function() {
         self._transport.joinRoom(rid);
       });
       self._transport.on("joined", function(roomId, playerId) {
+        self._localSlot = "p1";
+        self._remoteSlot = "p2";
+        self._session.setLocalPlayer(playerId, self._localSlot);
         self._switchToNetworkLoop();
         resolve({ roomId: roomId, playerId: playerId });
       });
@@ -129,6 +162,9 @@ GameCastleNetworkBridge.prototype.join = function(roomId) {
     self._setupTransportHandlers();
     return new Promise(function(resolve, reject) {
       self._transport.on("joined", function(rid, playerId) {
+        self._localSlot = "p2";
+        self._remoteSlot = "p1";
+        self._session.setLocalPlayer(playerId, self._localSlot);
         self._switchToNetworkLoop();
         resolve({ roomId: rid, playerId: playerId });
       });
@@ -154,28 +190,20 @@ GameCastleNetworkBridge.prototype._setupTransportHandlers = function() {
 
   // Lockstep: direct peer-to-peer input relay
   self._transport.on("game_input", function(from, tick, inputs) {
-    self._remoteInputs[tick] = inputs;
+    self._session.receiveRemoteFrame(from, tick, inputs);
     self._tryAdvanceLockstep();
   });
 
   // Server-authoritative: server-ordered inputs
   self._transport.on("game_state", function(tick, ordered) {
-    self._orderedInputs[tick] = ordered;
+    self._session.receiveOrderedFrame(tick, ordered);
     self._tryAdvanceAuthority();
   });
 
   // Lockstep: sync-channel input relay with redundancy
   self._transport.on("sync", function(from, ch, data) {
     if (ch === INPUT_SYNC_CHANNEL && data) {
-      self._remoteInputs[data.tick] = data.inputs;
-      // Apply redundancy: fill gaps for any missing previous ticks
-      if (data.prev) {
-        for (var pt in data.prev) {
-          if (data.prev.hasOwnProperty(pt) && self._remoteInputs[pt] === undefined) {
-            self._remoteInputs[pt] = data.prev[pt];
-          }
-        }
-      }
+      self._session.receiveRemoteFrame(from, data);
       self._tryAdvanceLockstep();
     }
   });
@@ -184,14 +212,20 @@ GameCastleNetworkBridge.prototype._setupTransportHandlers = function() {
   self._transport.on("player_joined", function(pid) {
     if (pid !== self._transport.getPlayerId()) {
       self._peerId = pid;
+      self._session.setPeerPlayer(pid, self._remoteSlot);
       self._emit("peer_joined", pid);
     }
   });
   self._transport.on("player_left", function(pid) {
     if (pid === self._peerId) {
       self._peerId = null;
+      self._session.removePeerPlayer(pid);
       self._emit("peer_left", pid);
     }
+  });
+  self._transport.on("disconnected", function() {
+    self._session.setConnected(false);
+    self._emit("disconnected");
   });
 };
 
@@ -204,9 +238,23 @@ GameCastleNetworkBridge.prototype._switchToNetworkLoop = function() {
   // Reset tick state for network mode
   this._tick = 0;
   this._readyTick = 0;
-  this._localInputs = {};
-  this._remoteInputs = {};
-  this._orderedInputs = {};
+  this._session.reset({
+    localPlayerId: this._transport ? this._transport.getPlayerId() : null,
+    localSlot: this._localSlot,
+    tick: 0,
+    readyTick: 0,
+  });
+  if (this._transport && this._transport.getPlayers) {
+    var myId = this._transport.getPlayerId();
+    var self = this;
+    this._transport.getPlayers().forEach(function(pid) {
+      if (pid !== myId) {
+        self._peerId = pid;
+        self._session.setPeerPlayer(pid, self._remoteSlot);
+      }
+    });
+  }
+  this._session.setConnected(true);
   // Start network loop
   this._startNetworkLoop();
 };
@@ -235,20 +283,11 @@ GameCastleNetworkBridge.prototype._onNetworkTick = function(dt, tick) {
 // 4. Try to advance ready ticks (when both local + remote inputs available)
 
 GameCastleNetworkBridge.prototype._tickLockstep = function(dt, adapterTick) {
-  // Use bridge's own tick counter (starts at 0), not the adapter's (starts at 1).
-  // This ensures _readyTick==0 aligns with _localInputs[0] on the first call.
-  var tick = this._tick;
-  this._localInputs[tick] = this._adapter.captureInputs();
+  var packet = this._session.captureLocalFrame(this._adapter.captureInputs());
   if (this._peerId) {
-    // Send current inputs + last 5 ticks as redundancy (UDP-style loss recovery)
-    var redundancy = {};
-    for (var i = 1; i <= 5; i++) {
-      var pt = tick - i;
-      if (this._localInputs[pt] !== undefined) redundancy[pt] = this._localInputs[pt];
-    }
-    this._transport.sync(INPUT_SYNC_CHANNEL, { tick: tick, inputs: this._localInputs[tick], prev: redundancy });
+    this._transport.sync(INPUT_SYNC_CHANNEL, packet);
   }
-  this._tick++;
+  this._tick = this._session.getTick();
   this._tryAdvanceLockstep();
   return true;
 };
@@ -260,42 +299,23 @@ GameCastleNetworkBridge.prototype._tickLockstep = function(dt, adapterTick) {
 // deterministic replay across peers.
 
 GameCastleNetworkBridge.prototype._tryAdvanceLockstep = function() {
-  // Effective delay: 0 when solo (no network jitter), configured delay with peer
-  var effectiveDelay = this._peerId ? this._inputDelay : 0;
-  while (this._running) {
-    var tick = this._readyTick;
-    if (tick + effectiveDelay >= this._tick) break;
-    if (this._localInputs[tick] === undefined) break;
-    if (this._peerId && this._remoteInputs[tick] === undefined) break;
-
-    // Merge local + remote inputs for deterministic replay
-    var combined = {};
-    var localFrame = this._localInputs[tick] || {};
-    var remoteFrame = this._remoteInputs[tick] || {};
-    for (var k in localFrame) { if (localFrame.hasOwnProperty(k)) combined[k] = localFrame[k]; }
-    for (var k2 in remoteFrame) { if (remoteFrame.hasOwnProperty(k2)) combined[k2] = remoteFrame[k2]; }
-
-    // Inject combined frame (isLocal=false → force programmatic injection)
-    this._adapter.injectInputs(combined, false);
+  var frames = this._session.nextLockstepFrames();
+  for (var i = 0; i < frames.length && this._running; i++) {
+    var frame = frames[i];
+    this._adapter.injectInputs(frame.inputs, false);
     this._adapter.stepSimulation(1000 / this._tickRate);
     this._adapter.endFrame();
-
-    this._emit("advance", tick, combined, remoteFrame || null);
-
-    // Housekeeping
-    delete this._localInputs[tick - 60];
-    delete this._remoteInputs[tick - 60];
-    this._readyTick++;
+    this._emit("advance", frame.tick, frame.inputs, frame.remoteInputs || null);
   }
+  this._readyTick = this._session.getReadyTick();
 };
 
 // ── Authority tick ────────────────────────────────────────────────────────
 
 GameCastleNetworkBridge.prototype._tickAuthority = function(dt, adapterTick) {
-  var tick = this._tick;
-  var inputs = this._adapter.captureInputs();
-  if (this._transport && this._transport.sendGameInput) this._transport.sendGameInput(tick, inputs);
-  this._tick++;
+  var packet = this._session.captureLocalFrame(this._adapter.captureInputs());
+  if (this._transport && this._transport.sendGameInput) this._transport.sendGameInput(packet.tick, packet.inputs);
+  this._tick = this._session.getTick();
   this._tryAdvanceAuthority();
   return true;
 };
@@ -303,30 +323,15 @@ GameCastleNetworkBridge.prototype._tickAuthority = function(dt, adapterTick) {
 // ── Authority advance ─────────────────────────────────────────────────────
 
 GameCastleNetworkBridge.prototype._tryAdvanceAuthority = function() {
-  var effectiveDelay = this._peerId ? this._inputDelay : 0;
-  while (this._running) {
-    var tick = this._readyTick;
-    if (tick + effectiveDelay >= this._tick) break;
-    var ordered = this._orderedInputs[tick];
-    if (!ordered) break;
-    var self = this, myId = this._transport ? this._transport.getPlayerId() : null;
-
-    // Merge ALL player inputs into one combined frame
-    var combined = {};
-    Object.keys(ordered).forEach(function(pid) {
-      var frame = ordered[pid] || {};
-      for (var k in frame) { if (frame.hasOwnProperty(k)) combined[k] = frame[k]; }
-    });
-
-    // Inject combined (isLocal=false → deterministic programmatic injection)
-    self._adapter.injectInputs(combined, false);
-    self._adapter.stepSimulation(1000 / self._tickRate);
-    self._adapter.endFrame();
-
-    self._emit("advance", tick, ordered);
-    delete self._orderedInputs[tick - 60];
-    self._readyTick++;
+  var frames = this._session.nextAuthorityFrames();
+  for (var i = 0; i < frames.length && this._running; i++) {
+    var frame = frames[i];
+    this._adapter.injectInputs(frame.inputs, false);
+    this._adapter.stepSimulation(1000 / this._tickRate);
+    this._adapter.endFrame();
+    this._emit("advance", frame.tick, frame.inputs, frame.orderedInputs || null);
   }
+  this._readyTick = this._session.getReadyTick();
 };
 
 // ── Queries ───────────────────────────────────────────────────────────────
@@ -335,11 +340,22 @@ GameCastleNetworkBridge.prototype.getRoomId   = function() { return this._transp
 GameCastleNetworkBridge.prototype.getPlayerId = function() { return this._transport ? this._transport.getPlayerId() : null; };
 GameCastleNetworkBridge.prototype.setRoomId   = function(id) { this._configRoomId = id; };
 GameCastleNetworkBridge.prototype.getAdapter  = function() { return this._adapter; };
-GameCastleNetworkBridge.prototype.getTick     = function() { return this._tick; };
-GameCastleNetworkBridge.prototype.getReadyTick= function() { return this._readyTick; };
+GameCastleNetworkBridge.prototype.getTick     = function() { return this._session ? this._session.getTick() : this._tick; };
+GameCastleNetworkBridge.prototype.getReadyTick= function() { return this._session ? this._session.getReadyTick() : this._readyTick; };
 GameCastleNetworkBridge.prototype.isRunning   = function() { return this._running; };
 GameCastleNetworkBridge.prototype.getPeerId   = function() { return this._peerId; };
 GameCastleNetworkBridge.prototype.getSyncMode = function() { return this._sync; };
+GameCastleNetworkBridge.prototype.getFrameStats = function() { return this._session ? this._session.getStats() : {}; };
+GameCastleNetworkBridge.prototype.reconnect = function() {
+  if (!this._transport || !this._transport.reconnect) return Promise.reject(new Error("Transport reconnect is not available"));
+  var self = this;
+  return this._transport.reconnect().then(function(result) {
+    self._session.setConnected(true);
+    self._session.setLocalPlayer(result.playerId, self._localSlot);
+    self._emit("reconnected", result);
+    return result;
+  });
+};
 
 // ── Teardown ──────────────────────────────────────────────────────────────
 

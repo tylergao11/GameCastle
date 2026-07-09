@@ -29,6 +29,16 @@ function keyCode(key) {
     Enter: 13,
     Escape: 27,
     Esc: 27,
+    KeyW: 87,
+    KeyA: 65,
+    KeyS: 83,
+    KeyD: 68,
+    KeyF: 70,
+    W: 87,
+    A: 65,
+    S: 83,
+    D: 68,
+    F: 70,
   };
   return map[key] || map[String(key || '').toLowerCase()] || 0;
 }
@@ -85,7 +95,7 @@ function compileAction(action) {
     ].join('\n');
   }
   if (type === 'MettreXY') {
-    return 'setObjectPosition(' + quote(parameters[0]) + ', ' + asNumber(parameters[2], 0) + ', ' + asNumber(parameters[4], 0) + ');';
+    return 'applyObjectPosition(' + quote(parameters[0]) + ', ' + quote(parameters[1]) + ', ' + asNumber(parameters[2], 0) + ', ' + quote(parameters[3]) + ', ' + asNumber(parameters[4], 0) + ');';
   }
   if (type === 'AddForce') {
     var direction = String(parameters[1] || '');
@@ -171,8 +181,18 @@ function runtimeHelpers() {
     '    if (object) object.setPosition(x, y);',
     '    return object;',
     '  }',
-    '  function setObjectPosition(name, x, y) {',
-    '    objects(name).forEach(function(object) { object.setPosition(x, y); });',
+    '  function applyAxis(current, op, value) {',
+    '    if (!op) return current;',
+    '    if (op === "+" || op === "+=") return current + value;',
+    '    if (op === "-" || op === "-=") return current - value;',
+    '    return value;',
+    '  }',
+    '  function applyObjectPosition(name, opX, x, opY, y) {',
+    '    objects(name).forEach(function(object) {',
+    '      var nextX = applyAxis(object.getX ? object.getX() : 0, opX, x);',
+    '      var nextY = applyAxis(object.getY ? object.getY() : 0, opY, y);',
+    '      object.setPosition(nextX, nextY);',
+    '    });',
     '  }',
     '  function clearDrawer(name) {',
     '    objects(name).forEach(function(object) {',

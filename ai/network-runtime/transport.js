@@ -8,6 +8,8 @@ function GameCastleTransport(url) {
   this._ws = null;
   this._roomId = null;
   this._playerId = null;
+  this._lastRoomId = null;
+  this._lastPlayerId = null;
   this._players = new Set();
   this._listeners = {};   // eventName → [handler]
   this._pending = {};      // seq → { resolve, reject }
@@ -46,12 +48,14 @@ GameCastleTransport.prototype.connect = function () {
       reject(new Error("WebSocket error"));
     };
     self._ws.onclose = function () {
+      var lastRoomId = self._roomId || self._lastRoomId;
+      var lastPlayerId = self._playerId || self._lastPlayerId;
       if (self._roomId) {
         self._players.clear();
         self._roomId = null;
         self._playerId = null;
       }
-      self._emit("disconnected");
+      self._emit("disconnected", { roomId: lastRoomId, playerId: lastPlayerId });
     };
     self._ws.onmessage = function (e) {
       var msg;
@@ -111,6 +115,8 @@ GameCastleTransport.prototype._dispatch = function (msg) {
     case "joined":
       this._roomId = msg.roomId;
       this._playerId = msg.playerId;
+      this._lastRoomId = msg.roomId;
+      this._lastPlayerId = msg.playerId;
       this._emit("joined", msg.roomId, msg.playerId);
       break;
     case "player_joined":
@@ -157,6 +163,31 @@ GameCastleTransport.prototype.createRoom = function (options) {
 
 GameCastleTransport.prototype.joinRoom = function (roomId, playerId) {
   this._send({ type: "join_room", roomId: roomId, playerId: playerId || undefined });
+};
+
+GameCastleTransport.prototype.reconnect = function () {
+  var self = this;
+  var roomId = this._lastRoomId || this._roomId;
+  var playerId = this._lastPlayerId || this._playerId;
+  if (!roomId || !playerId) return Promise.reject(new Error("No previous room/player to reconnect"));
+  return this.connect().then(function () {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      function onJoined(rid, pid) {
+        if (done) return;
+        done = true;
+        resolve({ roomId: rid, playerId: pid });
+      }
+      function onError(err) {
+        if (done) return;
+        done = true;
+        reject(new Error(err));
+      }
+      self.on("joined", onJoined);
+      self.on("error", onError);
+      self.joinRoom(roomId, playerId);
+    });
+  });
 };
 
 GameCastleTransport.prototype.leaveRoom = function () {

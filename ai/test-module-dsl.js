@@ -100,7 +100,9 @@ function assertRuntimeExecutionFiles(project) {
   assert(manifest.target === 'html', 'html export manifest should target html');
   assert(manifest.scriptFiles.indexOf('runtimegame.js') >= 0, 'html manifest should include official GDJS runtime');
   assert(manifest.scriptFiles.indexOf('Extensions/PrimitiveDrawing/shapepainterruntimeobject.js') >= 0, 'html manifest should include ShapePainter runtime when used');
-  assert(manifest.scriptFiles.indexOf('Extensions/PlatformBehavior/platformerobjectruntimebehavior.js') >= 0, 'html manifest should include platformer behavior runtime when used');
+  if (JSON.stringify(project).indexOf('PlatformBehavior::PlatformerObjectBehavior') >= 0) {
+    assert(manifest.scriptFiles.indexOf('Extensions/PlatformBehavior/platformerobjectruntimebehavior.js') >= 0, 'html manifest should include platformer behavior runtime when used');
+  }
   // HTML export requires GDJS runtime cache; skip these checks when not available.
   if (fs.existsSync(path.join(OUTPUT_DIR, 'game.html'))) {
     assert(fs.existsSync(path.join(OUTPUT_DIR, 'index.html')), 'runtime should emit index.html');
@@ -165,6 +167,37 @@ function testShellComposition() {
   assert(network.plan.realtime.moduleIds.indexOf('core.platformer') >= 0, 'realtime plan should name owner modules');
   assert(network.plan.channels.length === 1, 'network plan should keep shell event as side-channel');
   assert(network.plan.channels[0].id === 'shell.game_over_screen', 'event side-channel should be owned by game over shell');
+}
+
+function testShooterNetworkComposition() {
+  runPipeline(['--module-dsl-file', fixture('module-shooter.dsl'), 'module-shooter-network'], 'module shooter network run');
+  var world = readJson(WORLD_PATH);
+  var project = readJson(PROJECT_PATH);
+  var network = readJson(NETWORK_PATH);
+  assertRuntimeProjectShape(project);
+  assertRuntimeExecutionFiles(project);
+  assert(world.modules.length === 1, 'shooter world should record one installed module');
+  assert(world.modules[0].id === 'core.shooter', 'world should record core.shooter');
+  assert(network.plan && network.plan.realtime, 'shooter network manifest should include realtime plan');
+  assert(network.plan.realtime.sync === 'lockstep', 'shooter realtime plan should use lockstep');
+  assert(network.plan.realtime.moduleIds.indexOf('core.shooter') >= 0, 'shooter realtime plan should name core.shooter');
+  ['move_up', 'move_down', 'move_left', 'move_right', 'shoot'].forEach(function(input) {
+    assert(network.plan.realtime.inputs.indexOf(input) >= 0, 'shooter realtime plan should include input: ' + input);
+  });
+  ['Score', 'Wave', 'Player1', 'Player2', 'Player1Health', 'Player2Health', 'Bullet1', 'Bullet2', 'Enemy', 'PowerUp'].forEach(function(state) {
+    assert(network.plan.realtime.state.indexOf(state) >= 0, 'shooter realtime plan should include state: ' + state);
+  });
+  assert(network.plan.channels.length === 0, 'shooter lockstep-only module should not create side channels');
+  var runtime = fs.readFileSync(path.join(OUTPUT_DIR, 'network-runtime.js'), 'utf8');
+  var code0 = fs.readFileSync(path.join(OUTPUT_DIR, 'code0.js'), 'utf8');
+  assert(runtime.indexOf('new GameCastleNetworkBridge') >= 0, 'shooter runtime should create bridge');
+  assert(runtime.indexOf('new InputSyncStrategy') < 0, 'shooter runtime should not instantiate legacy lockstep strategy');
+  assert(runtime.indexOf('inputs: ["move_up","move_down","move_left","move_right","shoot"]') >= 0, 'shooter bridge should receive declared input plan');
+  assert(code0.indexOf('if (!op) return current;') >= 0, 'runtime should preserve unchanged movement axes');
+  assert(code0.indexOf('applyObjectPosition("Player1", "", 0, "-", 4)') >= 0, 'shooter up input should move Player1 relatively on Y');
+  assert(code0.indexOf('applyObjectPosition("Player1", "+", 4, "", 0)') >= 0, 'shooter right input should move Player1 relatively on X');
+  assert(code0.indexOf('applyObjectPosition("Player2", "", 0, "-", 4)') >= 0, 'shooter W input should move Player2 relatively on Y');
+  assert(code0.indexOf('input.isKeyPressed(87)') >= 0, 'shooter should compile KeyW for Player2 controls');
 }
 
 function testModuleOrderIsCompilerOwned() {
@@ -380,6 +413,8 @@ function main() {
   console.log('[ModuleDslTest] cache hit passed');
   testShellComposition();
   console.log('[ModuleDslTest] shell composition passed');
+  testShooterNetworkComposition();
+  console.log('[ModuleDslTest] shooter network composition passed');
   testModuleOrderIsCompilerOwned();
   console.log('[ModuleDslTest] compiler-owned ordering passed');
   testContinueAddsShellModulesFromProjectWorld();
