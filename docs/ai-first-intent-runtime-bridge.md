@@ -33,9 +33,9 @@ y=520 and add a mouse/touch event".
 Low-level DSL remains useful as compiler target code and as a bounded internal
 repair escape hatch. It is not a user-facing or LLM2-facing compatibility mode.
 
-## Current Baseline
+## Historical Baseline
 
-The current pipeline is already partially AI-friendly:
+Before the AI-first Intent migration, the partially AI-friendly path was:
 
 ```text
 LLM1 design brief
@@ -49,22 +49,23 @@ LLM1 design brief
 ```
 
 Product modules such as `core.platformer`, `core.shooter`, and
-`shell.start_screen` are coarse enough for LLM2. The missing layer is the
-AI-first component and spatial intent layer between user/game design intent and
-internal DSL.
+`shell.start_screen` remain coarse compiler truth and reusable skeletons. The
+live LLM2 path now selects them through AI-first Intent DSL instead of writing
+module ids or Module DSL lines directly.
 
-This is a refactor, not a compatibility wrapper. After Intent DSL becomes the
-canonical LLM2 surface, the live LLM2 path must not keep a second Module DSL
-commander path as an equal product surface. Product modules remain as compiler
-truth and reusable skeletons, but LLM2 selects them through Intent DSL.
+This is a refactor, not a compatibility wrapper. The live LLM2 path must not
+keep a second Module DSL commander path as an equal product surface. Product
+modules remain as compiler truth and reusable skeletons, but LLM2 selects them
+through Intent DSL.
 
-The target pipeline becomes:
+The live target pipeline is:
 
 ```text
 User prompt / iteration request
   -> LLM1 design intent
   -> LLM2 Intent DSL (canonical)
   -> Intent Graph
+  -> Edit Constraint Graph
   -> Module + Component graph
   -> Semantic Placement plan
   -> GDJS Bridge plan
@@ -87,6 +88,7 @@ should be closer to game design and player-space language than to engine code.
 | `value` | Low-cognition parameter | `fast`, `near`, `far`, `easy`, `24 slots` |
 | `relation` | How things connect | `controls`, `owns`, `opens`, `spawns`, `damages`, `collects`, `near` |
 | `placement` | Semantic spatial intent | `near screen bottom-left`, `near Player front`, `pattern trail` |
+| `edit` | Semantic change to an existing world fact | `adjust Fox placement above slightly` |
 | `role` | Why a thing exists | `hero`, `enemy`, `collectible`, `primary_action`, `hud` |
 | `action` | Gameplay input/effect | `move`, `jump`, `attack`, `shoot`, `open_inventory` |
 
@@ -102,6 +104,7 @@ add joystick controls Player near screen bottom-left
 add jump button controls Player near screen bottom-right
 add attack button controls Player near jump button left
 add inventory owned by Player with 24 slots near screen right
+adjust Fox placement above slightly
 place coins near Player front as trail count 8
 place enemies near Player far front as guard count 3
 ```
@@ -133,8 +136,9 @@ Current implementation status: `ai/intent-dsl.js` parses the first natural
 Intent DSL slice and reuses `ai/intent-surface-guard.js` to reject machine and
 backend forms. `ai/intent-compiler.js` compiles that first slice into a typed
 Intent Graph and Compile ResultCard. `ai/placement-resolver.js` now resolves
-`near/direction/distance/pattern` into an internal Placement Plan with owner
-trace and diagnostics. `ai/components/` now provides the first split
+`near/direction/distance/pattern` plus semantic placement edit constraints such
+as `adjust Fox placement above slightly` into an internal Placement Plan with
+owner trace and diagnostics. `ai/components/` now provides the first split
 AI Manifest / Compiler Manifest component library, and `ai/component-catalog.js`
 lets the compiler resolve natural aliases such as joystick, jump button, attack
 button, backpack, and platformer movement without exposing component ids to
@@ -188,6 +192,7 @@ type IntentGraph = {
   components: ComponentNode[];
   relations: RelationEdge[];
   placements: PlacementIntent[];
+  edits: EditConstraint[];
   values: SemanticValue[];
   bindings: BindingIntent[];
   requirements: RequirementRecord[];
@@ -269,6 +274,23 @@ type PlacementIntent = {
 };
 ```
 
+`edits` express small semantic changes to existing world facts. They are not
+numeric deltas and they are not GDJS commands:
+
+```ts
+type EditConstraint = {
+  kind: "editConstraint";
+  subject: string;
+  dimension: "placement";
+  operator: "nudge" | "increase" | "decrease";
+  direction?: "above" | "below" | "left" | "right" | "front" | "behind";
+  amount?: "slightly" | "small" | "normal" | "far";
+  anchor?: "current" | string;
+  preserve?: string[];
+  owner: "placement-resolver";
+};
+```
+
 `bindings` express action/runtime input:
 
 ```ts
@@ -307,6 +329,7 @@ Project defaults
   -> Thing archetype
   -> Component compiler manifest
   -> Component instance intent
+  -> Edit constraints
   -> Placement context
   -> GDJS Bridge target expansion
 ```
@@ -320,6 +343,7 @@ Project defaults
 | Thing archetype | role defaults and tags | `Player` inherits archetype `player`, role `hero` |
 | Component compiler manifest | requirements, default placement, emitted actions, component-family parents | `input.jump_button` inherits `input.touch_button`; `system.inventory` inherits `system.storage` + `ui.panel` |
 | Component instance intent | user/LLM overrides | `near=JumpButton direction=left` |
+| Edit constraints | semantic changes against current world facts | `adjust Fox placement above slightly` reads current bounds locally |
 | Placement context | concrete interpretation of direction and pattern | `front` resolves by camera/game type |
 | GDJS Bridge target expansion | target object/event/runtime implementation | touch button -> GDJS object + input binding |
 
@@ -588,6 +612,25 @@ Component manifests have two views:
 
 LLM2 should not see runtime adapter details unless they are intentionally
 summarized as a game-world capability.
+The same boundary applies to iteration context. `ProjectWorld.intent` may store
+component ids, bridge routes, runtime adapter summaries, and emitted target
+counts for audit, but Intent Commander prompts must receive only the
+AI-visible projection owned by `ai/project-world.js`. That projection keeps
+prior safe Intent lines, thing names, relations, natural placements, object
+names, and run summaries; it drops coordinates, GDJS object types, bridge plans,
+runtime adapter ids, component ids, internal contract names, and low-level
+execution commands. Intent repair prompts must follow the same rule. When a
+previous Intent patch contains
+prohibited machine syntax, the repair prompt may say that such a line was
+omitted, but it must not repeat the component id, adapter id, coordinate, or
+target command that caused the failure.
+LLM1 design briefs are natural at their own contract boundary too. Their
+creative object names, roles, rules, controls, and rough placements may guide
+LLM2, but numeric `x/y`, object `width/height`, variable values, and
+implementation-like visual defaults are rejected by the DesignBrief validator.
+Older saved briefs are sanitized into coarse natural placement such as
+`screen bottom-right` before they enter RequirementModel history or Intent
+Commander prompts.
 
 ### AI Manifest
 
@@ -802,6 +845,29 @@ also emits bridge-facing metadata:
 The bridge copies this metadata onto emitted target DSL lines. It must not
 invent a separate route label for semantic group placement.
 
+For semantic edits, the resolver uses the current object bounds from placement
+context or ProjectWorld and produces a planned edit:
+
+```json
+{
+  "subject": "Fox",
+  "dimension": "placement",
+  "direction": "above",
+  "amount": "slightly",
+  "from": { "x": 240, "y": 320, "width": 64, "height": 64 },
+  "resolved": { "x": 240, "y": 304 },
+  "emission": {
+    "mechanism": "semantic-placement-edit-rewrite",
+    "routeId": "semantic-placement-edit",
+    "routeMechanism": "edit-constraint-planner"
+  }
+}
+```
+
+The numbers in `from` and `resolved` are runtime planning facts, not LLM2
+surface. LLM2 should write the semantic edit line; the resolver owns the step
+size, no-overlap policy, and target coordinates.
+
 ## Runtime Bridge Layer
 
 The bridge converts Intent Graph facts into GDJS-owned artifacts. It is
@@ -998,13 +1064,15 @@ Repair should happen at the highest owner that can fix the issue:
 | Unknown intent command | LLM2 Intent repair |
 | Unknown component id | LLM2 Intent repair or component catalog update |
 | Missing target object | Intent compiler if inferable, otherwise LLM2 repair |
-| Unsupported component/module combination | LLM2 repair with compiler diagnostic |
-| Placement overlap or missing anchor | Placement resolver if fallback exists, otherwise LLM2 repair |
+| Unsupported component/module combination | owner-routed compiler/component diagnostic |
+| Placement overlap or missing anchor | Placement resolver if fallback exists, otherwise owner-routed diagnostic |
 | Unsupported GDJS object/behavior/instruction | GDJS bridge or GDevelop truth update |
-| Low-level command execution failure | Internal DSL repair only after bridge owner is ruled out |
+| Low-level command execution failure | bridge/runtime/executor owner; do not ask LLM2 for low-level DSL |
 
-The model should avoid teaching LLM2 to patch low-level GDJS symptoms when the
-component or placement owner is the real cause.
+The model should avoid teaching LLM2 to patch low-level GDJS symptoms. LLM2 may
+repair natural Intent DSL when the diagnostic owner is `llm2-intent`; after
+Intent has compiled to target code, failures stay below the AI surface and are
+handled by the owning compiler, bridge, runtime adapter, or executor layer.
 
 ## Migration Plan
 
@@ -1043,13 +1111,16 @@ component or placement owner is the real cause.
 - Done: support `screen` anchors and safe-area placement first.
 - Done: support object-relative `near <object> <direction>` second.
 - Done: support `trail`, `line`, `stairs`, and `guard` style group patterns.
+- Done: support semantic placement edit constraints such as
+  `adjust Fox placement above slightly`, with local step-size planning and
+  route evidence.
 
 ### Phase E: GDJS bridge
 
 - Done: add `ai/gdjs-bridge.js`.
 - Done: compile product modules, component objects, resolved placement plans,
-  semantic group placements, and runtime adapter requirements into a Bridge
-  Plan with internal DSL.
+  semantic group placements, semantic placement edits, and runtime adapter
+  requirements into a Bridge Plan with internal DSL.
 - Done: generate `intent-runtime.js` from Bridge Plan runtime adapter
   requirements and attach it in the HTML export.
 - Done: add `--intent-dsl-file` fixture entry to the pipeline.
@@ -1066,10 +1137,11 @@ component or placement owner is the real cause.
 - Done: replace the live Module DSL commander surface with Intent DSL.
 - Let Intent Compiler select product modules internally when an intent requires
   `core.*`, `shell.*`, `meta.*`, or `network.*` skeletons.
-- Keep low-level DSL only for bounded internal repair.
-- Update prompts so LLM2 sees component cards, module cards, ProjectWorld, and
-  placement vocabulary; it must not see raw `project.json` or event templates
-  as the normal path.
+- Keep low-level DSL only as bridge/runtime target code, not as an Intent-path
+  LLM2 repair surface.
+- Done: update prompts so LLM2 sees component cards, natural game capability
+  cards, ProjectWorld, and placement/edit vocabulary; it must not see module
+  cards, raw `project.json`, or event templates as the normal path.
 - Remove old prompt examples, fixtures, and docs that teach LLM2 to emit Module
   DSL directly as the primary surface.
 
@@ -1093,6 +1165,8 @@ The refactor is not complete until these can be proven by code/tests:
 - Component catalog validates required/provided capabilities.
 - Placement resolver converts `near/direction/distance/pattern` to coordinates
   with traceability.
+- Placement resolver converts semantic edits such as "up a little" into planned
+  target positions without asking LLM2 for numeric deltas.
 - GDJS bridge compiles Intent Graph into existing internal DSL.
 - Existing Module DSL fixtures still pass.
 - New Intent DSL fixtures produce `project.json`, `code*.js`, and `game.html`.
@@ -1100,6 +1174,8 @@ The refactor is not complete until these can be proven by code/tests:
   internal DSL, and dry-run execution report.
 - LLM2 repair uses owner-routed diagnostics instead of immediately dropping to
   low-level DSL.
+- Intent execution failures do not call LLM2 internal DSL repair; the pipeline
+  records the `ExecutionReport` and routes the issue to the lower-layer owner.
 
 ## Design Principle
 

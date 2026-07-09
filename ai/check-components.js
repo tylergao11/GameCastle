@@ -1,10 +1,67 @@
 var componentCatalog = require('./component-catalog');
+var fs = require('fs');
+var os = require('os');
+var path = require('path');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function writeJson(filePath, value) {
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf8');
+}
+
+function testInternalAliasesStayOutOfPublicIndex() {
+  var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-components-'));
+  try {
+    writeJson(path.join(tempDir, 'internal-base.json'), {
+      schemaVersion: 1,
+      id: 'input.internal_base',
+      kind: 'control',
+      name: 'Internal Base',
+      aiManifest: {
+        summary: 'Internal base control.',
+        aliases: ['secret internal control'],
+        actions: [],
+        safeExamples: [],
+        exposeToLlm2: false
+      },
+      compilerManifest: {
+        componentId: 'input.internal_base',
+        abstract: true,
+        provides: [],
+        requires: [],
+        gdjsBridge: { runtimeAdapters: [] }
+      }
+    });
+    writeJson(path.join(tempDir, 'public-button.json'), {
+      schemaVersion: 1,
+      id: 'input.public_button',
+      kind: 'control',
+      name: 'Public Button',
+      aiManifest: {
+        summary: 'A visible control button.',
+        aliases: ['public button'],
+        actions: [],
+        safeExamples: ['add public button controls Player near screen right']
+      },
+      compilerManifest: {
+        componentId: 'input.public_button',
+        provides: [],
+        requires: [],
+        gdjsBridge: { runtimeAdapters: [] }
+      }
+    });
+    var tempCatalog = componentCatalog.loadComponentCatalog(tempDir);
+    assert(!tempCatalog.byAlias['secret internal control'], 'internal alias fixture must stay out of public byAlias');
+    assert(tempCatalog.byAlias['public button'], 'public alias fixture should remain indexed');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 function main() {
+  testInternalAliasesStayOutOfPublicIndex();
   var catalog = componentCatalog.loadComponentCatalog();
   var ids = catalog.components.map(function(component) { return component.id; }).sort();
   [
@@ -37,6 +94,14 @@ function main() {
     'abstract touch button base should not resolve from LLM2-facing intent'
   );
   assert(
+    !Object.keys(catalog.byAlias).some(function(alias) {
+      return (catalog.byAlias[alias] || []).some(function(component) {
+        return !componentCatalog.isLlm2Exposed(component);
+      });
+    }),
+    'public component alias index must not include internal/abstract components'
+  );
+  assert(
     !componentCatalog.findSystemComponent(catalog, 'storage'),
     'abstract storage base should not resolve from LLM2-facing intent'
   );
@@ -52,7 +117,13 @@ function main() {
   catalog.components.forEach(function(component) {
     var ai = componentCatalog.aiView(component);
     var compiler = componentCatalog.compilerView(component);
-    assert(!ai.componentId, component.id + ' ai view must not expose componentId');
+    if (componentCatalog.isLlm2Exposed(component)) {
+      assert(ai, component.id + ' exposed component should have AI view');
+      assert(!ai.componentId, component.id + ' ai view must not expose componentId');
+      assert(JSON.stringify(ai).indexOf(component.id) < 0, component.id + ' ai view must not expose component id text');
+    } else {
+      assert(ai === null, component.id + ' internal/abstract component should not have LLM2 AI view');
+    }
     assert(compiler.componentId === component.id, component.id + ' compiler view should expose componentId');
     if (compiler.defaultConfig && Object.keys(compiler.defaultConfig).length) {
       assert(compiler.inheritance, component.id + ' compiler view should expose inheritance contract');
@@ -77,6 +148,10 @@ function main() {
   assert(touchBase.compilerManifest.abstract === true, 'touch button base should be internal abstract compiler manifest');
   assert(storageBase.compilerManifest.abstract === true, 'storage base should be internal abstract compiler manifest');
   assert(panelBase.compilerManifest.abstract === true, 'panel base should be internal abstract compiler manifest');
+  assert(componentCatalog.aiView(touchBase) === null, 'touch button base AI view should be hidden from LLM2 callers');
+  assert(componentCatalog.aiView(storageBase) === null, 'storage base AI view should be hidden from LLM2 callers');
+  assert(componentCatalog.aiView(panelBase) === null, 'panel base AI view should be hidden from LLM2 callers');
+  assert(componentCatalog.aiView(jump).safeExamples.indexOf('add jump button controls Player near screen bottom-right') >= 0, 'jump button should keep natural AI example');
   assert(jump.compilerManifest.abstract !== true, 'jump button should remain a concrete control');
   assert(attack.compilerManifest.abstract !== true, 'attack button should remain a concrete control');
   assert(inventory.compilerManifest.abstract !== true, 'inventory should remain a concrete system');
@@ -117,7 +192,17 @@ function main() {
     return expansion.name === 'InventorySlots' && expansion.configKey === 'slots';
   }), 'inventory should inherit slot config expansion for bridge output');
 
-  console.log('[Components] ' + catalog.components.length + ' component manifests passed');
+  var badAiManifest = JSON.parse(JSON.stringify(jump));
+  badAiManifest.aiManifest.actions = ['input.jump_button'];
+  try {
+    componentCatalog.validateManifest(badAiManifest, 'bad-ai-component.json');
+  } catch (error) {
+    assert(error.message.indexOf('prohibited machine/backend form') >= 0, 'AI-facing component card fields should reject machine syntax');
+    console.log('[Components] ' + catalog.components.length + ' component manifests passed');
+    return;
+  }
+  throw new Error('AI-facing component card fields should reject machine syntax');
+
 }
 
 main();

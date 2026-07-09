@@ -4,7 +4,8 @@ var ALLOWED_MECHANISMS = {
   'component-object-expansion': true,
   'component-placement-rewrite': true,
   'component-config-expansion': true,
-  'semantic-group-placement-rewrite': true
+  'semantic-group-placement-rewrite': true,
+  'semantic-placement-edit-rewrite': true
 };
 
 function assertEmission(emission) {

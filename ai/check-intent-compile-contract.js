@@ -42,9 +42,24 @@ function main() {
   var contractSummary = compileContract.assertCompiledIntent(compiled);
   assert.strictEqual(contractSummary.intentCompile, 'passed', 'contract validator should return aggregate summary');
 
+  var editCompiled = intentCompiler.compileIntentDsl('adjust Fox placement above slightly', {
+    placementContext: {
+      objectBounds: {
+        Fox: { x: 240, y: 320, width: 64, height: 64 }
+      }
+    }
+  });
+  assert.strictEqual(editCompiled.contracts.edits, 'passed', 'aggregate Intent contract should validate edit constraints');
+  assert.strictEqual(editCompiled.contracts.graph.edits, 1, 'aggregate Intent contract should count graph edits');
+  assert.strictEqual(editCompiled.contracts.placementPlan.edits, 1, 'aggregate Intent contract should count planned edits');
+
   var missingPlacementRoute = clone(compiled);
   missingPlacementRoute.placementPlan.placements[0].routeEvidence = [];
   assertFails(missingPlacementRoute, 'routeEvidence');
+
+  var numericEdit = clone(editCompiled);
+  numericEdit.graph.edits[0].amount = 8;
+  assertFails(numericEdit, 'semantic');
 
   var missingBridgeContract = clone(compiled);
   delete missingBridgeContract.bridgePlan.contracts.emission;

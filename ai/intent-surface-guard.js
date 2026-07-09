@@ -6,7 +6,11 @@ var RULES_PATH = path.join(__dirname, 'intent-routing-rules.json');
 var PATTERN_CHECKS = {
   'coordinates': [
     /\b[xy]\s*=\s*-?\d+(?:\.\d+)?\b/i,
-    /\bplace\s+at\s+-?\d+(?:\.\d+)?\s*,?\s*-?\d+(?:\.\d+)?\b/i
+    /\bplace\s+at\s+-?\d+(?:\.\d+)?\s*,?\s*-?\d+(?:\.\d+)?\b/i,
+    /\b(?:move|shift|nudge|adjust)\b[^\n]*\b(?:up|down|left|right|above|below|front|behind)\b[^\n]*\b\d+(?:\.\d+)?\s*(?:px|pixels?|units?)\b/i,
+    /(?:往上|往下|往左|往右|向上|向下|向左|向右|上移|下移|左移|右移|前移|后移|後移|上方|下方|左边|右边|左側|右側|左侧|右侧)[^\n]*\d+(?:\.\d+)?\s*(?:px|像素|单位)/i,
+    /\d+(?:\.\d+)?\s*(?:px|像素|单位)[^\n]*(?:往上|往下|往左|往右|向上|向下|向左|向右|上移|下移|左移|右移|前移|后移|後移|上方|下方|左边|右边|左側|右側|左侧|右侧)/i,
+    /\b(?:delta|offset|dx|dy)\s*[:=]?\s*[+-]?\d+(?:\.\d+)?\b/i
   ],
   'event-index': [
     /\bevent\s+index\s+\d+\b/i,
@@ -21,11 +25,13 @@ var PATTERN_CHECKS = {
   ],
   'module-id': [
     /\binstall\s+module\s+id\s*=/i,
-    /\bconfigure\s+module\s+id\s*=/i
+    /\bconfigure\s+module\s+id\s*=/i,
+    /\b(?:core|shell|meta|network)\.[a-z0-9_]+\b/i
   ],
   'component-id': [
     /\badd\s+component\s+id\s*=/i,
-    /\binstall\s+component\s+id\s*=/i
+    /\binstall\s+component\s+id\s*=/i,
+    /\b(?:input|system|movement|ui)\.[a-z0-9_]+\b/i
   ],
   'runtime-adapter': [
     /\bruntime\s+adapter\b/i,

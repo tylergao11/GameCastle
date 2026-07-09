@@ -25,7 +25,7 @@
 
 | `llm-provider.js` | Responses/SSE 文本模型调用边界，负责流式输出、reasoning 可见性和 provider 日志 |
 | `requirement-agent.js` | LLM1/RequirementModel：把用户意图翻译成轻量 design brief |
-| `dsl-agent.js` | LLM2/DSLAgent：Module DSL prompt、Module DSL repair、内部 DSL repair prompt |
+| `dsl-agent.js` | LLM2/DSLAgent: AI-first Intent Commander prompt and Intent repair; Module/Internal repair builders are legacy/internal only |
 | `capabilities.js` | 加载并校验能力卡，派生 LLM1 摘要和 LLM2 编译上下文 |
 | `check-agent-workflow.js` | Agent workflow 自检，防止模型角色再次散落硬编码 |
 | `check-contracts.js` | Multi-agent contract 自检，校验契约类型、owner 路由、repair/cache 字段和 workflow 映射 |
@@ -89,14 +89,22 @@ prompt
   -> output/project-world.json + output/execution-ledger.json
 ```
 
+## AI-first LLM2 Boundary
+
+The live LLM2 product surface is Intent DSL. `dsl-agent.js` owns the Intent
+Commander prompt and Intent repair path. Module DSL and low-level DSL are
+legacy/internal compiler target shapes for explicit fixtures, migration, and
+bounded owner-routed repair only. Capability `dsl.commands/examples` and
+`buildCompilerPromptSection()` are not part of the live Intent prompt surface.
+
 ## Agent Workflow
 
 Agent roles are centralized in `agent-workflow.js`:
 
 - `requirement`: LLM1 / RequirementModel. Default model: `deepseek-v4-flash`.
-- `dsl`: LLM2 / DSLAgent. Default model: `deepseek-v4-flash`.
-- `dslModuleRepair`: repairs Module DSL compile failures and inherits the DSL model.
-- `dslInternalRepair`: repairs failed internal low-level DSL batches and inherits the DSL model.
+- `dsl`: LLM2 / DSLAgent. It writes AI-first Intent DSL from sanitized game-world context. Default model: `deepseek-v4-flash`.
+- `dslIntentRepair`: LLM2 / DSLAgent repair role for AI-first Intent DSL compiler diagnostics. It rewrites natural Intent DSL only and does not see engine target code.
+- `dslInternalRepair`: legacy/internal migration role for failed low-level DSL batches, owned by RuntimeExecutor. The live Intent path does not use it; Intent execution failures route to bridge/runtime/executor owners instead of asking LLM2 for low-level DSL.
 - `imageGeneration`: reserved ImageAgent role for generated or edited assets when repo/cache/variant resolution misses. It is registered but not yet wired into the runtime asset pipeline.
 - `vision`: reserved VisionAgent role for screenshots, references, and generated asset inspection. It is registered but not yet wired into the runtime asset pipeline.
 
@@ -116,7 +124,7 @@ handoffs. It intentionally describes complete runtime-facing payloads instead
 of minimal placeholders:
 
 - `BuildContract`: frozen RequirementModel output before parallel work begins.
-- `ModuleDslPatch`: DSLAgent output containing Module DSL patch text and declared asset slot usage.
+- `ModuleDslPatch`: legacy/internal module patch contract containing Module DSL text and declared asset slot usage; not the live LLM2 product contract after the Intent migration.
 - `AssetManifest`: RuntimeAssetResolver output containing cache/repo/variant/generated/placeholder asset decisions, hashes, dimensions, publishability, and debt state.
 - `AssetReview`: VisionAgent output for visual/semantic asset checks.
 - `AssemblyReport`: RuntimeLinker output after deterministic module/asset binding.
@@ -189,13 +197,15 @@ installing `shell.game_over_screen` fills the `core.platformer` fail slot with
 `scene GameOver`, so composition belongs to runtime/compiler ownership instead
 of LLM1 memory.
 
-The live LLM2 path is also Module DSL first:
+The live LLM2 path is Intent DSL first. Product modules remain compiler truth,
+but LLM2 selects them through natural game intent instead of writing module ids:
 
 ```text
 LLM1 design brief
-  -> LLM2 Module Patch Commander
-  -> Module DSL
-  -> module compiler
+  -> LLM2 Intent Commander
+  -> AI-first Intent DSL
+  -> Intent Graph
+  -> module/component compiler
   -> internal low-level DSL
   -> executor / ProjectWorld / ExecutionLedger
 ```
@@ -221,9 +231,10 @@ commands, but still update `ProjectWorld.modules`, `ExecutionLedger`, and
 
 Module manifests also own fixed interaction contracts. Display parameters such
 as `button` and `hint` may be configurable, but they cannot invent triggers that
-the module runtime does not implement. LLM2 receives those interaction contracts
-as part of the Module DSL reference, and the compiler validates configured copy
-against them before producing any approval packet.
+the module runtime does not implement. LLM2 sees only the natural capability and
+interaction summary while writing Intent DSL; the compiler maps that intent to
+module/component facts and validates configured copy before producing any
+approval packet.
 
 Module-link slots are internal compiler ownership. For example,
 `core.platformer.failAction` is filled by installing `shell.game_over_screen`;
@@ -260,10 +271,11 @@ node ai/pipeline.js --approval-gate "make a platformer with start and game over 
 node ai/pipeline.js --approve-pending
 ```
 
-`--approval-gate` stops after Module DSL compilation and writes
+`--approval-gate` stops after Intent compilation and writes
 `output/pending-approval.json`. The approval packet contains:
 
-- LLM2 Module DSL.
+- LLM2 Intent DSL.
+- Typed Intent Graph, Placement Plan, Bridge Plan, and Compile ResultCard.
 - Compiled internal low-level DSL.
 - Installed module state and network manifest.
 - Dry-run preview: `nextAction`, predicted semantic hash, cache-hit status, and
@@ -287,8 +299,9 @@ prompt / iteration request
   -> project state summary
   -> lightweight creative context
   -> LLM1 creative design intent
-  -> module capability catalog for compiler
-  -> LLM2 deterministic DSL patch
+  -> sanitized ProjectWorld and AI-first capability cards
+  -> LLM2 natural Intent DSL patch
+  -> Intent Graph / Resolver / Compiler / Bridge
   -> typed operation executor
   -> versioned project state
   -> runnable build

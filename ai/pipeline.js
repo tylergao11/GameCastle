@@ -6,6 +6,7 @@ var path = require("path");
 var crypto = require("crypto");
 var capabilities = require("./capabilities");
 var projectWorld = require("./project-world");
+var pipelineState = require("./pipeline-state");
 var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
 var htmlExporter = require("./html-exporter");
@@ -19,6 +20,7 @@ var requirementAgent = require("./requirement-agent");
 var dslAgent = require("./dsl-agent");
 var llmProvider = require("./llm-provider");
 var intentCompiler = require("./intent-compiler");
+var intentPipelineGraph = require("./intent-pipeline-graph");
 
 var STATE_DIR = path.join(__dirname, "..", "output");
 var LOG_PATH = path.join(STATE_DIR, "pipeline.log");
@@ -38,6 +40,7 @@ var HTML_EXPORT_MANIFEST_PATH = path.join(STATE_DIR, "html-export-manifest.json"
 var NETWORK_MANIFEST_PATH = path.join(STATE_DIR, "network-manifest.json");
 var INTENT_RUNTIME_REQUIREMENTS_PATH = path.join(STATE_DIR, "intent-runtime-requirements.json");
 var PENDING_APPROVAL_PATH = path.join(STATE_DIR, "pending-approval.json");
+var PIPELINE_STATE_PATH = path.join(STATE_DIR, "pipeline-state.json");
 var MAX_LLM2_REPAIR_ROUNDS = 2;
 var MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS = 2;
 var MAX_LLM2_INTENT_COMPILE_REPAIR_ROUNDS = 2;
@@ -776,13 +779,25 @@ function diffDesignBriefs(oldBrief, newBrief) {
     });
   }
 
+  function placementKey(p) {
+    if (!p) return '';
+    return [
+      p.object || '',
+      p.anchor || p.near || '',
+      p.direction || '',
+      p.pattern || '',
+      p.count || '',
+      p.x !== undefined ? 'legacyX:' + p.x : '',
+      p.y !== undefined ? 'legacyY:' + p.y : ''
+    ].join('|');
+  }
   var oldPlaced = (oldBrief.layout&&oldBrief.layout.placements||[]).map(function(p){return p.object;});
   var newPlaced = (newBrief.layout&&newBrief.layout.placements||[]).map(function(p){return p.object;});
   (newBrief.layout&&newBrief.layout.placements||[]).forEach(function(p){ if (oldPlaced.indexOf(p.object)<0) diff.added.placements.push(p); });
   (oldBrief.layout&&oldBrief.layout.placements||[]).forEach(function(p){ if (newPlaced.indexOf(p.object)<0) diff.removed.placements.push(p); });
   (newBrief.layout&&newBrief.layout.placements||[]).forEach(function(newP){
     var oldP = (oldBrief.layout&&oldBrief.layout.placements||[]).find(function(p){return p.object===newP.object;});
-    if (oldP && (oldP.x!==newP.x || oldP.y!==newP.y))
+    if (oldP && placementKey(oldP) !== placementKey(newP))
       diff.modified.placements.push({object:newP.object, old:oldP, new:newP});
   });
 
@@ -996,13 +1011,59 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   projectWorld.appendExecutionReport(STATE_DIR, report);
   console.log('[ProjectWorld] v' + world.worldVersion + ' ' + world.semanticHash + ' -> ' + projectWorld.getWorldPath(STATE_DIR));
   console.log('[ExecutionReport] ' + report.summary.nextAction + ' ' + report.summary.completed + '/' + report.summary.total + ' -> ' + projectWorld.getLedgerPath(STATE_DIR));
+  var state = null;
+  if (options.intent) {
+    state = await makeIntentPipelineStateFromGraph({
+      mode: options.projectMode,
+      batchLabel: batchLabel,
+      patchKind: options.intent.patchKind || 'intent',
+      userRequest: options.userRequest,
+      designBrief: options.designBrief,
+      diff: options.diff,
+      intentDslText: options.intent.intentDslText,
+      intentGraph: options.intent.intentGraph,
+      placementPlan: options.intent.placementPlan,
+      bridgePlan: options.intent.bridgePlan,
+      intentContracts: options.intent.intentContracts,
+      compileResultCard: options.intent.compileResultCard,
+      internalDslText: dslText,
+      executionReport: report,
+      projectWorld: world,
+    });
+    var statePath = savePipelineState(state);
+    console.log('[PipelineState] ' + state.stateKind + ' graphTrace=' + state.graphTrace.length + ' -> ' + statePath);
+  }
 
   return {
     dslText: dslText,
     dslLines: dslLines,
     report: report,
     world: world,
+    pipelineState: state,
   };
+}
+
+function shouldUseLlmInternalExecutionRepair(options) {
+  options = options || {};
+  return !options.compiledIntentPatch &&
+    !options.useMock &&
+    !!options.designBrief &&
+    !!options.llm2SystemPrompt;
+}
+
+function makeIntentPipelineState(options) {
+  var state = pipelineState.createPipelineState(options || {});
+  pipelineState.validatePipelineState(state);
+  return state;
+}
+
+async function makeIntentPipelineStateFromGraph(options) {
+  return intentPipelineGraph.makePipelineStateFromArtifacts(options || {});
+}
+
+function savePipelineState(state) {
+  saveJsonFile(PIPELINE_STATE_PATH, state);
+  return PIPELINE_STATE_PATH;
 }
 
 function makeApprovalSummary(options) {
@@ -1062,6 +1123,45 @@ function makeApprovalSummary(options) {
   };
 }
 
+function makeApprovalAiVisibleProjection(state, options) {
+  options = options || {};
+  var projection = {
+    surface: 'llm2-intent',
+    note: 'AI-visible approval projection. Use this for LLM2 or agent review; do not pass the full pending approval packet.',
+    nodeInput: state && state.llm2 ? state.llm2.nodeInput : null,
+    review: {
+      patchKind: options.patchKind || null,
+      mode: options.projectMode || null,
+      batchLabel: options.batchLabel || null,
+      intentDslLineCount: String(options.intentDslText || '').split(/\r?\n/).filter(function(line) {
+        return line.trim() && line.trim()[0] !== '#';
+      }).length,
+      intentGraph: options.intentGraph ? {
+        things: (options.intentGraph.things || []).length,
+        components: (options.intentGraph.components || []).length,
+        relations: (options.intentGraph.relations || []).length,
+        placements: (options.intentGraph.placements || []).length,
+        edits: (options.intentGraph.edits || []).length,
+        diagnostics: (options.intentGraph.diagnostics || []).length,
+      } : null,
+      placement: options.placementPlan ? {
+        placements: (options.placementPlan.placements || []).length,
+        edits: (((options.placementPlan.editPlan || {}).edits) || []).length,
+        diagnostics: (options.placementPlan.diagnostics || []).length,
+      } : null,
+      executionPreview: options.preview ? {
+        total: options.preview.total,
+        completed: options.preview.completed,
+        failed: options.preview.failed,
+        nextAction: options.preview.nextAction,
+        cacheHit: !!options.preview.cacheHit,
+      } : null,
+    },
+  };
+  pipelineState.assertNoProhibitedAiVisibleSurface(projection, 'approval.aiVisibleForLlm2');
+  return projection;
+}
+
 async function previewApprovalPatch(project, dslText, options) {
   options = options || {};
   var intentArtifacts = options.intent ? Object.assign({}, options.intent, {
@@ -1098,6 +1198,7 @@ async function previewApprovalPatch(project, dslText, options) {
     nextAction: failed.length ? 'repair' : 'done',
     predictedWorldVersion: previewWorld.worldVersion,
     predictedSemanticHash: previewWorld.semanticHash,
+    projectWorld: previewWorld,
     baseSemanticHash: options.baseWorld ? options.baseWorld.semanticHash : null,
     cacheHit: !!(options.baseWorld && options.baseWorld.semanticHash === previewWorld.semanticHash),
     commandResults: commandResults,
@@ -1121,6 +1222,26 @@ async function makePendingApprovalPacket(options) {
       runtimeAdapterRequirements: options.runtimeAdapterRequirements,
     } : null,
   });
+  var stateOptions = {
+    mode: options.projectMode,
+    batchLabel: options.batchLabel,
+    patchKind: options.patchKind,
+    userRequest: options.prompt,
+    designBrief: options.designBrief,
+    diff: options.diff,
+    intentDslText: options.intentDslText,
+    intentGraph: options.intentGraph,
+    placementPlan: options.placementPlan,
+    bridgePlan: options.bridgePlan,
+    intentContracts: options.intentContracts,
+    compileResultCard: options.compileResultCard,
+    internalDslText: options.dslText,
+    projectWorld: preview.projectWorld,
+  };
+  var state = options.patchKind === 'intent'
+    ? await makeIntentPipelineStateFromGraph(stateOptions)
+    : makeIntentPipelineState(stateOptions);
+  var aiVisibleForLlm2 = makeApprovalAiVisibleProjection(state, Object.assign({}, options, { preview: preview }));
   return {
     schemaVersion: 1,
     createdAt: new Date().toISOString(),
@@ -1149,6 +1270,8 @@ async function makePendingApprovalPacket(options) {
     designBrief: options.designBrief || null,
     diff: options.diff || null,
     preview: preview,
+    pipelineState: state,
+    aiVisibleForLlm2: aiVisibleForLlm2,
     summary: makeApprovalSummary(Object.assign({}, options, { preview: preview })),
   };
 }
@@ -1187,6 +1310,10 @@ async function approvePendingPatch() {
   }
 
   var batch = await executeDslBatch(project, pending.dslText || '', pending.batchLabel || 'apply', {
+    projectMode: pending.projectMode,
+    userRequest: pending.prompt,
+    designBrief: pending.designBrief,
+    diff: pending.diff,
     modules: pending.modules,
     networkManifest: pending.networkManifest,
     runtimeAdapterRequirements: pending.runtimeAdapterRequirements,
@@ -1423,6 +1550,10 @@ async function run(prompt, useMock) {
   }
 
   var batch = await executeDslBatch(project, dslText, batchLabel, {
+    projectMode: projectMode,
+    userRequest: prompt,
+    designBrief: designBrief,
+    diff: diff,
     modules: compiledIntentPatch ? compiledIntentPatch.bridgePlan.installedModules : (compiledModulePatch && compiledModulePatch.installedModules),
     networkManifest: compiledIntentPatch ? compiledIntentPatch.bridgePlan.networkManifest : (compiledModulePatch && compiledModulePatch.networkManifest),
     runtimeAdapterRequirements: compiledIntentPatch ? compiledIntentPatch.bridgePlan.runtimeAdapterRequirements : (compiledModulePatch && compiledModulePatch.runtimeAdapterRequirements),
@@ -1439,7 +1570,15 @@ async function run(prompt, useMock) {
     allowEmpty: !!(compiledModulePatch || compiledIntentPatch),
   });
 
-  if (!useMock && designBrief && llm2SystemPrompt) {
+  if (compiledIntentPatch && batch.report.summary.nextAction === 'repair') {
+    console.error('[Repair] Intent execution failed in the runtime/bridge layer. LLM2 internal DSL repair is disabled; see ' + projectWorld.getLedgerPath(STATE_DIR));
+    process.exitCode = 1;
+  } else if (shouldUseLlmInternalExecutionRepair({
+    useMock: useMock,
+    designBrief: designBrief,
+    llm2SystemPrompt: llm2SystemPrompt,
+    compiledIntentPatch: compiledIntentPatch,
+  })) {
     for (var repairRound = 1; repairRound <= MAX_LLM2_REPAIR_ROUNDS && batch.report.summary.nextAction === 'repair'; repairRound++) {
       console.log('[Repair] LLM2 repair round ' + repairRound + '/' + MAX_LLM2_REPAIR_ROUNDS);
       var repairPrompt = dslAgent.buildInternalExecutionRepairPrompt({
@@ -1492,8 +1631,11 @@ if (require.main === module) {
 module.exports = {
   parseDSL: parseDSL,
   execute: execute,
+  executeDslBatch: executeDslBatch,
+  shouldUseLlmInternalExecutionRepair: shouldUseLlmInternalExecutionRepair,
   emptyProject: emptyProject,
   previewApprovalPatch: previewApprovalPatch,
   makeApprovalSummary: makeApprovalSummary,
-  makePendingApprovalPacket: makePendingApprovalPacket
+  makePendingApprovalPacket: makePendingApprovalPacket,
+  diffDesignBriefs: diffDesignBriefs
 };

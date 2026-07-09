@@ -3,6 +3,7 @@ var fs = require('fs');
 var path = require('path');
 
 var intentCompiler = require('./intent-compiler');
+var intentPipelineGraph = require('./intent-pipeline-graph');
 var pipeline = require('./pipeline');
 
 async function main() {
@@ -57,6 +58,48 @@ async function main() {
   assert(packet.runtimeAdapterRequirements.length >= 5, 'approval packet should include runtime adapter requirements');
   assert(packet.preview && packet.preview.nextAction === 'done', 'approval packet should include dry-run preview');
   assert(packet.preview.commandResults.length === packet.dslLines.length, 'dry-run preview should include command result for every internal DSL line');
+  assert(packet.pipelineState && packet.pipelineState.stateKind === 'gamecastle-ai-first-intent-pipeline', 'approval packet should include graph-ready PipelineState');
+  assert.deepStrictEqual(
+    packet.pipelineState.graphTrace.map(function(item) { return item.node; }),
+    intentPipelineGraph.INTENT_PIPELINE_NODE_SEQUENCE,
+    'approval PipelineState should be assembled through canonical Intent graph order'
+  );
+  assert(packet.pipelineState.llm2.nodeInput, 'PipelineState should include LLM2 node input projection');
+  assert(packet.pipelineState.llm2.sanitizedWorldContext.projectWorld, 'PipelineState should include LLM2-safe world context');
+  assert(packet.pipelineState.bridge.summary.internalDslLines === packet.dslLines.length, 'PipelineState should summarize bridge target lines');
+  assert(packet.aiVisibleForLlm2, 'approval packet should include explicit LLM2-safe projection');
+  assert.strictEqual(packet.aiVisibleForLlm2.surface, 'llm2-intent', 'approval AI projection should name the Intent surface');
+  assert(packet.aiVisibleForLlm2.nodeInput, 'approval AI projection should reuse PipelineState LLM2 node input');
+  assert.strictEqual(
+    packet.aiVisibleForLlm2.review.executionPreview.nextAction,
+    'done',
+    'approval AI projection should include safe runtime preview status'
+  );
+  var safeStateJson = JSON.stringify(packet.pipelineState.llm2.nodeInput);
+  assert(safeStateJson.indexOf('bridgePlan') < 0, 'PipelineState LLM2 context must not leak bridgePlan');
+  assert(safeStateJson.indexOf('runtimeAdapterRequirements') < 0, 'PipelineState LLM2 context must not leak runtime adapter requirements');
+  assert(safeStateJson.indexOf('componentId') < 0, 'PipelineState LLM2 context must not leak component ids');
+  var approvalAiJson = JSON.stringify(packet.aiVisibleForLlm2);
+  [
+    'bridgePlan',
+    'runtimeAdapterRequirements',
+    'componentId',
+    'input.jump_button',
+    'gdjs',
+    'PrimitiveDrawing',
+    'create scene',
+    'create object',
+    'set placement object=',
+    '"x"',
+    '"y"',
+    'dslLines',
+    'internalDsl',
+    'runtimePreview',
+  ].forEach(function(token) {
+    assert(approvalAiJson.indexOf(token) < 0, 'approval AI projection must not expose ' + token);
+  });
+  assert(approvalAiJson.indexOf('make a mobile platformer') >= 0, 'approval AI projection should preserve safe request');
+  assert(approvalAiJson.indexOf('bottom-left') >= 0, 'approval AI projection should preserve natural placement');
 
   assert(packet.summary.intentDslLineCount >= 5, 'summary should count Intent DSL lines');
   assert(packet.summary.intentGraph.components >= 4, 'summary should count Intent Graph components');

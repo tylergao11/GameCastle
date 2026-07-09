@@ -32,7 +32,7 @@
 
 ## Phase 3: 可反复迭代的项目状态
 
-- [ ] AI-first Intent refactor: make Intent DSL the only live LLM2 product surface; do not keep Module DSL as a parallel compatibility path
+- [x] AI-first Intent refactor: make Intent DSL the only live LLM2 product surface; do not keep Module DSL as a parallel compatibility path
 - [x] Add `ai/intent-dsl.js`: parse natural Intent DSL into an AST that rejects coordinates, event indexes, GDJS instruction names, module ids, component ids, runtime adapter names, and `key=value` machine fields in the LLM2 surface
 - [x] Add `ai/intent-compiler.js`: compile Intent AST into a typed Intent Graph with things, components, relations, placements, semantic values, bindings, requirements, and diagnostics
 - [x] Add `ai/components/` component library schema and first manifests with split AI Manifest and Compiler Manifest views: virtual joystick, jump button, attack button, inventory
@@ -48,6 +48,7 @@
 - [x] Add `ai/placement-resolver.js`: implement the Placement Contract, resolving `near/direction/distance/pattern` with screen/world/camera/object context and traceability
 - [x] Add Placement Resolution Contract: resolved placements carry route evidence for safe-area placement, UI overlap avoidance, object-relative placement, contextual direction rewrite, and semantic pattern placement
 - [x] Add semantic placement emission metadata: pattern/group placements carry bridge emission evidence from the Placement Plan instead of hard-coded bridge route labels
+- [x] Add semantic placement edit constraints: LLM2 can say `adjust Fox placement above slightly`, while placement resolver and GDJS bridge own numeric step planning and target emission
 - [x] Add `ai/gdjs-bridge.js`: compile Intent Graph and placement plan into internal low-level DSL and runtime adapter requirements
 - [x] Add GDJS Bridge Emission Contract: every emitted internal DSL target line carries owner/source/mechanism and optional route evidence
 - [x] Add Runtime Adapter Requirement Contract: adapter needs carry runtime owner/source/mechanism/route evidence for touch controls and inventory systems
@@ -60,6 +61,16 @@
 - [x] Enforce Intent compile repair routing: parser/surface errors may use LLM2 repair, but system-owner diagnostics fail fast instead of leaking into LLM2 repair
 - [x] Update approval gate to include Intent DSL, typed Intent Graph, Bridge Plan, aggregate Intent compile contract, Compile ResultCard, compiled internal DSL, runtime adapter requirements, and dry-run command results
 - [x] Store AI-first Intent, aggregate compile contract, and GDJS Bridge summaries in `ProjectWorld` and `ExecutionReport`, while keeping raw Intent wording out of `semanticHash`
+- [x] Sanitize ProjectWorld/ExecutionReport before Intent Commander prompts so LLM2 sees game-world planning context instead of component ids, runtime adapter ids, coordinates, bridge plans, or target DSL commands
+- [x] Sanitize Intent repair prompts so prohibited machine-syntax lines are omitted instead of being repeated back to LLM2
+- [x] Sanitize LLM1 design briefs and diffs before Intent Commander prompts so coordinates, object sizes, variable values, and implementation defaults become natural game-world planning hints
+- [x] Move RequirementModel DesignBrief contract to natural placement hints and reject coordinates, object sizes, implementation colors, and runtime variable values at validation time
+- [x] Add a LangGraph-friendly `PipelineState` contract that separates internal graph slots from the LLM2-safe ProjectWorld projection, without introducing a LangGraph runtime dependency yet
+- [x] Add a dependency-free LangGraph adapter boundary that wraps `PipelineState` as a graph channel and forces every node through contract-bound view/patch access before real LangGraph runtime adoption
+- [x] Add canonical `ai/intent-pipeline-graph.js` owner order and graph entry that can run local async handlers or generate contract-bound LangGraph nodes
+- [x] Route live Intent approval/runtime PipelineState assembly through canonical graph-owned artifact replay and persist five-node `graphTrace` evidence
+- [x] Add runtime Intent fulfillment validation so ExecutionReport checks world-level things/components/placements/edits instead of treating command success alone as done
+- [x] Add unified `ai/check-ai-visible-boundary.js` gate for prompts, sanitizers, PipelineState views, graph views, and approval AI projections
 - [ ] Finish migrating stale docs and approval surfaces from Module DSL primary examples to Intent DSL primary examples; stale primary forms fail fast
 - [ ] 完整建立项目状态模型，区分 design brief、module graph、DSL patch、ProjectWorld、project.json
 - [ ] 支持用户连续修改，例如“再难一点”“加入 Boss”“改成双人”

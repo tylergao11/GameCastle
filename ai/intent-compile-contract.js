@@ -1,6 +1,7 @@
 var intentSurfaceGuard = require('./intent-surface-guard');
 var diagnosticRouter = require('./intent-diagnostic-router');
 var rewriteContract = require('./intent-rewrite-contract');
+var editContract = require('./edit-constraint-contract');
 var placementContract = require('./placement-resolution-contract');
 var emissionContract = require('./gdjs-bridge-emission-contract');
 var runtimeAdapterContract = require('./runtime-adapter-requirement-contract');
@@ -38,6 +39,7 @@ function assertCompiledIntent(compiled, options) {
   assertInputSurface(compiled.resultCard, rules);
   diagnosticRouter.assertAllRouted(collectDiagnostics(compiled));
   rewriteContract.assertResultCardRewrites(compiled.resultCard, { rules: rules });
+  editContract.assertGraph(compiled.graph);
   placementContract.assertPlan(compiled.placementPlan);
   emissionContract.assertPlan(compiled.bridgePlan);
   runtimeAdapterContract.assertRequirements(compiled.bridgePlan.runtimeAdapterRequirements);
@@ -57,6 +59,7 @@ function makeContractSummary(compiled) {
     resultCard: 'passed',
     diagnostics: 'passed',
     rewrites: 'passed',
+    edits: 'passed',
     placement: 'passed',
     bridgeEmission: 'passed',
     runtimeAdapters: 'passed',
@@ -65,11 +68,13 @@ function makeContractSummary(compiled) {
       components: (compiled.graph.components || []).length,
       relations: (compiled.graph.relations || []).length,
       placements: (compiled.graph.placements || []).length,
+      edits: (compiled.graph.edits || []).length,
       bindings: (compiled.graph.bindings || []).length,
       diagnostics: (compiled.graph.diagnostics || []).length
     },
     placementPlan: {
       placements: (compiled.placementPlan.placements || []).length,
+      edits: (((compiled.placementPlan.editPlan || {}).edits) || []).length,
       diagnostics: (compiled.placementPlan.diagnostics || []).length
     },
     bridgePlan: {

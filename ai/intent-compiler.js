@@ -42,6 +42,7 @@ function createEmptyGraph() {
     components: [],
     relations: [],
     placements: [],
+    edits: [],
     values: [],
     bindings: [],
     requirements: [],
@@ -411,12 +412,40 @@ function processPlaceGroup(state, command) {
   });
 }
 
+function processAdjust(state, command) {
+  var thing = addThing(state, command.subject, inferThingArchetype(command.subject), undefined, command.raw, 'edit subject referenced');
+  if (command.dimension !== 'placement') {
+    addDiagnostic(state, 'Build Edit Constraints', 'unsupported-edit-dimension', 'new-reusable-game-system', 'Unsupported edit dimension: ' + command.dimension, thing.name);
+    return;
+  }
+  var edit = {
+    kind: 'editConstraint',
+    subject: thing.name,
+    dimension: 'placement',
+    operator: 'nudge',
+    direction: command.direction === 'up' ? 'above' : (command.direction === 'down' ? 'below' : command.direction),
+    amount: command.amount || 'slightly',
+    anchor: 'current',
+    preserve: ['visible', 'sameScene', 'sameLayer', 'noOverlapWorse', 'keepExistingRelations'],
+    owner: 'placement-resolver',
+    source: command.raw
+  };
+  state.graph.edits.push(edit);
+  state.resultCard.resolved.push({
+    subject: thing.name,
+    edit: edit.dimension + '.' + edit.direction,
+    amount: edit.amount,
+    owner: edit.owner
+  });
+}
+
 function emitGraphFacts(state, placementPlan, bridgePlan) {
   state.resultCard.emitted = [
     'intent graph things=' + state.graph.things.length,
     'intent graph components=' + state.graph.components.length,
     'intent graph relations=' + state.graph.relations.length,
     'intent graph placements=' + state.graph.placements.length,
+    'intent graph edits=' + state.graph.edits.length,
     'intent graph bindings=' + state.graph.bindings.length,
     'placement plan placements=' + (placementPlan ? placementPlan.placements.length : 0),
     'bridge plan internalDslLines=' + (bridgePlan ? bridgePlan.dslLines.length : 0),
@@ -434,6 +463,7 @@ function compileIntentAst(ast, options) {
   recordTrace(state, 'Parse', 'intent-dsl');
   recordTrace(state, 'Resolve Symbols', 'intent-compiler');
   recordTrace(state, 'Build Intent Graph', 'intent-compiler');
+  recordTrace(state, 'Build Edit Constraints', 'intent-compiler');
   recordTrace(state, 'Validate Requirements', 'intent-compiler');
   recordTrace(state, 'Fill Defaults', 'intent-compiler');
 
@@ -443,6 +473,7 @@ function compileIntentAst(ast, options) {
     else if (command.kind === 'addControl') processAddControl(state, command);
     else if (command.kind === 'addInventory') processAddInventory(state, command);
     else if (command.kind === 'placeGroup') processPlaceGroup(state, command);
+    else if (command.kind === 'adjust') processAdjust(state, command);
     else addDiagnostic(state, 'Build Intent Graph', 'unsupported-command', null, 'Unsupported AST command: ' + command.kind);
   });
 

@@ -39,7 +39,9 @@
           "enum": [
             "RequirementModel",
             "DSLAgent",
+            "ModuleCompiler",
             "RuntimeAssetResolver",
+            "RuntimeExecutor",
             "ImageAgent",
             "VisionAgent",
             "RuntimeLinker",
@@ -818,7 +820,9 @@
                     "type": "string",
                     "enum": [
                       "DSLAgent",
+                      "ModuleCompiler",
                       "RuntimeAssetResolver",
+                      "RuntimeExecutor",
                       "ImageAgent",
                       "VisionAgent"
                     ]
@@ -936,7 +940,9 @@
                 "enum": [
                   "RequirementModel",
                   "DSLAgent",
+                  "ModuleCompiler",
                   "RuntimeAssetResolver",
+                  "RuntimeExecutor",
                   "ImageAgent",
                   "VisionAgent",
                   "RuntimeLinker"
@@ -951,7 +957,7 @@
     },
     "ModuleDslPatch": {
       "type": "object",
-      "x-contractOwner": "DSLAgent",
+      "x-contractOwner": "ModuleCompiler",
       "required": [
         "meta",
         "buildContractId",
@@ -1512,7 +1518,9 @@
                 "enum": [
                   "RequirementModel",
                   "DSLAgent",
+                  "ModuleCompiler",
                   "RuntimeAssetResolver",
+                  "RuntimeExecutor",
                   "ImageAgent",
                   "VisionAgent",
                   "RuntimeLinker"
@@ -1600,7 +1608,9 @@
                 "enum": [
                   "RequirementModel",
                   "DSLAgent",
+                  "ModuleCompiler",
                   "RuntimeAssetResolver",
+                  "RuntimeExecutor",
                   "ImageAgent",
                   "VisionAgent",
                   "RuntimeLinker",

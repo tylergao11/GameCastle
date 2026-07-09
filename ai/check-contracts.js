@@ -181,6 +181,7 @@ function main() {
     'declaredAssetSlots',
     'expectedOutputs',
   ]);
+  assert(modulePatch['x-contractOwner'] === 'ModuleCompiler', 'ModuleDslPatch must be owned by ModuleCompiler, not the live DSLAgent surface');
 
   var assetManifest = requireObjectDef(schema, 'AssetManifest');
   requireRequiredFields(assetManifest, 'AssetManifest', ['meta', 'buildContractId', 'assets', 'summary']);

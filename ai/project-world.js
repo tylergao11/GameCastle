@@ -1,6 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
+var intentSurfaceGuard = require('./intent-surface-guard');
 
 var WORLD_SCHEMA_VERSION = 1;
 var LEDGER_SCHEMA_VERSION = 1;
@@ -36,6 +37,180 @@ function clone(value) {
 
 function compactList(list, mapper) {
   return (list || []).map(mapper).filter(Boolean);
+}
+
+function sanitizeIntentTextField(value) {
+  if (value === undefined || value === null) return null;
+  var text = String(value).trim();
+  if (!text) return null;
+  if (intentSurfaceGuard.detectProhibitedSurface(text).length) return null;
+  return text;
+}
+
+function sanitizeIntentTextList(list) {
+  return compactList(list, sanitizeIntentTextField);
+}
+
+function sanitizeIntentParamObject(params) {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) return undefined;
+  var result = {};
+  Object.keys(params).forEach(function(key) {
+    var safeKey = sanitizeIntentTextField(key);
+    if (!safeKey) return;
+    var value = params[key];
+    if (value === undefined || value === null) return;
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      result[safeKey] = value;
+      return;
+    }
+    var safeValue = sanitizeIntentTextField(value);
+    if (safeValue) result[safeKey] = safeValue;
+  });
+  return Object.keys(result).length ? result : undefined;
+}
+
+function sanitizeIntentDslLinesForPrompt(lines) {
+  return (lines || []).map(function(line) {
+    line = String(line || '').trim();
+    if (!line) return null;
+    if (intentSurfaceGuard.detectProhibitedSurface(line).length) return null;
+    return line;
+  }).filter(Boolean);
+}
+
+function sanitizeIntentGraphCountsForPrompt(counts) {
+  if (!counts || typeof counts !== 'object') return null;
+  var result = {};
+  ['things', 'relations', 'placements', 'edits', 'bindings'].forEach(function(key) {
+    if (typeof counts[key] === 'number') result[key] = counts[key];
+  });
+  return Object.keys(result).length ? result : null;
+}
+
+function sanitizeIntentSummaryForPrompt(intent) {
+  if (!intent) return null;
+  return {
+    lastIntentDslLines: sanitizeIntentDslLinesForPrompt(intent.intentDslLines).slice(-12),
+    contractStatus: intent.contracts ? 'passed' : null,
+    counts: intent.intentGraph && intent.intentGraph.counts ? sanitizeIntentGraphCountsForPrompt(intent.intentGraph.counts) : null,
+    things: intent.intentGraph ? compactList(intent.intentGraph.things, function(thing) {
+      var name = sanitizeIntentTextField(thing.name);
+      if (!name) return null;
+      return {
+        name: name,
+        archetype: sanitizeIntentTextField(thing.archetype),
+        role: sanitizeIntentTextField(thing.role),
+      };
+    }) : [],
+    relations: intent.intentGraph ? compactList(intent.intentGraph.relations, function(relation) {
+      var type = sanitizeIntentTextField(relation.type);
+      if (!type) return null;
+      return {
+        type: type,
+        from: sanitizeIntentTextField(relation.from),
+        to: sanitizeIntentTextField(relation.to),
+        params: sanitizeIntentParamObject(relation.params),
+      };
+    }) : [],
+    placements: intent.intentGraph ? compactList(intent.intentGraph.placements, function(placement) {
+      var subject = sanitizeIntentTextField(placement.subject);
+      if (!subject) return null;
+      return {
+        subject: subject,
+        anchor: sanitizeIntentTextField(placement.anchor),
+        direction: sanitizeIntentTextField(placement.direction),
+        pattern: sanitizeIntentTextField(placement.pattern),
+        count: typeof placement.count === 'number' ? placement.count : undefined,
+      };
+    }) : [],
+    edits: intent.intentGraph ? compactList(intent.intentGraph.edits, function(edit) {
+      var subject = sanitizeIntentTextField(edit.subject);
+      if (!subject) return null;
+      return {
+        subject: subject,
+        dimension: sanitizeIntentTextField(edit.dimension),
+        operator: sanitizeIntentTextField(edit.operator),
+        direction: sanitizeIntentTextField(edit.direction),
+        amount: sanitizeIntentTextField(edit.amount),
+        anchor: sanitizeIntentTextField(edit.anchor),
+      };
+    }) : [],
+  };
+}
+
+function sanitizeProjectWorldForIntentPrompt(world) {
+  if (!world) return null;
+  return {
+    project: world.project ? {
+      name: sanitizeIntentTextField(world.project.name),
+      firstScene: sanitizeIntentTextField(world.project.firstScene),
+    } : null,
+    scenes: compactList(world.scenes, function(scene) {
+      var sceneName = sanitizeIntentTextField(scene.name);
+      if (!sceneName) return null;
+      return {
+        name: sceneName,
+        things: compactList(scene.objects, function(object) {
+          var name = sanitizeIntentTextField(object.name);
+          if (!name) return null;
+          return {
+            name: name,
+            text: sanitizeIntentTextField(object.text) || undefined,
+          };
+        }),
+        placedThings: compactList(scene.instances, function(instance) {
+          var object = sanitizeIntentTextField(instance.object);
+          if (!object) return null;
+          return {
+            object: object,
+          };
+        }),
+      };
+    }),
+    sharedThings: compactList(world.globalObjects, function(object) {
+      var name = sanitizeIntentTextField(object.name);
+      if (!name) return null;
+      return {
+        name: name,
+        text: sanitizeIntentTextField(object.text) || undefined,
+      };
+    }),
+    gameState: compactList(world.globalVariables, function(variable) {
+      var name = sanitizeIntentTextField(variable.name);
+      if (!name) return null;
+      return {
+        name: name,
+      };
+    }),
+    intent: sanitizeIntentSummaryForPrompt(world.intent),
+  };
+}
+
+function sanitizeExecutionSummaryForIntentPrompt(summary) {
+  if (!summary) return null;
+  return {
+    total: typeof summary.total === 'number' ? summary.total : null,
+    completed: typeof summary.completed === 'number' ? summary.completed : null,
+    failed: typeof summary.failed === 'number' ? summary.failed : null,
+    nextAction: sanitizeIntentTextField(summary.nextAction),
+    intentFulfillment: summary.intentFulfillment ? {
+      status: sanitizeIntentTextField(summary.intentFulfillment.status),
+      total: typeof summary.intentFulfillment.total === 'number' ? summary.intentFulfillment.total : null,
+      fulfilled: typeof summary.intentFulfillment.fulfilled === 'number' ? summary.intentFulfillment.fulfilled : null,
+      missing: typeof summary.intentFulfillment.missing === 'number' ? summary.intentFulfillment.missing : null,
+      nextAction: sanitizeIntentTextField(summary.intentFulfillment.nextAction),
+    } : null,
+  };
+}
+
+function sanitizeExecutionReportForIntentPrompt(report) {
+  if (!report) return null;
+  return {
+    runId: sanitizeIntentTextField(report.runId),
+    batchLabel: sanitizeIntentTextField(report.batchLabel),
+    summary: sanitizeExecutionSummaryForIntentPrompt(report.summary),
+    intent: sanitizeIntentSummaryForPrompt(report.intent),
+  };
 }
 
 function normalizeDslLines(textOrLines) {
@@ -100,6 +275,7 @@ function summarizeIntentArtifacts(options) {
         components: (intentGraph.components || []).length,
         relations: (intentGraph.relations || []).length,
         placements: (intentGraph.placements || []).length,
+        edits: (intentGraph.edits || []).length,
         bindings: (intentGraph.bindings || []).length,
         requirements: (intentGraph.requirements || []).length,
         diagnostics: (intentGraph.diagnostics || []).length,
@@ -136,6 +312,17 @@ function summarizeIntentArtifacts(options) {
           direction: placement.direction || null,
           pattern: placement.pattern || null,
           count: placement.count,
+        };
+      }),
+      edits: compactList(intentGraph.edits, function(edit) {
+        return {
+          subject: edit.subject,
+          dimension: edit.dimension || null,
+          operator: edit.operator || null,
+          direction: edit.direction || null,
+          amount: edit.amount || null,
+          anchor: edit.anchor || null,
+          owner: edit.owner || null,
         };
       }),
       bindings: compactList(intentGraph.bindings, function(binding) {
@@ -176,6 +363,33 @@ function summarizeIntentArtifacts(options) {
           points: placement.points || [],
         };
       }),
+      editPlan: placementPlan.editPlan ? {
+        edits: compactList(placementPlan.editPlan.edits, function(edit) {
+          return {
+            subject: edit.subject,
+            dimension: edit.dimension || null,
+            operator: edit.operator || null,
+            direction: edit.direction || null,
+            amount: edit.amount || null,
+            anchor: edit.anchor || null,
+            routeEvidence: compactList(edit.routeEvidence, function(item) {
+              return {
+                owner: item.owner || null,
+                mechanism: item.mechanism || null,
+                routeId: item.routeId || null,
+                routeMechanism: item.routeMechanism || null,
+              };
+            }),
+            emission: edit.emission ? {
+              mechanism: edit.emission.mechanism || null,
+              routeId: edit.emission.routeId || null,
+              routeMechanism: edit.emission.routeMechanism || null,
+            } : null,
+            resolved: edit.resolved || null,
+            unresolved: edit.unresolved || undefined,
+          };
+        }),
+      } : null,
       diagnostics: summarizeDiagnostics(placementPlan.diagnostics),
     } : null,
     bridgePlan: bridgePlan ? {
@@ -208,6 +422,16 @@ function summarizeIntentArtifacts(options) {
           value: override.value,
           owner: override.owner || null,
           source: override.source || null,
+        };
+      }),
+      editConstraints: compactList(resultCard.editConstraints, function(edit) {
+        return {
+          subject: edit.subject || null,
+          dimension: edit.dimension || null,
+          operator: edit.operator || null,
+          direction: edit.direction || null,
+          amount: edit.amount || null,
+          anchor: edit.anchor || null,
         };
       }),
       autoAdded: compactList(resultCard.autoAdded, function(item) {
@@ -243,6 +467,107 @@ function intentSemanticPayload(intentSummary) {
   var summary = clone(intentSummary);
   delete summary.intentDslLines;
   return summary;
+}
+
+function collectWorldNames(world) {
+  var names = {};
+  function add(name) {
+    if (name) names[String(name)] = true;
+  }
+  (world.globalObjects || []).forEach(function(object) { add(object.name); });
+  (world.scenes || []).forEach(function(scene) {
+    (scene.objects || []).forEach(function(object) { add(object.name); });
+    (scene.instances || []).forEach(function(instance) { add(instance.object); });
+  });
+  return names;
+}
+
+function hasWorldName(names, name) {
+  return !!(name && names[String(name)]);
+}
+
+function hasPlannedPlacement(intentSummary, subject) {
+  var placements = (((intentSummary || {}).placementPlan || {}).placements) || [];
+  return placements.some(function(placement) {
+    return placement.subject === subject &&
+      (placement.emission || (placement.points || []).length || placement.resolved);
+  });
+}
+
+function hasPlannedEdit(intentSummary, subject) {
+  var edits = (((((intentSummary || {}).placementPlan || {}).editPlan) || {}).edits) || [];
+  return edits.some(function(edit) {
+    return edit.subject === subject &&
+      (edit.emission || edit.resolved || edit.unresolved === false);
+  });
+}
+
+function makeFulfillmentCheck(kind, subject, ok, reason) {
+  return {
+    kind: kind,
+    subject: subject || null,
+    status: ok ? 'fulfilled' : 'missing',
+    reason: reason || null,
+  };
+}
+
+function evaluateIntentFulfillment(world, intentSummary) {
+  if (!world || !intentSummary || !intentSummary.intentGraph) return null;
+  var names = collectWorldNames(world);
+  var checks = [];
+
+  (intentSummary.intentGraph.things || []).forEach(function(thing) {
+    var subject = thing.name;
+    var present = hasWorldName(names, subject) || hasPlannedPlacement(intentSummary, subject);
+    checks.push(makeFulfillmentCheck(
+      'thing',
+      subject,
+      present,
+      present ? 'world-thing-or-plan-present' : 'world-thing-missing'
+    ));
+  });
+
+  (intentSummary.intentGraph.components || []).forEach(function(component) {
+    var subject = component.thing || component.target || component.owner;
+    checks.push(makeFulfillmentCheck(
+      'component',
+      subject,
+      hasWorldName(names, subject),
+      hasWorldName(names, subject) ? 'component-world-subject-present' : 'component-world-subject-missing'
+    ));
+  });
+
+  (intentSummary.intentGraph.placements || []).forEach(function(placement) {
+    var subject = placement.subject;
+    var present = hasWorldName(names, subject) || hasPlannedPlacement(intentSummary, subject);
+    checks.push(makeFulfillmentCheck(
+      'placement',
+      subject,
+      present,
+      present ? 'placement-subject-or-plan-present' : 'placement-subject-missing'
+    ));
+  });
+
+  (intentSummary.intentGraph.edits || []).forEach(function(edit) {
+    var subject = edit.subject;
+    var present = hasWorldName(names, subject) || hasPlannedEdit(intentSummary, subject);
+    checks.push(makeFulfillmentCheck(
+      'edit',
+      subject,
+      present,
+      present ? 'edit-subject-or-plan-present' : 'edit-subject-missing'
+    ));
+  });
+
+  var missing = checks.filter(function(check) { return check.status !== 'fulfilled'; });
+  return {
+    status: missing.length ? 'missing' : 'fulfilled',
+    total: checks.length,
+    fulfilled: checks.length - missing.length,
+    missing: missing.length,
+    nextAction: missing.length ? 'route-to-owner' : 'done',
+    checks: checks,
+  };
 }
 
 function makeEmptyRegistry() {
@@ -556,6 +881,9 @@ function makeExecutionReport(options) {
   var failed = commandResults.filter(function(result) { return !result.ok; });
   var completed = commandResults.filter(function(result) { return result.ok; });
   var runIndex = options.runIndex || 1;
+  var intentSummary = options.intent ? summarizeIntentArtifacts(options.intent) : null;
+  var intentFulfillment = evaluateIntentFulfillment(world, intentSummary);
+  var fulfillmentMissing = intentFulfillment && intentFulfillment.missing > 0;
 
   return {
     schemaVersion: LEDGER_SCHEMA_VERSION,
@@ -569,9 +897,17 @@ function makeExecutionReport(options) {
       total: total,
       completed: completed.length,
       failed: failed.length,
-      nextAction: failed.length ? 'repair' : 'done',
+      nextAction: failed.length ? 'repair' : (fulfillmentMissing ? 'route-to-owner' : 'done'),
+      intentFulfillment: intentFulfillment ? {
+        status: intentFulfillment.status,
+        total: intentFulfillment.total,
+        fulfilled: intentFulfillment.fulfilled,
+        missing: intentFulfillment.missing,
+        nextAction: intentFulfillment.nextAction,
+      } : null,
     },
-    intent: options.intent ? summarizeIntentArtifacts(options.intent) : null,
+    intent: intentSummary,
+    intentFulfillment: intentFulfillment,
     completed: completed.map(function(result) {
       return {
         commandId: result.commandId,
@@ -603,6 +939,9 @@ function saveProjectWorld(stateDir, world) {
 module.exports = {
   buildProjectWorld: buildProjectWorld,
   summarizeIntentArtifacts: summarizeIntentArtifacts,
+  sanitizeProjectWorldForIntentPrompt: sanitizeProjectWorldForIntentPrompt,
+  sanitizeExecutionSummaryForIntentPrompt: sanitizeExecutionSummaryForIntentPrompt,
+  sanitizeExecutionReportForIntentPrompt: sanitizeExecutionReportForIntentPrompt,
   loadProjectWorld: loadProjectWorld,
   saveProjectWorld: saveProjectWorld,
   loadExecutionLedger: loadExecutionLedger,

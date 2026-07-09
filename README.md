@@ -81,6 +81,10 @@ npm --prefix platform install
 
 ## Product Module Skeleton
 
+Current AI-first boundary: LLM2 writes natural Intent DSL only. Product modules,
+Module DSL, low-level DSL, runtime adapters, coordinates, and GDJS details are
+compiler/runtime target facts, not the live LLM2 product language.
+
 This is the current pre-refactor module baseline. The AI-facing module layer
 lives in `ai/product-modules/`. LLM1 should see
 product module cards, such as `core.platformer`, `shell.start_screen`, and
@@ -123,9 +127,10 @@ compiler patches existing generated events through `ProjectWorld`, updates
 `ProjectWorld.modules`, and rewrites the network manifest for sync-only changes.
 Fixed runtime interactions are also part of the product module truth source.
 For example, a start-screen label can describe the button, but it cannot claim
-an Enter-key trigger unless the module exposes that trigger. LLM2 sees this
-interaction contract when translating creative intent into Module DSL, and the
-compiler rejects misleading copy before approval.
+an Enter-key trigger unless the module exposes that trigger. LLM2 sees only the
+natural capability/interaction summary while writing Intent DSL; the compiler
+maps that intent to internal Module/Bridge facts and rejects misleading copy
+before approval.
 Module-link slots stay internal: installing `shell.game_over_screen` wires the
 platformer fail action through the compiler, so LLM2 does not need to configure
 that low-level slot directly.
@@ -178,7 +183,10 @@ mutating `project.json`. For Intent patches, the pending file includes Intent
 DSL, typed Intent Graph, Placement Plan, Bridge Plan, Compile ResultCard,
 compiled internal DSL, runtime adapter requirements, module/network metadata,
 and a dry-run preview with every command result, predicted semantic hash, and
-cache-hit status. Approval should be based on reading that file first.
+cache-hit status. Approval should be based on reading that file first. If an
+LLM or agent needs to inspect a pending approval, pass only
+`aiVisibleForLlm2`; the full packet is a human/runtime audit artifact and
+contains target-code details.
 
 ## GDevelop Runtime Truth
 

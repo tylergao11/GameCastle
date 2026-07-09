@@ -35,6 +35,7 @@ function main() {
     'component',
     'relation',
     'placement',
+    'edit',
     'value',
     'role',
     'action'
@@ -94,6 +95,7 @@ function main() {
     'front-direction-context',
     'object-relative-placement',
     'semantic-pattern-placement',
+    'semantic-placement-edit',
     'collision-mask-setup',
     'awkward-gdjs-parameters',
     'inventory-expansion',
@@ -140,13 +142,18 @@ function main() {
     'give Player platformer movement',
     'add joystick controls Player near screen bottom-left',
     'add jump button controls Player near screen bottom-right',
+    'adjust Fox placement above slightly',
     'place coins near Player front as trail count 8'
   ].join('\n'), { rules: rules });
 
   var machineText = [
     'install module id=core.platformer preset=mobile',
+    'core.platformer',
     'add component id=input.jump_button target=Player near=screen direction=bottom-right',
+    'input.jump_button',
     'place at x=120 y=480',
+    'move Fox up 10 pixels',
+    '把狐狸往上10像素',
     'remove event #2',
     'use runtime adapter gdjs.virtual_joystick',
     'CollisionNP'

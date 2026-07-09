@@ -290,6 +290,25 @@ function emitPlacementGroups(plan, graph, placementPlan, options) {
   });
 }
 
+function emitPlacementEdits(plan, placementPlan, options) {
+  var scene = sceneName(options);
+  ((((placementPlan || {}).editPlan || {}).edits) || []).forEach(function(edit) {
+    if (!edit || edit.unresolved || !edit.resolved) return;
+    var emission = edit.emission || {};
+    addLine(
+      plan,
+      'set placement object=' + edit.subject + ' x=' + Math.round(edit.resolved.x) + ' y=' + Math.round(edit.resolved.y) + ' scene=' + scene,
+      'gdjs-bridge',
+      edit.subject,
+      {
+        mechanism: emission.mechanism,
+        routeId: emission.routeId,
+        routeMechanism: emission.routeMechanism
+      }
+    );
+  });
+}
+
 function createEmptyPlan() {
   return {
     schemaVersion: GDJS_BRIDGE_PLAN_SCHEMA_VERSION,
@@ -335,6 +354,7 @@ function compileBridge(compiledIntent, options) {
     emitComponent(plan, component, catalog, placementPlan, options);
   });
   emitPlacementGroups(plan, graph, placementPlan, options);
+  emitPlacementEdits(plan, placementPlan, options);
 
   plan.diagnostics.forEach(function(diagnostic) {
     addCardDiagnostic(resultCard, diagnostic);

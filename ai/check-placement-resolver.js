@@ -21,6 +21,12 @@ function hasRoute(placement, routeId, mechanism) {
   });
 }
 
+function hasEditRoute(edit, routeId, mechanism) {
+  return (edit.routeEvidence || []).some(function(item) {
+    return item.routeId === routeId && (!mechanism || item.mechanism === mechanism);
+  });
+}
+
 function run() {
   var text = [
     'make a mobile platformer',
@@ -86,6 +92,36 @@ function run() {
   assert.strictEqual(coins.points.length, 3, 'trail count should become three placement points');
   assert(coins.points[1].x > coins.points[0].x, 'front trail should advance to the right');
 
+  var editCard = {};
+  var editPlan = placementResolver.resolvePlacements({
+    edits: [{
+      kind: 'editConstraint',
+      subject: 'Fox',
+      dimension: 'placement',
+      operator: 'nudge',
+      direction: 'above',
+      amount: 'slightly',
+      anchor: 'current',
+      owner: 'placement-resolver'
+    }]
+  }, {
+    objectBounds: {
+      Fox: { x: 240, y: 320, width: 64, height: 64 }
+    }
+  }, {
+    resultCard: editCard
+  });
+  var edit = editPlan.editPlan.edits[0];
+  assert(edit, 'semantic edit plan should contain resolved edit');
+  assert.strictEqual(edit.subject, 'Fox', 'semantic edit should preserve subject');
+  assert.strictEqual(edit.dimension, 'placement', 'semantic edit should preserve dimension');
+  assert.strictEqual(edit.directionRewrite, 'above -> above', 'semantic edit should record direction rewrite');
+  assert(edit.resolved.y < edit.from.y, 'above slightly should move the object upward');
+  assert.strictEqual(edit.resolved.x, edit.from.x, 'above slightly should preserve x');
+  assert(hasEditRoute(edit, 'semantic-placement-edit', 'edit-constraint-planner'), 'semantic edit should carry route evidence');
+  assert(edit.emission && edit.emission.mechanism === 'semantic-placement-edit-rewrite', 'semantic edit should carry bridge emission metadata');
+  assert(editCard.editConstraints.length === 1, 'ResultCard should retain edit constraint resolution');
+
   var unresolved = placementResolver.resolvePlacements({
     placements: [
       {
@@ -100,6 +136,22 @@ function run() {
   });
   assert.strictEqual(unresolved.diagnostics.length, 1, 'missing anchor should produce a placement diagnostic');
   assert.strictEqual(unresolved.diagnostics[0].category, 'missing-anchor');
+
+  var unresolvedEdit = placementResolver.resolvePlacements({
+    edits: [{
+      kind: 'editConstraint',
+      subject: 'MissingFox',
+      dimension: 'placement',
+      operator: 'nudge',
+      direction: 'above',
+      amount: 'slightly',
+      owner: 'placement-resolver'
+    }]
+  }, {
+    objectBounds: {}
+  });
+  assert.strictEqual(unresolvedEdit.diagnostics.length, 1, 'missing edit subject should produce a placement diagnostic');
+  assert.strictEqual(unresolvedEdit.diagnostics[0].category, 'missing-anchor');
 
   assert.strictEqual(
     placementResolver.directionToAxis('front', { movementDirection: 'right_to_left' }),

@@ -20,6 +20,13 @@ var DISTANCE = {
   safe: 96
 };
 
+var SEMANTIC_EDIT_STEP = {
+  slightly: 0.25,
+  small: 0.25,
+  normal: 0.5,
+  far: 1
+};
+
 function clone(value) {
   return value ? JSON.parse(JSON.stringify(value)) : value;
 }
@@ -52,6 +59,12 @@ function addCardResolution(card, resolution) {
   if (!card) return;
   if (!card.placementResolutions) card.placementResolutions = [];
   card.placementResolutions.push(clone(resolution));
+}
+
+function addCardEdit(card, edit) {
+  if (!card) return;
+  if (!card.editConstraints) card.editConstraints = [];
+  card.editConstraints.push(clone(edit));
 }
 
 function addCardDiagnostic(card, diagnostic) {
@@ -194,6 +207,15 @@ function boundsFromResolved(resolved) {
   };
 }
 
+function boundsRegion(bounds) {
+  return {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width || 64,
+    height: bounds.height || 64
+  };
+}
+
 function route(owner, mechanism, routeId, routeMechanism) {
   return {
     owner: owner,
@@ -201,6 +223,95 @@ function route(owner, mechanism, routeId, routeMechanism) {
     routeId: routeId,
     routeMechanism: routeMechanism
   };
+}
+
+function semanticStep(bounds, amount) {
+  var factor = SEMANTIC_EDIT_STEP[amount || 'slightly'] || SEMANTIC_EDIT_STEP.normal;
+  var basis = Math.max(24, Math.min(Number(bounds.width) || 64, Number(bounds.height) || 64));
+  return Math.max(8, Math.round(basis * factor));
+}
+
+function axisForEdit(direction, context) {
+  var axis = directionToAxis(direction, context);
+  if (axis === 'up') return 'above';
+  if (axis === 'down') return 'below';
+  return axis;
+}
+
+function moveBounds(bounds, direction, amount, context) {
+  var axis = axisForEdit(direction, context);
+  var step = semanticStep(bounds, amount);
+  var x = Number(bounds.x) || 0;
+  var y = Number(bounds.y) || 0;
+  if (axis === 'left') x -= step;
+  else if (axis === 'right') x += step;
+  else if (axis === 'above') y -= step;
+  else if (axis === 'below') y += step;
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    step: step,
+    axis: axis
+  };
+}
+
+function resolveEditConstraint(edit, context, resolvedBounds) {
+  var subject = edit.subject;
+  var bounds = context.objectBounds[subject] || resolvedBounds[subject];
+  var source = {
+    subject: subject,
+    dimension: edit.dimension,
+    direction: edit.direction,
+    amount: edit.amount,
+    anchor: edit.anchor || 'current'
+  };
+  if (!bounds) {
+    var unresolved = {
+      subject: subject,
+      dimension: edit.dimension,
+      unresolved: true,
+      source: source,
+      diagnostic: {
+        stage: 'Resolve Edit Constraints',
+        category: 'missing-anchor',
+        intentSubject: subject,
+        message: 'Missing current bounds for edit subject: ' + subject
+      }
+    };
+    unresolved.diagnostic = diagnosticRouter.routeDiagnostic('missing-placement-anchor', unresolved.diagnostic);
+    return unresolved;
+  }
+
+  var moved = moveBounds(bounds, edit.direction, edit.amount, context);
+  var space = bounds.space || edit.space || 'world';
+  var planned = {
+    subject: subject,
+    dimension: edit.dimension,
+    operator: edit.operator || 'nudge',
+    direction: edit.direction,
+    directionRewrite: edit.direction + ' -> ' + moved.axis,
+    amount: edit.amount || 'slightly',
+    anchor: edit.anchor || 'current',
+    preserve: edit.preserve || ['visible', 'sameScene', 'sameLayer', 'noOverlapWorse', 'keepExistingRelations'],
+    routeEvidence: [
+      route('placement-resolver', 'edit-constraint-planner', 'semantic-placement-edit', 'edit-constraint-planner')
+    ],
+    emission: {
+      mechanism: 'semantic-placement-edit-rewrite',
+      routeId: 'semantic-placement-edit',
+      routeMechanism: 'edit-constraint-planner'
+    },
+    source: source,
+    from: boundsRegion(bounds),
+    resolved: {
+      x: moved.x,
+      y: moved.y
+    },
+    space: space,
+    layer: bounds.layer,
+    constraints: ['semanticAmount', 'preserveExistingRelations']
+  };
+  return planned;
 }
 
 function resolveSingle(placement, graph, context, resolvedBounds) {
@@ -331,6 +442,9 @@ function resolvePlacements(graph, context, options) {
       worldGravity: context.worldGravity
     },
     placements: [],
+    editPlan: {
+      edits: []
+    },
     diagnostics: []
   };
   var resolvedBounds = {};
@@ -348,6 +462,26 @@ function resolvePlacements(graph, context, options) {
     var bounds = boundsFromResolved(resolved);
     if (bounds) resolvedBounds[resolved.subject] = bounds;
     addCardResolution(card, resolved);
+  });
+
+  (graph.edits || []).forEach(function(edit) {
+    var resolvedEdit = resolveEditConstraint(edit, context, resolvedBounds);
+    if (resolvedEdit.diagnostic) {
+      plan.diagnostics.push(resolvedEdit.diagnostic);
+      addCardDiagnostic(card, resolvedEdit.diagnostic);
+    }
+    plan.editPlan.edits.push(resolvedEdit);
+    if (!resolvedEdit.unresolved && resolvedEdit.resolved) {
+      resolvedBounds[resolvedEdit.subject] = {
+        x: resolvedEdit.resolved.x,
+        y: resolvedEdit.resolved.y,
+        width: (resolvedEdit.from && resolvedEdit.from.width) || 64,
+        height: (resolvedEdit.from && resolvedEdit.from.height) || 64,
+        space: resolvedEdit.space,
+        layer: resolvedEdit.layer
+      };
+    }
+    addCardEdit(card, resolvedEdit);
   });
 
   placementContract.assertPlan(plan);

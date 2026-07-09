@@ -133,6 +133,45 @@ async function testBridgePlanFromIntent() {
   assert(bridgeSource.indexOf("mechanism: 'component-placement-rewrite'") < 0, 'bridge should not hard-code placement emission mechanism');
 }
 
+async function testSemanticPlacementEditBridgeEmission() {
+  var compiled = intentCompiler.compileIntentDsl('adjust Fox placement above slightly', {
+    placementContext: {
+      objectBounds: {
+        Fox: { x: 240, y: 320, width: 64, height: 64 }
+      }
+    }
+  });
+  var plan = compiled.bridgePlan;
+  emissionContract.assertPlan(plan);
+  assert(hasLine(plan, /^set placement object=Fox x=\d+ y=\d+ scene=Game$/), 'semantic placement edit should compile to a target placement update line');
+  assert(plan.emitted.some(function(item) {
+    return item.source === 'Fox' &&
+      item.mechanism === 'semantic-placement-edit-rewrite' &&
+      item.routeId === 'semantic-placement-edit' &&
+      item.routeMechanism === 'edit-constraint-planner';
+  }), 'bridge emitted edit line should carry semantic placement edit evidence');
+  assert(plan.dslText.indexOf('dy=') < 0, 'semantic placement edit bridge output should not expose delta fields');
+  assert(plan.dslText.indexOf('direction=above') < 0, 'semantic placement edit bridge output should not ask target DSL to interpret intent direction');
+  assert(plan.dslText.indexOf('place object=Fox') < 0, 'semantic placement edit bridge output should update existing placement, not create another instance');
+
+  var project = pipeline.emptyProject('SemanticPlacementEditCheck');
+  var prelude = [
+    'create scene name=Game first=true',
+    'create object name=Fox type=ShapePainter shape=rectangle color=#FFFFFF width=64 height=64 scene=Game',
+    'place object=Fox at=240,320 scene=Game width=64 height=64'
+  ];
+  var ops = pipeline.parseDSL(prelude.concat(plan.dslLines).join('\n'));
+  for (var i = 0; i < ops.length; i++) {
+    var result = await pipeline.execute(project, ops[i]);
+    assert(result.ok, 'semantic placement edit DSL should execute: ' + (prelude.concat(plan.dslLines)[i]) + ' -> ' + result.msg);
+  }
+  var scene = project.layouts.find(function(layout) { return layout.name === 'Game'; });
+  var foxInstances = scene.instances.filter(function(instance) { return instance.name === 'Fox'; });
+  assert.strictEqual(foxInstances.length, 1, 'semantic placement edit should not create another Fox instance');
+  assert.strictEqual(foxInstances[0].x, 240, 'semantic placement edit should preserve x');
+  assert(foxInstances[0].y < 320, 'semantic placement edit should move existing Fox upward');
+}
+
 function testBridgeRoutesUnknownComponentToOwnerDiagnostic() {
   var plan = gdjsBridge.compileBridge({
     graph: {
@@ -163,6 +202,7 @@ function testBridgeRoutesUnknownComponentToOwnerDiagnostic() {
 
 async function main() {
   await testBridgePlanFromIntent();
+  await testSemanticPlacementEditBridgeEmission();
   testBridgeRoutesUnknownComponentToOwnerDiagnostic();
   console.log('[GdjsBridge] internal DSL bridge plan passed');
 }

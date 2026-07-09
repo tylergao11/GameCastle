@@ -81,6 +81,27 @@ async function main() {
     return item.component === 'system.inventory' && item.key === 'slots';
   }), 'ProjectWorld should retain component override summary');
 
+  var editCompiled = intentCompiler.compileIntentDsl('adjust Fox placement above slightly', {
+    placementContext: {
+      objectBounds: {
+        Fox: { x: 240, y: 320, width: 64, height: 64 }
+      }
+    }
+  });
+  var editSummary = projectWorld.summarizeIntentArtifacts(makeIntent(editCompiled, 'adjust Fox placement above slightly'));
+  assert.strictEqual(editSummary.intentGraph.counts.edits, 1, 'ProjectWorld should count Intent edit constraints');
+  assert(editSummary.intentGraph.edits.some(function(edit) {
+    return edit.subject === 'Fox' && edit.dimension === 'placement' && edit.direction === 'above' && edit.amount === 'slightly';
+  }), 'ProjectWorld should retain semantic edit constraint summary');
+  assert(editSummary.placementPlan.editPlan.edits.some(function(edit) {
+    return edit.subject === 'Fox' &&
+      edit.emission &&
+      edit.emission.routeId === 'semantic-placement-edit';
+  }), 'ProjectWorld should retain semantic edit emission evidence');
+  assert(editSummary.resultCard.editConstraints.some(function(edit) {
+    return edit.subject === 'Fox' && edit.amount === 'slightly';
+  }), 'ProjectWorld should retain ResultCard edit summary');
+
   var report = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: world,
@@ -103,6 +124,75 @@ async function main() {
   assert(report.intent.contracts && report.intent.contracts.intentCompile === 'passed', 'ExecutionReport should retain aggregate Intent contract status');
   assert(hasTrace(report.intent.resultCard, 'Emit Internal DSL', 'gdjs-bridge'), 'ExecutionReport should retain bridge owner trace');
   assert.strictEqual(report.intent.bridgePlan.runtimeAdapterRequirements, compiled.bridgePlan.runtimeAdapterRequirements.length, 'ExecutionReport should include adapter count');
+  assert(report.intentFulfillment, 'ExecutionReport should include Intent fulfillment validation');
+  assert.strictEqual(report.intentFulfillment.status, 'fulfilled', 'ExecutionReport should mark fulfilled Intent world checks');
+  assert.strictEqual(report.summary.intentFulfillment.status, 'fulfilled', 'ExecutionReport summary should include fulfillment status');
+  assert.strictEqual(report.summary.intentFulfillment.missing, 0, 'ExecutionReport should not report missing fulfillment checks for the fixture');
+  assert(report.intentFulfillment.checks.some(function(check) {
+    return check.kind === 'component' && check.subject === 'JumpButton' && check.status === 'fulfilled';
+  }), 'ExecutionReport should verify component subjects in ProjectWorld');
+  assert(report.intentFulfillment.checks.some(function(check) {
+    return check.kind === 'placement' && check.subject === 'CoinsGroup' && check.status === 'fulfilled';
+  }), 'ExecutionReport should verify semantic group placement through the placement plan');
+
+  var missingReport = projectWorld.makeExecutionReport({
+    previousWorld: null,
+    world: {
+      schemaVersion: 1,
+      worldVersion: 1,
+      project: { name: 'MissingCheck', firstScene: 'Game' },
+      scenes: [{ name: 'Game', objects: [], instances: [] }],
+      globalObjects: [],
+      globalVariables: [],
+    },
+    dslLines: [],
+    commandResults: [],
+    runIndex: 2,
+    batchLabel: 'intent_missing_fulfillment_check',
+    intent: makeIntent(editCompiled, 'adjust Fox placement above slightly'),
+  });
+  assert.strictEqual(missingReport.summary.nextAction, 'route-to-owner', 'missing Intent fulfillment should route to owner');
+  assert.strictEqual(missingReport.summary.intentFulfillment.status, 'missing', 'missing report should summarize fulfillment failure');
+  assert(missingReport.intentFulfillment.checks.some(function(check) {
+    return check.subject === 'Fox' && check.status === 'missing';
+  }), 'missing report should identify the missing semantic subject');
+
+  var safeWorld = projectWorld.sanitizeProjectWorldForIntentPrompt(world);
+  var safeReport = projectWorld.sanitizeExecutionReportForIntentPrompt(report);
+  var safeJson = JSON.stringify({ world: safeWorld, report: safeReport });
+  [
+    'componentId',
+    'input.jump_button',
+    'virtual-joystick',
+    'bridgePlan',
+    'runtimeAdapterRequirements',
+    'gdjs',
+    '"x"',
+    '"y"',
+    'set placement object=',
+    'ownerTrace',
+    '"instances"',
+    '"events"',
+    '"eventCount"',
+    '"globalObjects"',
+    '"globalVariables"',
+    '"modules"',
+    '"layer"',
+    '"type":"number"',
+  ].forEach(function(token) {
+    assert(safeJson.indexOf(token) < 0, 'ProjectWorld AI-visible sanitizer must not expose ' + token);
+  });
+  assert(safeWorld.scenes.some(function(scene) {
+    return scene.things.some(function(thing) { return thing.name === 'Player'; });
+  }), 'ProjectWorld AI-visible sanitizer should expose scene things in world terms');
+  assert(safeWorld.scenes.some(function(scene) {
+    return scene.placedThings.some(function(thing) { return thing.object === 'Player'; });
+  }), 'ProjectWorld AI-visible sanitizer should expose placed things without instance details');
+  assert(safeJson.indexOf('Player') >= 0, 'ProjectWorld AI-visible sanitizer should preserve world object names');
+  assert(safeJson.indexOf('bottom-left') >= 0, 'ProjectWorld AI-visible sanitizer should preserve natural placement direction');
+  assert(safeJson.indexOf('make a mobile platformer') >= 0, 'ProjectWorld AI-visible sanitizer should preserve safe Intent wording');
+  assert(safeReport.summary.nextAction === 'done', 'ExecutionReport AI-visible sanitizer should preserve nextAction');
+  assert(safeReport.summary.intentFulfillment.status === 'fulfilled', 'ExecutionReport AI-visible sanitizer should preserve safe fulfillment status');
 
   var sameStructureDifferentWords = makeIntent(compiled, intentDslText.replace('make a mobile platformer', 'make a compact mobile platformer'));
   var sameWorld = projectWorld.buildProjectWorld(project, null, {

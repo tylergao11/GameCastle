@@ -33,6 +33,13 @@ function parsePlacement(text) {
   };
 }
 
+function normalizeAmount(value) {
+  var text = normalizeName(value || 'slightly').toLowerCase();
+  if (text === 'a little' || text === 'a bit' || text === 'slight') return 'slightly';
+  if (text === 'much' || text === 'a lot') return 'far';
+  return text || 'slightly';
+}
+
 function removeUndefined(value) {
   Object.keys(value).forEach(function(key) {
     if (value[key] === undefined || value[key] === null) delete value[key];
@@ -66,6 +73,19 @@ function parseLine(line, lineNumber) {
       ability: normalizeName(giveMatch[2]),
       raw: raw
     };
+  }
+
+  var adjustPlacementMatch = raw.match(/^(?:adjust|nudge|move|shift)\s+(.+?)\s+placement\s+(above|below|left|right|front|behind|up|down)(?:\s+(slightly|slight|a little|a bit|far|much|a lot))?$/i);
+  if (adjustPlacementMatch) {
+    return removeUndefined({
+      kind: 'adjust',
+      lineNumber: lineNumber,
+      subject: normalizeName(adjustPlacementMatch[1]),
+      dimension: 'placement',
+      direction: normalizeName(adjustPlacementMatch[2]).toLowerCase(),
+      amount: normalizeAmount(adjustPlacementMatch[3]),
+      raw: raw
+    });
   }
 
   var addControlMatch = raw.match(/^add\s+(.+?)\s+controls\s+(.+?)(?:\s+(?:action\s+)?([a-z_ -]+?))?\s+near\s+(.+)$/i);

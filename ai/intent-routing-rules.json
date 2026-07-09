@@ -7,6 +7,7 @@
       "component",
       "relation",
       "placement",
+      "edit",
       "value",
       "role",
       "action"
@@ -14,8 +15,8 @@
     "prohibitedSurfacePatterns": [
       {
         "id": "coordinates",
-        "description": "LLM2-facing intent must not ask for exact x/y placement.",
-        "examples": ["place at x y", "x=120 y=480"]
+        "description": "LLM2-facing intent must not ask for exact x/y placement or numeric movement deltas.",
+        "examples": ["place at x y", "x=120 y=480", "move Fox up 10 pixels", "把狐狸往上10像素"]
       },
       {
         "id": "event-index",
@@ -52,7 +53,7 @@
   "admissionRule": {
     "allRequired": [
       "The concept names a reusable game-world concept that non-developers naturally understand.",
-      "The concept cannot be expressed with existing thing/component/relation/placement/value/role/action concepts.",
+      "The concept cannot be expressed with existing thing/component/relation/placement/edit/value/role/action concepts.",
       "The concept is not merely a GDJS limitation, event shape, object field, runtime adapter option, coordinate rule, or generated-code workaround.",
       "The concept can compile through a deterministic owner with a ResultCard trace."
     ]
@@ -134,6 +135,14 @@
       "routeMechanism": "placement-contract",
       "prohibitedDslExpansions": ["place every coin by coordinate", "repeat coordinate list"],
       "resultCardEvidence": ["placementResolutions", "resolved", "ownerTrace"]
+    },
+    {
+      "id": "semantic-placement-edit",
+      "problem": "Existing objects need small relative placement edits from semantic amounts such as slightly above.",
+      "routeOwner": "placement-resolver",
+      "routeMechanism": "edit-constraint-planner",
+      "prohibitedDslExpansions": ["move object by dy", "set object y coordinate"],
+      "resultCardEvidence": ["editConstraints", "placementResolutions", "ownerTrace"]
     },
     {
       "id": "collision-mask-setup",

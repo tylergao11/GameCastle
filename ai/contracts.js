@@ -16,7 +16,9 @@ var CONTRACT_TYPES = [
 var CONTRACT_OWNERS = [
   'RequirementModel',
   'DSLAgent',
+  'ModuleCompiler',
   'RuntimeAssetResolver',
+  'RuntimeExecutor',
   'ImageAgent',
   'VisionAgent',
   'RuntimeLinker',
@@ -26,15 +28,15 @@ var CONTRACT_OWNERS = [
 var WORKFLOW_ROLE_CONTRACT_OWNERS = {
   requirement: 'RequirementModel',
   dsl: 'DSLAgent',
-  dslModuleRepair: 'DSLAgent',
-  dslInternalRepair: 'DSLAgent',
+  dslIntentRepair: 'DSLAgent',
+  dslInternalRepair: 'RuntimeExecutor',
   imageGeneration: 'ImageAgent',
   vision: 'VisionAgent',
 };
 
 var CONTRACT_TYPE_OWNERS = {
   BuildContract: 'RequirementModel',
-  ModuleDslPatch: 'DSLAgent',
+  ModuleDslPatch: 'ModuleCompiler',
   AssetManifest: 'RuntimeAssetResolver',
   AssetReview: 'VisionAgent',
   AssemblyReport: 'RuntimeLinker',

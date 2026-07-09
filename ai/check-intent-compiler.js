@@ -144,6 +144,31 @@ function testNaturalActionOverride() {
   }), 'explicit natural action should record a component override');
 }
 
+function testSemanticPlacementEdit() {
+  var compiled = intentCompiler.compileIntentDsl('adjust Fox placement above slightly', {
+    placementContext: {
+      objectBounds: {
+        Fox: { x: 240, y: 320, width: 64, height: 64 }
+      }
+    }
+  });
+  var edit = compiled.graph.edits[0];
+  assert(edit, 'semantic placement edit should compile into graph edit constraint');
+  assert(edit.kind === 'editConstraint', 'semantic placement edit should use editConstraint kind');
+  assert(edit.subject === 'Fox', 'semantic placement edit should preserve subject');
+  assert(edit.direction === 'above', 'semantic placement edit should preserve direction');
+  assert(edit.amount === 'slightly', 'semantic placement edit should preserve semantic amount');
+  assert(edit.owner === 'placement-resolver', 'semantic placement edit should route to placement resolver');
+  assert(compiled.contracts && compiled.contracts.edits === 'passed', 'aggregate contract should validate edit constraints');
+  assert(compiled.contracts.graph.edits === 1, 'contract summary should count graph edits');
+  assert(compiled.contracts.placementPlan.edits === 1, 'contract summary should count placement plan edits');
+  assert(compiled.resultCard.resolved.some(function(item) {
+    return item.subject === 'Fox' && item.edit === 'placement.above' && item.amount === 'slightly';
+  }), 'ResultCard should record semantic placement edit');
+  assert(compiled.resultCard.emitted.indexOf('intent graph edits=1') >= 0, 'ResultCard should emit edit count');
+  assert(hasTrace(compiled.resultCard, 'Build Edit Constraints', 'intent-compiler'), 'ResultCard should trace edit constraint build');
+}
+
 function testMachineFormRejectedBeforeCompile() {
   try {
     intentCompiler.compileIntentDsl('add component id=input.jump_button target=Player near=screen direction=bottom-right');
@@ -158,6 +183,7 @@ function main() {
   testCompileGraphAndResultCard();
   testAutoMovementForControlOnlyIntent();
   testNaturalActionOverride();
+  testSemanticPlacementEdit();
   testMachineFormRejectedBeforeCompile();
   console.log('[IntentCompiler] graph, inheritance, rewrites, and ResultCard passed');
 }

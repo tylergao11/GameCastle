@@ -1,6 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 var moduleDsl = require('./module-dsl');
+var intentSurfaceGuard = require('./intent-surface-guard');
 
 var PRODUCT_MODULE_SCHEMA_VERSION = 1;
 var NETWORK_MANIFEST_SCHEMA_VERSION = 1;
@@ -82,7 +83,20 @@ function validateProductModules(schema, modules) {
     validateNetworking(manifest);
     validateRepositoryPolicy(manifest);
     validateInteractionContracts(manifest);
+    validateIntentFacingModuleFields(manifest);
   });
+}
+
+function validateIntentFacingModuleFields(manifest) {
+  var text = [
+    manifest.name,
+    manifest.category,
+    manifest.summary,
+    Object.keys(manifest.presets || {}).map(function(preset) {
+      return preset === 'mobile' ? 'mobile-friendly' : preset;
+    }).join('\n')
+  ].join('\n');
+  intentSurfaceGuard.assertIntentSurfaceAllowed(text);
 }
 
 function validateRepositoryPolicy(manifest) {

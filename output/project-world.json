@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "worldVersion": 1,
+  "worldVersion": 3,
   "project": {
-    "name": "GameCastle",
+    "name": "PipelineStateRuntimeCheck",
     "firstScene": "Game",
     "width": 800,
     "height": 600
@@ -232,6 +232,36 @@
           "width": 160,
           "height": 220,
           "layer": "UI",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_coin_196_424_0_0_1",
+          "object": "Coin",
+          "x": 196,
+          "y": 424,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_coin_244_424_0_0_1",
+          "object": "Coin",
+          "x": 244,
+          "y": 424,
+          "width": 0,
+          "height": 0,
+          "layer": "",
+          "zOrder": 1
+        },
+        {
+          "id": "inst_game_coin_292_424_0_0_1",
+          "object": "Coin",
+          "x": 292,
+          "y": 424,
+          "width": 0,
+          "height": 0,
+          "layer": "",
           "zOrder": 1
         }
       ],
@@ -466,6 +496,36 @@
       "add inventory owned by Player with 24 slots near screen right",
       "place coins near Player front as trail count 3"
     ],
+    "contracts": {
+      "schemaVersion": 1,
+      "intentCompile": "passed",
+      "resultCard": "passed",
+      "diagnostics": "passed",
+      "rewrites": "passed",
+      "edits": "passed",
+      "placement": "passed",
+      "bridgeEmission": "passed",
+      "runtimeAdapters": "passed",
+      "graph": {
+        "things": 6,
+        "components": 5,
+        "relations": 5,
+        "placements": 5,
+        "edits": 0,
+        "bindings": 3,
+        "diagnostics": 0
+      },
+      "placementPlan": {
+        "placements": 5,
+        "edits": 0,
+        "diagnostics": 0
+      },
+      "bridgePlan": {
+        "internalDslLines": 36,
+        "runtimeAdapterRequirements": 5,
+        "diagnostics": 0
+      }
+    },
     "intentGraph": {
       "counts": {
         "modules": 1,
@@ -473,6 +533,7 @@
         "components": 5,
         "relations": 5,
         "placements": 5,
+        "edits": 0,
         "bindings": 3,
         "requirements": 2,
         "diagnostics": 0
@@ -534,8 +595,14 @@
           "configKeys": [
             "action",
             "axisSmoothing",
+            "color",
             "deadZone",
-            "radius"
+            "height",
+            "inputs",
+            "layer",
+            "radius",
+            "shape",
+            "width"
           ]
         },
         {
@@ -546,8 +613,15 @@
           "control": null,
           "configKeys": [
             "action",
+            "color",
+            "controlLabel",
             "cooldown",
-            "pressMode"
+            "height",
+            "keyboardKey",
+            "layer",
+            "pressMode",
+            "shape",
+            "width"
           ]
         },
         {
@@ -558,8 +632,15 @@
           "control": null,
           "configKeys": [
             "action",
+            "color",
+            "controlLabel",
             "cooldown",
-            "pressMode"
+            "height",
+            "keyboardKey",
+            "layer",
+            "pressMode",
+            "shape",
+            "width"
           ]
         },
         {
@@ -569,9 +650,15 @@
           "target": null,
           "control": null,
           "configKeys": [
+            "color",
+            "height",
+            "layer",
+            "panelTitle",
             "persistence",
+            "shape",
             "slots",
-            "uiMode"
+            "uiMode",
+            "width"
           ]
         }
       ],
@@ -654,6 +741,7 @@
           "count": 3
         }
       ],
+      "edits": [],
       "bindings": [
         {
           "action": "move",
@@ -699,7 +787,16 @@
           "anchor": "screen.safeArea",
           "layer": "UI",
           "directionRewrite": null,
+          "routeEvidence": [
+            {
+              "owner": "placement-resolver",
+              "mechanism": "screen-safe-area-placement",
+              "routeId": "responsive-ui",
+              "routeMechanism": "placement-contract"
+            }
+          ],
           "pattern": null,
+          "emission": null,
           "resolved": {
             "x": 128,
             "y": 472
@@ -712,7 +809,16 @@
           "anchor": "screen.safeArea",
           "layer": "UI",
           "directionRewrite": null,
+          "routeEvidence": [
+            {
+              "owner": "placement-resolver",
+              "mechanism": "screen-safe-area-placement",
+              "routeId": "responsive-ui",
+              "routeMechanism": "placement-contract"
+            }
+          ],
           "pattern": null,
+          "emission": null,
           "resolved": {
             "x": 672,
             "y": 472
@@ -725,8 +831,17 @@
           "anchor": "JumpButton",
           "layer": "UI",
           "directionRewrite": "left -> left",
+          "routeEvidence": [
+            {
+              "owner": "placement-resolver",
+              "mechanism": "object-relative-placement",
+              "routeId": "object-relative-placement",
+              "routeMechanism": "placement-contract"
+            }
+          ],
           "pattern": "single",
           "count": 1,
+          "emission": null,
           "resolved": {
             "x": 576,
             "y": 472
@@ -744,7 +859,16 @@
           "anchor": "screen.safeArea",
           "layer": "UI",
           "directionRewrite": null,
+          "routeEvidence": [
+            {
+              "owner": "placement-resolver",
+              "mechanism": "screen-safe-area-placement",
+              "routeId": "responsive-ui",
+              "routeMechanism": "placement-contract"
+            }
+          ],
           "pattern": null,
+          "emission": null,
           "resolved": {
             "x": 672,
             "y": 300
@@ -756,24 +880,81 @@
           "space": "object_relative",
           "anchor": "Player",
           "layer": null,
-          "directionRewrite": null,
-          "pattern": null,
-          "resolved": null,
-          "points": []
+          "directionRewrite": "front -> right",
+          "routeEvidence": [
+            {
+              "owner": "placement-resolver",
+              "mechanism": "object-relative-placement",
+              "routeId": "object-relative-placement",
+              "routeMechanism": "placement-contract"
+            },
+            {
+              "owner": "placement-resolver",
+              "mechanism": "contextual-direction-rewrite",
+              "routeId": "front-direction-context",
+              "routeMechanism": "contextual-direction-rewrite"
+            },
+            {
+              "owner": "placement-resolver",
+              "mechanism": "pattern-placement",
+              "routeId": "semantic-pattern-placement",
+              "routeMechanism": "placement-contract"
+            }
+          ],
+          "pattern": "trail",
+          "count": 3,
+          "emission": {
+            "mechanism": "semantic-group-placement-rewrite",
+            "routeId": "semantic-pattern-placement",
+            "routeMechanism": "placement-contract"
+          },
+          "resolved": {
+            "x": 196,
+            "y": 424
+          },
+          "points": [
+            {
+              "x": 196,
+              "y": 424
+            },
+            {
+              "x": 244,
+              "y": 424
+            },
+            {
+              "x": 292,
+              "y": 424
+            }
+          ]
         }
       ],
-      "diagnostics": [
-        {
-          "owner": "placement-resolver",
-          "category": "missing-anchor",
-          "message": "Missing placement anchor bounds: Player",
-          "target": null
-        }
-      ]
+      "editPlan": {
+        "edits": []
+      },
+      "diagnostics": []
     },
     "bridgePlan": {
       "target": "gdjs-internal-dsl",
-      "internalDslLines": 33,
+      "internalDslLines": 36,
+      "contracts": {
+        "emission": "passed",
+        "runtimeAdapters": "passed"
+      },
+      "emittedMechanisms": {
+        "product-module-expansion": 23,
+        "component-ui-layer": 1,
+        "component-object-expansion": 4,
+        "component-placement-rewrite": 4,
+        "component-config-expansion": 1,
+        "semantic-group-placement-rewrite": 3
+      },
+      "emittedRoutes": {
+        "responsive-ui": 1,
+        "collision-mask-setup": 4,
+        "awkward-gdjs-parameters": 4,
+        "inventory-expansion": 1,
+        "semantic-pattern-placement": 3
+      },
       "installedModules": [
         {
           "id": "core.platformer",
@@ -795,39 +976,63 @@
         {
           "from": "mobile platformer",
           "to": "core.platformer",
-          "owner": "intent-compiler"
+          "owner": "intent-compiler",
+          "mechanism": "module-inference",
+          "stage": "Resolve Symbols"
         },
         {
           "from": "joystick",
           "to": "input.virtual_joystick",
-          "owner": "component catalog"
+          "owner": "component-catalog",
+          "mechanism": "component-alias",
+          "stage": "Resolve Symbols"
         },
         {
           "from": "jump button",
           "to": "input.jump_button",
-          "owner": "component catalog"
+          "owner": "component-catalog",
+          "mechanism": "component-alias",
+          "stage": "Resolve Symbols"
         },
         {
           "from": "jump button",
           "to": "JumpButton",
-          "owner": "intent-compiler"
+          "owner": "intent-compiler",
+          "mechanism": "natural-anchor",
+          "stage": "Resolve Placement Intent"
         },
         {
           "from": "attack button",
           "to": "input.attack_button",
-          "owner": "component catalog"
+          "owner": "component-catalog",
+          "mechanism": "component-alias",
+          "stage": "Resolve Symbols"
         },
         {
           "from": "inventory",
           "to": "system.inventory",
-          "owner": "component catalog"
+          "owner": "component-catalog",
+          "mechanism": "component-alias",
+          "stage": "Resolve Symbols"
         },
         {
           "from": "coins",
           "to": "thing.coinsgroup",
-          "owner": "intent-compiler"
+          "owner": "intent-compiler",
+          "mechanism": "semantic-group",
+          "stage": "Build Intent Graph"
         }
       ],
+      "overrides": [
+        {
+          "component": "system.inventory",
+          "key": "slots",
+          "value": 24,
+          "owner": "intent-compiler",
+          "source": "add inventory owned by Player with 24 slots near screen right"
+        }
+      ],
+      "editConstraints": [],
       "autoAdded": [
         {
           "kind": "thing",
@@ -845,9 +1050,109 @@
           "reason": "control thing from component"
         },
         {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.action",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.deadZone",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.radius",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.axisSmoothing",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.shape",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.color",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.width",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.height",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.layer",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.virtual_joystick.inputs",
+          "reason": "inherited from component-manifest"
+        },
+        {
           "kind": "thing",
           "id": "thing.jumpbutton",
           "reason": "control thing from component"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.pressMode",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.shape",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.color",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.width",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.height",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.layer",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.action",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.cooldown",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.keyboardKey",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.jump_button.controlLabel",
+          "reason": "inherited from component-manifest"
         },
         {
           "kind": "thing",
@@ -855,19 +1160,107 @@
           "reason": "control thing from component"
         },
         {
+          "kind": "config-default",
+          "id": "input.attack_button.pressMode",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.shape",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.color",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.width",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.height",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.layer",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.action",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.cooldown",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.keyboardKey",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "input.attack_button.controlLabel",
+          "reason": "inherited from component-manifest"
+        },
+        {
           "kind": "thing",
           "id": "thing.inventory",
           "reason": "inventory component thing"
-        }
-      ],
-      "diagnostics": [
+        },
         {
-          "owner": "placement-resolver",
-          "category": "missing-anchor",
-          "message": "Missing placement anchor bounds: Player",
-          "target": null
+          "kind": "config-default",
+          "id": "system.inventory.slots",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "system.inventory.persistence",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "system.inventory.uiMode",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "system.inventory.shape",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "system.inventory.color",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "system.inventory.width",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "system.inventory.height",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "system.inventory.layer",
+          "reason": "inherited from component-manifest"
+        },
+        {
+          "kind": "config-default",
+          "id": "system.inventory.panelTitle",
+          "reason": "inherited from component-manifest"
         }
       ],
+      "diagnostics": [],
       "warnings": [],
       "ownerTrace": [
         {
@@ -883,6 +1276,10 @@
           "owner": "intent-compiler"
         },
         {
+          "stage": "Build Edit Constraints",
+          "owner": "intent-compiler"
+        },
+        {
           "stage": "Validate Requirements",
           "owner": "intent-compiler"
         },
@@ -893,6 +1290,10 @@
         {
           "stage": "Resolve Placement",
           "owner": "placement-resolver"
+        },
+        {
+          "stage": "Compile Bindings",
+          "owner": "binding-compiler"
         },
         {
           "stage": "Expand Components",
@@ -908,9 +1309,10 @@
         "intent graph components=5",
         "intent graph relations=5",
         "intent graph placements=5",
+        "intent graph edits=0",
         "intent graph bindings=3",
         "placement plan placements=5",
-        "bridge plan internalDslLines=33",
+        "bridge plan internalDslLines=36",
         "bridge plan runtimeAdapters=5"
       ]
     },
@@ -920,6 +1322,12 @@
         "componentId": "input.virtual_joystick",
         "thing": "Joystick",
         "target": "Player",
+        "owner": "runtime-adapter",
+        "source": "input.virtual_joystick",
+        "mechanism": "touch-axis-adapter",
+        "routeId": "touch-multitouch-state",
+        "routeOwner": "runtime-adapter",
+        "routeMechanism": "bridge-target-rewrite",
         "action": null
       },
       {
@@ -927,6 +1335,12 @@
         "componentId": "input.jump_button",
         "thing": "JumpButton",
         "target": "Player",
+        "owner": "runtime-adapter",
+        "source": "input.jump_button",
+        "mechanism": "touch-button-adapter",
+        "routeId": "touch-multitouch-state",
+        "routeOwner": "runtime-adapter",
+        "routeMechanism": "bridge-target-rewrite",
         "action": null
       },
       {
@@ -934,6 +1348,12 @@
         "componentId": "input.attack_button",
         "thing": "AttackButton",
         "target": "Player",
+        "owner": "runtime-adapter",
+        "source": "input.attack_button",
+        "mechanism": "touch-button-adapter",
+        "routeId": "touch-multitouch-state",
+        "routeOwner": "runtime-adapter",
+        "routeMechanism": "bridge-target-rewrite",
         "action": null
       },
       {
@@ -941,6 +1361,12 @@
         "componentId": "system.inventory",
         "thing": "Inventory",
         "target": null,
+        "owner": "runtime-adapter",
+        "source": "system.inventory",
+        "mechanism": "inventory-storage-adapter",
+        "routeId": "inventory-persistence",
+        "routeOwner": "runtime-adapter",
+        "routeMechanism": "adapter-config",
         "action": null
       },
       {
@@ -948,6 +1374,12 @@
         "componentId": "system.inventory",
         "thing": "Inventory",
         "target": null,
+        "owner": "runtime-adapter",
+        "source": "system.inventory",
+        "mechanism": "inventory-panel-adapter",
+        "routeId": "inventory-expansion",
+        "routeOwner": "component-expander",
+        "routeMechanism": "component-expansion",
         "action": null
       }
     ]
@@ -980,7 +1412,10 @@
       "Game|Joystick|128|472|96|96|UI|1": "inst_game_joystick_128_472_96_96_ui_1",
       "Game|JumpButton|672|472|72|72|UI|1": "inst_game_jumpbutton_672_472_72_72_ui_1",
       "Game|AttackButton|576|472|72|72|UI|1": "inst_game_attackbutton_576_472_72_72_ui_1",
-      "Game|Inventory|672|300|160|220|UI|1": "inst_game_inventory_672_300_160_220_ui_1"
+      "Game|Inventory|672|300|160|220|UI|1": "inst_game_inventory_672_300_160_220_ui_1",
+      "Game|Coin|196|424|0|0||1": "inst_game_coin_196_424_0_0_1",
+      "Game|Coin|244|424|0|0||1": "inst_game_coin_244_424_0_0_1",
+      "Game|Coin|292|424|0|0||1": "inst_game_coin_292_424_0_0_1"
     },
     "events": {
       "Game|on start -> clear drawer Player, draw rectangle Player 0 0 32 48, collision mask Player 0 0 32 48|1": "evt_game_on_start_clear_drawer_player_draw_r",
@@ -1003,5 +1438,5 @@
     },
     "modules": {}
   },
-  "semanticHash": "75dab6c3"
+  "semanticHash": "01ebc5c8"
 }

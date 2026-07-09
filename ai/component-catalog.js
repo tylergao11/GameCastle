@@ -114,8 +114,12 @@ function validateAiManifest(manifest) {
   if (!manifest.aiManifest.summary) throw new Error(manifest.id + ' missing aiManifest.summary');
 
   var aiText = [
+    manifest.name,
     manifest.aiManifest.summary,
     (manifest.aiManifest.aliases || []).join('\n'),
+    (manifest.aiManifest.actions || []).join('\n'),
+    (manifest.aiManifest.targetRoles || []).join('\n'),
+    (manifest.aiManifest.ownerRoles || []).join('\n'),
     (manifest.aiManifest.safeExamples || []).join('\n')
   ].join('\n');
   intentSurfaceGuard.assertIntentSurfaceAllowed(aiText);
@@ -211,6 +215,7 @@ function indexManifest(catalog, manifest) {
   if (catalog.byId[manifest.id]) throw new Error('Duplicate component id: ' + manifest.id);
   catalog.components.push(manifest);
   catalog.byId[manifest.id] = manifest;
+  if (!isLlm2Exposed(manifest)) return;
   (manifest.aiManifest.aliases || []).forEach(function(alias) {
     var key = normalize(alias);
     if (!catalog.byAlias[key]) catalog.byAlias[key] = [];
@@ -304,7 +309,14 @@ function compilerView(manifest) {
   return clone(manifest.compilerManifest);
 }
 
+function isLlm2Exposed(manifest) {
+  if (!manifest || !manifest.aiManifest || !manifest.compilerManifest) return false;
+  if (manifest.compilerManifest.abstract) return false;
+  return manifest.aiManifest.exposeToLlm2 !== false;
+}
+
 function aiView(manifest) {
+  if (!isLlm2Exposed(manifest)) return null;
   return clone(manifest.aiManifest);
 }
 
@@ -319,5 +331,6 @@ module.exports = {
   findAbilityComponent: findAbilityComponent,
   findSystemComponent: findSystemComponent,
   compilerView: compilerView,
+  isLlm2Exposed: isLlm2Exposed,
   aiView: aiView
 };

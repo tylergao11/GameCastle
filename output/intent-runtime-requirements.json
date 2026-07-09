@@ -6,11 +6,28 @@
       "componentId": "input.virtual_joystick",
       "thing": "Joystick",
       "target": "Player",
+      "owner": "runtime-adapter",
+      "source": "input.virtual_joystick",
+      "mechanism": "touch-axis-adapter",
+      "routeId": "touch-multitouch-state",
+      "routeOwner": "runtime-adapter",
+      "routeMechanism": "bridge-target-rewrite",
       "config": {
         "action": "move",
         "deadZone": "standard",
         "radius": "medium",
-        "axisSmoothing": "standard"
+        "axisSmoothing": "standard",
+        "shape": "circle",
+        "color": "#2D9CDB",
+        "width": 96,
+        "height": 96,
+        "layer": "UI",
+        "inputs": [
+          "move_left",
+          "move_right",
+          "move_up",
+          "move_down"
+        ]
       },
       "placement": {
         "subject": "Joystick",
@@ -29,10 +46,23 @@
       "componentId": "input.jump_button",
       "thing": "JumpButton",
       "target": "Player",
+      "owner": "runtime-adapter",
+      "source": "input.jump_button",
+      "mechanism": "touch-button-adapter",
+      "routeId": "touch-multitouch-state",
+      "routeOwner": "runtime-adapter",
+      "routeMechanism": "bridge-target-rewrite",
       "config": {
-        "action": "jump",
         "pressMode": "tap",
-        "cooldown": "none"
+        "shape": "rectangle",
+        "color": "#27AE60",
+        "width": 72,
+        "height": 72,
+        "layer": "UI",
+        "action": "jump",
+        "cooldown": "none",
+        "keyboardKey": "Space",
+        "controlLabel": "J"
       },
       "placement": {
         "subject": "JumpButton",
@@ -51,10 +81,23 @@
       "componentId": "input.attack_button",
       "thing": "AttackButton",
       "target": "Player",
+      "owner": "runtime-adapter",
+      "source": "input.attack_button",
+      "mechanism": "touch-button-adapter",
+      "routeId": "touch-multitouch-state",
+      "routeOwner": "runtime-adapter",
+      "routeMechanism": "bridge-target-rewrite",
       "config": {
-        "action": "attack",
         "pressMode": "tap",
-        "cooldown": "short"
+        "shape": "rectangle",
+        "color": "#EB5757",
+        "width": 72,
+        "height": 72,
+        "layer": "UI",
+        "action": "attack",
+        "cooldown": "short",
+        "keyboardKey": "KeyZ",
+        "controlLabel": "A"
       },
       "placement": {
         "subject": "AttackButton",
@@ -72,11 +115,22 @@
       "adapter": "inventory-storage",
       "componentId": "system.inventory",
       "thing": "Inventory",
-      "owner": "Player",
+      "owner": "runtime-adapter",
+      "source": "system.inventory",
+      "mechanism": "inventory-storage-adapter",
+      "routeId": "inventory-persistence",
+      "routeOwner": "runtime-adapter",
+      "routeMechanism": "adapter-config",
       "config": {
         "slots": 24,
         "persistence": "session",
-        "uiMode": "panel"
+        "uiMode": "panel",
+        "shape": "rectangle",
+        "color": "#4F4F4F",
+        "width": 160,
+        "height": 220,
+        "layer": "UI",
+        "panelTitle": "Inventory"
       },
       "placement": {
         "subject": "Inventory",
@@ -94,11 +148,22 @@
       "adapter": "inventory-panel",
       "componentId": "system.inventory",
       "thing": "Inventory",
-      "owner": "Player",
+      "owner": "runtime-adapter",
+      "source": "system.inventory",
+      "mechanism": "inventory-panel-adapter",
+      "routeId": "inventory-expansion",
+      "routeOwner": "component-expander",
+      "routeMechanism": "component-expansion",
       "config": {
         "slots": 24,
         "persistence": "session",
-        "uiMode": "panel"
+        "uiMode": "panel",
+        "shape": "rectangle",
+        "color": "#4F4F4F",
+        "width": 160,
+        "height": 220,
+        "layer": "UI",
+        "panelTitle": "Inventory"
       },
       "placement": {
         "subject": "Inventory",

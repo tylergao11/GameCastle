@@ -313,9 +313,9 @@
         ]
       },
       "constraints": {
-        "spawnOffset": "Spawn the bullet near the player position. Current runtime spawns at a fixed position; LLM2 may adjust coordinates.",
-        "bulletSpeed": "Default bullet speed is 8px per tick at 0.05s interval (160px/sec). Use 'every Ns -> move Bullet x=+M' to adjust.",
-        "cooldown": "Current runtime slice does not enforce fire-rate cooldown. LLM2 may add a cooldown timer via variable gate.",
+        "spawnOffset": "Spawn bullets near the player. Concrete spawn offsets are runtime/placement facts owned by the compiler and bridge.",
+        "bulletSpeed": "Bullet speed is a semantic tuning value. The compiler/runtime bridge owns tick intervals and movement deltas.",
+        "cooldown": "Fire-rate cooldown is a gameplay pacing intent. Runtime/compiler owners should implement timers or variable gates.",
         "movement": "Bullet movement uses the move_rel action (GDevelop MettreXY with +/- operators) on a repeating timer."
       },
       "networking": {
@@ -354,10 +354,10 @@
         ]
       },
       "constraints": {
-        "spawnSide": "Enemies spawn from the right edge (x=780) at varied Y positions. Use multiple spawn lines for wave density.",
-        "waveInterval": "Default spawn intervals are 2-3s. Reduce for harder waves. Use multiple every-lines for varied spawn positions.",
-        "enemySpeed": "Enemies should have a move event pushing them left (x=-2 to x=-4). LLM2 may add 'every 0.05s -> move Enemy x=-2' for leftward movement.",
-        "ramping": "LLM2 may reduce spawn interval or add more spawn lines using the Wave variable for difficulty ramping."
+        "spawnSide": "Enemies spawn from the front/right side of the play space with varied lanes. Exact edge positions are placement-resolver facts.",
+        "waveInterval": "Wave cadence is a semantic difficulty value. The compiler/runtime bridge owns timer expansion and lane variety.",
+        "enemySpeed": "Enemies advance against player progression. Concrete movement deltas and event expansion belong to the bridge/runtime owners.",
+        "ramping": "Difficulty ramping is expressed as higher pressure or denser waves; compiler/runtime owners expand it into counters, timers, or spawn plans."
       },
       "networking": {
         "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
@@ -394,9 +394,9 @@
       },
       "constraints": {
         "dropInterval": "Default power-up spawn interval is 15s. Keep it infrequent so power-ups feel rewarding.",
-        "effectOptions": "Current preset supports health restore via variable assignment. LLM2 may add speed boost or score multiplier as variants.",
-        "cleanup": "Power-ups that move off-screen left should be destroyed. LLM2 may add 'every 10s -> destroy PowerUp' for cleanup.",
-        "spawn": "Uses simple timer-based spawn at a fixed position. LLM2 may randomize position via multiple spawn lines at different coordinates."
+        "effectOptions": "Current preset supports health restore. New effects such as speed boost or score multiplier should enter as semantic component/module capabilities.",
+        "cleanup": "Power-ups that leave the play space should be cleaned up by runtime-owned bounds or lifetime rules.",
+        "spawn": "Power-up spawn placement is semantic, such as near defeated enemies or safe player routes; exact positions and variation are resolver/runtime facts."
       },
       "networking": {
         "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },

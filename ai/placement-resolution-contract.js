@@ -5,11 +5,13 @@ var ALLOWED_MECHANISMS = {
   'ui-overlap-avoidance': true,
   'contextual-direction-rewrite': true,
   'object-relative-placement': true,
-  'pattern-placement': true
+  'pattern-placement': true,
+  'edit-constraint-planner': true
 };
 
 var ALLOWED_EMISSION_MECHANISMS = {
-  'semantic-group-placement-rewrite': true
+  'semantic-group-placement-rewrite': true,
+  'semantic-placement-edit-rewrite': true
 };
 
 function assertRouteEvidence(item, placement) {
@@ -59,12 +61,42 @@ function assertPlacement(placement) {
   return true;
 }
 
+function assertEdit(edit) {
+  if (!edit) throw new Error('Missing edit constraint');
+  if (edit.unresolved) return true;
+  if (!edit.subject) throw new Error('Resolved edit missing subject');
+  if (!edit.dimension) throw new Error('Resolved edit missing dimension: ' + edit.subject);
+  if (!edit.resolved) throw new Error('Resolved edit missing planned point: ' + edit.subject);
+  if (!Array.isArray(edit.routeEvidence) || !edit.routeEvidence.length) {
+    throw new Error('Resolved edit missing routeEvidence: ' + edit.subject);
+  }
+  edit.routeEvidence.forEach(function(item) {
+    assertRouteEvidence(item, { subject: edit.subject });
+  });
+  if (!edit.emission) throw new Error('Resolved edit missing emission metadata: ' + edit.subject);
+  if (!ALLOWED_EMISSION_MECHANISMS[edit.emission.mechanism]) {
+    throw new Error('Resolved edit emission mechanism is not allowed: ' + edit.emission.mechanism);
+  }
+  if (!edit.emission.routeId) throw new Error('Resolved edit emission missing routeId: ' + edit.subject);
+  if (!edit.emission.routeMechanism) throw new Error('Resolved edit emission missing routeMechanism: ' + edit.subject);
+  var route = intentSurfaceGuard.getBridgeIssueRoute(edit.emission.routeId);
+  if (route.routeOwner !== 'placement-resolver') {
+    throw new Error('Resolved edit emission route owner mismatch for ' + edit.emission.routeId + ': expected placement-resolver, got ' + route.routeOwner);
+  }
+  if (route.routeMechanism !== edit.emission.routeMechanism) {
+    throw new Error('Resolved edit emission route mechanism mismatch for ' + edit.emission.routeId + ': expected ' + route.routeMechanism + ', got ' + edit.emission.routeMechanism);
+  }
+  return true;
+}
+
 function assertPlan(plan) {
   (plan.placements || []).forEach(assertPlacement);
+  (((plan.editPlan || {}).edits) || []).forEach(assertEdit);
   return true;
 }
 
 module.exports = {
   assertPlacement: assertPlacement,
+  assertEdit: assertEdit,
   assertPlan: assertPlan
 };

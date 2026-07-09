@@ -16,7 +16,7 @@
     "ui"
   ],
   "fieldNotes": {
-    "aiManifest": "Natural component card for LLM2. Use aliases and game-world language only; do not teach module ids, component ids, runtime adapter names, coordinates, event indexes, or key=value command shapes.",
+    "aiManifest": "Natural component card for LLM2 when exposeToLlm2 is not false and compilerManifest.abstract is not true. Use aliases and game-world language only; do not teach module ids, component ids, runtime adapter names, coordinates, event indexes, or key=value command shapes.",
     "compilerManifest": "Internal compiler target. Owns component id selection, inheritance defaults, required/provided capabilities, input bindings, relation templates, placement policy, runtime adapters, and bridge target hints.",
     "extends": "Compiler-only parent component id or parent id array. Used for internal component families such as touch buttons and inventory storage/panel composition; abstract parents must not be exposed to LLM2.",
     "adapterRoutes": "Required for each gdjsBridge.runtimeAdapters entry. Owns runtime adapter owner/mechanism/route evidence in compiler manifests instead of hard-coding adapter metadata in the bridge.",

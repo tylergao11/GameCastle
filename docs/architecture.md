@@ -55,15 +55,26 @@ LLM2 具备受限自循环：首轮输出作为 `apply` batch；如果 `Executio
 
 因此 repair loop 的“当前已应用项目”只在同一局游戏内延续；开新项目时不得继承上一局缓存。
 
+Current AI-first override: LLM2 output is AI-first Intent DSL. LLM2 may repair
+parser/surface errors by rewriting natural Intent DSL, but it must not repair
+Bridge/Runtime execution failures by emitting low-level DSL. Once Intent has
+compiled to target code, failures route to the owning compiler, placement
+resolver, bridge, runtime adapter, or executor layer.
+
 ### Agent Model Registry
 
 `ai/agent-workflow.js` owns model routing. Pipeline code should call roles, not
 hard-code model names:
 
 - `requirement`: LLM1 creative/requirement model, default `deepseek-v4-flash`.
-- `dsl`: LLM2 product-editing model, currently migrating from legacy Module DSL
-  to AI-first Intent DSL, default `deepseek-v4-flash`.
-- `dslModuleRepair` and `dslInternalRepair`: bounded repair roles inheriting the DSL model.
+- `dsl`: LLM2 product-editing model for AI-first Intent DSL, default
+  `deepseek-v4-flash`.
+- `dslIntentRepair`: LLM2 repair role for AI-first Intent DSL compiler
+  diagnostics. It rewrites natural Intent DSL only and does not see engine
+  target code.
+- `dslInternalRepair`: legacy/internal low-level repair role owned by
+  RuntimeExecutor. Intent execution failures do not use it; they route back to
+  lower-layer owners.
 - `imageGeneration`: reserved asset generation role, configured by `GAMECASTLE_IMAGE_MODEL`.
 - `vision`: reserved visual inspection role, configured by `GAMECASTLE_VISION_MODEL`.
 
@@ -79,17 +90,22 @@ The flow is contract-first:
 ```text
 RequirementModel
   -> BuildContract (frozen)
-  -> DSLAgent and RuntimeAssetResolver run in parallel under the same contract
+  -> DSLAgent writes Intent DSL; RuntimeAssetResolver resolves assets behind its own contract
   -> ImageAgent only fills repo/cache/variant misses when allowed
-  -> RuntimeLinker binds ModuleDslPatch + AssetManifest + optional AssetReview
+  -> ModuleCompiler/Bridge lower Intent into target facts; legacy ModuleDslPatch remains a ModuleCompiler-owned fixture/migration contract
+  -> RuntimeLinker binds compiler output + AssetManifest + optional AssetReview
   -> RuntimeValidator checks project truth, cache, assets, HTML export, smoke status
   -> owner-routed repair patch
 ```
 
 This boundary keeps AI context small and stable. RequirementModel sees product
-module cards and creative capability hints, not full template internals.
-DSLAgent should see AI-first Intent capability and ProjectWorld summaries, not
-raw `project.json`. During migration, legacy Module DSL remains an internal
+module cards and creative capability hints, not full template internals or
+engine/runtime fields. Its DesignBrief contract uses natural object roles and
+`layout.placements` with `anchor/direction/pattern`; it rejects coordinates,
+object sizes, implementation colors, and variable initial values.
+DSLAgent should see AI-first Intent capability plus sanitized planning context,
+not raw `project.json`, bridge/runtime audit internals, or coordinate-shaped
+creative brief fields. During migration, legacy Module DSL remains an internal
 compiler target and fixture baseline.
 RuntimeAssetResolver resolves asset slots declared by the BuildContract by
 checking exact cache, cloud repository, semantic/style repository matches,
@@ -102,7 +118,9 @@ repair routing.
 The contract types are complete runtime-facing shapes, not placeholders:
 
 - `BuildContract`: request, world summary, style guide, module intents, asset slots, parallel plan, acceptance, cache policy, repair policy.
-- `ModuleDslPatch`: DSLAgent Module DSL diff and declared asset-slot dependencies.
+- `ModuleDslPatch`: legacy/internal ModuleCompiler-owned module patch with
+  Module DSL text and declared asset-slot dependencies; not the live LLM2
+  product contract after the Intent migration.
 - `AssetManifest`: RuntimeAssetResolver output with selected source, asset ids, paths, hashes, dimensions, confidence, publishability, and placeholder debt.
 - `AssetReview`: VisionAgent semantic/visual checks over generated assets.
 - `AssemblyReport`: RuntimeLinker bindings, outputs, conflicts, and next action.
@@ -164,8 +182,8 @@ The AI-first Intent refactor replaces this live surface instead of keeping it as
 a parallel compatibility path. Module DSL becomes a compiler/internal migration
 shape, not the product language LLM2 should speak. The compiler remains the only
 owner that expands product modules into internal line-style DSL. Low-level DSL is
-still available inside the runtime/compiler fallback repair loop, but it is not
-the normal LLM2 product surface.
+target code for compiler/bridge/runtime owners, not an Intent-path LLM2 repair
+language.
 
 For iteration, `ProjectWorld.modules` is the base module truth. A patch such as
 adding `shell.game_over_screen` to an existing `core.platformer` project compiles
@@ -174,9 +192,11 @@ of the platformer module.
 
 `configure module` is closed for installed modules. Supported configuration keys
 live in each product module manifest under `compiler.configurePatches`; sync
-policy fields are metadata-only. This means LLM2 can request a title/button/sync
-change at the module level while the compiler owns event lookup, replacement
-ordering, module-state updates, and network-manifest updates.
+policy fields are metadata-only. In the live Intent path, LLM2 asks for natural
+product changes such as changing a start button label or making the session
+host-authoritative; the compiler decides whether that maps to a module
+configuration patch and owns event lookup, replacement ordering, module-state
+updates, and network-manifest updates.
 
 Fixed player interactions are product-module truth, not free-form prompt
 knowledge. A configurable label may describe the exposed runtime trigger, but it
@@ -197,7 +217,11 @@ runtime adapter requirements, module/network state, and a dry-run preview. The
 preview is the reviewer contract: it reports every command result, whether the
 patch is expected to execute, what semantic hash it predicts, and whether the
 patch is a cache hit against the current `ProjectWorld`. Only
-`--approve-pending` mutates the actual generated project.
+`--approve-pending` mutates the actual generated project. The full packet is a
+human/runtime audit artifact and may contain Bridge Plan, internal DSL, runtime
+adapter requirements, and command results. Any LLM or agent review must use
+`aiVisibleForLlm2`, which is derived from the PipelineState LLM2 node input plus
+safe counts/status only.
 
 ### AI-first Intent Layer
 
@@ -210,6 +234,7 @@ The new canonical chain is:
 ```text
 LLM2 Intent DSL
   -> typed Intent Graph
+  -> Edit Constraint Graph
   -> Module + Component graph
   -> Semantic Placement plan
   -> GDJS Bridge plan
@@ -218,6 +243,62 @@ LLM2 Intent DSL
   -> GDJS Runtime
 ```
 
+The chain is now represented by a graph-ready state contract in
+`ai/pipeline-state.js`. It is intentionally not a LangGraph runtime dependency
+yet. The contract names the future orchestration slots:
+`userRequest`, `requirement`, `llm2`, `intentGraph`, `resolver`, `compiler`,
+`bridge`, `runtime`, `projectWorld`, `diagnostics`, and `ownerRoute`.
+Internal slots may keep Bridge Plan, runtime adapter requirements, and execution
+reports for audit. The LLM2 slot only receives the ProjectWorld-owned sanitized
+node input: sanitized user request, sanitized design brief, sanitized diff, and
+the sanitized world context. Future LangGraph nodes should read
+`pipelineState.llm2.nodeInput`, not raw `requirement.designBrief` or
+`projectWorld.world`. This prevents coordinates, component ids, adapter ids,
+Bridge Plan details, and target DSL from flowing back into Intent generation.
+`ai/pipeline-state.js` also exports machine-checkable node contracts. The
+`llm2-intent` contract only allows reads from `llm2.nodeInput` and writes to the
+Intent DSL fields; tests fail if it tries to read raw requirement, raw
+ProjectWorld, Bridge Plan, runtime report, or internal target DSL fields.
+Each saved `PipelineState` also carries a `nodeContracts` snapshot so external
+or future LangGraph runners can audit the same read/write boundary from the
+state file itself instead of relying on prose. Runners should build node inputs
+through `makeNodeStateView(state, nodeName)`, which validates the state and
+returns only the paths allowed by the node contract; the `llm2-intent` view
+contains `llm2.nodeInput` and excludes raw requirement, raw ProjectWorld,
+Bridge, Runtime, and target DSL state. Node outputs should be merged through
+`applyNodeStatePatch(state, nodeName, patch)`, which accepts only contract-owned
+write paths and rejects LLM2 attempts to write raw requirement, bridge, runtime,
+or ProjectWorld fields. The same view/patch mechanism is used for the compiler,
+resolver, bridge, and runtime contracts.
+
+`ai/intent-pipeline-graph.js` is the canonical graph entry for the AI-first
+pipeline. It defines the single owner order:
+`llm2-intent -> intent-compiler -> resolver -> bridge -> runtime`. It turns a
+handler map into contract-bound local steps or contract-bound LangGraph nodes,
+rejects missing or undeclared nodes, and runs graph nodes in `allowPartial` mode
+while requiring strict `PipelineState` validation at the completed boundary. It
+also owns artifact replay assembly through `makePipelineStateFromArtifacts`:
+when the CLI path has already produced Intent DSL, Intent Graph, Placement Plan,
+Bridge Plan, ExecutionReport, and ProjectWorld, the graph entry replays those
+owner artifacts through the same five contract-bound nodes and attaches
+`graphTrace`.
+`ai/pipeline-graph-runner.js` is the dependency-free local runner: it gives each
+node only `makeNodeStateView` output, applies only `applyNodeStatePatch` output,
+supports async handlers, and records read/write trace evidence. It proves the
+LangGraph migration shape without introducing a LangGraph runtime dependency
+yet. `ai/langgraph-adapter.js` is the handoff boundary for real LangGraph
+adoption: it wraps a PipelineState in a `pipelineState` channel, gives each node
+only the contracted view, requires a path-object patch from the node, merges it
+through `applyNodeStatePatch`, and returns an updated `pipelineState` plus trace
+evidence. A LangGraph node should therefore implement only the node's domain
+work; it must not receive the full PipelineState, raw ProjectWorld, Bridge Plan,
+runtime report, or internal DSL unless its node contract explicitly allows that
+read.
+Approval preview packets include this state, and real Intent execution now asks
+the canonical graph entry to assemble the persisted post-runtime state. The
+saved `output/pipeline-state.json` carries `graphTrace` evidence for the five
+owner nodes after `ProjectWorld` and `ExecutionReport` are written.
+
 The Intent surface owns low-cognition concepts:
 
 - `thing`: Player, JumpButton, Inventory, CoinTrail.
@@ -225,11 +306,12 @@ The Intent surface owns low-cognition concepts:
   health bar.
 - `relation`: controls, owns, opens, damages, collects, near.
 - `placement`: near, direction, distance, pattern, count.
+- `edit`: semantic changes to existing world facts, such as "placement above slightly".
 - `action`: move, jump, attack, shoot, open inventory.
 
 Intent DSL is only the input layer. The system model is a typed Intent Graph
-containing things, components, relations, placements, semantic values, bindings,
-requirements, and diagnostics.
+containing things, components, relations, placements, edit constraints, semantic
+values, bindings, requirements, and diagnostics.
 
 LLM2 should write lines such as:
 
@@ -239,6 +321,7 @@ give Player platformer movement
 add joystick controls Player near screen bottom-left
 add jump button controls Player near screen bottom-right
 add inventory owned by Player with 24 slots near screen right
+adjust Fox placement above slightly
 place coins near Player front as trail count 8
 ```
 
@@ -250,8 +333,8 @@ as the normal product path; the compiler owns those selections.
 Product modules remain as compiler truth and reusable skeletons, but LLM2 now
 selects them through Intent DSL. Module DSL is no longer a second live LLM2
 product surface; it remains only an explicit fixture/internal migration input.
-Low-level line DSL remains target code for the bridge and bounded internal
-repair only.
+Low-level line DSL remains target code for the bridge and runtime executor, not
+an Intent-path LLM2 repair surface.
 
 Reusable controls and systems live in `ai/components/`. Each component has an
 AI Manifest for natural LLM2-facing concepts and a Compiler Manifest for
@@ -309,10 +392,11 @@ quiet ResultCard drift.
 
 The full compiled artifact is checked by `ai/intent-compile-contract.js` before
 `ai/intent-compiler.js` returns. This aggregate contract verifies the Intent
-Graph, ResultCard fields, routed diagnostics, rewrite evidence, Placement Plan,
-Bridge Plan emission evidence, and runtime adapter requirements together. A
-compiled Intent patch is therefore not considered valid unless the whole
-Intent -> Placement -> Bridge -> Runtime chain is contract-complete.
+Graph, edit constraints, ResultCard fields, routed diagnostics, rewrite
+evidence, Placement Plan, Bridge Plan emission evidence, and runtime adapter
+requirements together. A compiled Intent patch is therefore not considered valid
+unless the whole Intent -> Edit/Placement -> Bridge -> Runtime chain is
+contract-complete.
 The compiler attaches this aggregate contract summary to the compiled artifact;
 the approval packet, `ProjectWorld`, and `ExecutionReport` persist it as
 `intentContracts`/`intent.contracts`, so reviewers can audit the whole lowering
@@ -362,12 +446,20 @@ this contract before returning a Placement Plan. Pattern placements also carry
 inherit semantic placement evidence instead of receiving bridge-invented route
 labels.
 
+Small relative edits are owned by the same resolver through
+`ai/edit-constraint-contract.js`. LLM2 may say `adjust Fox placement above
+slightly`; the Intent Graph stores an `editConstraint` with semantic direction
+and amount, while the resolver reads current bounds from placement context or
+`ProjectWorld` and plans the concrete target point. The bridge emits the final
+internal target DSL with `semantic-placement-edit-rewrite` evidence. LLM2 never
+chooses `dy`, exact coordinates, or GDJS move parameters.
+
 Intent DSL must not grow without a gate. When GDJS integration exposes a hard
 case, the first answer is owner classification: symbol rewrite, inherited
 default, component manifest, placement contract, bridge target rewrite, or
 owner-routed diagnostic. A new LLM2-facing concept is allowed only when it names
 a reusable game-world concept that cannot be expressed by existing
-thing/component/relation/placement/value/role/action concepts.
+thing/component/relation/placement/edit/value/role/action concepts.
 
 The machine-checkable routing gate is `ai/intent-routing-rules.json`, validated
 by `ai/check-intent-routing-rules.js` in `npm run check:ai`. Parser and bridge
@@ -386,6 +478,23 @@ other owning layer.
 surface-form errors may be repaired by LLM2, but compiled diagnostics with
 `nextAction=route-to-owner` fail fast and preserve the owner-routed diagnostic
 instead of entering the LLM2 repair loop.
+`ai/pipeline.js` enforces the same boundary after execution: if an Intent patch
+has already compiled to bridge/internal DSL and runtime execution fails, the
+pipeline records the `ExecutionReport`, returns a failure status, and does not
+ask LLM2 to write low-level DSL repair lines.
+Runtime validation also records minimum Intent fulfillment evidence in
+`ExecutionReport`. Command success is not the only done signal: the report checks
+that Intent Graph things, component subjects, placements, and semantic edits are
+represented by the resulting `ProjectWorld` or by the resolved placement/edit
+plan for semantic groups. The detailed audit lives in
+`ExecutionReport.intentFulfillment`; the LLM2-safe summary carries only
+status/counts/nextAction. Missing fulfillment routes to `runtime-validator`
+through PipelineState owner routing instead of asking LLM2 to write target code.
+`ai/check-ai-visible-boundary.js` is the unified boundary gate for LLM2-visible
+surfaces. It exercises system prompts, user prompts, Intent repair prompts,
+ProjectWorld/ExecutionReport sanitizers, PipelineState `llm2.nodeInput`,
+contract-bound graph views, and approval `aiVisibleForLlm2` projections with
+dangerous coordinate/GDJS/adapter/component-id/Bridge/internal-DSL payloads.
 
 ### `ai/pipeline.js`
 
@@ -395,9 +504,9 @@ Agent/model 内容不应继续堆在这里：
 
 - `ai/llm-provider.js` owns Responses/SSE text model calls.
 - `ai/requirement-agent.js` owns LLM1 design brief generation.
-- `ai/dsl-agent.js` owns LLM2 Intent Commander prompts, Intent compile repair,
-  and bounded internal DSL repair prompts. Module Commander code remains for
-  explicit fixture/internal migration paths only.
+- `ai/dsl-agent.js` owns LLM2 Intent Commander prompts and Intent compile
+  repair. Module Commander and internal repair prompt builders remain for
+  explicit fixture/internal migration paths only, not the live Intent path.
 - `ai/agent-workflow.js` owns role/model routing.
 
 后续接入生图/识图时，应继续通过 Agent/contract 边界接入，而不是把 prompt 分支加回 `pipeline.js`。
@@ -408,12 +517,29 @@ Agent/model 内容不应继续堆在这里：
 
 - 从 GDevelop `project.json` 生成稳定的 `ProjectWorld`。
 - 给场景、对象、实例、变量和事件分配稳定 ID。
-- 继承 AI-first Intent 摘要：Intent DSL patch、typed Intent Graph、aggregate compile contract、Placement Plan、Bridge Plan、Compile ResultCard owner trace、runtime adapter requirements。
+- 继承 AI-first Intent 摘要：Intent DSL patch、typed Intent Graph、Edit Constraints、aggregate compile contract、Placement Plan、Bridge Plan、Compile ResultCard owner trace、runtime adapter requirements。
 - 输出语义 hash 和 worldVersion，避免运行时 UUID 造成缓存抖动。
 - 追加 `ExecutionLedger`，记录每个 batch、每条 DSL 命令的完成/失败和下一步动作。
 
 `ProjectWorld` 是给 LLM2 循环使用的世界摘要，不是完整 `project.json` 的替代存档。完整 `project.json` 仍然由 GDJS Runtime 消费。
 Intent 摘要中的原始自然语言行用于审计，不参与 `semanticHash`；hash 使用结构化 Intent/Bridge 摘要，避免同义改写造成状态抖动。
+`ProjectWorld.intent` may retain internal audit facts such as component ids,
+bridge route evidence, and runtime adapter summaries for verification. Those
+facts must not be passed directly to LLM2. `ai/project-world.js` owns the
+AI-visible projection through `sanitizeProjectWorldForIntentPrompt` and
+`sanitizeExecutionReportForIntentPrompt`; `ai/dsl-agent.js` consumes that
+projection when building Intent Commander prompts. The projection preserves
+object names, natural placements, semantic edit facts, and prior safe Intent
+lines while dropping coordinates, bridge plans, runtime adapter ids, GDJS object
+types, low-level execution commands, and internal contract names. Intent repair
+prompts use the same boundary: if the previous patch contained prohibited
+machine syntax, the exact line is omitted and LLM2 repairs from the user
+request, design brief, sanitized world card, and natural rules instead of
+copying the bad machine shape.
+LLM1 design briefs and design diffs are natural at the contract boundary. If an
+older saved brief contains numeric layout sketches, RequirementModel history and
+Intent Commander prompts sanitize them into coarse `screen` directions such as
+`bottom-right`. LLM2 receives game-world changes, not numeric planning sketches.
 
 ### `ai/capabilities/`
 
