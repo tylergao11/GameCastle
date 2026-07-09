@@ -27,6 +27,8 @@ function main() {
     'html-export',
     'runtime-validator',
     'project-world',
+    'tick-playtest',
+    'semantic-feedback',
   ].forEach(function(nodeName) {
     var node = projectPipelineGraph.getNodeDefinition(nodeName);
     assert(node, 'missing project graph node: ' + nodeName);
@@ -71,6 +73,8 @@ function main() {
       'html-export',
       'runtime-validator',
       'project-world',
+      'tick-playtest',
+      'semantic-feedback',
     ],
     'scattered project owners should be covered by official LangGraph smoke nodes'
   );
@@ -94,6 +98,10 @@ function main() {
     'ai/distillation-agent.js',
     'ai/asset-rag-client.js',
     'ai/html-exporter.js',
+    'ai/semantic-playtest-agent.js',
+    'ai/tick-playtest-runtime.js',
+    'ai/semantic-feedback.js',
+    'ai/semantic-mapping/semantic-feedback.json',
     'ai/network-runtime/codegen.js',
     'ai/network-runtime/transport.js',
     'ai/network-runtime/tick-intent-bridge.js',

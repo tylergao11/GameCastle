@@ -28,6 +28,11 @@ async function main() {
   assert(systemPrompt.indexOf('module cards') < 0, 'prompt must not teach LLM2 a module-card surface');
   assert(systemPrompt.indexOf('product modules') < 0, 'prompt must not teach LLM2 product module selection');
   assert(systemPrompt.indexOf('Game capability cards') >= 0, 'prompt should expose natural game capability cards');
+  assert(systemPrompt.indexOf('Semantic feedback mapping') >= 0, 'prompt should expose the shared semantic mapping view');
+  assert(systemPrompt.indexOf('llm-safe-semantic-mapping') >= 0, 'prompt should identify the LLM-safe semantic mapping view');
+  assert(systemPrompt.indexOf('Collectibles exist') >= 0, 'prompt should include semantic mapping issue meaning');
+  assert(systemPrompt.indexOf('place coins near Player front as trail count 5') >= 0, 'prompt should include safe repair Intent examples from semantic mapping');
+  assert(systemPrompt.indexOf('"template"') < 0, 'prompt must not expose semantic mapping templates');
   assert(systemPrompt.indexOf('componentId') < 0, 'prompt must not expose compiler component ids');
   assert(systemPrompt.indexOf('runtime adapter') < 0, 'prompt must not expose runtime adapter command concepts');
   [
@@ -129,6 +134,8 @@ async function main() {
     isNew: true
   });
   assert(userPrompt.indexOf('Intent DSL patch') >= 0, 'user prompt should request Intent DSL');
+  assert(userPrompt.indexOf('llm-safe-semantic-mapping') >= 0, 'user prompt world context should include shared semantic mapping view');
+  assert(userPrompt.indexOf('place coins near Player front as trail count 5') >= 0, 'user prompt should include safe semantic mapping repair examples');
   assert(userPrompt.indexOf('module ids') >= 0, 'user prompt should forbid machine ids');
   assert(userPrompt.indexOf('project.json') < 0, 'Intent user prompt must not name engine files');
   assert(userPrompt.indexOf('bridge/runtime') < 0, 'Intent user prompt must not name bridge/runtime internals');

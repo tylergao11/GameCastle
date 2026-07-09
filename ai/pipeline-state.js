@@ -1,6 +1,7 @@
 var projectWorld = require('./project-world');
 var intentSurfaceGuard = require('./intent-surface-guard');
 var dslAgent = require('./dsl-agent');
+var semanticFeedback = require('./semantic-feedback');
 
 var PIPELINE_STATE_SCHEMA_VERSION = 1;
 
@@ -281,6 +282,7 @@ function makeSanitizedWorldContext(options) {
   return {
     projectWorld: projectWorld.sanitizeProjectWorldForIntentPrompt(options.projectWorld),
     lastExecutionReport: projectWorld.sanitizeExecutionReportForIntentPrompt(options.executionReport || options.lastExecutionReport),
+    semanticMapping: semanticFeedback.buildSemanticMappingLlmView(),
   };
 }
 

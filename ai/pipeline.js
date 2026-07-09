@@ -6,6 +6,7 @@ var path = require("path");
 var crypto = require("crypto");
 var capabilities = require("./capabilities");
 var projectWorld = require("./project-world");
+var placementContext = require("./placement-context");
 var pipelineState = require("./pipeline-state");
 var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
@@ -21,6 +22,7 @@ var dslAgent = require("./dsl-agent");
 var llmProvider = require("./llm-provider");
 var intentCompiler = require("./intent-compiler");
 var intentPipelineGraph = require("./intent-pipeline-graph");
+var semanticPlaytestAgent = require("./semantic-playtest-agent");
 
 var STATE_DIR = path.join(__dirname, "..", "output");
 var LOG_PATH = path.join(STATE_DIR, "pipeline.log");
@@ -39,6 +41,12 @@ var PROJECT_PATH = path.join(STATE_DIR, "project.json");
 var HTML_EXPORT_MANIFEST_PATH = path.join(STATE_DIR, "html-export-manifest.json");
 var TICK_RUNTIME_MANIFEST_PATH = path.join(STATE_DIR, "tick-runtime-manifest.json");
 var INTENT_RUNTIME_REQUIREMENTS_PATH = path.join(STATE_DIR, "intent-runtime-requirements.json");
+var SEMANTIC_PLAYTEST_REPORT_PATH = path.join(STATE_DIR, "semantic-playtest-report.json");
+var SEMANTIC_PLAYTEST_POLICY_PATH = path.join(STATE_DIR, "semantic-playtest-policy.json");
+var SEMANTIC_PLAYTEST_LLM_REPORT_PATH = path.join(STATE_DIR, "semantic-playtest-llm-report.json");
+var SEMANTIC_PLAYTEST_USER_REPORT_PATH = path.join(STATE_DIR, "semantic-playtest-user-report.json");
+var SEMANTIC_PLAYTEST_REPAIR_INTENT_PATH = path.join(STATE_DIR, "semantic-playtest-repair.intent.dsl");
+var INTENT_WORLD_VIEW_PATH = path.join(STATE_DIR, "intent-world-view.json");
 var PENDING_APPROVAL_PATH = path.join(STATE_DIR, "pending-approval.json");
 var PIPELINE_STATE_PATH = path.join(STATE_DIR, "pipeline-state.json");
 var MAX_LLM2_REPAIR_ROUNDS = 2;
@@ -86,6 +94,21 @@ function loadJsonFile(filePath, fallback) {
 function saveJsonFile(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+}
+
+function writeSemanticPlaytestOutputs(world, executionReport) {
+  var report = semanticPlaytestAgent.runSemanticPlaytest({
+    projectWorld: world,
+    executionReport: executionReport,
+  });
+  saveJsonFile(SEMANTIC_PLAYTEST_REPORT_PATH, report);
+  saveJsonFile(SEMANTIC_PLAYTEST_POLICY_PATH, report.playPolicy);
+  saveJsonFile(SEMANTIC_PLAYTEST_LLM_REPORT_PATH, report.llmReport);
+  saveJsonFile(SEMANTIC_PLAYTEST_USER_REPORT_PATH, report.userReport);
+  saveJsonFile(INTENT_WORLD_VIEW_PATH, report.intentWorldView);
+  fs.writeFileSync(SEMANTIC_PLAYTEST_REPAIR_INTENT_PATH, report.repairIntentDslText || '');
+  console.log('[SemanticPlaytest] ' + report.summary.nextAction + ' issues=' + report.summary.issues + ' repairLines=' + report.summary.repairLines + ' -> ' + SEMANTIC_PLAYTEST_REPORT_PATH);
+  return report;
 }
 
 function cloneValue(value) {
@@ -856,6 +879,12 @@ function resetGeneratedStateForNewProject(options) {
     HTML_EXPORT_MANIFEST_PATH,
     TICK_RUNTIME_MANIFEST_PATH,
     INTENT_RUNTIME_REQUIREMENTS_PATH,
+    SEMANTIC_PLAYTEST_REPORT_PATH,
+    SEMANTIC_PLAYTEST_POLICY_PATH,
+    SEMANTIC_PLAYTEST_LLM_REPORT_PATH,
+    SEMANTIC_PLAYTEST_USER_REPORT_PATH,
+    SEMANTIC_PLAYTEST_REPAIR_INTENT_PATH,
+    INTENT_WORLD_VIEW_PATH,
     PENDING_APPROVAL_PATH,
     projectWorld.getWorldPath(STATE_DIR),
     projectWorld.getLedgerPath(STATE_DIR),
@@ -916,7 +945,7 @@ function writeProjectOutputs(project, options) {
     console.log('[TickRuntime] regenerated (' + tickRuntimeJs.length + ' bytes)');
   }
   var intentRuntimeRequirements = options.runtimeAdapterRequirements || null;
-  if (!intentRuntimeRequirements && fs.existsSync(INTENT_RUNTIME_REQUIREMENTS_PATH)) {
+  if ((!intentRuntimeRequirements || !intentRuntimeRequirements.length) && fs.existsSync(INTENT_RUNTIME_REQUIREMENTS_PATH)) {
     intentRuntimeRequirements = JSON.parse(fs.readFileSync(INTENT_RUNTIME_REQUIREMENTS_PATH, 'utf8')).requirements || [];
   }
   if (intentRuntimeRequirements && intentRuntimeRequirements.length) {
@@ -1011,6 +1040,7 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   projectWorld.appendExecutionReport(STATE_DIR, report);
   console.log('[ProjectWorld] v' + world.worldVersion + ' ' + world.semanticHash + ' -> ' + projectWorld.getWorldPath(STATE_DIR));
   console.log('[ExecutionReport] ' + report.summary.nextAction + ' ' + report.summary.completed + '/' + report.summary.total + ' -> ' + projectWorld.getLedgerPath(STATE_DIR));
+  var semanticPlaytestReport = writeSemanticPlaytestOutputs(world, report);
   var state = null;
   if (options.intent) {
     state = await makeIntentPipelineStateFromGraph({
@@ -1029,6 +1059,7 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
       internalDslText: dslText,
       executionReport: report,
       projectWorld: world,
+      semanticPlaytestReport: semanticPlaytestReport,
     });
     var statePath = savePipelineState(state);
     console.log('[PipelineState] ' + state.stateKind + ' graphTrace=' + state.graphTrace.length + ' -> ' + statePath);
@@ -1394,7 +1425,10 @@ async function run(prompt, useMock) {
 
   if (intentDslFile) {
     intentDslText = fs.readFileSync(path.resolve(intentDslFile), 'utf8');
-    compiledIntentPatch = intentCompiler.compileIntentDsl(intentDslText);
+    compiledIntentPatch = intentCompiler.compileIntentDsl(intentDslText, {
+      productModuleCatalog: productModuleCatalog,
+      placementContext: placementContext.contextFromProjectWorld(compileBaseWorld)
+    });
     dslText = compiledIntentPatch.bridgePlan.dslText;
     console.log('[IntentDSLFile] ' + path.resolve(intentDslFile) + ' (' + intentDslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
     console.log('[IntentCompiler] ' + compiledIntentPatch.graph.components.length + ' components -> ' + compiledIntentPatch.bridgePlan.dslLines.length + ' low-level DSL lines, ' + compiledIntentPatch.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
@@ -1502,6 +1536,7 @@ async function run(prompt, useMock) {
         productModuleCatalog: productModuleCatalog,
         baseModules: compileBaseModules,
         projectWorld: compileBaseWorld,
+        placementContext: placementContext.contextFromProjectWorld(compileBaseWorld),
         maxRepairRounds: MAX_LLM2_INTENT_COMPILE_REPAIR_ROUNDS,
         allowLlmRepair: true,
         llm2SystemPrompt: llm2SystemPrompt,

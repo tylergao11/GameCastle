@@ -3,6 +3,7 @@ var componentCatalog = require('./component-catalog');
 var diagnosticRouter = require('./intent-diagnostic-router');
 var intentSurfaceGuard = require('./intent-surface-guard');
 var projectWorld = require('./project-world');
+var semanticFeedback = require('./semantic-feedback');
 
 function cleanDslOutput(text) {
   text = String(text || '').trim();
@@ -262,7 +263,8 @@ function sanitizeIntentWorldContext(worldContext) {
   worldContext = worldContext || {};
   return {
     projectWorld: sanitizeProjectWorldForIntentPrompt(worldContext.projectWorld),
-    lastExecutionReport: sanitizeExecutionReportForIntentPrompt(worldContext.lastExecutionReport)
+    lastExecutionReport: sanitizeExecutionReportForIntentPrompt(worldContext.lastExecutionReport),
+    semanticMapping: semanticFeedback.buildSemanticMappingLlmView()
   };
 }
 
@@ -291,6 +293,9 @@ function buildIntentCommanderSystemPrompt(productModuleCatalog, componentCatalog
     '',
     'Component cards, shown without compiler ids or adapter names:',
     JSON.stringify(buildIntentComponentReference(componentCatalogInstance), null, 2),
+    '',
+    'Semantic feedback mapping, shown as an LLM-safe game-world dictionary:',
+    JSON.stringify(semanticFeedback.buildSemanticMappingLlmView(), null, 2),
     '',
     'Rules:',
     '- For a new game, output the minimum natural Intent DSL needed for a playable first version.',

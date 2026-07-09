@@ -1,0 +1,590 @@
+{
+  "schemaVersion": 1,
+  "subjectAliases": {
+    "coin": "coins",
+    "coins": "coins",
+    "collectible": "coins",
+    "collectibles": "coins",
+    "enemy": "enemies",
+    "enemies": "enemies",
+    "hazard": "enemies",
+    "hazards": "enemies",
+    "player": "Player",
+    "hero": "Player",
+    "jump": "JumpButton",
+    "jumpbutton": "JumpButton",
+    "jump button": "JumpButton",
+    "button": "JumpButton"
+  },
+  "experienceDimensions": {
+    "reward_pacing": {
+      "meaning": "Reward presence, reachability, and feedback along the active route.",
+      "roles": ["reward", "actor", "route", "feedback"],
+      "measurements": ["reward_presence_rate", "reward_reachability", "feedback_event_count"],
+      "repairVerbs": ["increase_presence", "cluster_near_route", "increase_feedback"]
+    },
+    "pressure_balance": {
+      "meaning": "Risk pressure from hazards, enemies, blockers, or failure sources.",
+      "roles": ["pressure", "actor", "route"],
+      "measurements": ["pressure_count_window", "first_damage_tick"],
+      "repairVerbs": ["soften_pressure", "delay_pressure", "spread_out"]
+    },
+    "survival_window": {
+      "meaning": "How long the actor can stay active before failure.",
+      "roles": ["actor", "pressure", "route"],
+      "measurements": ["first_failure_tick", "survival_rate"],
+      "repairVerbs": ["add_recovery_window", "soften_pressure", "delay_pressure"]
+    },
+    "route_readability": {
+      "meaning": "Whether the active route gives readable choices and reachable goals.",
+      "roles": ["route", "actor", "reward", "pressure"],
+      "measurements": ["reward_reachability", "idle_tick_span", "pressure_count_window"],
+      "repairVerbs": ["cluster_near_route", "spread_out", "increase_feedback"]
+    },
+    "action_access": {
+      "meaning": "Whether player actions are available and responsive through the route.",
+      "roles": ["actor", "action_entry", "route"],
+      "measurements": ["action_response_tick", "idle_tick_span"],
+      "repairVerbs": ["increase_feedback", "add_recovery_window"]
+    },
+    "content_density": {
+      "meaning": "How much meaningful reward, pressure, or interaction exists in a time window.",
+      "roles": ["reward", "pressure", "route", "phase_driver"],
+      "measurements": ["presence_rate", "idle_tick_span", "pressure_count_window"],
+      "repairVerbs": ["increase_presence", "decrease_presence", "spread_out"]
+    },
+    "phase_flow": {
+      "meaning": "Wave, boss, objective, or stage progression and its reward feedback.",
+      "roles": ["phase_driver", "reward", "feedback"],
+      "measurements": ["phase_transition_tick", "feedback_event_count", "idle_tick_span"],
+      "repairVerbs": ["advance_phase", "smooth_phase_transition", "increase_feedback"]
+    },
+    "remix_style": {
+      "meaning": "A broad genre or creator style translated into gameplay tendencies before visuals.",
+      "roles": ["actor", "reward", "pressure", "route", "phase_driver"],
+      "measurements": ["presence_rate", "pressure_count_window", "reward_reachability"],
+      "repairVerbs": ["increase_presence", "soften_pressure", "cluster_near_route", "advance_phase"]
+    },
+    "template_surface": {
+      "meaning": "Visual, icon, broad layout, and style choices handled by templates unless gameplay access is blocked.",
+      "roles": ["action_entry", "feedback"],
+      "measurements": ["feedback_event_count", "action_response_tick"],
+      "repairVerbs": ["route_to_template", "increase_feedback"]
+    }
+  },
+  "gameplayRoles": {
+    "experience_subject": {
+      "abstract": true,
+      "meaning": "A semantic participant in the sampled player experience.",
+      "fallbackSubjects": []
+    },
+    "content": {
+      "abstract": true,
+      "extends": "experience_subject",
+      "meaning": "A repeated or meaningful world element that changes pacing.",
+      "fallbackSubjects": []
+    },
+    "interface_surface": {
+      "abstract": true,
+      "extends": "experience_subject",
+      "meaning": "A player-facing surface for action or feedback.",
+      "fallbackSubjects": []
+    },
+    "experience_structure": {
+      "abstract": true,
+      "extends": "experience_subject",
+      "meaning": "A route, phase, or progression structure that organizes play.",
+      "fallbackSubjects": []
+    },
+    "actor": {
+      "extends": "experience_subject",
+      "meaning": "The controllable or primary agent whose experience is sampled.",
+      "fallbackSubjects": ["Player", "hero"]
+    },
+    "reward": {
+      "extends": "content",
+      "meaning": "Optional gains, pickups, drops, score sources, or resources.",
+      "fallbackSubjects": ["collectibles", "coins", "coin", "reward"]
+    },
+    "pressure": {
+      "extends": "content",
+      "meaning": "Failure pressure such as enemies, hazards, blockers, or damage sources.",
+      "fallbackSubjects": ["hazards", "enemies", "enemy", "pressure"]
+    },
+    "route": {
+      "extends": "experience_structure",
+      "meaning": "The sampled path, lane, arena, or active play space.",
+      "fallbackSubjects": ["route", "path", "arena"]
+    },
+    "action_entry": {
+      "extends": "interface_surface",
+      "meaning": "An input or ability access surface used by the actor.",
+      "fallbackSubjects": ["JumpButton", "button", "skill"]
+    },
+    "phase_driver": {
+      "extends": "experience_structure",
+      "meaning": "A wave, boss, objective, timer, or phase controller.",
+      "fallbackSubjects": ["wave", "boss", "phase", "objective"]
+    },
+    "feedback": {
+      "extends": "interface_surface",
+      "meaning": "Score, reward, state, or progress feedback visible to the player.",
+      "fallbackSubjects": ["score", "reward", "progress"]
+    }
+  },
+  "repairVerbs": {
+    "increase_presence": {
+      "meaning": "Add more of a role while preserving semantic placement.",
+      "action": "increase-count"
+    },
+    "decrease_presence": {
+      "meaning": "Reduce repeated pressure or content while preserving the concept.",
+      "action": "decrease-count"
+    },
+    "spread_out": {
+      "meaning": "Separate dense content across the route or time window.",
+      "action": "decrease-count"
+    },
+    "cluster_near_route": {
+      "meaning": "Place useful content closer to the actor route.",
+      "action": "increase-count"
+    },
+    "soften_pressure": {
+      "meaning": "Lower early pressure intensity around the actor route.",
+      "action": "decrease-count"
+    },
+    "delay_pressure": {
+      "meaning": "Move pressure later in the sampled experience window.",
+      "action": "decrease-count"
+    },
+    "add_recovery_window": {
+      "meaning": "Give the actor more time or space before failure pressure dominates.",
+      "action": "decrease-count"
+    },
+    "increase_feedback": {
+      "meaning": "Make reward, progress, or action result feedback more explicit.",
+      "action": "increase-count"
+    },
+    "advance_phase": {
+      "meaning": "Progress a phase, wave, or objective after its evidence condition.",
+      "action": "increase-count"
+    },
+    "smooth_phase_transition": {
+      "meaning": "Make a phase transition less sudden by adding a readable bridge.",
+      "action": "decrease-count"
+    },
+    "route_to_template": {
+      "meaning": "Send visual, icon, and style choices to template policy.",
+      "action": "route-to-template"
+    }
+  },
+  "measurements": {
+    "presence_rate": {
+      "meaning": "How often meaningful content appears during the sampled window.",
+      "summaryField": "meaningfulEventCount",
+      "improvement": "increase"
+    },
+    "reward_presence_rate": {
+      "meaning": "How often reward-role events appear during the sampled route.",
+      "summaryField": "rewardsReached",
+      "improvement": "increase"
+    },
+    "reward_reachability": {
+      "meaning": "Whether reward-role content can be reached by the sampled route.",
+      "summaryField": "rewardReachabilityRate",
+      "improvement": "increase"
+    },
+    "pressure_count_window": {
+      "meaning": "How many pressure-role events appear in a focused Tick window.",
+      "summaryField": "pressureSeen",
+      "improvement": "decrease"
+    },
+    "first_damage_tick": {
+      "meaning": "The first tick where the actor receives failure pressure.",
+      "summaryField": "firstDamageTick",
+      "improvement": "later-or-none"
+    },
+    "first_failure_tick": {
+      "meaning": "The first tick where the actor fails or exits active play.",
+      "summaryField": "firstDeathTick",
+      "improvement": "later-or-none"
+    },
+    "survival_rate": {
+      "meaning": "Whether the actor stays active through the target duration.",
+      "summaryField": "survived",
+      "improvement": "truthy"
+    },
+    "idle_tick_span": {
+      "meaning": "A stretch of ticks with no meaningful reward, pressure, action, or phase event.",
+      "summaryField": "idleTickSpan",
+      "improvement": "decrease"
+    },
+    "phase_transition_tick": {
+      "meaning": "The tick where phase, wave, boss, or objective state changes.",
+      "summaryField": "phaseTransitions",
+      "improvement": "contextual"
+    },
+    "action_response_tick": {
+      "meaning": "The tick where an action intent produces visible gameplay feedback.",
+      "summaryField": "actionResponseTick",
+      "improvement": "decrease"
+    },
+    "feedback_event_count": {
+      "meaning": "How many explicit reward, score, state, or progress feedback events appear.",
+      "summaryField": "feedbackEventCount",
+      "improvement": "increase"
+    }
+  },
+  "requestSemantics": {
+    "slots": {
+      "more_collectibles": {
+        "hints": ["reward_pacing", "reward", "increase_presence"]
+      },
+      "enemy_density": {
+        "hints": ["pressure_balance", "pressure", "soften_pressure", "needs_tick_evidence"]
+      },
+      "death_too_fast": {
+        "hints": ["survival_window", "actor", "add_recovery_window", "needs_tick_evidence"]
+      },
+      "ui_template": {
+        "hints": ["template_surface", "route_to_template"]
+      },
+      "stable_noop": {
+        "hints": ["stable_current_state"]
+      },
+      "route_unclear": {
+        "hints": ["route_readability", "route", "cluster_near_route", "needs_tick_evidence"]
+      },
+      "content_sparse": {
+        "hints": ["content_density", "reward", "increase_presence", "needs_tick_evidence"]
+      },
+      "phase_reward_missing": {
+        "hints": ["phase_flow", "phase_driver", "increase_feedback", "needs_tick_evidence"]
+      },
+      "remix_runner": {
+        "hints": ["remix_style", "route", "cluster_near_route", "increase_presence"]
+      },
+      "remix_survivor": {
+        "hints": ["remix_style", "pressure", "soften_pressure", "increase_presence"]
+      }
+    },
+    "signals": [
+      {
+        "hints": ["reward_pacing", "reward", "increase_presence"],
+        "terms": ["reward", "collect", "coin", "coins", "金币", "奖励", "掉落"]
+      },
+      {
+        "hints": ["pressure_balance", "pressure", "soften_pressure", "needs_tick_evidence"],
+        "terms": ["pressure", "enemy", "enemies", "hazard", "怪", "敌人", "危险", "太密"]
+      },
+      {
+        "hints": ["survival_window", "actor", "add_recovery_window", "needs_tick_evidence"],
+        "terms": ["death_too_fast", "die too fast", "死太快", "太难", "有点难", "还是难", "难度高", "活不久"]
+      },
+      {
+        "hints": ["template_surface", "route_to_template"],
+        "terms": ["ui", "icon", "button", "button style", "按钮", "图标", "皮肤", "酷炫"]
+      },
+      {
+        "hints": ["route_readability", "route", "cluster_near_route", "needs_tick_evidence"],
+        "terms": ["route", "path", "readability", "不好躲", "不好走", "看不清路线"]
+      },
+      {
+        "hints": ["content_density", "reward", "increase_presence", "needs_tick_evidence"],
+        "terms": ["empty", "too empty", "content sparse", "有点空", "内容太少", "节奏空"]
+      },
+      {
+        "hints": ["phase_flow", "phase_driver", "increase_feedback", "needs_tick_evidence"],
+        "terms": ["wave", "phase", "boss phase", "reward after wave", "波次", "阶段", "清完", "奖励反馈"]
+      },
+      {
+        "hints": ["remix_style", "route", "cluster_near_route"],
+        "terms": ["runner", "parkour", "跑酷"]
+      },
+      {
+        "hints": ["remix_style", "pressure", "soften_pressure"],
+        "terms": ["survivor", "survivors", "割草"]
+      }
+    ]
+  },
+  "repairActions": {
+    "increase-count": {
+      "kind": "count",
+      "summary": "Increase repeated world things while keeping their semantic placement.",
+      "direction": "increase",
+      "defaultDelta": 1,
+      "template": "place {subject} near {anchor} {direction} as {pattern} count {count}"
+    },
+    "decrease-count": {
+      "kind": "count",
+      "summary": "Decrease repeated world things without deleting the whole concept.",
+      "direction": "decrease",
+      "defaultDelta": 1,
+      "minCount": 1,
+      "template": "place {subject} near {anchor} {direction} as {pattern} count {count}"
+    },
+    "placement-adjust": {
+      "kind": "placement",
+      "summary": "Move an existing thing using semantic direction and amount language.",
+      "template": "adjust {subject} placement {direction} {amount}"
+    },
+    "route-to-template": {
+      "kind": "template-route",
+      "summary": "Route visual, icon, style, or broad layout requests to the template owner."
+    }
+  },
+  "issueProfiles": {
+    "reward_pacing_low": {
+      "category": "playtest",
+      "dimension": "reward_pacing",
+      "gameplayRole": "reward",
+      "repairVerb": "increase_presence",
+      "meaning": "The tick run shows the player collecting too few reachable collectibles for the intended route.",
+      "repair": {
+        "action": "increase-count",
+        "subject": "coins",
+        "anchor": "Player",
+        "direction": "front",
+        "pattern": "trail",
+        "delta": 2
+      }
+    },
+    "route_reward_unreachable": {
+      "category": "reachability",
+      "dimension": "route_readability",
+      "gameplayRole": "reward",
+      "repairVerb": "cluster_near_route",
+      "meaning": "Collectibles exist, but the current route does not let the player reach enough of them.",
+      "repair": {
+        "action": "increase-count",
+        "subject": "coins",
+        "anchor": "Player",
+        "direction": "front",
+        "pattern": "trail",
+        "delta": 2
+      }
+    },
+    "reward_presence_sparse": {
+      "category": "density",
+      "dimension": "content_density",
+      "gameplayRole": "reward",
+      "repairVerb": "increase_presence",
+      "meaning": "Collectibles are too rare for the intended route pacing.",
+      "repair": {
+        "action": "increase-count",
+        "subject": "coins",
+        "anchor": "Player",
+        "direction": "front",
+        "pattern": "trail",
+        "delta": 2
+      }
+    },
+    "pressure_balance_high": {
+      "category": "density",
+      "dimension": "pressure_balance",
+      "gameplayRole": "pressure",
+      "repairVerb": "soften_pressure",
+      "meaning": "Enemy or hazard pressure is too high for the current route.",
+      "repair": {
+        "action": "decrease-count",
+        "subject": "enemies",
+        "anchor": "Player",
+        "direction": "far-front",
+        "pattern": "guard",
+        "delta": 1
+      }
+    },
+    "survival_window_short": {
+      "category": "difficulty",
+      "dimension": "survival_window",
+      "gameplayRole": "actor",
+      "repairVerb": "add_recovery_window",
+      "meaning": "The player fails too quickly, so early difficulty needs to soften.",
+      "repair": {
+        "action": "decrease-count",
+        "subject": "enemies",
+        "anchor": "Player",
+        "direction": "far-front",
+        "pattern": "guard",
+        "delta": 1
+      }
+    },
+    "action_access_low": {
+      "category": "controls",
+      "dimension": "action_access",
+      "gameplayRole": "action_entry",
+      "repairVerb": "increase_feedback",
+      "meaning": "A control is placed too low or uncomfortable to reach.",
+      "repair": {
+        "action": "placement-adjust",
+        "subject": "JumpButton",
+        "direction": "above",
+        "amount": "slightly"
+      }
+    },
+    "action_access_high": {
+      "category": "controls",
+      "dimension": "action_access",
+      "gameplayRole": "action_entry",
+      "repairVerb": "increase_feedback",
+      "meaning": "A control is placed too high or uncomfortable to reach.",
+      "repair": {
+        "action": "placement-adjust",
+        "subject": "JumpButton",
+        "direction": "below",
+        "amount": "slightly"
+      }
+    },
+    "route_readability_low": {
+      "category": "readability",
+      "dimension": "route_readability",
+      "gameplayRole": "route",
+      "repairVerb": "cluster_near_route",
+      "meaning": "The active route lacks readable reward or pressure guidance.",
+      "repair": {
+        "action": "increase-count",
+        "subject": "coins",
+        "anchor": "Player",
+        "direction": "front",
+        "pattern": "trail",
+        "delta": 2
+      }
+    },
+    "content_density_low": {
+      "category": "density",
+      "dimension": "content_density",
+      "gameplayRole": "reward",
+      "repairVerb": "increase_presence",
+      "meaning": "The sampled window has too little meaningful content.",
+      "repair": {
+        "action": "increase-count",
+        "subject": "coins",
+        "anchor": "Player",
+        "direction": "front",
+        "pattern": "trail",
+        "delta": 2
+      }
+    },
+    "phase_feedback_missing": {
+      "category": "phase",
+      "dimension": "phase_flow",
+      "gameplayRole": "feedback",
+      "repairVerb": "increase_feedback",
+      "meaning": "A phase or wave transition lacks reward or progress feedback.",
+      "repair": {
+        "action": "increase-count",
+        "subject": "coins",
+        "anchor": "Player",
+        "direction": "front",
+        "pattern": "trail",
+        "delta": 1
+      }
+    },
+    "remix_style_shift": {
+      "category": "remix",
+      "dimension": "remix_style",
+      "gameplayRole": "route",
+      "repairVerb": "cluster_near_route",
+      "meaning": "The creator requested a broad gameplay style shift before visual template work.",
+      "repair": {
+        "action": "increase-count",
+        "subject": "coins",
+        "anchor": "Player",
+        "direction": "front",
+        "pattern": "trail",
+        "delta": 2
+      }
+    }
+  },
+  "subjectDefaults": {
+    "coins": {
+      "count": 3,
+      "anchor": "Player",
+      "direction": "front",
+      "pattern": "trail"
+    },
+    "enemies": {
+      "count": 3,
+      "anchor": "Player",
+      "direction": "far-front",
+      "pattern": "guard"
+    },
+    "JumpButton": {
+      "direction": "above",
+      "amount": "slightly"
+    }
+  },
+  "playGoals": {
+    "survive": {
+      "meaning": "Keep the player alive through the sampled route."
+    },
+    "collect": {
+      "meaning": "Prefer a route that picks up visible collectibles."
+    },
+    "avoid-threats": {
+      "meaning": "Avoid enemy or hazard pressure when the route becomes unsafe."
+    }
+  },
+  "playIntents": {
+    "move-forward": {
+      "meaning": "Advance along the main route every tick unless blocked."
+    },
+    "jump-when-needed": {
+      "meaning": "Jump when the route asks for vertical movement or obstacle clearance."
+    },
+    "collect-reachable": {
+      "meaning": "Steer toward collectibles that the route can reasonably reach."
+    },
+    "avoid-threats": {
+      "meaning": "Prefer survival over collectible pickup when pressure is high."
+    }
+  },
+  "eventMeanings": {
+    "ActorSpawned": "The actor became active in the simulated world.",
+    "AutoRunStarted": "The policy began moving through the route.",
+    "ActorIntent": "The play policy submitted an actor intent for the current tick.",
+    "RewardReached": "The route reached reward content and progress can increase.",
+    "RewardMissed": "Reward content existed but the route did not reach it.",
+    "PressureDetected": "Pressure became relevant to the route.",
+    "PhaseTransitioned": "A phase, wave, boss, or objective state changed.",
+    "ActorDamaged": "The route produced damage or failure pressure.",
+    "ActorFailed": "The sampled route failed before the target duration."
+  },
+  "tickFeedbackIssues": {
+    "reward_pacing_low": {
+      "meaning": "Reward reachability stayed below the play policy target.",
+      "evidenceEvents": ["RewardReached", "RewardMissed"],
+      "issueProfile": "reward_pacing_low"
+    },
+    "pressure_balance_high": {
+      "meaning": "Pressure events appeared early or too frequently for the sampled route.",
+      "evidenceEvents": ["PressureDetected", "ActorDamaged"],
+      "issueProfile": "pressure_balance_high"
+    },
+    "survival_window_short": {
+      "meaning": "The actor failed before the policy minimum survival tick.",
+      "evidenceEvents": ["ActorDamaged", "ActorFailed"],
+      "issueProfile": "survival_window_short"
+    },
+    "route_readability_low": {
+      "meaning": "The route lacked readable reward or pressure guidance in the sampled window.",
+      "evidenceEvents": ["ActorIntent", "RewardMissed"],
+      "issueProfile": "route_readability_low"
+    },
+    "content_density_low": {
+      "meaning": "The sampled window had too little meaningful content.",
+      "evidenceEvents": ["ActorIntent", "AutoRunStarted"],
+      "issueProfile": "content_density_low"
+    },
+    "phase_feedback_missing": {
+      "meaning": "A phase or wave state changed without reward or progress feedback.",
+      "evidenceEvents": ["PhaseTransitioned", "RewardMissed"],
+      "issueProfile": "phase_feedback_missing"
+    },
+    "remix_style_shift": {
+      "meaning": "A broad gameplay style request needs a gameplay-first semantic change.",
+      "evidenceEvents": ["ActorIntent", "AutoRunStarted"],
+      "issueProfile": "remix_style_shift"
+    }
+  }
+}

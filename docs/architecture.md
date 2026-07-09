@@ -325,12 +325,14 @@ requirement
   -> asset-world
   -> bridge
   -> runtime-linker
-  -> network-runtime
+  -> tick-runtime
   -> server-runtime
   -> html-export
   -> runtime
   -> runtime-validator
   -> project-world
+  -> tick-playtest
+  -> semantic-feedback
 ```
 
 Layer names:
@@ -341,7 +343,7 @@ Layer names:
 - `Runtime Assembly Layer`: asset/bridge binding, tick runtime codegen, runtime files, HTML export, execution.
 - `Server Weave Layer`: signaling server, rooms, ordered input, game loop, and state store.
 - `Validation Layer`: fulfillment, asset debt, export health, owner routing.
-- `World Summary Layer`: ProjectWorld and ledger feedback for the next turn.
+- `World Summary Layer`: ProjectWorld, ledger feedback, Tick playtest evidence, semantic probe feedback, and repair Intent for the next turn.
 
 `llm2-intent` remains intentionally narrow in the total graph: it reads only
 `llm2.nodeInput`. It must not read raw `AssetManifest`, raw `AssetWorld`, Bridge
@@ -353,8 +355,8 @@ Official LangGraph smoke coverage now exists for:
 
 - `asset-library -> image-generation -> asset-review`
 - `asset-resolver -> asset-world`
-- `network-runtime -> server-runtime`
-- `runtime-linker -> html-export -> runtime-validator -> project-world`
+- `tick-runtime -> server-runtime`
+- `runtime-linker -> html-export -> runtime-validator -> project-world -> tick-playtest -> semantic-feedback`
 
 Every Project Weave Graph owner outside the live World Intent path now has at
 least one official `StateGraph` smoke. The remaining migration distinction is
@@ -557,6 +559,231 @@ surfaces. It exercises system prompts, user prompts, Intent repair prompts,
 ProjectWorld/ExecutionReport sanitizers, PipelineState `llm2.nodeInput`,
 contract-bound graph views, and approval `aiVisibleForLlm2` projections with
 dangerous coordinate/GDJS/adapter/component-id/Bridge/internal-DSL payloads.
+
+`ai/semantic-mapping/semantic-feedback.json` is the truth source for semantic
+feedback mapping: subject aliases, issue profiles, repair actions, templates,
+and subject defaults live there instead of inside case code.
+`ai/semantic-feedback.js` owns probe-feedback-to-repair translation after
+`ProjectWorld`. It consumes sanitized world context, the last execution report,
+structured probe issues, and the semantic mapping dictionary. The generic form
+is a probe issue with a semantic `repair` object such as
+`action=increase-count` or `action=placement-adjust`; game cases such as a
+parkour fixture are tests of that form, not code branches. The output is only
+safe Intent DSL repair text, for example `place coins near Player front as
+trail count 5` or `adjust JumpButton placement above slightly`. It must never
+output internal target DSL, coordinates, component ids, adapter ids, bridge
+plans, or GDJS names.
+The same dictionary also produces an LLM-safe view through
+`buildSemanticMappingLlmView()`. Intent Commander prompts, PipelineState
+`llm2.nodeInput.worldContext`, and semantic feedback reports read this view, so
+Probe repair, LLM iteration, and ProjectWorld回译 share one semantic
+explanation source without exposing internal templates.
+
+`ai/semantic-playtest-agent.js` is the product-facing playtest owner after
+`ProjectWorld`. It builds a generic `PlayPolicy` from the sanitized
+`ProjectWorld` and the LLM-safe semantic mapping view, runs the local Tick
+pseudo-runner, writes user/LLM feedback layers, and emits executable repair
+Intent DSL. `ai/tick-playtest-runtime.js` stays underneath it as the deterministic
+Tick execution owner. It is not a network compatibility layer and it does not
+special-case one genre. Its input is a `PlayPolicy` built from semantic roles
+such as player, collectible, threat, and control. Every sampled gameplay change
+happens on a tick:
+
+```text
+PlayPolicy
+  -> Tick intents
+  -> EventLog
+  -> Snapshot
+  -> tick evidence issue
+  -> SemanticFeedback repair Intent
+```
+
+The runtime records events such as `ActorIntent`, `RewardReached`,
+`RewardMissed`, and `PressureDetected`, plus snapshots with aggregate
+metrics. Semantic Playtest Agent turns those facts into:
+
+- `semantic-playtest-llm-report.json`: structured tick summary, tick issues,
+  evidence, and repair Intent lines for the next LLM turn.
+- `semantic-playtest-user-report.json`: short human-facing playtest summary and
+  suggested intent lines.
+- `intent-world-view.json`: gameplay-first LLM2 decision context. It maps the
+  single scene into gameplay roles, tick evidence, current judgement, context
+  cache/diff state, candidate actions, and allowed context requests.
+- `semantic-playtest-repair.intent.dsl`: executable repair Intent, generated but
+  not automatically applied.
+
+Semantic feedback consumes tick issues exactly like external probe issues,
+preserving evidence such as the failing tick and metric before it renders safe
+repair Intent DSL. This makes single-player preview, replay, automated play
+analysis, and future ordered-input multiplayer share the same runtime worldview:
+Intent drives ticks, ticks drive state, state produces events, and events
+summarize back into the world.
+
+IntentWorldView is deliberately not an oracle. Its recommended actions are
+candidate hypotheses from semantic evidence; LLM2 remains the final decision
+owner. When the semantic hash matches the previous world, the view asks LLM2 to
+use `diff-only` context. When it misses, it uses `summary-plus-diff`. LLM2 may
+request focused tick event windows, snapshot summaries, ProjectWorld diffs,
+semantic mapping, or UI template policy before choosing, revising, or ignoring a
+candidate action. UI and icon choices are treated as selectable style/layout
+templates unless input access or feedback visibility is the actual gameplay
+problem.
+
+`ai/llm2-context-cache-router.js` sits between IntentWorldView and real LLM2
+calls. Its owner boundary is context cost and cache shape, not gameplay truth.
+For DeepSeek it assumes a text KV prefix cache: stable prompt prefix order and
+content matter, while asset cache, image cache, and multimodal cache hits are
+not interchangeable with this route. The router chooses:
+
+- `diff_hit`: semantic hash unchanged or same-scene gameplay iteration.
+- `full_hit`: stable prefix exists and the model needs broader context, such as
+  after two wrong turns.
+- `recommended_pack`: narrow candidate pack plus context request capability for
+  focused issues such as enemy density.
+- `full_miss`: new project, no base semantic hash, or repeated failures without
+  a trusted stable prefix.
+
+This makes "smallest context" a fallback, not the default. If the stable prefix
+can hit, a larger cached prefix plus small dynamic diff can be cheaper and safer
+than a tiny but constantly missing prompt.
+
+`ai/llm2-decision-runtime.js` is the decision owner after routing. It separates
+"what context should the model see" from "what decision may the model make". The
+only valid decisions are:
+
+- `apply_intent`: produce safe Intent DSL.
+- `request_context`: ask for focused context before editing.
+- `no_op`: leave the current gameplay unchanged.
+- `reject`: reject unsafe or out-of-scope requests.
+
+The runtime currently uses a deterministic Mock decision engine so the skeleton
+can be verified before real DeepSeek calls. Its verifier rejects machine
+surfaces, coordinates, bridge/runtime internals, and any non-apply decision that
+tries to emit Intent DSL. Recommended actions from IntentWorldView are therefore
+candidate evidence, not final authority.
+
+`ai/llm2-context-provider.js` closes the model's `request_context` loop. It
+returns LLM-safe focused evidence for `tick_event_window`, `project_world_diff`,
+`snapshot_summary`, and `ui_template_policy`. This lets LLM2 ask for more
+evidence without receiving raw engine data. A threat-density turn can now run as
+`recommended_pack -> request_context(tick_event_window) -> provider summary ->
+apply_intent`, instead of guessing from the initial candidate pack.
+
+`ai/llm2-decision-loop-runner.js` is the runtime bus that makes the whole LLM2
+turn replayable. It owns the sequence:
+
+```text
+IntentWorldView
+  -> Context Cache Router
+  -> Decision Runtime
+  -> Context Provider when request_context
+  -> Decision Runtime second pass
+  -> Intent DSL artifact when apply_intent
+  -> pipeline --continue
+  -> Semantic Playtest writeback
+  -> Semantic Iteration Memory
+  -> Decision Loop report
+```
+
+The runner is the future real-LLM insertion point. DeepSeek should replace the
+decision engine behind the Decision Runtime contract, not own routing,
+context-provision, verification, pipeline execution, or report generation.
+
+After an executed gameplay patch, the runner compares before/after Tick
+summaries using the semantic mapping and writes
+`output/semantic-iteration-memory.json`. The memory is bound to the after-world
+semantic hash, so only a matching next `IntentWorldView` receives
+`semanticIterationMemory`. This is the continuous-remix bridge: LLM2 can see
+that a prior turn improved `reward_reachability`, still left
+`route_readability` work, or should keep the improved feel, without reading raw
+coordinates, component ids, GDJS, adapter ids, bridge plans, or full logs.
+The router carries this memory in the dynamic tail for cache discipline, and
+Decision Runtime scores candidate actions against current request hints,
+remaining semantic issues, and already improved dimensions.
+
+`ai/llm2-semantic-eval-loop.js` is the batch benchmark layer above that bus. It
+does not add another model role. It repeatedly feeds natural creation and
+feedback turns into the Decision Loop Runner, records the selected cache route,
+captures `request_context` evidence from the Context Provider, optionally
+executes safe Intent DSL through `pipeline --continue`, and writes transcript
+artifacts for replay and audit.
+
+The default eval set covers the product-critical cases:
+
+- gameplay expansion: `金币多一点` produces `apply_intent` and runs the pipeline.
+- evidence-first feedback: `怪别太密` first requests a tick event window, then
+  applies a pressure-reduction Intent.
+- semantic repair from tick evidence: `玩家死太快` applies a safer early-route
+  Intent from death evidence.
+- UI/template boundary: pure button/icon styling requests are rejected as
+  non-gameplay patches.
+- stable review: `再看一下` produces `no_op` when current evidence is acceptable.
+
+The eval outputs are:
+
+- `output/llm2-semantic-eval-report.json`
+- `output/llm2-semantic-eval-summary.txt`
+- `output/llm2-semantic-eval-transcripts/*.json`
+
+This is the guard before real LLM2 debugging: replacing the deterministic
+decision engine with DeepSeek should not change the runtime-owned eval contract,
+transcript shape, context-provider evidence, or apply/no-op/reject audit rules.
+
+`ai/deepseek-cache-monitor.js` is the real DeepSeek observation gate for this
+context strategy. Router modes such as `diff_hit`, `full_hit`, and
+`recommended_pack` are only expected cache behavior; they are not proof. The
+monitor calls the local Responses bridge, listens to `response.completed.usage`,
+and requires hot turns to prove at least 90% text KV cache hit rate from
+provider usage fields:
+
+```text
+stable LLM2 Intent prefix
+  -> warmup request
+  -> changed dynamic user turns
+  -> DeepSeek usage
+  -> prompt_cache_hit_tokens / prompt_cache_miss_tokens
+  -> 90% gate
+```
+
+If usage is missing, or a hot step falls below 90%, the debug run fails. This
+keeps context optimization evidence-based: the system must observe whether the
+stable prefix actually hits instead of trusting the local prompt assembly.
+
+The real DeepSeek decision provider uses slot prompts rather than free-form
+examples. Its stable prompt names the output slots, while the dynamic prompt
+passes local proof slots:
+
+```text
+slot:user_request
+slot:local_semantic_interpretation
+slot:semantic_hints
+slot:candidate_safe_actions
+slot:local_proof
+slot:allowed_requested_context_ids
+slot:required_output
+```
+
+The proof vocabulary is deliberately small: `candidate_matched`,
+`evidence_gap`, `stable_current_state`, and `template_policy`. If local runtime
+evidence proves `candidate_matched`, the provider selects the proven safe Intent
+DSL and records the model's raw decision type as audit evidence. Command-line
+DeepSeek probes should pass request slots such as `REQUEST_SLOT:more_collectibles`
+instead of raw natural-language examples, because shell encoding drift can
+corrupt user text before the model sees it.
+
+`LLM2DecisionLoopRunner` can now run the same loop with
+`decisionProvider=deepseek`. In that mode each decision pass records
+`decisionProviderTrace`, including raw model text, provider usage, proof slots,
+verifier result, and cache gate result. `LLM2SemanticEvalLoop` has an async
+real-provider path for batch eval. The debug command
+`npm run debug:llm2-deepseek-loop` runs a slot-based `execute=false` batch through
+the real provider: more collectibles, enemy density, early death, UI template,
+stable no-op, route readability, content density, phase feedback, runner remix,
+and survivor remix. It observes model behavior and cache hit rate without
+mutating the current project. The command performs a warmup pass followed by a
+hot pass; the hot pass owns the 90% gate. Both passes write transcripts so cache
+behavior, raw model text, proof slots, verifier output, and final decision can
+be audited step by step.
 
 ### `ai/pipeline.js`
 

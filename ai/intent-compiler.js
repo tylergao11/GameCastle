@@ -1,5 +1,6 @@
 var intentDsl = require('./intent-dsl');
 var placementResolver = require('./placement-resolver');
+var placementContext = require('./placement-context');
 var componentCatalog = require('./component-catalog');
 var gdjsBridge = require('./gdjs-bridge');
 var diagnosticRouter = require('./intent-diagnostic-router');
@@ -477,9 +478,13 @@ function compileIntentAst(ast, options) {
     else addDiagnostic(state, 'Build Intent Graph', 'unsupported-command', null, 'Unsupported AST command: ' + command.kind);
   });
 
+  var resolvedPlacementContext = placementContext.mergePlacementContexts(
+    placementContext.contextFromModuleIntents(state.graph.modules, options.productModuleCatalog),
+    options.placementContext
+  );
   var placementPlan = placementResolver.resolvePlacements(
     state.graph,
-    options.placementContext,
+    resolvedPlacementContext,
     { resultCard: state.resultCard }
   );
   if (state.graph.bindings.length) {

@@ -5,6 +5,8 @@ var langGraphRuntime = require('./langgraph-runtime');
 var pipeline = require('./pipeline');
 var projectWorld = require('./project-world');
 var runtimeCodegen = require('./runtime-codegen');
+var semanticFeedback = require('./semantic-feedback');
+var semanticPlaytestAgent = require('./semantic-playtest-agent');
 
 function makeProject() {
   var project = pipeline.emptyProject('ProjectWeaveRuntimeCheck');
@@ -47,6 +49,32 @@ function makeProject() {
     height: 48,
     layer: '',
     zOrder: 1,
+  });
+  scene.objects.push({
+    name: 'Coin',
+    type: 'PrimitiveDrawing::Drawer',
+    fillColor: { r: 255, g: 215, b: 0 },
+    outlineColor: { r: 255, g: 255, b: 255 },
+    outlineSize: 0,
+    variables: [],
+    behaviors: [],
+  });
+  [180, 260, 340].forEach(function(x, index) {
+    scene.instances.push({
+      name: 'Coin',
+      x: x,
+      y: 100,
+      width: 16,
+      height: 16,
+      layer: '',
+      zOrder: index + 2,
+    });
+  });
+  scene.events.push({
+    type: 'BuiltinCommonInstructions::Standard',
+    conditions: [{ type: { value: 'CollisionNP' }, parameters: ['Player', 'Coin'] }],
+    actions: [],
+    events: [],
   });
   scene.events.push({
     type: 'BuiltinCommonInstructions::Standard',
@@ -93,6 +121,8 @@ function createInitialState() {
       sanitizedForLlm2: null,
     },
     executionLedger: {},
+    tickPlaytest: {},
+    semanticFeedback: {},
     graphTrace: [],
   };
 }
@@ -136,6 +166,14 @@ async function compileRuntimeGraph(langGraph) {
       default: function() { return {}; },
     }),
     executionLedger: langGraph.Annotation({
+      reducer: function(left, right) { return Object.assign({}, left || {}, right || {}); },
+      default: function() { return {}; },
+    }),
+    tickPlaytest: langGraph.Annotation({
+      reducer: function(left, right) { return Object.assign({}, left || {}, right || {}); },
+      default: function() { return {}; },
+    }),
+    semanticFeedback: langGraph.Annotation({
       reducer: function(left, right) { return Object.assign({}, left || {}, right || {}); },
       default: function() { return {}; },
     }),
@@ -232,11 +270,54 @@ async function compileRuntimeGraph(langGraph) {
         graphTrace: appendTrace(state, 'project-world', ['projectWorld.world', 'projectWorld.sanitizedForLlm2', 'executionLedger.latest', 'runtime.executionReport']),
       };
     })
+    .addNode('tick-playtest', function(state) {
+      var report = semanticPlaytestAgent.runSemanticPlaytest({
+        projectWorld: state.projectWorld.world,
+        executionReport: state.runtime.executionReport,
+        minRewardReachabilityRate: 0.9,
+      });
+      assert(report.tickReport.eventLog.some(function(event) { return event.type === 'RewardReached'; }), 'semantic playtest should produce reward events');
+      assert.strictEqual(report.llmReport.audience, 'llm', 'semantic playtest should produce an LLM report');
+      assert.strictEqual(report.userReport.audience, 'user', 'semantic playtest should produce a user report');
+      return {
+        tickPlaytest: {
+          playPolicy: report.playPolicy,
+          report: report,
+          summary: report.summary,
+          llmReport: report.llmReport,
+          userReport: report.userReport,
+          repairIntentDslText: report.repairIntentDslText,
+        },
+        graphTrace: appendTrace(state, 'tick-playtest', ['tickPlaytest.playPolicy', 'tickPlaytest.report', 'tickPlaytest.llmReport', 'tickPlaytest.userReport', 'tickPlaytest.repairIntentDslText', 'tickPlaytest.summary']),
+      };
+    })
+    .addNode('semantic-feedback', function(state) {
+      var report = semanticFeedback.analyzeSemanticFeedback({
+        projectWorld: state.projectWorld.world,
+        executionReport: state.runtime.executionReport,
+        probeReport: {
+          summary: state.tickPlaytest.llmReport.tickSummary,
+          issues: state.tickPlaytest.llmReport.tickIssues,
+        },
+      });
+      assert(report.repairIntentDslText.indexOf('x=') < 0, 'semantic feedback must not produce coordinate repairs');
+      return {
+        semanticFeedback: {
+          report: report,
+          repairIntentDslText: report.repairIntentDslText,
+          semanticMappingView: report.input.semanticMapping,
+          summary: report.summary,
+        },
+        graphTrace: appendTrace(state, 'semantic-feedback', ['semanticFeedback.report', 'semanticFeedback.repairIntentDslText', 'semanticFeedback.semanticMappingView', 'semanticFeedback.summary']),
+      };
+    })
     .addEdge(langGraph.START, 'runtime-linker')
     .addEdge('runtime-linker', 'html-export')
     .addEdge('html-export', 'runtime-validator')
     .addEdge('runtime-validator', 'project-world')
-    .addEdge('project-world', langGraph.END)
+    .addEdge('project-world', 'tick-playtest')
+    .addEdge('tick-playtest', 'semantic-feedback')
+    .addEdge('semantic-feedback', langGraph.END)
     .compile();
 }
 
@@ -251,9 +332,15 @@ async function main() {
   assert.strictEqual(result.executionLedger.latest.summary.nextAction, 'done', 'execution report should be done');
   assert.deepStrictEqual(
     result.graphTrace.map(function(entry) { return entry.node; }),
-    ['runtime-linker', 'html-export', 'runtime-validator', 'project-world'],
-    'runtime weave StateGraph trace should preserve assembly/validation/writeback order'
+    ['runtime-linker', 'html-export', 'runtime-validator', 'project-world', 'tick-playtest', 'semantic-feedback'],
+    'runtime weave StateGraph trace should preserve assembly/validation/writeback/feedback order'
   );
+  assert.strictEqual(result.tickPlaytest.llmReport.audience, 'llm', 'tick-playtest node should write LLM report');
+  assert.strictEqual(result.tickPlaytest.userReport.audience, 'user', 'tick-playtest node should write user report');
+  assert(result.tickPlaytest.report.tickReport.summary.rewardReachabilityRate < 0.9, 'tick playtest should report a measurable reward pacing issue');
+  assert.strictEqual(result.semanticFeedback.summary.nextAction, 'repair-intent', 'semantic feedback node should emit repair intent when probe reports an issue');
+  assert.strictEqual(result.semanticFeedback.semanticMappingView.view, 'llm-safe-semantic-mapping', 'semantic feedback node should expose shared semantic mapping view');
+  assert(result.semanticFeedback.repairIntentDslText.indexOf('place coins near Player front as trail count') >= 0, 'semantic feedback node should produce natural repair intent from tick issue');
   var safeJson = JSON.stringify(result.projectWorld.sanitizedForLlm2);
   assert(safeJson.indexOf('"x"') < 0, 'LLM2 ProjectWorld summary must not expose x coordinates');
   assert(safeJson.indexOf('bridgePlan') < 0, 'LLM2 ProjectWorld summary must not expose bridge plan');

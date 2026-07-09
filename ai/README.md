@@ -36,6 +36,19 @@
 | `module-dsl.js` | LLM2/Commander 级 Module DSL parser |
 | `module-compiler.js` | 产品模块编译器，把 Module DSL 展开为内部低层 DSL，并产出 tick runtime manifest |
 | `project-world.js` | 把 GDevelop `project.json` 翻译为稳定的 `ProjectWorld`，并追加 `ExecutionLedger` |
+| `semantic-mapping/semantic-feedback.json` | 语义映射字典真相源：subject aliases、issue profiles、repair actions、模板和默认语义值 |
+| `semantic-feedback.js` | 语义反馈 owner：读取语义映射字典，把结构化 probe issue 归一成安全 repair Intent DSL，并生成 LLM-safe semantic mapping view |
+| `semantic-playtest-agent.js` | Semantic Playtest Agent：自动生成 PlayPolicy，调用 Tick 伪运行，产出 LLM/user 双层报告和可执行 Repair Intent |
+| `intent-world-view.js` | IntentWorldView：把单场景 ProjectWorld + tick 试玩证据压成 gameplay-first 的 LLM2 决策上下文，UI/Icon 只作为模板化辅助层 |
+| `llm2-context-cache-router.js` | LLM2 Context Cache Router：按 DeepSeek 文本 KV 前缀缓存选择 `full_hit` / `diff_hit` / `recommended_pack` / `full_miss` |
+| `llm2-context-provider.js` | LLM2 Context Provider：按 `request_context` 返回安全的 `tick_event_window`、`project_world_diff`、`snapshot_summary`、`ui_template_policy` |
+| `llm2-decision-runtime.js` | LLM2 Decision Runtime：把 Router + IntentWorldView 变成 `apply_intent` / `request_context` / `no_op` / `reject` 决策并验证 |
+| `llm2-decision-loop-runner.js` | LLM2 Decision Loop Runner：串联 Router、Provider、Decision Runtime、pipeline 执行和复盘报告 |
+| `llm2-semantic-eval-loop.js` | LLM2 Semantic Eval Loop：批量自然语言创作/反馈基准，复用 Decision Loop、Tick 证据、Intent 执行、试玩复测和 transcript |
+| `deepseek-cache-monitor.js` | DeepSeek Cache Monitor：真实 Responses bridge 调试层，监听每步 usage，按 90% text KV cache hit rate gate 判定 |
+| `llm2-deepseek-decision-provider.js` | LLM2 DeepSeek Decision Provider：真实模型决策接入点，解析严格 JSON，经 Decision Verifier 与 cache gate 后才可用 |
+| `tick-playtest-runtime.js` | Tick 伪运行 owner：读取 ProjectWorld + PlayPolicy + semantic mapping，产出 EventLog/Snapshot/tick evidence issues |
+| `full-creative-loop.js` | Full Creative Loop v1：用 deterministic Mock LLM 串起用户意图、Intent、创建、试玩、修复、二次试玩和用户总结 |
 | `gdevelop-truth.js` | 项目内唯一 GDevelop runtime truth 入口，负责官方类型/include/字段读取和校验 |
 | `gdevelop-truth/runtime-truth.json` | 从 `D:\GDevelop-master` 提取的官方 GDevelop/GDJS runtime truth snapshot |
 
@@ -88,6 +101,331 @@ prompt
   -> output/project.json + output/game.html
   -> output/project-world.json + output/execution-ledger.json
 ```
+
+## Semantic Playtest Agent
+
+Semantic Playtest Agent is the product-facing owner above the Tick pseudo-runner.
+After pipeline execution writes `ProjectWorld` and `ExecutionReport`, the
+pipeline automatically writes:
+
+- `output/semantic-playtest-report.json`
+- `output/semantic-playtest-policy.json`
+- `output/semantic-playtest-llm-report.json`
+- `output/semantic-playtest-user-report.json`
+- `output/intent-world-view.json`
+- `output/semantic-playtest-repair.intent.dsl`
+
+The agent builds a policy from the LLM-safe ProjectWorld view and the LLM-safe
+semantic mapping view, then asks the local Tick runner to play in semantic terms:
+
+```text
+ProjectWorld + Semantic Mapping
+  -> PlayPolicy
+  -> Tick EventLog + Snapshot
+  -> tick evidence issue
+  -> SemanticFeedback
+  -> repair Intent DSL
+```
+
+The agent writes two reports from the same evidence:
+
+- LLM report: structured tick summary, tick issues, evidence, and repair Intent.
+- User report: short human-language playtest summary and suggested intent lines.
+
+The runner uses semantic role bindings such as player, collectible, threat, and
+control. Fixture games can bind those roles to concrete world nouns, but the
+runtime must not hard-code a genre. `ai/check-semantic-playtest-pipeline-output.js`
+verifies pipeline output, and `ai/check-llm-guided-tick-playtest-loop.js`
+verifies create -> playpolicy -> tick pseudo run -> feedback -> repair -> rerun
+improvement.
+
+## IntentWorldView
+
+`ai/intent-world-view.js` is the LLM2 decision context above Semantic Playtest.
+It describes one active scene as gameplay responsibilities instead of UI layout:
+
+- `player_agent`, `reward_pacing`, and `pressure_source` are primary gameplay
+  design objects.
+- `action_entry` UI controls are supporting input surfaces only.
+- icon style, visual style, and broad UI layout are expected to come from
+  selectable templates, not from long LLM2 tuning loops.
+- recommended actions are safe Intent DSL lines or explicit `no_op`.
+
+The view also carries `contextCache`: semantic hash, cache-hit state, and a
+small diff. When semantic hashes match, LLM2 should treat the world as
+`diff-only`; when they do not match, it receives `summary-plus-diff`. This keeps
+iterations focused on changed gameplay evidence instead of repeatedly re-reading
+the whole scene.
+
+## LLM2 Context Cache Router
+
+`ai/llm2-context-cache-router.js` is the debug layer before real LLM2 calls. It
+routes the LLM2 context by DeepSeek text KV prefix-cache economics, where cache
+hit and miss cost can differ massively. The router does not use asset,
+repository, image, or multimodal cache assumptions.
+
+Modes:
+
+- `diff_hit`: same semantic world, gameplay iteration, stable prefix should hit,
+  dynamic tail carries the user turn and tick evidence diff.
+- `full_hit`: stable prefix is available and broader context is worth reading,
+  especially after repeated wrong turns.
+- `recommended_pack`: small triage context with candidate actions and context
+  requests, used for focused requests such as "怪别太密".
+- `full_miss`: new project, no base semantic hash, or repeated failures without
+  a trusted stable prefix.
+
+The router output contains `stablePrefix`, `dynamicTail`, `estimatedCacheRisk`,
+`reason`, and the explicit provider cache model:
+
+```text
+provider=deepseek
+cacheKind=text-kv-prefix
+reusableAcrossModalities=false
+hitToMissPriceRatio=50
+```
+
+`full-creative-loop.js` writes the selected route to
+`output/full-creative-loop-repair-context-route.json` so real DeepSeek debugging
+can inspect context selection before spending tokens.
+
+## LLM2 Decision Runtime
+
+`ai/llm2-decision-runtime.js` is the replaceable decision node after context
+routing. It turns `IntentWorldView + ContextRoute + user request` into one of
+four verified decisions:
+
+- `apply_intent`: emit safe Intent DSL.
+- `request_context`: ask for focused context such as `tick_event_window`.
+- `no_op`: leave the world unchanged because current evidence is acceptable.
+- `reject`: reject out-of-scope or unsafe requests, such as pure icon styling
+  that belongs to UI template policy.
+
+The runtime includes a deterministic Mock engine plus `LLM2DecisionVerifier`.
+The verifier rejects coordinates, machine fields, component ids, bridge/runtime
+internals, and non-apply decisions that try to emit Intent DSL. This makes real
+DeepSeek a replaceable decision engine rather than the owner of GameCastle's
+rules.
+
+`ai/llm2-context-provider.js` closes the `request_context` loop. When Decision
+Runtime asks for context, the provider returns safe focused summaries:
+
+- `tick_event_window`: semantic events around the evidence tick.
+- `project_world_diff`: semantic hash state and latest Intent diff lines.
+- `snapshot_summary`: compact metric/state snapshots around the evidence tick.
+- `ui_template_policy`: template boundary for UI/icon requests.
+
+The provider deliberately strips coordinates and backend fields. A typical
+two-step decision is:
+
+```text
+"怪别太密"
+  -> recommended_pack
+  -> request_context: tick_event_window
+  -> ContextProvider returns focused threat events
+  -> apply_intent: reduce enemy pressure near Player early route
+```
+
+## LLM2 Decision Loop Runner
+
+`ai/llm2-decision-loop-runner.js` is the runtime bus for LLM2 decisions before
+real DeepSeek is connected. It reads the current `IntentWorldView`, routes
+context, runs Decision Runtime, resolves `request_context` through Context
+Provider, optionally writes an Intent DSL patch, executes `pipeline --continue`,
+and writes a replayable report.
+
+Outputs:
+
+- `output/llm2-decision-loop-report.json`
+- `output/llm2-decision-loop.intent.dsl`
+- `output/llm2-decision-loop-context-route.json`
+- `output/llm2-decision-loop-provided-context.json`
+- `output/semantic-iteration-memory.json`
+
+When an `apply_intent` turn executes, the runner compares before/after Tick
+summaries through the semantic mapping and writes `SemanticIterationMemory`.
+That memory is bound to the after-world semantic hash and is injected into the
+next matching `IntentWorldView` as `semanticIterationMemory`. LLM2 sees only the
+safe gameplay result: which experience measurements improved, which issues
+remain, and what semantic focus should carry into the next creation turn. It
+does not see coordinates, component ids, GDJS, adapter ids, or bridge plans.
+The router keeps this memory in the dynamic tail, not the stable cache prefix,
+and Decision Runtime uses it to prefer remaining semantic issues over dimensions
+that Tick evidence already improved.
+
+Real LLM integration should replace the deterministic decision engine inside the
+Decision Runtime boundary. Router, Provider, verifier, pipeline execution, Tick
+playtest, and report generation should remain deterministic runtime ownership.
+
+## LLM2 Semantic Eval Loop
+
+`ai/llm2-semantic-eval-loop.js` is the batch evaluation layer above the single
+Decision Loop Runner. It does not own gameplay rules or model behavior. It owns
+the replayable benchmark set:
+
+```text
+natural user request
+  -> LLM2 Decision Loop Runner
+  -> Context Provider if request_context
+  -> Intent DSL / pipeline execution when apply_intent
+  -> Semantic Playtest writeback
+  -> transcript + before/after summary
+```
+
+The default eval set covers natural creation/feedback turns such as:
+
+- `金币多一点`: apply safe Intent and execute the pipeline.
+- `怪别太密`: request focused tick evidence, then apply a pressure-reduction Intent.
+- `玩家死太快`: apply a safer early-route Intent from semantic evidence.
+- `按钮换个酷炫图标` and `按钮往上一些`: reject pure UI/icon tuning as template policy.
+- `再看一下`: no-op on stable evidence.
+
+Run it directly with:
+
+```bash
+npm run eval:llm2-semantic-loop
+```
+
+Outputs:
+
+- `output/llm2-semantic-eval-report.json`
+- `output/llm2-semantic-eval-summary.txt`
+- `output/llm2-semantic-eval-transcripts/*.json`
+
+`node ai/check-llm2-semantic-eval-loop.js` is also part of `npm run check:ai`.
+It audits that every case has a transcript, every decision passed verifier,
+`request_context` really received provider evidence, executed cases have
+before/after tick summaries, and no LLM2-visible result leaks machine surfaces.
+
+## DeepSeek Cache Monitor
+
+`ai/deepseek-cache-monitor.js` is the real-provider debug gate for the LLM2
+Intent Engine context strategy. Router reports are predictions; this monitor
+requires provider usage evidence from the local DeepSeek Responses bridge.
+
+It sends a stable LLM2 Intent prefix followed by changing dynamic turns, listens
+to `response.completed.usage`, and computes the hot-step cache hit rate from
+`prompt_cache_hit_tokens`, `prompt_cache_miss_tokens`, and
+`input_tokens_details.cached_tokens`.
+
+Run it when tuning real DeepSeek context:
+
+```bash
+npm run debug:deepseek-cache
+```
+
+Outputs:
+
+- `output/deepseek-cache-monitor-report.json`
+- `output/deepseek-cache-monitor-summary.txt`
+
+The first request is treated as warmup. Every later hot request must pass the
+90% cache hit gate. Missing usage fails closed, because cache savings must be
+proven by provider data rather than inferred from prompt shape. The local check
+`node ai/check-deepseek-cache-monitor.js` uses fake SSE usage and is included in
+`npm run check:ai`; it does not spend tokens.
+
+`ai/llm2-deepseek-decision-provider.js` is the narrow real-model decision entry.
+It asks DeepSeek for strict JSON, parses one decision object, runs the same
+`LLM2DecisionVerifier`, and attaches the provider cache gate result. Unsafe
+model output becomes `reject`; it cannot bypass verifier rules or emit machine
+surfaces. The deterministic Decision Runtime remains the default fast path until
+real-model eval is intentionally enabled.
+
+Prompt discipline for this provider is intentionally low-model friendly:
+
+- Use named slots such as `slot:user_request`, `slot:local_proof`, and
+  `slot:required_output`.
+- Use proof vocabulary such as `candidate_matched`, `evidence_gap`,
+  `stable_current_state`, and `template_policy`.
+- Command-line probes should pass stable request slots such as
+  `REQUEST_SLOT:more_collectibles` instead of raw natural-language examples, so
+  shell encoding cannot corrupt the semantic proof.
+- When `slot:local_proof` proves `candidate_matched`, the provider applies the
+  proven safe Intent DSL and records the model's raw decision type separately.
+
+The real-provider loop can be probed without mutating the project:
+
+```bash
+npm run debug:llm2-deepseek-loop
+```
+
+That command runs a slot-based semantic eval batch:
+
+```text
+REQUEST_SLOT:more_collectibles
+REQUEST_SLOT:enemy_density
+REQUEST_SLOT:death_too_fast
+REQUEST_SLOT:ui_template
+REQUEST_SLOT:stable_noop
+REQUEST_SLOT:route_unclear
+REQUEST_SLOT:content_sparse
+REQUEST_SLOT:phase_reward_missing
+REQUEST_SLOT:remix_runner
+REQUEST_SLOT:remix_survivor
+  -> LLM2 Decision Loop Runner
+  -> LLM2 DeepSeek Decision Provider
+  -> proof slot gate
+  -> verifier
+  -> provider cache gate >= 90%
+  -> transcript/report
+```
+
+It runs a warmup pass and then a hot pass. The hot pass must meet the 90% cache
+gate. It writes:
+
+- `output/llm2-deepseek-loop-debug-report.json`
+- `output/llm2-deepseek-loop-debug-summary.txt`
+- `output/llm2-deepseek-loop-report.json`
+- `output/llm2-deepseek-loop-summary.txt`
+- `output/llm2-deepseek-loop-transcripts/*.json`
+
+The command uses `execute=false`, so it observes DeepSeek decision quality and
+cache behavior without applying a patch to the current project.
+
+## Full Creative Loop
+
+`ai/full-creative-loop.js` is the first complete single-player creative loop.
+It uses a deterministic Mock LLM only to produce stable semantic outputs, then
+uses the real pipeline and Semantic Playtest Agent for execution:
+
+```text
+user request
+  -> Mock RequirementModel design brief
+  -> Mock DSLAgent Intent DSL
+  -> pipeline create
+  -> Semantic Playtest Agent
+  -> IntentWorldView
+  -> Context Cache Router
+  -> LLM2 Decision Runtime
+  -> Context Provider if request_context
+  -> pipeline --continue repair
+  -> Semantic Playtest Agent rerun
+  -> before/after comparison
+  -> final user summary
+```
+
+The Mock LLM must not emit coordinates, GDJS names, component ids, bridge plans,
+or runtime adapter fields. The loop writes:
+
+- `output/full-creative-loop-create.intent.dsl`
+- `output/full-creative-loop-before-semantic-playtest-report.json`
+- `output/full-creative-loop-before-intent-world-view.json`
+- `output/full-creative-loop-before-repair.intent.dsl`
+- `output/full-creative-loop-repair-context-route.json`
+- `output/full-creative-loop-repair.intent.dsl`
+- `output/full-creative-loop-after-semantic-playtest-report.json`
+- `output/full-creative-loop-after-intent-world-view.json`
+- `output/full-creative-loop-report.json`
+- `output/full-creative-loop-user-summary.txt`
+
+`node ai/check-full-creative-loop.js` verifies the whole create -> playtest ->
+repair -> rerun chain and requires the second playtest metrics to improve.
+`node ai/check-full-creative-loop-reliability.js` runs multiple deterministic
+creative-loop scenarios and writes `output/full-creative-loop-reliability-report.json`.
+It covers both repair and no-repair outcomes, verifies EventLog/Snapshot evidence
+for every run, repeats a representative scenario to prove deterministic evidence,
+and asserts that Mock LLM output stays on the safe Intent surface.
 
 ## AI-first LLM2 Boundary
 

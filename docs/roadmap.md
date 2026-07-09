@@ -72,6 +72,19 @@
 - [x] Route live Intent approval/runtime PipelineState assembly through canonical graph-owned artifact replay backed by official LangGraph `StateGraph`, and persist five-node `graphTrace` evidence
 - [x] Add runtime Intent fulfillment validation so ExecutionReport checks world-level things/components/placements/edits instead of treating command success alone as done
 - [x] Add unified `ai/check-ai-visible-boundary.js` gate for prompts, sanitizers, PipelineState views, graph views, and approval AI projections
+- [x] Add semantic feedback owner and parkour-case loop coverage: structured probe issues -> safe repair Intent DSL -> incremental compile/execute -> ProjectWorld update
+- [x] Add LLM-Guided Tick Playtest Loop v1: ProjectWorld + LLM-safe semantic mapping -> PlayPolicy -> Tick EventLog/Snapshot -> tick evidence -> SemanticFeedback repair Intent -> real rerun improvement
+- [x] Add Semantic Playtest Agent v1: pipeline automatically writes PlayPolicy, Tick report, LLM/user feedback reports, and executable Repair Intent after creation
+- [x] Add Full Creative Loop v1: deterministic Mock LLM -> Intent generation -> real create -> Semantic Playtest -> automatic repair -> rerun improvement -> final user summary
+- [x] Add Full Creative Loop Reliability v1: multiple deterministic creative-loop scenarios cover repair/no-repair outcomes with EventLog/Snapshot evidence and safe Mock LLM boundaries
+- [x] Add gameplay-first IntentWorldView for LLM2: ProjectWorld + tick evidence -> roles, judgement, cache/diff state, candidate actions, and context request policy; UI/Icon remain template-backed support surfaces
+- [x] Add LLM2 Context Cache Router debug layer: DeepSeek text KV prefix cache routing for `full_hit`, `diff_hit`, `recommended_pack`, and `full_miss`, including Mock LLM2 route evidence
+- [x] Add LLM2 Decision Runtime skeleton: Router + IntentWorldView -> verified `apply_intent` / `request_context` / `no_op` / `reject`, with deterministic Mock engine before real LLM calls
+- [x] Add LLM2 Context Provider loop: `request_context` resolves safe `tick_event_window`, `project_world_diff`, `snapshot_summary`, and `ui_template_policy`, then reruns Decision Runtime
+- [x] Add LLM2 Decision Loop Runner: replayable Router -> Provider -> Decision -> Intent DSL -> pipeline --continue -> Semantic Playtest report loop
+- [x] Add LLM2 Semantic Eval Loop: natural-language benchmark set -> batch Decision Loop runs -> request_context evidence -> optional Intent execution -> before/after Tick summaries -> transcripts
+- [x] Add Semantic Iteration Memory: executed Decision Loop turns persist before/after Tick improvement evidence, inject matching safe memory into the next LLM2 IntentWorldView, and steer follow-up decisions toward remaining semantic issues
+- [x] Add DeepSeek Cache Monitor: real Responses bridge usage listener -> hot-step cache hit rate -> 90% fail-closed gate for LLM2 stable-prefix debugging
 - [ ] Finish migrating stale docs and approval surfaces from Module DSL primary examples to Intent DSL primary examples; stale primary forms fail fast
 - [ ] 完整建立项目状态模型，区分 design brief、module graph、DSL patch、ProjectWorld、project.json
 - [ ] 支持用户连续修改，例如“再难一点”“加入 Boss”“改成双人”

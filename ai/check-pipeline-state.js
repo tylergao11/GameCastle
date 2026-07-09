@@ -358,6 +358,11 @@ async function main() {
   assert.strictEqual(batch.pipelineState.projectWorld.world.semanticHash, batch.world.semanticHash, 'runtime PipelineState should include final ProjectWorld');
   assert.strictEqual(batch.pipelineState.bridge.internalDslLineCount, compiled.bridgePlan.dslLines.length, 'runtime PipelineState should include bridge target line count');
   var runtimeSafeJson = JSON.stringify(batch.pipelineState.llm2.sanitizedWorldContext);
+  assert.strictEqual(
+    batch.pipelineState.llm2.sanitizedWorldContext.semanticMapping.view,
+    'llm-safe-semantic-mapping',
+    'runtime PipelineState LLM2 projection should include shared semantic mapping view'
+  );
   assert(runtimeSafeJson.indexOf('bridgePlan') < 0, 'runtime PipelineState LLM2 projection must not leak bridgePlan');
   assert(runtimeSafeJson.indexOf('componentId') < 0, 'runtime PipelineState LLM2 projection must not leak component ids');
   var statePath = path.join(__dirname, '..', 'output', 'pipeline-state.json');

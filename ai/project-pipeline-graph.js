@@ -20,6 +20,8 @@ var PROJECT_GRAPH_NODE_SEQUENCE = [
   'runtime',
   'runtime-validator',
   'project-world',
+  'tick-playtest',
+  'semantic-feedback',
 ];
 
 var PROJECT_GRAPH_NODE_DEFINITIONS = {
@@ -160,6 +162,22 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     status: 'wired-langgraph-smoke',
     reads: ['runtime.executionReport', 'validation.report', 'projectWorld.previous'],
     writes: ['projectWorld.world', 'projectWorld.sanitizedForLlm2', 'executionLedger.latest'],
+  },
+  'tick-playtest': {
+    layer: 'world-summary',
+    owner: 'SemanticPlaytestAgent',
+    status: 'wired-langgraph-smoke',
+    reads: ['projectWorld.world', 'projectWorld.sanitizedForLlm2', 'semanticMapping.dictionary', 'semanticMapping.llmSafeView'],
+    writes: ['tickPlaytest.playPolicy', 'tickPlaytest.report', 'tickPlaytest.llmReport', 'tickPlaytest.userReport', 'tickPlaytest.repairIntentDslText', 'tickPlaytest.summary'],
+    modules: ['ai/semantic-playtest-agent.js', 'ai/tick-playtest-runtime.js', 'ai/semantic-mapping/semantic-feedback.json'],
+  },
+  'semantic-feedback': {
+    layer: 'world-summary',
+    owner: 'SemanticFeedback',
+    status: 'wired-langgraph-smoke',
+    reads: ['projectWorld.sanitizedForLlm2', 'runtime.executionReport', 'validation.report', 'tickPlaytest.llmReport', 'semanticMapping.dictionary'],
+    writes: ['semanticFeedback.report', 'semanticFeedback.repairIntentDslText', 'semanticFeedback.summary', 'semanticFeedback.semanticMappingView'],
+    modules: ['ai/semantic-feedback.js', 'ai/semantic-mapping/semantic-feedback.json'],
   },
 };
 
