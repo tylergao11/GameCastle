@@ -307,6 +307,13 @@ prompt / iteration request
   -> runnable build
 ```
 
+LangGraph integration is owned by `langgraph-runtime.js`. It loads the official
+`@langchain/langgraph` package, compiles the canonical Intent owner sequence into
+a `StateGraph`, and keeps every node behind the same `PipelineState`
+view/patch contract used by the local graph runner. The local runner remains for
+fast contract checks; production orchestration should enter through the
+LangGraph runtime instead of bypassing node contracts.
+
 ## LLM 可见信息边界
 
 LLM1 不记忆模板结构，也不负责输出 patch。它看到用户意图、当前游戏体验摘要和少量能力提示，负责提出高层玩法和体验变化。

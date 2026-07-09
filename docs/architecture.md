@@ -244,8 +244,8 @@ LLM2 Intent DSL
 ```
 
 The chain is now represented by a graph-ready state contract in
-`ai/pipeline-state.js`. It is intentionally not a LangGraph runtime dependency
-yet. The contract names the future orchestration slots:
+`ai/pipeline-state.js` and an official LangGraph runtime adapter in
+`ai/langgraph-runtime.js`. The contract names the orchestration slots:
 `userRequest`, `requirement`, `llm2`, `intentGraph`, `resolver`, `compiler`,
 `bridge`, `runtime`, `projectWorld`, `diagnostics`, and `ownerRoute`.
 Internal slots may keep Bridge Plan, runtime adapter requirements, and execution
@@ -260,7 +260,7 @@ Bridge Plan details, and target DSL from flowing back into Intent generation.
 Intent DSL fields; tests fail if it tries to read raw requirement, raw
 ProjectWorld, Bridge Plan, runtime report, or internal target DSL fields.
 Each saved `PipelineState` also carries a `nodeContracts` snapshot so external
-or future LangGraph runners can audit the same read/write boundary from the
+or LangGraph runners can audit the same read/write boundary from the
 state file itself instead of relying on prose. Runners should build node inputs
 through `makeNodeStateView(state, nodeName)`, which validates the state and
 returns only the paths allowed by the node contract; the `llm2-intent` view
@@ -280,24 +280,86 @@ while requiring strict `PipelineState` validation at the completed boundary. It
 also owns artifact replay assembly through `makePipelineStateFromArtifacts`:
 when the CLI path has already produced Intent DSL, Intent Graph, Placement Plan,
 Bridge Plan, ExecutionReport, and ProjectWorld, the graph entry replays those
-owner artifacts through the same five contract-bound nodes and attaches
-`graphTrace`.
-`ai/pipeline-graph-runner.js` is the dependency-free local runner: it gives each
-node only `makeNodeStateView` output, applies only `applyNodeStatePatch` output,
-supports async handlers, and records read/write trace evidence. It proves the
-LangGraph migration shape without introducing a LangGraph runtime dependency
-yet. `ai/langgraph-adapter.js` is the handoff boundary for real LangGraph
-adoption: it wraps a PipelineState in a `pipelineState` channel, gives each node
-only the contracted view, requires a path-object patch from the node, merges it
-through `applyNodeStatePatch`, and returns an updated `pipelineState` plus trace
-evidence. A LangGraph node should therefore implement only the node's domain
-work; it must not receive the full PipelineState, raw ProjectWorld, Bridge Plan,
-runtime report, or internal DSL unless its node contract explicitly allows that
-read.
+owner artifacts through the same five contract-bound nodes. By default this
+replay now invokes the official `@langchain/langgraph` `StateGraph`; the local
+runner remains available through an explicit fallback option. The resulting
+state attaches `graphTrace`.
+`ai/pipeline-graph-runner.js` remains the dependency-free local runner for fast
+contract tests: it gives each node only `makeNodeStateView` output, applies only
+`applyNodeStatePatch` output, supports async handlers, and records read/write
+trace evidence. `ai/langgraph-adapter.js` is the node boundary used by both the
+local runner shape tests and official LangGraph: it wraps a PipelineState in a
+`pipelineState` channel, gives each node only the contracted view, requires a
+path-object patch from the node, merges it through `applyNodeStatePatch`, and
+returns an updated `pipelineState` plus trace evidence. `ai/langgraph-runtime.js`
+loads `@langchain/langgraph`, defines the `PipelineState` and `graphTrace`
+channels, compiles the canonical owner sequence into a `StateGraph`, and invokes
+it without giving any node extra state access. A LangGraph node should therefore
+implement only the node's domain work; it must not receive the full PipelineState,
+raw ProjectWorld, Bridge Plan, runtime report, or internal DSL unless its node
+contract explicitly allows that read.
 Approval preview packets include this state, and real Intent execution now asks
 the canonical graph entry to assemble the persisted post-runtime state. The
 saved `output/pipeline-state.json` carries `graphTrace` evidence for the five
 owner nodes after `ProjectWorld` and `ExecutionReport` are written.
+
+### Project Weave Graph
+
+The whole-project orchestration name is **Project Weave Graph** (`项目联排图`).
+It is the graph above the World Intent Layer. The current official LangGraph
+runtime already executes the embedded World Intent Layer; the remaining project
+owners are now declared as contract-ready nodes so migration can proceed without
+inventing new prompt surfaces or widening LLM2 access.
+
+`ai/project-pipeline-graph.js` owns the total graph specification:
+
+```text
+requirement
+  -> llm2-intent
+  -> intent-compiler
+  -> resolver
+  -> asset-library
+  -> image-generation
+  -> asset-review
+  -> asset-resolver
+  -> asset-world
+  -> bridge
+  -> runtime-linker
+  -> network-runtime
+  -> server-runtime
+  -> html-export
+  -> runtime
+  -> runtime-validator
+  -> project-world
+```
+
+Layer names:
+
+- `Briefing Layer`: user request and creative design brief.
+- `World Intent Layer`: natural Intent DSL, Intent Graph, resolver, bridge plan.
+- `Asset Weave Layer`: asset library lookup, image generation, asset review, slot resolution, reuse/generation debt, AssetWorld.
+- `Runtime Assembly Layer`: asset/bridge binding, network runtime codegen, runtime files, HTML export, execution.
+- `Server Weave Layer`: signaling server, rooms, ordered input, game loop, and state store.
+- `Validation Layer`: fulfillment, asset debt, export health, owner routing.
+- `World Summary Layer`: ProjectWorld and ledger feedback for the next turn.
+
+`llm2-intent` remains intentionally narrow in the total graph: it reads only
+`llm2.nodeInput`. It must not read raw `AssetManifest`, raw `AssetWorld`, Bridge
+Plan, runtime report, or internal target DSL. Resource and assembly details flow
+downstream through owned runtime nodes and only return to models through
+sanitized world summaries.
+
+Official LangGraph smoke coverage now exists for:
+
+- `asset-library -> image-generation -> asset-review`
+- `asset-resolver -> asset-world`
+- `network-runtime -> server-runtime`
+- `runtime-linker -> html-export -> runtime-validator -> project-world`
+
+Every Project Weave Graph owner outside the live World Intent path now has at
+least one official `StateGraph` smoke. The remaining migration distinction is
+between `wired-langgraph` live nodes and `wired-langgraph-smoke` nodes, not
+between represented and unrepresented owners.
 
 The Intent surface owns low-cognition concepts:
 

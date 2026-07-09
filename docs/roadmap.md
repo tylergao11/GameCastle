@@ -65,10 +65,11 @@
 - [x] Sanitize Intent repair prompts so prohibited machine-syntax lines are omitted instead of being repeated back to LLM2
 - [x] Sanitize LLM1 design briefs and diffs before Intent Commander prompts so coordinates, object sizes, variable values, and implementation defaults become natural game-world planning hints
 - [x] Move RequirementModel DesignBrief contract to natural placement hints and reject coordinates, object sizes, implementation colors, and runtime variable values at validation time
-- [x] Add a LangGraph-friendly `PipelineState` contract that separates internal graph slots from the LLM2-safe ProjectWorld projection, without introducing a LangGraph runtime dependency yet
-- [x] Add a dependency-free LangGraph adapter boundary that wraps `PipelineState` as a graph channel and forces every node through contract-bound view/patch access before real LangGraph runtime adoption
+- [x] Add a LangGraph-friendly `PipelineState` contract that separates internal graph slots from the LLM2-safe ProjectWorld projection
+- [x] Add official `@langchain/langgraph` runtime integration through `ai/langgraph-runtime.js`, using `StateGraph` while preserving contract-bound PipelineState view/patch access
+- [x] Keep a dependency-free local graph runner for fast contract tests and fallback validation
 - [x] Add canonical `ai/intent-pipeline-graph.js` owner order and graph entry that can run local async handlers or generate contract-bound LangGraph nodes
-- [x] Route live Intent approval/runtime PipelineState assembly through canonical graph-owned artifact replay and persist five-node `graphTrace` evidence
+- [x] Route live Intent approval/runtime PipelineState assembly through canonical graph-owned artifact replay backed by official LangGraph `StateGraph`, and persist five-node `graphTrace` evidence
 - [x] Add runtime Intent fulfillment validation so ExecutionReport checks world-level things/components/placements/edits instead of treating command success alone as done
 - [x] Add unified `ai/check-ai-visible-boundary.js` gate for prompts, sanitizers, PipelineState views, graph views, and approval AI projections
 - [ ] Finish migrating stale docs and approval surfaces from Module DSL primary examples to Intent DSL primary examples; stale primary forms fail fast

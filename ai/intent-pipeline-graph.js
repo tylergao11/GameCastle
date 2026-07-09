@@ -1,6 +1,7 @@
 var pipelineGraphRunner = require('./pipeline-graph-runner');
 var pipelineState = require('./pipeline-state');
 var langGraphAdapter = require('./langgraph-adapter');
+var langGraphRuntime = require('./langgraph-runtime');
 
 var INTENT_PIPELINE_NODE_SEQUENCE = [
   'llm2-intent',
@@ -70,6 +71,36 @@ function makeIntentLangGraphState(initialState) {
   return langGraphAdapter.makeLangGraphState(initialState);
 }
 
+async function compileIntentLangGraph(handlers, options) {
+  handlers = normalizeHandlers(handlers);
+  options = options || {};
+  return langGraphRuntime.compileStateGraph({
+    nodeSequence: INTENT_PIPELINE_NODE_SEQUENCE,
+    handlers: handlers,
+    allowPartial: options.allowPartial !== false,
+    langGraphPackage: options.langGraphPackage,
+  });
+}
+
+async function runIntentLangGraph(initialState, handlers, options) {
+  handlers = normalizeHandlers(handlers);
+  options = options || {};
+  var result = await langGraphRuntime.invokeStateGraph(initialState, {
+    nodeSequence: INTENT_PIPELINE_NODE_SEQUENCE,
+    handlers: handlers,
+    allowPartial: options.allowPartial !== false,
+    validateFinal: options.validateFinal !== false,
+    compiledGraph: options.compiledGraph,
+    graphState: options.graphState,
+    invokeOptions: options.invokeOptions,
+    langGraphPackage: options.langGraphPackage,
+  });
+  if (options.validateFinal !== false) {
+    pipelineState.validatePipelineState(result.state);
+  }
+  return result;
+}
+
 function makeArtifactReplayHandlers(completeState) {
   pipelineState.validatePipelineState(completeState);
   return {
@@ -132,8 +163,9 @@ async function makePipelineStateFromArtifacts(options) {
     projectWorld: options.projectWorld,
     lastExecutionReport: options.executionReport,
   });
-  var result = await runIntentPipelineGraph(partialState, makeArtifactReplayHandlers(completeState));
-  result.state.graphTrace = result.trace;
+  var graphRunner = options.useLocalGraphRunner ? runIntentPipelineGraph : runIntentLangGraph;
+  var result = await graphRunner(partialState, makeArtifactReplayHandlers(completeState));
+  result.state.graphTrace = result.graphTrace || result.trace;
   pipelineState.validatePipelineState(result.state);
   return result.state;
 }
@@ -144,6 +176,8 @@ module.exports = {
   runIntentPipelineGraph: runIntentPipelineGraph,
   makeIntentLangGraphNodes: makeIntentLangGraphNodes,
   makeIntentLangGraphState: makeIntentLangGraphState,
+  compileIntentLangGraph: compileIntentLangGraph,
+  runIntentLangGraph: runIntentLangGraph,
   makeArtifactReplayHandlers: makeArtifactReplayHandlers,
   makePipelineStateFromArtifacts: makePipelineStateFromArtifacts,
 };
