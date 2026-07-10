@@ -349,7 +349,7 @@ function resolveInstalls(commands, catalog, options) {
   var installedById = {};
   (options.baseModules || []).forEach(function(baseModule) {
     var manifest = byId[baseModule.id];
-    if (!manifest) throw new Error('Installed module is no longer in catalog: ' + baseModule.id);
+    if (!manifest) throw new Error('Installed module is missing from catalog: ' + baseModule.id);
     var install = makeBaseInstall(baseModule, manifest);
     installedById[install.id] = install;
     installs.push(install);

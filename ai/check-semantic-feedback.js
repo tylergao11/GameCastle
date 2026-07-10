@@ -165,7 +165,7 @@ function testCountRepairUsesRuntimeWorldInstances() {
   });
   assert.deepStrictEqual(report.repairIntentDslLines, [
     'place coins near Player front as trail count 8',
-  ], 'count repair should use current ProjectWorld instances instead of stale IntentGraph count');
+  ], 'count repair should use current ProjectWorld instances as the count floor');
 }
 
 function testSemanticComparisonUsesGuardMeasurements() {

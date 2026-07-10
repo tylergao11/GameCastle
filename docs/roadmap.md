@@ -1,6 +1,6 @@
 # GameCastle Roadmap
 
-This roadmap tracks the live AI-first Intent Engine, not migration history.
+This roadmap tracks the live AI-first Intent Engine.
 
 ## Current Intent Loop
 

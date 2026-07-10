@@ -67,7 +67,7 @@ function main() {
     assert(def['x-contractOwner'] === contracts.CONTRACT_TYPE_OWNERS[typeName],
       typeName + ' x-contractOwner must be ' + contracts.CONTRACT_TYPE_OWNERS[typeName]);
   });
-  assert(schema.contractTypes.length === contracts.CONTRACT_TYPES.length, 'contractTypes must not contain stale entries');
+  assert(schema.contractTypes.length === contracts.CONTRACT_TYPES.length, 'contractTypes must match registered contract types');
 
   walkSchema(schema, function(node) {
     if (node.$ref) getJsonPointer(schema, node.$ref);

@@ -103,8 +103,8 @@ engine/runtime fields. Its DesignBrief contract uses natural object roles and
 object sizes, implementation colors, and variable initial values.
 DSLAgent should see AI-first Intent capability plus sanitized planning context,
 not raw `project.json`, bridge/runtime audit internals, or coordinate-shaped
-creative brief fields. Older text command surfaces are removed; compiler-owned
-module expansion uses structured runtime facts behind the Intent path.
+creative brief fields. Compiler-owned module expansion uses structured runtime
+facts behind the Intent path.
 RuntimeAssetResolver resolves asset slots declared by the BuildContract by
 checking exact cache, cloud repository, semantic/style repository matches,
 project reuse, variants/edits, generation, and only then runtime placeholders.
@@ -295,8 +295,8 @@ owner nodes after `ProjectWorld` and `ExecutionReport` are written.
 The whole-project orchestration name is **Project Weave Graph** (`项目联排图`).
 It is the graph above the World Intent Layer. The current official LangGraph
 runtime already executes the embedded World Intent Layer; the remaining project
-owners are now declared as contract-ready nodes so migration can proceed without
-inventing new prompt surfaces or widening LLM2 access.
+owners are declared as contract-ready nodes without inventing new prompt surfaces
+or widening LLM2 access.
 
 `ai/project-pipeline-graph.js` owns the total graph specification:
 
@@ -345,10 +345,9 @@ Official LangGraph smoke coverage now exists for:
 - `tick-runtime -> server-runtime`
 - `runtime-linker -> html-export -> runtime-validator -> project-world -> tick-playtest -> semantic-feedback`
 
-Every Project Weave Graph owner outside the live World Intent path now has at
-least one official `StateGraph` smoke. The remaining migration distinction is
-between `wired-langgraph` live nodes and `wired-langgraph-smoke` nodes, not
-between represented and unrepresented owners.
+Every Project Weave Graph owner outside the live World Intent path has at least
+one official `StateGraph` smoke. Live nodes are listed under `wired-langgraph`;
+covered non-live owners are listed under `wired-langgraph-smoke`.
 
 The Intent surface owns low-cognition concepts:
 
@@ -381,9 +380,8 @@ LLM2 must not write coordinates, event indexes, GDJS instruction names, or raw
 module ids, component ids, runtime adapter names, or `key=value` machine fields
 as the normal product path; the compiler owns those selections.
 
-Product modules remain as compiler truth and reusable skeletons, but LLM2 now
-selects them through Intent DSL. Older text command surfaces are no longer live
-or fixture inputs.
+Product modules remain as compiler truth and reusable skeletons, and LLM2 selects
+them through Intent DSL.
 Low-level line DSL remains target code for the bridge and runtime executor, not
 an Intent-path LLM2 repair surface.
 
@@ -815,9 +813,9 @@ prompts use the same boundary: if the previous Intent DSL contained prohibited
 machine syntax, the exact line is omitted and LLM2 repairs from the user
 request, design brief, sanitized world card, and natural rules instead of
 copying the bad machine shape.
-LLM1 design briefs and design diffs are natural at the contract boundary. If an
-older saved brief contains numeric layout sketches, RequirementModel history and
-Intent Commander prompts sanitize them into coarse `screen` directions such as
+LLM1 design briefs and design diffs are natural at the contract boundary. If a
+saved brief contains numeric layout sketches, RequirementModel history and Intent
+Commander prompts sanitize them into coarse `screen` directions such as
 `bottom-right`. LLM2 receives game-world changes, not numeric planning sketches.
 
 ### `ai/product-modules/` and `ai/capabilities.js`
@@ -842,7 +840,7 @@ instruction function mappings, and object/behavior data fields.
 
 `ai/gdevelop-truth.js` is the only code entry point for these facts. Pipeline
 DSL may stay AI-friendly, but emitted `project.json` and HTML manifests must
-validate against this snapshot and fail fast on stale GDevelop names.
+validate against this snapshot and fail fast on unsupported GDevelop names.
 
 ### `engine/runtime/`
 

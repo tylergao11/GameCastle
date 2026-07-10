@@ -57,7 +57,7 @@ function main() {
   assert.deepStrictEqual(
     projectPipelineGraph.getWiredLangGraphNodes(),
     intentPipelineGraph.INTENT_PIPELINE_NODE_SEQUENCE,
-    'only the World Intent Layer should be marked wired until the remaining owners are migrated'
+    'only the World Intent Layer should be marked live wired'
   );
   assert.deepStrictEqual(
     projectPipelineGraph.getLangGraphSmokeNodes(),

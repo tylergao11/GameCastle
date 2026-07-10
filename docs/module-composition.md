@@ -160,8 +160,8 @@ Current template behavior:
   advancing that frame.
 - Packets include recent previous frames so a later packet can fill gaps after
   packet loss or reconnect.
-- Packets include the latest locally executed frame as an ACK so old history can
-  be pruned.
+- Packets include the latest locally executed frame as an ACK so acknowledged
+  history can be pruned.
 - A disconnected session freezes advancement but keeps buffered frames; after
   reconnect it resumes from the first missing ready frame.
 - Player input is always mapped through slots before replay, so two players

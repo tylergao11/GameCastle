@@ -110,9 +110,7 @@ The compiler owns id selection and normalization. LLM2 should not emit module
 ids, component ids, runtime adapter names, or `key=value` machine fields in the
 normal product surface.
 
-Once the canonical syntax is chosen, stale command forms must fail fast instead
-of being accepted as aliases. Prompt examples, fixtures, docs, and tests should
-be migrated to the chosen form in the same change.
+Prompt examples, fixtures, docs, and tests use the canonical Intent DSL form.
 
 Current implementation status: `ai/intent-dsl.js` parses the first natural
 Intent DSL slice and reuses `ai/intent-surface-guard.js` to reject machine and
@@ -392,8 +390,7 @@ AI-facing model; it is only the target backend.
 
 ### Inheritance Guardrails
 
-- Inheritance fills missing semantic facts; it must not silently accept stale
-  DSL forms.
+- Inheritance fills missing semantic facts inside the canonical Intent DSL form.
 - Inherited facts must be visible in the Compile ResultCard.
 - Auto-added components or defaults must be recorded under `autoAdded`.
 - Component inheritance must not leak runtime adapter names into the AI

@@ -175,7 +175,7 @@ function main() {
   );
   assert(
     applyReport.after.semanticSummary.rewardsAvailable < applyReport.before.semanticSummary.rewardsAvailable + appliedRewardCount,
-    'continue reward placement should not duplicate old reward instances plus the target count'
+    'continue reward placement should merge with existing reward instances'
   );
 
   ['llm2-decision-loop-report.json', 'llm2-decision-loop.intent.dsl', 'llm2-decision-loop-context-route.json', 'llm2-decision-loop-provided-context.json', 'semantic-iteration-memory.json'].forEach(assertExists);
