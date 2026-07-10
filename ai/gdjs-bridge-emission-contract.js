@@ -25,8 +25,8 @@ function assertEmission(emission) {
 
 function assertPlan(plan) {
   (plan.emitted || []).forEach(assertEmission);
-  if ((plan.emitted || []).length !== (plan.dslLines || []).length) {
-    throw new Error('Bridge emitted evidence must match dsl line count');
+  if ((plan.emitted || []).length !== (plan.targetPlanLines || []).length) {
+    throw new Error('Bridge emitted evidence must match target line count');
   }
   return true;
 }

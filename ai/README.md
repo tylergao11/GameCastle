@@ -10,7 +10,7 @@ The live LLM2 product surface is Intent DSL. Internal target instructions are co
 user request
   -> RequirementModel / LLM1 creative brief
   -> IntentWorldView + safe capability summaries + semantic evidence
-  -> DSLAgent / LLM2 natural Intent DSL
+  -> IntentAgent / LLM2 natural Intent DSL
   -> Intent parser and typed Intent Graph
   -> placement resolver, component compiler, GDJS bridge
   -> runtime executor and HTML export
@@ -27,7 +27,7 @@ The loop is intentionally AI-first but not AI-owned end to end. AI proposes natu
 |-------------|----------------|
 | `pipeline.js` | CLI and orchestration for create, continue, approval, execution, output writes, and semantic post-processing. |
 | `agent-workflow.js` | Model/role registry for requirement, Intent DSL, Intent repair, image, and vision roles. |
-| `dsl-agent.js` | Intent Commander prompt, natural Intent DSL generation, and surface-level Intent repair. |
+| `intent-agent.js` | Intent Commander prompt, natural Intent DSL generation, and surface-level Intent repair. |
 | `intent-dsl.js` | Natural Intent DSL parser and surface validation. |
 | `intent-compiler.js` | Typed Intent Graph creation and aggregate compile contract production. |
 | `placement-resolver.js` | Semantic placement resolution without exposing coordinates to LLM2. |
@@ -83,7 +83,7 @@ Focused checks that protect the AI-first boundary:
 node ai/check-ai-visible-boundary.js
 node ai/check-intent-doc-boundary.js
 node ai/check-intent-routing-rules.js
-node ai/check-dsl-growth-control.js
+node ai/check-intent-growth-control.js
 node ai/check-intent-diagnostic-router.js
 node ai/check-intent-repair-routing.js
 ```

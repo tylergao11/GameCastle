@@ -91,11 +91,11 @@ function createInitialState() {
     bridge: {
       bridgePlan: {
         target: 'gdjs-target-plan',
-        dslLines: ['create scene name=Game'],
+        targetPlanLines: ['create scene name=Game'],
         runtimeAdapterRequirements: [],
         diagnostics: [],
       },
-      internalDslText: 'create scene name=Game',
+      targetPlanText: 'create scene name=Game',
     },
     assetResolver: {
       manifest: {
@@ -196,7 +196,7 @@ async function compileRuntimeGraph(langGraph) {
             status: 'ready',
             owner: 'RuntimeLinker',
             codeFiles: codeFiles.map(function(file) { return file.fileName; }),
-            internalDslLines: (state.bridge.bridgePlan.dslLines || []).length,
+            targetPlanLines: (state.bridge.bridgePlan.targetPlanLines || []).length,
             assetSlots: ((state.assetResolver.manifest || {}).assets || []).length,
           },
           runtimeFiles: codeFiles,
@@ -249,7 +249,7 @@ async function compileRuntimeGraph(langGraph) {
       var report = projectWorld.makeExecutionReport({
         previousWorld: state.projectWorld.previous,
         world: world,
-        dslLines: state.bridge.bridgePlan.dslLines || [],
+        targetPlanLines: state.bridge.bridgePlan.targetPlanLines || [],
         commandResults: [
           { index: 0, commandId: 'runtime_smoke_001', ok: true, label: 'runtime smoke', message: 'ok' },
         ],

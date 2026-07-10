@@ -382,7 +382,7 @@ contract rather than infer it from action names or adapter ids.
 Component object emission uses the same ownership. `gdjsBridge.objectSpec`
 declares target object type plus object, layer, and placement emission route
 evidence. Shape, color, size, and layer are inherited component defaults. The
-bridge should assemble target DSL from those manifest facts, not choose a GDJS
+bridge should assemble target-plan instructions from those manifest facts, not choose a GDJS
 object type, visual fallback, layer route, or component placement route itself.
 
 The bridge then emits target code. GDJS never becomes a parent layer in the
@@ -408,7 +408,7 @@ AI-facing model; it is only the target backend.
   placement routes.
 - GDJS object/event details must not be inherited upward into Intent Graph.
 
-## DSL Growth Control
+## Intent Growth Control
 
 Abstracting Intent DSL and connecting GDJS are two coupled hard problems. GDJS
 integration will reveal cases that feel hard to classify or express. The default
@@ -655,7 +655,7 @@ Commander prompts.
     "gdjsBridge": "input.virtualJoystick"
   },
   "compiler": {
-    "internalDsl": []
+    "targetPlan": []
   }
 }
 ```
@@ -821,7 +821,7 @@ also emits bridge-facing metadata:
 }
 ```
 
-The bridge copies this metadata onto emitted target DSL lines. It must not
+The bridge copies this metadata onto emitted target-plan lines. It must not
 invent a separate route label for semantic group placement.
 
 For semantic edits, the resolver uses the current object bounds from placement
@@ -943,7 +943,7 @@ The bridge should produce an auditable plan before mutation:
   "intentHash": "stable-hash",
   "componentExpansions": [],
   "placementResolutions": [],
-  "internalDslLines": [],
+  "targetPlanLines": [],
   "runtimeAdapters": [],
   "diagnostics": []
 }
@@ -1009,7 +1009,7 @@ expansion, GDJS bridge generation, or runtime execution.
 
 The GDJS bridge may emit:
 
-- internal line DSL;
+- internal target-plan lines;
 - GDevelop `project.json` objects, layouts, instances, variables, events;
 - generated `code*.js` scene functions;
 - input/runtime adapter files;
@@ -1021,7 +1021,7 @@ The bridge must not expose these as normal LLM2 prompt surface.
 
 | Area | Owner |
 | --- | --- |
-| LLM2 prompt surface | `dsl-agent.js` Intent Commander |
+| LLM2 prompt surface | `intent-agent.js` Intent Commander |
 | Intent DSL parser | `ai/intent-dsl.js` |
 | Intent Graph normalization | `ai/intent-compiler.js` |
 | Component truth | `ai/components/*.json` and `ai/component-catalog.js` |

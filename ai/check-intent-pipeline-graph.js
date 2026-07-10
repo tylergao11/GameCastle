@@ -42,7 +42,7 @@ function buildPartialState() {
 
 async function buildRuntimeArtifacts(compiled, intentDslText) {
   var project = pipeline.emptyProject('IntentPipelineGraphCheck');
-  var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
+  var ops = pipeline.parseTargetPlan(compiled.bridgePlan.targetPlanText);
   var commandResults = [];
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
@@ -51,7 +51,7 @@ async function buildRuntimeArtifacts(compiled, intentDslText) {
       index: i,
       commandId: 'intent_graph_' + String(i + 1).padStart(3, '0'),
       ok: true,
-      label: compiled.bridgePlan.dslLines[i],
+      label: compiled.bridgePlan.targetPlanLines[i],
       message: result.msg,
     });
   }
@@ -72,7 +72,7 @@ async function buildRuntimeArtifacts(compiled, intentDslText) {
   var report = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: world,
-    dslLines: compiled.bridgePlan.dslLines,
+    targetPlanLines: compiled.bridgePlan.targetPlanLines,
     commandResults: commandResults,
     runIndex: 1,
     batchLabel: 'intent_pipeline_graph_check',
@@ -88,7 +88,7 @@ function makeHandlers(intentDslText, compiled, runtimeArtifacts) {
   return {
     'llm2-intent': async function(view) {
       var safeJson = JSON.stringify(view);
-      assert(safeJson.indexOf('set placement object=') < 0, 'canonical graph LLM2 view must not expose target DSL');
+      assert(safeJson.indexOf('set placement object=') < 0, 'canonical graph LLM2 view must not expose target-plan instructions');
       assert(safeJson.indexOf('"x"') < 0, 'canonical graph LLM2 view must not expose raw coordinates');
       assert(safeJson.indexOf('10 pixels') < 0, 'canonical graph LLM2 view must not expose numeric deltas');
       assert(!view.state.bridge, 'canonical graph LLM2 view must not receive bridge state');
@@ -146,16 +146,16 @@ function makeHandlers(intentDslText, compiled, runtimeArtifacts) {
         'bridge.bridgePlan': compiled.bridgePlan,
         'bridge.summary': {
           target: compiled.bridgePlan.target,
-          internalDslLines: lengthOf(compiled.bridgePlan.dslLines),
+          targetPlanLines: lengthOf(compiled.bridgePlan.targetPlanLines),
           runtimeAdapterRequirements: lengthOf(compiled.bridgePlan.runtimeAdapterRequirements),
           diagnostics: lengthOf(compiled.bridgePlan.diagnostics),
         },
-        'bridge.internalDslText': compiled.bridgePlan.dslText,
-        'bridge.internalDslLineCount': lengthOf(compiled.bridgePlan.dslLines),
+        'bridge.targetPlanText': compiled.bridgePlan.targetPlanText,
+        'bridge.targetPlanLineCount': lengthOf(compiled.bridgePlan.targetPlanLines),
       };
     },
     runtime: function(view) {
-      assert(view.state.bridge.internalDslText, 'canonical graph runtime should receive internal target plan');
+      assert(view.state.bridge.targetPlanText, 'canonical graph runtime should receive internal target plan');
       assert(!view.state.requirement, 'canonical graph runtime must not receive raw requirement');
       return {
         'runtime.executionReport': runtimeArtifacts.report,
@@ -216,7 +216,7 @@ async function main() {
     bridgePlan: compiled.bridgePlan,
     intentContracts: compiled.contracts,
     compileResultCard: compiled.resultCard,
-    internalDslText: compiled.bridgePlan.dslText,
+    targetPlanText: compiled.bridgePlan.targetPlanText,
     executionReport: runtimeArtifacts.report,
     projectWorld: runtimeArtifacts.world,
   });

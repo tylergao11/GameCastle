@@ -6,33 +6,72 @@
   "summary": "Each player owns their own game world. Cross-player events are sent through server relay.",
   "llm1Card": "Each player plays in their own independent world. Players can trigger events that affect other players, but no one shares the same game world. Best when players compete or interact indirectly rather than being in one shared space.",
   "provides": {
-    "syncModels": ["peer-event"],
-    "topology": ["server-relay"],
-    "players": { "min": 2, "max": 100 },
-    "authority": ["each-owns-own"]
+    "syncModels": [
+      "peer-event"
+    ],
+    "topology": [
+      "server-relay"
+    ],
+    "players": {
+      "min": 2,
+      "max": 100
+    },
+    "authority": [
+      "each-owns-own"
+    ]
   },
   "requires": {
-    "gameplay": { "deterministic": false, "declaredEvents": true },
-    "serverSide": ["room-manager", "event-relay"]
+    "gameplay": {
+      "deterministic": false,
+      "declaredEvents": true
+    },
+    "serverSide": [
+      "room-manager",
+      "event-relay"
+    ]
   },
   "dataFlow": {
-    "control": { "channel": "control", "reliability": "reliable", "ordering": "ordered" },
-    "event":   { "channel": "event",   "reliability": "reliable", "ordering": "ordered" }
+    "control": {
+      "channel": "control",
+      "reliability": "reliable",
+      "ordering": "ordered"
+    },
+    "event": {
+      "channel": "event",
+      "reliability": "reliable",
+      "ordering": "ordered"
+    }
   },
   "transport": {
-    "control": { "protocol": "websocket" },
-    "event":   { "protocol": "websocket" }
+    "control": {
+      "protocol": "websocket"
+    },
+    "event": {
+      "protocol": "websocket"
+    }
   },
   "codec": {
-    "control": { "format": "json" },
-    "event":   { "format": "json" }
+    "control": {
+      "format": "json"
+    },
+    "event": {
+      "format": "json"
+    }
   },
-  "syncConfig": { "tickRate": null },
+  "syncConfig": {
+    "tickRate": null
+  },
   "compiler": {
-    "strategies": ["strategies/peer-event.js"],
-    "transports": ["transports/websocket.js"],
-    "codecs": ["codecs/json.js"],
-    "dsl": [
+    "strategies": [
+      "strategies/peer-event.js"
+    ],
+    "transports": [
+      "transports/websocket.js"
+    ],
+    "codecs": [
+      "codecs/json.js"
+    ],
+    "targetPlan": [
       "install network sync=peer-event authority=each-owns-own",
       "set topology type=server-relay",
       "set channel=control reliability=reliable ordering=ordered",

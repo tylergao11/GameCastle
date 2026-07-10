@@ -2,7 +2,7 @@ var assert = require('assert');
 var fs = require('fs');
 var path = require('path');
 
-var dslAgent = require('./dsl-agent');
+var intentAgent = require('./intent-agent');
 var capabilities = require('./capabilities');
 var moduleCompiler = require('./module-compiler');
 var componentCatalog = require('./component-catalog');
@@ -14,7 +14,7 @@ var PRODUCT_MODULES_DIR = path.join(__dirname, 'product-modules');
 async function main() {
   var productModules = moduleCompiler.loadProductModuleCatalog(PRODUCT_MODULES_DIR);
   var components = componentCatalog.loadComponentCatalog();
-  var systemPrompt = dslAgent.buildIntentCommanderSystemPrompt(productModules, components);
+  var systemPrompt = intentAgent.buildIntentCommanderSystemPrompt(productModules, components);
   var gameCapabilitySection = systemPrompt.split('Component cards, shown without compiler ids or adapter names:')[0];
 
   assert(systemPrompt.indexOf('GameCastle Intent Commander') >= 0, 'prompt should identify Intent Commander');
@@ -22,7 +22,7 @@ async function main() {
   assert(systemPrompt.indexOf('add joystick controls Player near screen bottom-left') >= 0, 'prompt should include natural joystick example');
   assert(systemPrompt.indexOf('adjust Fox placement above slightly') >= 0, 'prompt should include semantic edit example');
   assert(systemPrompt.indexOf('install module id=') < 0, 'prompt must not expose module install commands');
-  assert(systemPrompt.indexOf('target DSL') < 0, 'prompt must not name internal target levels even as a negative rule');
+  assert(systemPrompt.indexOf('target-plan') < 0, 'prompt must not name internal target levels even as a negative rule');
   assert(systemPrompt.indexOf('GDJS') < 0, 'prompt must not name the target engine to LLM2');
   assert(systemPrompt.indexOf('project.json') < 0, 'prompt must not name engine files to LLM2');
   assert(systemPrompt.indexOf('Product module cards') < 0, 'prompt must describe capabilities, not product module cards');
@@ -65,7 +65,7 @@ async function main() {
   assert(systemPrompt.indexOf('Panel Base') < 0, 'prompt must not expose abstract panel base class');
   assert(systemPrompt.indexOf('key=value') >= 0, 'prompt should explicitly forbid key=value fields');
 
-  var maliciousSystemPrompt = dslAgent.buildIntentCommanderSystemPrompt({
+  var maliciousSystemPrompt = intentAgent.buildIntentCommanderSystemPrompt({
     modules: [{
       name: 'Useful Adventure Kit',
       category: 'starter',
@@ -123,7 +123,7 @@ async function main() {
   assert(maliciousSystemPrompt.indexOf('tap button') >= 0, 'Intent prompt builder should keep safe component aliases');
   assert(maliciousSystemPrompt.indexOf('add useful button near screen right') >= 0, 'Intent prompt builder should keep safe component examples');
 
-  var userPrompt = dslAgent.buildIntentUserPrompt({
+  var userPrompt = intentAgent.buildIntentUserPrompt({
     userPrompt: '做一个手机平台跳跃游戏，加摇杆和跳跃按钮',
     worldContext: { projectWorld: null, lastExecutionReport: null },
     designBrief: {
@@ -230,7 +230,7 @@ async function main() {
       }
     }
   };
-  var safeContext = dslAgent.sanitizeIntentWorldContext(dangerousWorldContext);
+  var safeContext = intentAgent.sanitizeIntentWorldContext(dangerousWorldContext);
   var safeJson = JSON.stringify(safeContext);
   [
     'componentId',
@@ -274,7 +274,7 @@ async function main() {
   assert(safeContext.lastExecutionReport.summary.nextAction === 'done', 'sanitized execution summary should preserve nextAction');
   assert(safeContext.lastExecutionReport.summary.completed === 1, 'sanitized execution summary should preserve completed count');
 
-  var dangerousPrompt = dslAgent.buildIntentUserPrompt({
+  var dangerousPrompt = intentAgent.buildIntentUserPrompt({
     userPrompt: [
       'move the jump button a bit',
       'move the jump button up 10 pixels',
@@ -340,11 +340,11 @@ async function main() {
       rules: []
     }
   };
-  var safeBrief = dslAgent.sanitizeDesignBriefForIntentPrompt(dangerousBrief);
+  var safeBrief = intentAgent.sanitizeDesignBriefForIntentPrompt(dangerousBrief);
   assert(safeBrief.placements.some(function(placement) {
     return placement.object === 'JumpButton' && placement.anchor === 'screen' && placement.direction === 'bottom-right';
   }), 'brief sanitizer should convert x/y placement into semantic screen direction');
-  var safePrompt = dslAgent.buildIntentUserPrompt({
+  var safePrompt = intentAgent.buildIntentUserPrompt({
     userPrompt: [
       'add coins and move the player left',
       'place at x=500 y=360'
@@ -373,7 +373,7 @@ async function main() {
   assert(safePrompt.indexOf('bottom-right') >= 0, 'Intent prompt should preserve semantic placement from design brief');
   assert(safePrompt.indexOf('Coin') >= 0, 'Intent prompt should preserve game-world object names from diff');
 
-  var compiled = await dslAgent.compileIntentDslWithRepair({
+  var compiled = await intentAgent.compileIntentDslWithRepair({
     intentDslText: [
       'make a mobile platformer',
       'add joystick controls Player near screen bottom-left',
@@ -386,7 +386,7 @@ async function main() {
     allowLlmRepair: false
   });
 
-  assert(compiled.compiled.bridgePlan.dslLines.length > 0, 'Intent compile helper should produce bridge target lines');
+  assert(compiled.compiled.bridgePlan.targetPlanLines.length > 0, 'Intent compile helper should produce bridge target lines');
   assert(compiled.compiled.bridgePlan.runtimeAdapterRequirements.length >= 2, 'Intent compile helper should produce runtime adapter requirements');
 
   var pipelineSource = fs.readFileSync(path.join(__dirname, 'pipeline.js'), 'utf8');

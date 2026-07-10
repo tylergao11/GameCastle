@@ -6,7 +6,7 @@ var intentSurfaceGuard = require('./intent-surface-guard');
 
 var DESIGN_BRIEF_SCHEMA = {
   schemaVersion: CONTRACT_VERSION,
-  description: "LLM1 creative design brief. Contract between RequirementAgent (LLM1) and DSLAgent (LLM2).",
+  description: "LLM1 creative design brief. Contract between RequirementAgent (LLM1) and IntentAgent (LLM2).",
   requiredFields: ["theme", "objects", "rules", "layout", "difficulty", "controls"],
   fieldNotes: {
     theme: "Short game theme string.",

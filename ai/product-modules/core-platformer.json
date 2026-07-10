@@ -36,13 +36,13 @@
           "textPrefix": "on collision Player Enemy ->",
           "indexParam": "failEventIndex"
         },
-        "dsl": [
+        "targetPlan": [
           "remove event #{{failEventIndex}} scene={{scene}}",
           "on collision Player Enemy -> {{failAction}}"
         ]
       }
     },
-    "dsl": [
+    "targetPlan": [
       "create scene name={{scene}} first=true",
       "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene={{scene}}",
       "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene={{scene}}",

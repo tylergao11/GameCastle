@@ -416,7 +416,7 @@ async function compileIntentDslWithRepair(options) {
       var repaired = await options.callModel(
         repairPrompt,
         options.llm2SystemPrompt,
-        agentWorkflow.buildTextCallOptions('dslIntentRepair', { label: 'LLM2-IntentRepair' })
+        agentWorkflow.buildTextCallOptions('intentRepair', { label: 'LLM2-IntentRepair' })
       );
       intentDslText = cleanDslOutput(repaired);
       if (!intentDslText) throw new Error('LLM2 returned empty Intent DSL repair');

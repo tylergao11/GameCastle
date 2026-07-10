@@ -60,7 +60,7 @@
     "codecs": [
       "codecs/json.js"
     ],
-    "dsl": [
+    "targetPlan": [
       "install network sync=event authority=server",
       "set topology type=server-center",
       "set channel=control reliability=reliable ordering=ordered",

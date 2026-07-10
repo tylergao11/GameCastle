@@ -3,7 +3,7 @@ var fs = require('fs');
 var path = require('path');
 
 var componentCatalog = require('./component-catalog');
-var dslAgent = require('./dsl-agent');
+var intentAgent = require('./intent-agent');
 var intentCompiler = require('./intent-compiler');
 var intentPipelineGraph = require('./intent-pipeline-graph');
 var intentWorldView = require('./intent-world-view');
@@ -36,8 +36,8 @@ var INTERNAL_AI_HIDDEN_TOKENS = [
   'internal target instruction',
   'set placement object=',
   'place object=',
-  'internalDsl',
-  'dslLines',
+  'targetPlanText',
+  'targetPlanLines',
   'commandId',
   '"x"',
   '"y"',
@@ -129,7 +129,7 @@ async function buildRuntimeSurfaces(productModules, components) {
     componentCatalog: components,
   });
   var project = pipeline.emptyProject('AiVisibleBoundaryCheck');
-  var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
+  var ops = pipeline.parseTargetPlan(compiled.bridgePlan.targetPlanText);
   var commandResults = [];
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
@@ -138,7 +138,7 @@ async function buildRuntimeSurfaces(productModules, components) {
       index: i,
       commandId: 'ai_visible_' + String(i + 1).padStart(3, '0'),
       ok: true,
-      label: compiled.bridgePlan.dslLines[i],
+      label: compiled.bridgePlan.targetPlanLines[i],
       message: result.msg,
     });
   }
@@ -159,7 +159,7 @@ async function buildRuntimeSurfaces(productModules, components) {
   var report = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: world,
-    dslLines: compiled.bridgePlan.dslLines,
+    targetPlanLines: compiled.bridgePlan.targetPlanLines,
     commandResults: commandResults,
     runIndex: 1,
     batchLabel: 'ai_visible_boundary_check',
@@ -178,7 +178,7 @@ async function buildRuntimeSurfaces(productModules, components) {
     bridgePlan: compiled.bridgePlan,
     intentContracts: compiled.contracts,
     compileResultCard: compiled.resultCard,
-    internalDslText: compiled.bridgePlan.dslText,
+    targetPlanText: compiled.bridgePlan.targetPlanText,
     executionReport: report,
     projectWorld: world,
   });
@@ -197,7 +197,7 @@ async function buildRuntimeSurfaces(productModules, components) {
     bridgePlan: compiled.bridgePlan,
     intentContracts: compiled.contracts,
     compileResultCard: compiled.resultCard,
-    dslText: compiled.bridgePlan.dslText,
+    targetPlanText: compiled.bridgePlan.targetPlanText,
     modules: compiled.bridgePlan.installedModules,
     tickRuntimeManifest: compiled.bridgePlan.tickRuntimeManifest,
     runtimeAdapterRequirements: compiled.bridgePlan.runtimeAdapterRequirements,
@@ -231,8 +231,8 @@ async function main() {
   });
 
   var surfaces = {
-    systemPrompt: dslAgent.buildIntentCommanderSystemPrompt(productModules, components),
-    userPrompt: dslAgent.buildIntentUserPrompt({
+    systemPrompt: intentAgent.buildIntentCommanderSystemPrompt(productModules, components),
+    userPrompt: intentAgent.buildIntentUserPrompt({
       userPrompt: '金币多一点',
       worldContext: safeWorld,
       designBrief: designBrief(),

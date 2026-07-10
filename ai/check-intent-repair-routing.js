@@ -1,7 +1,7 @@
 var assert = require('assert');
 var path = require('path');
 
-var dslAgent = require('./dsl-agent');
+var intentAgent = require('./intent-agent');
 var intentCompiler = require('./intent-compiler');
 var moduleCompiler = require('./module-compiler');
 
@@ -10,7 +10,7 @@ var productModuleCatalog = moduleCompiler.loadProductModuleCatalog(path.join(__d
 async function testSystemOwnerDiagnosticDoesNotCallLlmRepair() {
   var calls = 0;
   try {
-    await dslAgent.compileIntentDslWithRepair({
+    await intentAgent.compileIntentDslWithRepair({
       intentDslText: 'add dash button controls Player near screen bottom-right',
       intentCompiler: intentCompiler,
       productModuleCatalog: productModuleCatalog,
@@ -36,7 +36,7 @@ async function testSystemOwnerDiagnosticDoesNotCallLlmRepair() {
 async function testParserErrorCanUseLlmRepair() {
   var calls = 0;
   var repairPrompt = '';
-  var result = await dslAgent.compileIntentDslWithRepair({
+  var result = await intentAgent.compileIntentDslWithRepair({
     intentDslText: [
       'add component id=input.jump_button target=Player near=screen direction=bottom-right',
       'set placement object=JumpButton x=640 y=500 scene=Game'
@@ -85,7 +85,7 @@ async function testParserErrorCanUseLlmRepair() {
 }
 
 function testCompilerErrorSanitizerDoesNotLeakMachineSyntax() {
-  var sanitized = dslAgent.sanitizeErrorForIntentPrompt(new Error([
+  var sanitized = intentAgent.sanitizeErrorForIntentPrompt(new Error([
     'Unsupported command: set placement object=JumpButton x=640 y=500 scene=Game',
     'Use component id=input.jump_button for this action',
     'safe natural issue: jump button needs a semantic placement'

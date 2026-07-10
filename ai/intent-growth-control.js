@@ -32,12 +32,6 @@ function hasBinding(graph, inputKind) {
   });
 }
 
-function hasInternalDslOwner(plan, owner, pattern) {
-  return !!(plan.emitted || []).some(function(item) {
-    return item.owner === owner && (!pattern || pattern.test(item.line || ''));
-  });
-}
-
 function hasEmission(plan, owner, mechanism, routeId) {
   return !!(plan.emitted || []).some(function(item) {
     return item.owner === owner &&
@@ -100,11 +94,11 @@ function collectRouteEvidence(compiled) {
   }
 
   if (hasEmission(bridgePlan, 'gdjs-bridge', 'component-object-expansion', 'collision-mask-setup')) {
-    addEvidence(evidence, 'collision-mask-setup', 'gdjs-bridge', 'target-code-expansion', 'component object details emitted as target DSL, not Intent syntax');
+    addEvidence(evidence, 'collision-mask-setup', 'gdjs-bridge', 'target-code-expansion', 'component object details emitted as target-plan instructions, not Intent syntax');
   }
 
   if (hasEmission(bridgePlan, 'gdjs-bridge', 'component-placement-rewrite', 'awkward-gdjs-parameters')) {
-    addEvidence(evidence, 'awkward-gdjs-parameters', 'gdjs-bridge', 'target-rewrite', 'component object placement emitted as target DSL line');
+    addEvidence(evidence, 'awkward-gdjs-parameters', 'gdjs-bridge', 'target-rewrite', 'component object placement emitted as target-plan line');
   }
 
   if (hasComponent(graph, 'system.inventory') && hasEmission(bridgePlan, 'gdjs-bridge', 'component-config-expansion', 'inventory-expansion')) {

@@ -13,7 +13,7 @@
 游戏模块的唯一真相源在 `ai/product-modules/`。每个 product-module 文件包含：
 - 模块元信息（id、name、category、presets）
 - LLM 提示卡（llm1Card）
-- 编译 DSL（compiler.dsl）
+- 内部目标计划（compiler.targetPlan）
 - 能力卡片（capabilities 数组）——从中派生 LLM1 创意摘要和 LLM2 修复上下文
 - 网络兼容性声明（networking）
 - 模块间链接契约（compiler.links、compiler.slots）

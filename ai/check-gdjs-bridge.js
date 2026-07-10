@@ -9,7 +9,7 @@ var runtimeAdapterContract = require('./runtime-adapter-requirement-contract');
 var pipeline = require('./pipeline');
 
 function hasLine(plan, pattern) {
-  return plan.dslLines.some(function(line) {
+  return plan.targetPlanLines.some(function(line) {
     return pattern.test(line);
   });
 }
@@ -28,11 +28,11 @@ function hasAdapter(plan, adapter, componentId) {
 
 async function assertBridgeDslExecutes(plan) {
   var project = pipeline.emptyProject('BridgeCheck');
-  var ops = pipeline.parseDSL(plan.dslText);
-  assert.strictEqual(ops.length, plan.dslLines.length, 'all bridge target lines should parse');
+  var ops = pipeline.parseTargetPlan(plan.targetPlanText);
+  assert.strictEqual(ops.length, plan.targetPlanLines.length, 'all bridge target lines should parse');
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge target line should execute: ' + plan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute: ' + plan.targetPlanLines[i] + ' -> ' + result.msg);
   }
   assert(project.layouts.some(function(layout) { return layout.name === 'Game'; }), 'executed bridge target plan should create Game scene');
   var scene = project.layouts.find(function(layout) { return layout.name === 'Game'; });
@@ -65,8 +65,8 @@ async function testBridgePlanFromIntent() {
   assert(plan.contracts && plan.contracts.emission === 'passed', 'bridge should self-validate emission contract');
   assert(plan.contracts && plan.contracts.runtimeAdapters === 'passed', 'bridge should self-validate runtime adapter contract');
   assert.strictEqual(plan.diagnostics.length, 0, 'bridge should not emit diagnostics for the happy path');
-  assert(plan.dslLines.length > 20, 'bridge should combine product module expansion and component expansion into internal target plan');
-  assert(plan.dslText.indexOf('create scene name=Game first=true') >= 0, 'bridge should include starter scene line from product module expansion');
+  assert(plan.targetPlanLines.length > 20, 'bridge should combine product module expansion and component expansion into internal target plan');
+  assert(plan.targetPlanText.indexOf('create scene name=Game first=true') >= 0, 'bridge should include starter scene line from product module expansion');
 
   assert(
     plan.installedModules.some(function(module) {
@@ -150,9 +150,9 @@ async function testSemanticPlacementEditBridgeEmission() {
       item.routeId === 'semantic-placement-edit' &&
       item.routeMechanism === 'edit-constraint-planner';
   }), 'bridge emitted edit line should carry semantic placement edit evidence');
-  assert(plan.dslText.indexOf('dy=') < 0, 'semantic placement edit bridge output should not expose delta fields');
-  assert(plan.dslText.indexOf('direction=above') < 0, 'semantic placement edit bridge output should not ask target DSL to interpret intent direction');
-  assert(plan.dslText.indexOf('place object=Fox') < 0, 'semantic placement edit bridge output should update existing placement, not create another instance');
+  assert(plan.targetPlanText.indexOf('dy=') < 0, 'semantic placement edit bridge output should not expose delta fields');
+  assert(plan.targetPlanText.indexOf('direction=above') < 0, 'semantic placement edit bridge output should not ask target plan to interpret intent direction');
+  assert(plan.targetPlanText.indexOf('place object=Fox') < 0, 'semantic placement edit bridge output should update existing placement, not create another instance');
 
   var project = pipeline.emptyProject('SemanticPlacementEditCheck');
   var prelude = [
@@ -160,10 +160,10 @@ async function testSemanticPlacementEditBridgeEmission() {
     'create object name=Fox type=ShapePainter shape=rectangle color=#FFFFFF width=64 height=64 scene=Game',
     'place object=Fox at=240,320 scene=Game width=64 height=64'
   ];
-  var ops = pipeline.parseDSL(prelude.concat(plan.dslLines).join('\n'));
+  var ops = pipeline.parseTargetPlan(prelude.concat(plan.targetPlanLines).join('\n'));
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'semantic placement edit DSL should execute: ' + (prelude.concat(plan.dslLines)[i]) + ' -> ' + result.msg);
+    assert(result.ok, 'semantic placement edit DSL should execute: ' + (prelude.concat(plan.targetPlanLines)[i]) + ' -> ' + result.msg);
   }
   var scene = project.layouts.find(function(layout) { return layout.name === 'Game'; });
   var foxInstances = scene.instances.filter(function(instance) { return instance.name === 'Fox'; });
@@ -192,11 +192,11 @@ async function testSemanticGroupPlacementMergesOnExistingWorld() {
     }
   });
   var plan = compiled.bridgePlan;
-  var removeIndex = plan.dslLines.findIndex(function(line) {
+  var removeIndex = plan.targetPlanLines.findIndex(function(line) {
     return line === 'remove placement object=Coin scene=Game';
   });
   assert(removeIndex >= 0, 'existing semantic group placement should merge by removing prior Coin placements first');
-  var firstPlaceIndex = plan.dslLines.findIndex(function(line) {
+  var firstPlaceIndex = plan.targetPlanLines.findIndex(function(line) {
     return /^place object=Coin at=/.test(line);
   });
   assert(removeIndex < firstPlaceIndex, 'semantic group merge should remove prior placements before placing target group');
@@ -209,8 +209,8 @@ async function testSemanticGroupPlacementMergesOnExistingWorld() {
     'place object=Coin at=120,100 scene=Game',
     'place object=Coin at=140,100 scene=Game'
   ];
-  var lines = prelude.concat(plan.dslLines);
-  var ops = pipeline.parseDSL(lines.join('\n'));
+  var lines = prelude.concat(plan.targetPlanLines);
+  var ops = pipeline.parseTargetPlan(lines.join('\n'));
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
     assert(result.ok, 'semantic group merge DSL should execute: ' + lines[i] + ' -> ' + result.msg);
@@ -244,7 +244,7 @@ function testBridgeRoutesUnknownComponentToOwnerDiagnostic() {
   assert.strictEqual(plan.diagnostics.length, 1, 'unknown component should produce one bridge diagnostic');
   assert.strictEqual(plan.diagnostics[0].owner, 'component-catalog');
   assert.strictEqual(plan.diagnostics[0].category, 'unknown-component');
-  assert.strictEqual(plan.dslLines.length, 0, 'unknown component should not emit guessed target DSL');
+  assert.strictEqual(plan.targetPlanLines.length, 0, 'unknown component should not emit guessed target-plan lines');
 }
 
 async function main() {

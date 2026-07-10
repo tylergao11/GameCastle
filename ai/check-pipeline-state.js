@@ -11,10 +11,10 @@ var projectWorld = require('./project-world');
 
 async function executeBridgeIntoProject(compiled) {
   var project = pipeline.emptyProject('PipelineStateCheck');
-  var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
+  var ops = pipeline.parseTargetPlan(compiled.bridgePlan.targetPlanText);
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge target line should execute: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute: ' + compiled.bridgePlan.targetPlanLines[i] + ' -> ' + result.msg);
   }
   return project;
 }
@@ -43,8 +43,8 @@ function sampleUpdateValue(pathName, state) {
   if (pathName === 'resolver.summary') return state.resolver.summary;
   if (pathName === 'bridge.bridgePlan') return state.bridge.bridgePlan;
   if (pathName === 'bridge.summary') return state.bridge.summary;
-  if (pathName === 'bridge.internalDslText') return state.bridge.internalDslText;
-  if (pathName === 'bridge.internalDslLineCount') return state.bridge.internalDslLineCount;
+  if (pathName === 'bridge.targetPlanText') return state.bridge.targetPlanText;
+  if (pathName === 'bridge.targetPlanLineCount') return state.bridge.targetPlanLineCount;
   if (pathName === 'runtime.executionReport') return state.runtime.executionReport;
   if (pathName === 'runtime.summary') return state.runtime.summary;
   if (pathName === 'projectWorld.world') return state.projectWorld.world;
@@ -173,8 +173,8 @@ async function main() {
   var report = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: world,
-    dslLines: compiled.bridgePlan.dslLines,
-    commandResults: compiled.bridgePlan.dslLines.map(function(line, index) {
+    targetPlanLines: compiled.bridgePlan.targetPlanLines,
+    commandResults: compiled.bridgePlan.targetPlanLines.map(function(line, index) {
       return {
         index: index,
         commandId: 'pipeline_state_' + String(index + 1).padStart(3, '0'),
@@ -237,7 +237,7 @@ async function main() {
     bridgePlan: compiled.bridgePlan,
     intentContracts: compiled.contracts,
     compileResultCard: compiled.resultCard,
-    internalDslText: compiled.bridgePlan.dslText,
+    targetPlanText: compiled.bridgePlan.targetPlanText,
     executionReport: report,
     projectWorld: world,
   });
@@ -255,7 +255,7 @@ async function main() {
     { bridgePlan: {} },
     { runtimeAdapterRequirements: [] },
     { componentId: 'input.jump_button' },
-    { dslLines: ['create scene name=Game first=true'] },
+    { targetPlanLines: ['create scene name=Game first=true'] },
     { commandResults: [] },
   ].forEach(function(value) {
     assert.throws(function() {
@@ -271,7 +271,7 @@ async function main() {
       batchLabel: 'pipeline_state_internal_reject',
       artifactKind: 'internal',
       userRequest: 'create scene name=Game first=true',
-      internalDslText: 'create scene name=Game first=true',
+      targetPlanText: 'create scene name=Game first=true',
     });
   }, /only accepts AI-first Intent state/, 'PipelineState must reject internal target artifact state');
   assert.throws(function() {
@@ -298,7 +298,7 @@ async function main() {
     }
   });
   assert(state.statePartitions.compilerModuleFacts.evidence.installedModules >= 1, 'module facts partition should count installed compiler-owned modules');
-  assert(state.statePartitions.runtimeExecutionPlan.evidence.internalDslLineCount === compiled.bridgePlan.dslLines.length, 'runtime plan partition should count internal target lines');
+  assert(state.statePartitions.runtimeExecutionPlan.evidence.targetPlanLineCount === compiled.bridgePlan.targetPlanLines.length, 'runtime plan partition should count internal target lines');
   assert(state.statePartitions.projectWorld.evidence.semanticHash === world.semanticHash, 'ProjectWorld partition should carry semantic world hash evidence');
   assert(state.nodeContracts && state.nodeContracts['llm2-intent'], 'PipelineState should carry node contracts for future graph execution');
   assert.deepStrictEqual(
@@ -308,7 +308,7 @@ async function main() {
   );
   assert(state.intentGraph.summary.components >= 4, 'state should summarize Intent Graph');
   assert(state.resolver.summary.placements >= 4, 'state should summarize placement plan');
-  assert(state.bridge.summary.internalDslLines === compiled.bridgePlan.dslLines.length, 'state should summarize bridge target code');
+  assert(state.bridge.summary.targetPlanLines === compiled.bridgePlan.targetPlanLines.length, 'state should summarize bridge target code');
   assert(state.compiler.contracts.intentCompile === 'passed', 'state should carry aggregate compile contract');
   assert(state.runtime.summary.nextAction === 'done', 'state should carry execution summary');
   assert(state.runtime.summary.intentFulfillment.status === 'fulfilled', 'state should carry safe Intent fulfillment summary');
@@ -349,7 +349,7 @@ async function main() {
   var missingReport = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: missingWorld,
-    dslLines: [],
+    targetPlanLines: [],
     commandResults: [],
     runIndex: 2,
     batchLabel: 'pipeline_state_missing_fulfillment_check',
@@ -368,7 +368,7 @@ async function main() {
     bridgePlan: compiled.bridgePlan,
     intentContracts: compiled.contracts,
     compileResultCard: compiled.resultCard,
-    internalDslText: compiled.bridgePlan.dslText,
+    targetPlanText: compiled.bridgePlan.targetPlanText,
     executionReport: missingReport,
     projectWorld: missingWorld,
   });
@@ -386,7 +386,7 @@ async function main() {
     'requirement.diff',
     'projectWorld.world',
     'bridge.bridgePlan',
-    'bridge.internalDslText',
+    'bridge.targetPlanText',
     'runtime.executionReport',
   ].forEach(function(pathName) {
     assert.throws(function() {
@@ -443,7 +443,7 @@ async function main() {
   }, /node update must be an object/, 'node update must be path-object shaped');
 
   var batchProject = pipeline.emptyProject('PipelineStateRuntimeCheck');
-  var batch = await pipeline.executeDslBatch(batchProject, compiled.bridgePlan.dslText, 'pipeline_state_runtime_check', {
+  var batch = await pipeline.executeTargetPlanBatch(batchProject, compiled.bridgePlan.targetPlanText, 'pipeline_state_runtime_check', {
     projectMode: 'intentFixtureNew',
     userRequest: 'make a mobile platformer',
     designBrief: { theme: 'mobile platformer', objects: [], rules: [], layout: { placements: [] } },
@@ -468,7 +468,7 @@ async function main() {
     return result.command && result.command.indexOf(' ') >= 0;
   }), 'runtime ExecutionReport should not collapse command evidence to verb labels');
   assert.strictEqual(batch.pipelineState.projectWorld.world.semanticHash, batch.world.semanticHash, 'runtime PipelineState should include final ProjectWorld');
-  assert.strictEqual(batch.pipelineState.bridge.internalDslLineCount, compiled.bridgePlan.dslLines.length, 'runtime PipelineState should include bridge target line count');
+  assert.strictEqual(batch.pipelineState.bridge.targetPlanLineCount, compiled.bridgePlan.targetPlanLines.length, 'runtime PipelineState should include bridge target line count');
   var runtimeSafeJson = JSON.stringify(batch.pipelineState.llm2.sanitizedWorldContext);
   assert.strictEqual(
     batch.pipelineState.llm2.sanitizedWorldContext.semanticMapping.view,

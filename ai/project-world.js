@@ -396,7 +396,7 @@ function summarizeIntentArtifacts(options) {
     } : null,
     bridgePlan: bridgePlan ? {
       target: bridgePlan.target || null,
-      internalDslLines: (bridgePlan.dslLines || []).length,
+      targetPlanLines: (bridgePlan.targetPlanLines || []).length,
       contracts: bridgePlan.contracts || null,
       emittedMechanisms: countBy(bridgePlan.emitted, 'mechanism'),
       emittedRoutes: countBy(bridgePlan.emitted, 'routeId'),
@@ -877,7 +877,7 @@ function buildProjectWorld(project, previousWorld, options) {
 function makeExecutionReport(options) {
   var previousWorld = options.previousWorld;
   var world = options.world;
-  var dslLines = options.dslLines || [];
+  var targetPlanLines = options.targetPlanLines || [];
   var commandResults = options.commandResults || [];
   var total = commandResults.length;
   var failed = commandResults.filter(function(result) { return !result.ok; });
@@ -890,7 +890,7 @@ function makeExecutionReport(options) {
     return diagnosticRouter.routeDiagnostic('internal-target-execution', {
       category: 'runtime-execution',
       commandId: result.commandId,
-      command: result.command || dslLines[result.index] || result.label,
+      command: result.command || targetPlanLines[result.index] || result.label,
       message: result.message || 'internal target command failed',
     });
   });
@@ -923,14 +923,14 @@ function makeExecutionReport(options) {
     completed: completed.map(function(result) {
       return {
         commandId: result.commandId,
-        command: result.command || dslLines[result.index] || result.label,
+        command: result.command || targetPlanLines[result.index] || result.label,
         message: result.message,
       };
     }),
     failed: failed.map(function(result) {
       return {
         commandId: result.commandId,
-        command: result.command || dslLines[result.index] || result.label,
+        command: result.command || targetPlanLines[result.index] || result.label,
         message: result.message,
       };
     }),

@@ -32,7 +32,7 @@ async function main() {
     bridgePlan: compiled.bridgePlan,
     intentContracts: compiled.contracts,
     compileResultCard: compiled.resultCard,
-    dslText: compiled.bridgePlan.dslText,
+    targetPlanText: compiled.bridgePlan.targetPlanText,
     modules: compiled.bridgePlan.installedModules,
     tickRuntimeManifest: compiled.bridgePlan.tickRuntimeManifest,
     runtimeAdapterRequirements: compiled.bridgePlan.runtimeAdapterRequirements,
@@ -52,13 +52,13 @@ async function main() {
   assert(packet.intentDslText.indexOf('make a mobile platformer') >= 0, 'approval packet should include Intent DSL');
   assert(packet.intentGraph && packet.intentGraph.components.length >= 4, 'approval packet should include typed Intent Graph');
   assert(packet.placementPlan && packet.placementPlan.placements.length >= 4, 'approval packet should include Placement Plan');
-  assert(packet.bridgePlan && packet.bridgePlan.dslLines.length > 0, 'approval packet should include Bridge Plan');
+  assert(packet.bridgePlan && packet.bridgePlan.targetPlanLines.length > 0, 'approval packet should include Bridge Plan');
   assert(packet.intentContracts && packet.intentContracts.intentCompile === 'passed', 'approval packet should include aggregate Intent contract summary');
   assert(packet.compileResultCard && packet.compileResultCard.ownerTrace.length >= 4, 'approval packet should include Compile ResultCard');
-  assert(packet.dslLines.length === packet.bridgePlan.dslLines.length, 'approval packet should include compiled internal target lines');
+  assert(packet.targetPlanLines.length === packet.bridgePlan.targetPlanLines.length, 'approval packet should include compiled internal target lines');
   assert(packet.runtimeAdapterRequirements.length >= 5, 'approval packet should include runtime adapter requirements');
   assert(packet.preview && packet.preview.nextAction === 'done', 'approval packet should include dry-run preview');
-  assert(packet.preview.commandResults.length === packet.dslLines.length, 'dry-run preview should include command result for every internal target line');
+  assert(packet.preview.commandResults.length === packet.targetPlanLines.length, 'dry-run preview should include command result for every internal target line');
   assert(packet.preview.commandResults.every(function(result, index) {
     return result.commandId === 'intent_approval_check_preview_line_' + String(index + 1).padStart(3, '0');
   }), 'dry-run preview command results should have stable command ids');
@@ -73,7 +73,7 @@ async function main() {
   );
   assert(packet.pipelineState.llm2.nodeInput, 'PipelineState should include LLM2 node input projection');
   assert(packet.pipelineState.llm2.sanitizedWorldContext.projectWorld, 'PipelineState should include LLM2-safe world context');
-  assert(packet.pipelineState.bridge.summary.internalDslLines === packet.dslLines.length, 'PipelineState should summarize bridge target lines');
+  assert(packet.pipelineState.bridge.summary.targetPlanLines === packet.targetPlanLines.length, 'PipelineState should summarize bridge target lines');
   assert(packet.aiVisibleForLlm2, 'approval packet should include explicit LLM2-safe projection');
   assert.strictEqual(packet.aiVisibleForLlm2.surface, 'llm2-intent', 'approval AI projection should name the Intent surface');
   assert(packet.aiVisibleForLlm2.nodeInput, 'approval AI projection should reuse PipelineState LLM2 node input');
@@ -99,8 +99,8 @@ async function main() {
     'set placement object=',
     '"x"',
     '"y"',
-    'dslLines',
-    'internalDsl',
+    'targetPlanLines',
+    'targetPlanText',
     'commandId',
     'runtimePreview',
   ].forEach(function(token) {
@@ -112,7 +112,7 @@ async function main() {
   assert(packet.summary.intentDslLineCount >= 5, 'summary should count Intent DSL lines');
   assert(packet.summary.intentGraph.components >= 4, 'summary should count Intent Graph components');
   assert(packet.summary.placementPlan.placements >= 4, 'summary should count placement decisions');
-  assert(packet.summary.bridgePlan.internalDslLines === packet.dslLines.length, 'summary should count bridge target lines');
+  assert(packet.summary.bridgePlan.targetPlanLines === packet.targetPlanLines.length, 'summary should count bridge target lines');
   assert(packet.summary.intentContracts && packet.summary.intentContracts.intentCompile === 'passed', 'summary should expose aggregate Intent contract status');
   assert(packet.summary.compileResultCard.ownerTrace.some(function(item) {
     return item.stage === 'Emit Target Plan' && item.owner === 'gdjs-bridge';

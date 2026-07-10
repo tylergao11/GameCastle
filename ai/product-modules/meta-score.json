@@ -25,7 +25,7 @@
     "scene": "Game"
   },
   "compiler": {
-    "dsl": [
+    "targetPlan": [
       "set variable name=Score value=0 type=Number scope=global",
       "create object name=ScoreText type=Text size=22 scene={{scene}}",
       "place object=ScoreText at=20,20 scene={{scene}}",

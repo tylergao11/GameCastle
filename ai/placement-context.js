@@ -83,7 +83,7 @@ function contextFromModuleIntents(moduleIntents, productModuleCatalog) {
     });
     if (!manifest) return;
     var values = valuesForModule(moduleIntent, manifest);
-    ((manifest.compiler && manifest.compiler.dsl) || []).forEach(function(templateLine) {
+    ((manifest.compiler && manifest.compiler.targetPlan) || []).forEach(function(templateLine) {
       var line = renderTemplate(templateLine, values);
       addCreateObjectBounds(context.objectBounds, line);
       addPlaceObjectBounds(context.objectBounds, line);

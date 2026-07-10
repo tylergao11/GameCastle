@@ -96,7 +96,7 @@
       "proto/server-input.proto",
       "proto/server-state.proto"
     ],
-    "dsl": [
+    "targetPlan": [
       "install network sync=server-authoritative tickRate={{tickRate}}",
       "set topology type=server-center",
       "set channel=control reliability=reliable ordering=ordered transport=websocket codec=json",

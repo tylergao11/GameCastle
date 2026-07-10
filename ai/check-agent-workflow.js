@@ -16,36 +16,36 @@ function main() {
     'requirement model should default to deepseek-v4-flash'
   );
   assert(
-    agentWorkflow.resolveRoleModel('dsl', emptyEnv) === 'deepseek-v4-flash',
-    'dsl model should default to deepseek-v4-flash'
+    agentWorkflow.resolveRoleModel('intent', emptyEnv) === 'deepseek-v4-flash',
+    'intent model should default to deepseek-v4-flash'
   );
   assert(
-    agentWorkflow.resolveRoleModel('dslIntentRepair', emptyEnv) === 'deepseek-v4-flash',
-    'intent repair should inherit dsl model by default'
+    agentWorkflow.resolveRoleModel('intentRepair', emptyEnv) === 'deepseek-v4-flash',
+    'intent repair should inherit intent model by default'
   );
 
   var customEnv = {
     GAMECASTLE_REQUIREMENT_MODEL: 'req-model',
-    GAMECASTLE_DSL_MODEL: 'dsl-model',
+    GAMECASTLE_INTENT_MODEL: 'intent-model',
     GAMECASTLE_IMAGE_MODEL: 'image-model',
     GAMECASTLE_VISION_MODEL: 'vision-model',
   };
   assert(agentWorkflow.resolveRoleModel('requirement', customEnv) === 'req-model', 'requirement env override failed');
-  assert(agentWorkflow.resolveRoleModel('dsl', customEnv) === 'dsl-model', 'dsl env override failed');
-  assert(agentWorkflow.resolveRoleModel('dslIntentRepair', customEnv) === 'dsl-model', 'intent repair should inherit dsl env override');
+  assert(agentWorkflow.resolveRoleModel('intent', customEnv) === 'intent-model', 'intent env override failed');
+  assert(agentWorkflow.resolveRoleModel('intentRepair', customEnv) === 'intent-model', 'intent repair should inherit intent env override');
   assert(agentWorkflow.resolveRoleModel('imageGeneration', customEnv) === 'image-model', 'image model env override failed');
   assert(agentWorkflow.resolveRoleModel('vision', customEnv) === 'vision-model', 'vision model env override failed');
 
   var summary = agentWorkflow.getWorkflowSummary(customEnv);
   var roles = summary.map(function(role) { return role.id; });
-  ['requirement', 'dsl', 'dslIntentRepair', 'imageGeneration', 'vision'].forEach(function(role) {
+  ['requirement', 'intent', 'intentRepair', 'imageGeneration', 'vision'].forEach(function(role) {
     assert(roles.indexOf(role) >= 0, 'missing workflow role: ' + role);
   });
-  var dslRole = agentWorkflow.getRole('dsl');
-  assert(dslRole.owner === 'LLM2', 'live dsl role should remain the LLM2 owner');
-  assert(dslRole.purpose.indexOf('Intent DSL') >= 0, 'live dsl role should describe Intent DSL');
-  assert(agentWorkflow.getRole('dslIntentRepair').owner === 'LLM2', 'Intent repair should remain inside the LLM2 Intent owner boundary');
-  assert(agentWorkflow.getRole('dslIntentRepair').purpose.indexOf('Intent DSL') >= 0, 'Intent repair should describe Intent DSL');
+  var intentRole = agentWorkflow.getRole('intent');
+  assert(intentRole.owner === 'LLM2', 'live intent role should remain the LLM2 owner');
+  assert(intentRole.purpose.indexOf('Intent DSL') >= 0, 'live intent role should describe Intent DSL');
+  assert(agentWorkflow.getRole('intentRepair').owner === 'LLM2', 'Intent repair should remain inside the LLM2 Intent owner boundary');
+  assert(agentWorkflow.getRole('intentRepair').purpose.indexOf('Intent DSL') >= 0, 'Intent repair should describe Intent DSL');
 
   console.log('[AgentWorkflow] ' + summary.length + ' roles OK');
 
@@ -131,7 +131,7 @@ function main() {
   assert(previousPrompt.indexOf('componentId=input.jump_button') < 0, 'RequirementModel previous brief prompt must sanitize component ids in notes');
   assert(previousPrompt.indexOf('move Player x=-4') < 0, 'RequirementModel previous brief prompt must sanitize internal target rules');
     'move the hero slightly forward',
-  assert(previousPrompt.indexOf('set placement object=Fox') < 0, 'RequirementModel user prompt must sanitize target DSL');
+  assert(previousPrompt.indexOf('set placement object=Fox') < 0, 'RequirementModel user prompt must sanitize target-plan instructions');
   assert(previousPrompt.indexOf('make it mobile') >= 0, 'RequirementModel user prompt should preserve safe natural wording');
   assert(previousPrompt.indexOf('move the hero slightly forward') >= 0, 'RequirementModel user prompt should preserve safe natural edits');
   assert(previousPrompt.indexOf('bottom-left') >= 0, 'RequirementModel previous brief prompt should preserve semantic placement');
@@ -144,7 +144,7 @@ function main() {
   assert(safeHistoryText.indexOf('"x"') < 0, 'RequirementModel history must sanitize x');
   assert(safeHistoryText.indexOf('"height"') < 0, 'RequirementModel history must sanitize height');
   assert(safeHistoryText.indexOf('#4488FF') < 0, 'RequirementModel history must sanitize implementation colors');
-  assert(safeHistoryText.indexOf('set placement object=Fox') < 0, 'RequirementModel history must sanitize target DSL');
+  assert(safeHistoryText.indexOf('set placement object=Fox') < 0, 'RequirementModel history must sanitize target-plan instructions');
   assert(safeHistoryText.indexOf('make platformer') >= 0, 'RequirementModel history should preserve safe user wording');
   assert(safeHistoryText.indexOf('move the hero slightly forward') >= 0, 'RequirementModel history should preserve safe natural edits');
 

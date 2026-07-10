@@ -23,17 +23,17 @@ function makeObjectBounds(project) {
 
 async function executeBridgePlan(project, bridgePlan, batchLabel) {
   var results = [];
-  var ops = pipeline.parseDSL(bridgePlan.dslText);
+  var ops = pipeline.parseTargetPlan(bridgePlan.targetPlanText);
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
     results.push({
       index: i,
       commandId: batchLabel + '_' + String(i + 1).padStart(3, '0'),
       ok: !!result.ok,
-      label: bridgePlan.dslLines[i],
+      label: bridgePlan.targetPlanLines[i],
       message: result.msg,
     });
-    assert(result.ok, batchLabel + ' command should execute: ' + bridgePlan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, batchLabel + ' command should execute: ' + bridgePlan.targetPlanLines[i] + ' -> ' + result.msg);
   }
   return results;
 }
@@ -90,7 +90,7 @@ async function main() {
       contracts: createCompiled.contracts,
       compileResultCard: createCompiled.resultCard,
     },
-    dslLines: createCompiled.bridgePlan.dslLines,
+    targetPlanLines: createCompiled.bridgePlan.targetPlanLines,
     commandResults: createResults,
     runIndex: 1,
     batchLabel: 'parkour_create',
@@ -169,7 +169,7 @@ async function main() {
       contracts: repairCompiled.contracts,
       compileResultCard: repairCompiled.resultCard,
     },
-    dslLines: repairCompiled.bridgePlan.dslLines,
+    targetPlanLines: repairCompiled.bridgePlan.targetPlanLines,
     commandResults: repairResults,
     runIndex: 2,
     batchLabel: 'parkour_repair',

@@ -449,7 +449,7 @@ function emitGraphFacts(state, placementPlan, bridgePlan) {
     'intent graph edits=' + state.graph.edits.length,
     'intent graph bindings=' + state.graph.bindings.length,
     'placement plan placements=' + (placementPlan ? placementPlan.placements.length : 0),
-    'bridge target lines=' + (bridgePlan ? bridgePlan.dslLines.length : 0),
+    'bridge target lines=' + (bridgePlan ? bridgePlan.targetPlanLines.length : 0),
     'bridge plan runtimeAdapters=' + (bridgePlan ? bridgePlan.runtimeAdapterRequirements.length : 0)
   ];
 }

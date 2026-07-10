@@ -78,7 +78,7 @@ function makeContractSummary(compiled) {
       diagnostics: (compiled.placementPlan.diagnostics || []).length
     },
     bridgePlan: {
-      internalDslLines: (compiled.bridgePlan.dslLines || []).length,
+      targetPlanLines: (compiled.bridgePlan.targetPlanLines || []).length,
       runtimeAdapterRequirements: (compiled.bridgePlan.runtimeAdapterRequirements || []).length,
       diagnostics: (compiled.bridgePlan.diagnostics || []).length
     }

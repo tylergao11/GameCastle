@@ -18,7 +18,7 @@ var gdevelopTruth = require("./gdevelop-truth");
 var agentWorkflow = require("./agent-workflow");
 var agentContracts = require("./agent-contracts");
 var requirementAgent = require("./requirement-agent");
-var dslAgent = require("./dsl-agent");
+var intentAgent = require("./intent-agent");
 var llmProvider = require("./llm-provider");
 var intentCompiler = require("./intent-compiler");
 var intentPipelineGraph = require("./intent-pipeline-graph");
@@ -222,7 +222,7 @@ function parseLine(line) {
   return { verb: verb, target: target, params: params };
 }
 
-function getExecutableDslLines(text) {
+function getExecutableTargetPlanLines(text) {
   return String(text || '').split(/\r?\n/).map(function(line) {
     return line.trim();
   }).filter(function(line) {
@@ -230,7 +230,7 @@ function getExecutableDslLines(text) {
   });
 }
 
-function parseDSL(text) {
+function parseTargetPlan(text) {
   var lines = String(text || '').split(/\r?\n/);
   var ops = [];
   for (var i = 0; i < lines.length; i++) {
@@ -1051,15 +1051,15 @@ function writeProjectOutputs(project, options) {
   console.log('  Scenes:'+project.layouts.length+' Objects:'+project.objects.length+' SceneObjects:'+(s0?s0.objects.length:0)+' Instances:'+(s0?s0.instances.length:0)+' Events:'+(s0?s0.events.length:0)+' Vars:'+project.variables.length);
 }
 
-async function executeDslBatch(project, dslText, batchLabel, options) {
+async function executeTargetPlanBatch(project, targetPlanText, batchLabel, options) {
   options = options || {};
   var intentArtifacts = options.intent ? Object.assign({}, options.intent, {
     runtimeAdapterRequirements: options.intent.runtimeAdapterRequirements || options.runtimeAdapterRequirements,
   }) : null;
-  var dslLines = getExecutableDslLines(dslText);
-  var ops = parseDSL(dslText);
-  if (dslLines.length !== ops.length) {
-    throw new Error('Internal target plan parse mismatch for ' + batchLabel + ': ' + dslLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
+  var targetPlanLines = getExecutableTargetPlanLines(targetPlanText);
+  var ops = parseTargetPlan(targetPlanText);
+  if (targetPlanLines.length !== ops.length) {
+    throw new Error('Internal target plan parse mismatch for ' + batchLabel + ': ' + targetPlanLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
   }
   if (!ops.length && !options.allowEmpty) throw new Error('No ops parsed for ' + batchLabel);
   console.log('[Parse:' + batchLabel + '] ' + ops.length + ' ops');
@@ -1076,7 +1076,7 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
       index: i,
       commandId: batchLabel + '_line_' + String(i + 1).padStart(3, '0'),
       ok: !!r.ok,
-      command: dslLines[i],
+      command: targetPlanLines[i],
       label: label,
       message: r.msg,
     });
@@ -1106,7 +1106,7 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   var report = projectWorld.makeExecutionReport({
     previousWorld: previousWorld,
     world: world,
-    dslLines: dslLines,
+    targetPlanLines: targetPlanLines,
     commandResults: commandResults,
     runIndex: ledger.runs.length + 1,
     batchLabel: batchLabel,
@@ -1131,7 +1131,7 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
       bridgePlan: options.intent.bridgePlan,
       intentContracts: options.intent.intentContracts,
       compileResultCard: options.intent.compileResultCard,
-      internalDslText: dslText,
+      targetPlanText: targetPlanText,
       executionReport: report,
       projectWorld: world,
       semanticPlaytestReport: semanticPlaytestReport,
@@ -1141,8 +1141,8 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   }
 
   return {
-    dslText: dslText,
-    dslLines: dslLines,
+    targetPlanText: targetPlanText,
+    targetPlanLines: targetPlanLines,
     report: report,
     world: world,
     pipelineState: state,
@@ -1165,7 +1165,7 @@ function savePipelineState(state) {
 }
 
 function makeApprovalSummary(options) {
-  var dslLines = String(options.dslText || '').split(/\r?\n/).filter(function(line) {
+  var targetPlanLines = String(options.targetPlanText || '').split(/\r?\n/).filter(function(line) {
     return line.trim() && line.trim()[0] !== '#';
   });
   var intentDslLines = String(options.intentDslText || '').split(/\r?\n/).filter(function(line) {
@@ -1176,7 +1176,7 @@ function makeApprovalSummary(options) {
     batchLabel: options.batchLabel,
     prompt: options.prompt,
     intentDslLineCount: intentDslLines.length,
-    internalDslLineCount: dslLines.length,
+    targetPlanLineCount: targetPlanLines.length,
     intentGraph: options.intentGraph ? {
       things: (options.intentGraph.things || []).length,
       components: (options.intentGraph.components || []).length,
@@ -1189,7 +1189,7 @@ function makeApprovalSummary(options) {
       diagnostics: (options.placementPlan.diagnostics || []).length,
     } : null,
     bridgePlan: options.bridgePlan ? {
-      internalDslLines: (options.bridgePlan.dslLines || []).length,
+      targetPlanLines: (options.bridgePlan.targetPlanLines || []).length,
       runtimeAdapterRequirements: (options.bridgePlan.runtimeAdapterRequirements || []).length,
       diagnostics: (options.bridgePlan.diagnostics || []).length,
     } : null,
@@ -1256,16 +1256,16 @@ function makeApprovalAiVisibleProjection(state, options) {
   return projection;
 }
 
-async function previewApprovalArtifact(project, dslText, options) {
+async function previewApprovalArtifact(project, targetPlanText, options) {
   options = options || {};
   var intentArtifacts = options.intent ? Object.assign({}, options.intent, {
     runtimeAdapterRequirements: options.intent.runtimeAdapterRequirements || options.runtimeAdapterRequirements,
   }) : null;
   var previewProject = cloneValue(project);
-  var dslLines = getExecutableDslLines(dslText);
-  var ops = parseDSL(dslText || '');
-  if (dslLines.length !== ops.length) {
-    throw new Error('Internal target plan preview parse mismatch: ' + dslLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
+  var targetPlanLines = getExecutableTargetPlanLines(targetPlanText);
+  var ops = parseTargetPlan(targetPlanText || '');
+  if (targetPlanLines.length !== ops.length) {
+    throw new Error('Internal target plan preview parse mismatch: ' + targetPlanLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
   }
   var previewBatchLabel = options.batchLabel || 'approval_preview';
   var commandResults = [];
@@ -1277,7 +1277,7 @@ async function previewApprovalArtifact(project, dslText, options) {
       index: i,
       commandId: previewBatchLabel + '_preview_line_' + String(i + 1).padStart(3, '0'),
       ok: !!result.ok,
-      command: dslLines[i] || (ops[i].verb + (ops[i].target ? ' ' + ops[i].target : '')),
+      command: targetPlanLines[i] || (ops[i].verb + (ops[i].target ? ' ' + ops[i].target : '')),
       message: result.msg,
     });
   }
@@ -1317,7 +1317,7 @@ async function makePendingApprovalPacket(options) {
   if (!options.intentDslText || !options.intentGraph || !options.placementPlan || !options.bridgePlan) {
     throw new Error('Pending approval requires Intent DSL, Intent Graph, Placement Plan, and Bridge Plan');
   }
-  var preview = await previewApprovalArtifact(options.project, options.dslText || '', {
+  var preview = await previewApprovalArtifact(options.project, options.targetPlanText || '', {
     batchLabel: options.batchLabel,
     baseWorld: options.baseWorld,
     modules: options.modules,
@@ -1346,7 +1346,7 @@ async function makePendingApprovalPacket(options) {
     bridgePlan: options.bridgePlan,
     intentContracts: options.intentContracts,
     compileResultCard: options.compileResultCard,
-    internalDslText: options.dslText,
+    targetPlanText: options.targetPlanText,
     projectWorld: preview.projectWorld,
   };
   var state = await makeIntentPipelineStateFromGraph(stateOptions);
@@ -1368,8 +1368,8 @@ async function makePendingApprovalPacket(options) {
     bridgePlan: options.bridgePlan || null,
     intentContracts: options.intentContracts || null,
     compileResultCard: options.compileResultCard || null,
-    dslText: options.dslText || '',
-    dslLines: String(options.dslText || '').split(/\r?\n/).filter(function(line) {
+    targetPlanText: options.targetPlanText || '',
+    targetPlanLines: String(options.targetPlanText || '').split(/\r?\n/).filter(function(line) {
       return line.trim() && line.trim()[0] !== '#';
     }),
     modules: options.modules || null,
@@ -1422,7 +1422,7 @@ async function approvePendingArtifact() {
     console.log('[Approval] Starting approved new Intent artifact');
   }
 
-  var batch = await executeDslBatch(project, pending.dslText || '', pending.batchLabel || 'apply', {
+  var batch = await executeTargetPlanBatch(project, pending.targetPlanText || '', pending.batchLabel || 'apply', {
     projectMode: pending.projectMode,
     userRequest: pending.prompt,
     designBrief: pending.designBrief,
@@ -1487,7 +1487,7 @@ async function run(prompt) {
   }
   var compileBaseWorld = existingIterationState ? existingIterationState.world : null;
   var compileBaseModules = (compileBaseWorld && compileBaseWorld.modules) || [];
-  var dslText;
+  var targetPlanText;
   var intentDslText = null;
   var compiledIntentArtifact = null;
   var diff = { isNew: false };  // initialized for scope; real value set in iteration path
@@ -1502,9 +1502,9 @@ async function run(prompt) {
       placementContext: placementContext.contextFromProjectWorld(compileBaseWorld),
       baseWorld: compileBaseWorld
     });
-    dslText = compiledIntentArtifact.bridgePlan.dslText;
+    targetPlanText = compiledIntentArtifact.bridgePlan.targetPlanText;
     console.log('[IntentFixture] ' + resolvedIntentFixtureFile + ' (' + intentDslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
-    console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.dslLines.length + ' internal target line(s), ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
+    console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.targetPlanLines.length + ' internal target line(s), ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
   } else {
     var prev = isContinue ? loadState() : { brief: null, history: [] };
     var previousBrief = prev.brief;
@@ -1533,7 +1533,7 @@ async function run(prompt) {
 
     // Stage 2: only send the change boundary to LLM2 as natural Intent DSL.
     console.log('[Stage2] Intent Commander translating...');
-    llm2SystemPrompt = dslAgent.buildIntentCommanderSystemPrompt(productModuleCatalog);
+    llm2SystemPrompt = intentAgent.buildIntentCommanderSystemPrompt(productModuleCatalog);
     var diff = diffDesignBriefs(previousBrief, designBrief);
     var currentWorld = compileBaseWorld;
     var currentLedger = existingIterationState ? existingIterationState.ledger : { runs: [] };
@@ -1546,12 +1546,12 @@ async function run(prompt) {
       var hasChanges = diff.added.objects.length + diff.added.rules.length + diff.added.placements.length + diff.added.behaviors.length + diff.added.variables.length + diff.removed.objects.length + diff.removed.rules.length + diff.removed.placements.length + diff.removed.behaviors.length + diff.removed.variables.length + diff.modified.objects.length + diff.modified.rules.length + diff.modified.placements.length + diff.modified.behaviors.length + diff.modified.variables.length;
       if (hasChanges === 0) {
         console.log('[Stage2] No changes detected, skipping LLM2');
-        dslText = '';
+        targetPlanText = '';
       }
     }
 
-    if (dslText !== '') {
-      var um = dslAgent.buildIntentUserPrompt({
+    if (targetPlanText !== '') {
+      var um = intentAgent.buildIntentUserPrompt({
         userPrompt: prompt,
         worldContext: worldContext,
         designBrief: designBrief,
@@ -1561,12 +1561,12 @@ async function run(prompt) {
       intentDslText = await callModel(
         um,
         llm2SystemPrompt,
-        agentWorkflow.buildTextCallOptions('dsl', { label: 'LLM2-DSL' })
+        agentWorkflow.buildTextCallOptions('intent', { label: 'LLM2-Intent' })
       );
       if (!intentDslText) { console.error('Intent DSL generation failed'); process.exit(1); }
       console.log('[Stage2] Intent DSL (' + intentDslText.split('\n').length + ' lines):');
       console.log(intentDslText);
-      var intentCompileResult = await dslAgent.compileIntentDslWithRepair({
+      var intentCompileResult = await intentAgent.compileIntentDslWithRepair({
         intentDslText: intentDslText,
         intentCompiler: intentCompiler,
         productModuleCatalog: productModuleCatalog,
@@ -1583,12 +1583,12 @@ async function run(prompt) {
       });
       intentDslText = intentCompileResult.intentDslText;
       compiledIntentArtifact = intentCompileResult.compiled;
-      dslText = compiledIntentArtifact.bridgePlan.dslText;
-      console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.dslLines.length + ' internal target line(s), ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
+      targetPlanText = compiledIntentArtifact.bridgePlan.targetPlanText;
+      console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.targetPlanLines.length + ' internal target line(s), ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
     }
   }
 
-  if (dslText === '' && !compiledIntentArtifact) {
+  if (targetPlanText === '' && !compiledIntentArtifact) {
     console.log('[Done] No DSL changes to apply');
     return;
   }
@@ -1613,7 +1613,7 @@ async function run(prompt) {
       bridgePlan: compiledIntentArtifact && compiledIntentArtifact.bridgePlan,
       intentContracts: compiledIntentArtifact && compiledIntentArtifact.contracts,
       compileResultCard: compiledIntentArtifact && compiledIntentArtifact.resultCard,
-      dslText: dslText,
+      targetPlanText: targetPlanText,
       modules: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.installedModules : null,
       tickRuntimeManifest: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.tickRuntimeManifest : null,
       runtimeAdapterRequirements: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements : null,
@@ -1623,7 +1623,7 @@ async function run(prompt) {
     return;
   }
 
-  var batch = await executeDslBatch(project, dslText, batchLabel, {
+  var batch = await executeTargetPlanBatch(project, targetPlanText, batchLabel, {
     projectMode: projectMode,
     userRequest: prompt,
     designBrief: designBrief,
@@ -1667,9 +1667,9 @@ if (require.main === module) {
 }
 
 module.exports = {
-  parseDSL: parseDSL,
+  parseTargetPlan: parseTargetPlan,
   execute: execute,
-  executeDslBatch: executeDslBatch,
+  executeTargetPlanBatch: executeTargetPlanBatch,
   emptyProject: emptyProject,
   loadExistingIntentIterationState: loadExistingIntentIterationState,
   previewApprovalArtifact: previewApprovalArtifact,

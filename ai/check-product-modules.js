@@ -48,17 +48,17 @@ function main() {
   });
   assertNoLlm2LowLevelAuthorization(catalog);
 
-  var badCapabilityDsl = JSON.parse(JSON.stringify(catalog.modules));
-  badCapabilityDsl[0].capabilities[0].dsl = {
+  var badCapabilityTargetPlan = JSON.parse(JSON.stringify(catalog.modules));
+  badCapabilityTargetPlan[0].capabilities[0].targetPlan = {
     commands: ['create object name=Player scene=Game'],
   };
   try {
-    moduleCompiler.validateProductModules(catalog.schema, badCapabilityDsl);
+    moduleCompiler.validateProductModules(catalog.schema, badCapabilityTargetPlan);
   } catch (error) {
     assert(error.message.indexOf('must not expose internal target instructions') >= 0, 'Product module validation should reject capability target instructions');
-    badCapabilityDsl = null;
+    badCapabilityTargetPlan = null;
   }
-  assert(badCapabilityDsl === null, 'Product module validation should fail when a capability exposes internal target instructions');
+  assert(badCapabilityTargetPlan === null, 'Product module validation should fail when a capability exposes internal target instructions');
 
   var badModules = JSON.parse(JSON.stringify(catalog.modules));
   badModules[0].summary = 'Use core.platformer directly';

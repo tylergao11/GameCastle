@@ -27,7 +27,7 @@ function addLine(plan, line, owner, source, meta) {
   meta = meta || {};
   if (!line || plan._lineSeen[lineKey(line)]) return;
   plan._lineSeen[lineKey(line)] = true;
-  plan.dslLines.push(line);
+  plan.targetPlanLines.push(line);
   plan.emitted.push({
     kind: 'target-plan-line',
     owner: owner,
@@ -102,7 +102,7 @@ function compileModules(graph, options) {
   });
   if (!commands.length) {
     return {
-      dslLines: [],
+      targetPlanLines: [],
       installedModules: [],
       tickRuntimeManifest: null
     };
@@ -335,8 +335,8 @@ function createEmptyPlan() {
   return {
     schemaVersion: GDJS_BRIDGE_PLAN_SCHEMA_VERSION,
     target: 'gdjs-target-plan',
-    dslLines: [],
-    dslText: '',
+    targetPlanLines: [],
+    targetPlanText: '',
     emitted: [],
     runtimeAdapterRequirements: [],
     installedModules: [],
@@ -364,7 +364,7 @@ function compileBridge(compiledIntent, options) {
   addTrace(resultCard, 'Emit Target Plan', 'gdjs-bridge');
 
   var moduleResult = compileModules(graph, options);
-  (moduleResult.dslLines || []).forEach(function(line) {
+  (moduleResult.targetPlanLines || []).forEach(function(line) {
     addLine(plan, line, 'module-compiler', 'product-module', {
       mechanism: 'product-module-expansion'
     });
@@ -381,14 +381,14 @@ function compileBridge(compiledIntent, options) {
   plan.diagnostics.forEach(function(diagnostic) {
     addCardDiagnostic(resultCard, diagnostic);
   });
-  plan.dslText = plan.dslLines.join('\n');
+  plan.targetPlanText = plan.targetPlanLines.join('\n');
   emissionContract.assertPlan(plan);
   runtimeAdapterContract.assertRequirements(plan.runtimeAdapterRequirements);
   plan.contracts = {
     emission: 'passed',
     runtimeAdapters: 'passed'
   };
-  addCardEmission(resultCard, 'bridge target lines=' + plan.dslLines.length);
+  addCardEmission(resultCard, 'bridge target lines=' + plan.targetPlanLines.length);
   addCardEmission(resultCard, 'bridge plan runtimeAdapters=' + plan.runtimeAdapterRequirements.length);
   return stripInternal(plan);
 }

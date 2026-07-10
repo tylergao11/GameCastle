@@ -57,7 +57,7 @@ function validateCapabilityCatalog(schema, cards) {
     if (!card.id) throw new Error('Capability missing id from source module ' + (card._sourceModule || 'unknown'));
     if (seen[card.id]) throw new Error('Duplicate capability id: ' + card.id);
     seen[card.id] = true;
-    if (card.dsl) {
+    if (card.targetPlan) {
       throw new Error('Capability ' + card.id + ' must not expose internal target examples (source: ' + (card._sourceModule || 'unknown') + ')');
     }
   });

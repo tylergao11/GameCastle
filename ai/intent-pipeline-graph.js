@@ -134,8 +134,8 @@ function makeArtifactReplayHandlers(completeState) {
       return {
         'bridge.bridgePlan': completeState.bridge.bridgePlan,
         'bridge.summary': completeState.bridge.summary,
-        'bridge.internalDslText': completeState.bridge.internalDslText,
-        'bridge.internalDslLineCount': completeState.bridge.internalDslLineCount,
+        'bridge.targetPlanText': completeState.bridge.targetPlanText,
+        'bridge.targetPlanLineCount': completeState.bridge.targetPlanLineCount,
       };
     },
     runtime: function() {

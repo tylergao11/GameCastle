@@ -74,11 +74,11 @@ function validateProductModules(schema, modules) {
     if (!manifest.presets[manifest.defaultPreset]) {
       throw new Error('Product module ' + manifest.id + ' defaultPreset not found: ' + manifest.defaultPreset);
     }
-    if (!manifest.compiler || !Array.isArray(manifest.compiler.dsl)) {
-      throw new Error('Product module ' + manifest.id + ' must define compiler.dsl');
+    if (!manifest.compiler || !Array.isArray(manifest.compiler.targetPlan)) {
+      throw new Error('Product module ' + manifest.id + ' must define compiler.targetPlan');
     }
     (manifest.capabilities || []).forEach(function(capability) {
-      if (capability.dsl !== undefined) {
+      if (capability.targetPlan !== undefined) {
         throw new Error('Product module ' + manifest.id + ' capability ' + capability.id + ' must not expose internal target instructions');
       }
     });
@@ -120,8 +120,8 @@ function validateUpdateTemplateMap(manifest, fieldName) {
   var templates = (manifest.compiler && manifest.compiler[fieldName]) || {};
   Object.keys(templates).forEach(function(key) {
     var template = templates[key];
-    if (!Array.isArray(template.dsl)) {
-      throw new Error('Product module ' + manifest.id + ' ' + fieldName + '.' + key + ' must define dsl');
+    if (!Array.isArray(template.targetPlan)) {
+      throw new Error('Product module ' + manifest.id + ' ' + fieldName + '.' + key + ' must define targetPlan');
     }
     if (template.findEvent && !template.findEvent.textPrefix) {
       throw new Error('Product module ' + manifest.id + ' ' + fieldName + '.' + key + ' findEvent missing textPrefix');
@@ -541,7 +541,7 @@ function buildSlotUpdateLines(install, overrides, projectWorld) {
       var indexParam = template.findEvent.indexParam || (slot + 'EventIndex');
       values[indexParam] = findEventIndex(projectWorld, sceneName, template.findEvent.textPrefix);
     }
-    (template.dsl || []).forEach(function(line) {
+    (template.targetPlan || []).forEach(function(line) {
       lines.push(renderTemplate(line, values));
     });
   });
@@ -574,7 +574,7 @@ function buildConfigureUpdateLines(install, projectWorld) {
     }
     updateItems.push({
       eventIndex: template.findEvent ? values[template.findEvent.indexParam || (key + 'EventIndex')] : -1,
-      lines: (template.dsl || []).map(function(line) {
+      lines: (template.targetPlan || []).map(function(line) {
         return renderTemplate(line, values);
       })
     });
@@ -610,7 +610,7 @@ function compileModuleCommands(commands, catalog, options) {
       lines = lines.concat(buildSlotUpdateLines(install, slotOverrides[install.id], options.projectWorld));
       lines = lines.concat(buildConfigureUpdateLines(install, options.projectWorld));
     } else {
-      (manifest.compiler.dsl || []).forEach(function(line) {
+      (manifest.compiler.targetPlan || []).forEach(function(line) {
         lines.push(renderTemplate(line, values));
       });
     }
@@ -635,8 +635,8 @@ function compileModuleCommands(commands, catalog, options) {
 
   return {
     schemaVersion: 1,
-    dslText: lines.join('\n'),
-    dslLines: lines,
+    targetPlanText: lines.join('\n'),
+    targetPlanLines: lines,
     installedModules: installedModules,
     tickRuntimeManifest: {
       schemaVersion: NETWORK_MANIFEST_SCHEMA_VERSION,

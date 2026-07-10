@@ -2,7 +2,7 @@ var assert = require('assert');
 
 var intentCompiler = require('./intent-compiler');
 var intentSurfaceGuard = require('./intent-surface-guard');
-var dslGrowthControl = require('./dsl-growth-control');
+var intentGrowthControl = require('./intent-growth-control');
 
 function main() {
   var intentText = [
@@ -30,7 +30,7 @@ function main() {
     }
   });
 
-  var evidence = dslGrowthControl.assertRouteEvidence(compiled);
+  var evidence = intentGrowthControl.assertRouteEvidence(compiled);
   [
     'touch-multitouch-state',
     'joystick-dead-zone',
@@ -69,7 +69,7 @@ function main() {
     'growth-control examples should still reject key=value expansion'
   );
 
-  console.log('[DslGrowthControl] bridge issue routes have owner-bound evidence and no LLM2 syntax expansion');
+  console.log('[IntentGrowthControl] bridge issue routes have owner-bound evidence and no LLM2 syntax expansion');
 }
 
 main();

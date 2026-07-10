@@ -21,10 +21,10 @@ async function makeProject() {
     },
   });
   var project = pipeline.emptyProject('GDevelopProjectSchemaCheck');
-  var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
+  var ops = pipeline.parseTargetPlan(compiled.bridgePlan.targetPlanText);
   for (var index = 0; index < ops.length; index++) {
     var result = await pipeline.execute(project, ops[index]);
-    assert(result.ok, 'bridge target line should execute for project schema check: ' + compiled.bridgePlan.dslLines[index] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute for project schema check: ' + compiled.bridgePlan.targetPlanLines[index] + ' -> ' + result.msg);
   }
   gdevelopTruth.syncProjectExtensions(project);
   return project;

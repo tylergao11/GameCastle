@@ -35,7 +35,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
   },
   'llm2-intent': {
     layer: 'world-intent',
-    owner: 'DSLAgent',
+    owner: 'IntentAgent',
     status: 'wired-langgraph',
     reads: ['llm2.nodeInput'],
     writes: ['llm2.intentDslText', 'llm2.intentDslLineCount'],
@@ -43,7 +43,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     prohibitedReads: [
       'projectWorld.world',
       'bridge.bridgePlan',
-      'bridge.internalDslText',
+      'bridge.targetPlanText',
       'runtime.executionReport',
       'assetResolver.manifest',
       'assetWorld.world',
@@ -108,13 +108,13 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     owner: 'GdjsBridge',
     status: 'wired-langgraph',
     reads: ['intentGraph.graph', 'resolver.placementPlan', 'compiler.contracts'],
-    writes: ['bridge.bridgePlan', 'bridge.summary', 'bridge.internalDslText', 'bridge.internalDslLineCount'],
+    writes: ['bridge.bridgePlan', 'bridge.summary', 'bridge.targetPlanText', 'bridge.targetPlanLineCount'],
   },
   'runtime-linker': {
     layer: 'runtime-assembly',
     owner: 'RuntimeLinker',
     status: 'wired-langgraph-smoke',
-    reads: ['bridge.bridgePlan', 'bridge.internalDslText', 'assetResolver.manifest', 'assetWorld.world'],
+    reads: ['bridge.bridgePlan', 'bridge.targetPlanText', 'assetResolver.manifest', 'assetWorld.world'],
     writes: ['assembly.report', 'assembly.htmlExportManifest', 'assembly.runtimeFiles'],
     modules: ['ai/pipeline.js', 'ai/runtime-codegen.js'],
   },
@@ -146,7 +146,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     layer: 'runtime-assembly',
     owner: 'RuntimeExecutor',
     status: 'wired-langgraph',
-    reads: ['bridge.internalDslText', 'bridge.bridgePlan', 'assembly.report'],
+    reads: ['bridge.targetPlanText', 'bridge.bridgePlan', 'assembly.report'],
     writes: ['runtime.executionReport', 'runtime.summary'],
   },
   'runtime-validator': {

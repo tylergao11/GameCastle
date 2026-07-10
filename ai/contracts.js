@@ -14,7 +14,7 @@ var CONTRACT_TYPES = [
 
 var CONTRACT_OWNERS = [
   'RequirementModel',
-  'DSLAgent',
+  'IntentAgent',
   'ModuleCompiler',
   'RuntimeAssetResolver',
   'RuntimeExecutor',
@@ -26,8 +26,8 @@ var CONTRACT_OWNERS = [
 
 var WORKFLOW_ROLE_CONTRACT_OWNERS = {
   requirement: 'RequirementModel',
-  dsl: 'DSLAgent',
-  dslIntentRepair: 'DSLAgent',
+  intent: 'IntentAgent',
+  intentRepair: 'IntentAgent',
   imageGeneration: 'ImageAgent',
   vision: 'VisionAgent',
 };

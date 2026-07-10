@@ -37,7 +37,7 @@
           "type": "string",
           "enum": [
             "RequirementModel",
-            "DSLAgent",
+            "IntentAgent",
             "ModuleCompiler",
             "RuntimeAssetResolver",
             "RuntimeExecutor",
@@ -818,7 +818,7 @@
                   "owner": {
                     "type": "string",
                     "enum": [
-                      "DSLAgent",
+                      "IntentAgent",
                       "ModuleCompiler",
                       "RuntimeAssetResolver",
                       "RuntimeExecutor",
@@ -938,7 +938,7 @@
                 "type": "string",
                 "enum": [
                   "RequirementModel",
-                  "DSLAgent",
+                  "IntentAgent",
                   "ModuleCompiler",
                   "RuntimeAssetResolver",
                   "RuntimeExecutor",
@@ -1469,7 +1469,7 @@
                 "type": "string",
                 "enum": [
                   "RequirementModel",
-                  "DSLAgent",
+                  "IntentAgent",
                   "ModuleCompiler",
                   "RuntimeAssetResolver",
                   "RuntimeExecutor",
@@ -1559,7 +1559,7 @@
                 "type": "string",
                 "enum": [
                   "RequirementModel",
-                  "DSLAgent",
+                  "IntentAgent",
                   "ModuleCompiler",
                   "RuntimeAssetResolver",
                   "RuntimeExecutor",

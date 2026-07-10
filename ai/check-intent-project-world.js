@@ -9,10 +9,10 @@ var projectWorld = require('./project-world');
 
 async function executeBridgeIntoProject(compiled) {
   var project = pipeline.emptyProject('IntentProjectWorldCheck');
-  var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
+  var ops = pipeline.parseTargetPlan(compiled.bridgePlan.targetPlanText);
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge target line should execute: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute: ' + compiled.bridgePlan.targetPlanLines[i] + ' -> ' + result.msg);
   }
   return project;
 }
@@ -59,7 +59,7 @@ async function main() {
   }), 'ProjectWorld should retain the last human-facing Intent DSL');
   assert.strictEqual(world.intent.intentGraph.counts.components, compiled.graph.components.length, 'Intent graph count should be recorded');
   assert(world.intent.contracts && world.intent.contracts.intentCompile === 'passed', 'ProjectWorld should retain aggregate Intent contract status');
-  assert.strictEqual(world.intent.bridgePlan.internalDslLines, compiled.bridgePlan.dslLines.length, 'bridge target line count should be recorded');
+  assert.strictEqual(world.intent.bridgePlan.targetPlanLines, compiled.bridgePlan.targetPlanLines.length, 'bridge target line count should be recorded');
   assert(world.intent.bridgePlan.contracts && world.intent.bridgePlan.contracts.emission === 'passed', 'ProjectWorld should retain bridge contract status');
   assert(world.intent.placementPlan.placements.some(function(placement) {
     return (placement.routeEvidence || []).some(function(item) {
@@ -124,8 +124,8 @@ async function main() {
   var report = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: world,
-    dslLines: compiled.bridgePlan.dslLines,
-    commandResults: compiled.bridgePlan.dslLines.map(function(line, index) {
+    targetPlanLines: compiled.bridgePlan.targetPlanLines,
+    commandResults: compiled.bridgePlan.targetPlanLines.map(function(line, index) {
       return {
         index: index,
         commandId: 'check_line_' + String(index + 1).padStart(3, '0'),
@@ -168,7 +168,7 @@ async function main() {
       globalObjects: [],
       globalVariables: [],
     },
-    dslLines: [],
+    targetPlanLines: [],
     commandResults: [],
     runIndex: 2,
     batchLabel: 'intent_missing_fulfillment_check',
@@ -183,7 +183,7 @@ async function main() {
   var failedExecutionReport = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: world,
-    dslLines: ['create object name=Ghost type=Missing scene=Game'],
+    targetPlanLines: ['create object name=Ghost type=Missing scene=Game'],
     commandResults: [{
       index: 0,
       commandId: 'failed_line_001',
@@ -207,7 +207,7 @@ async function main() {
   assert.strictEqual(failedExecutionReport.routedDiagnostics[0].commandId, 'failed_line_001', 'failed runtime diagnostic should retain command id');
   var safeFailedReportJson = JSON.stringify(projectWorld.sanitizeExecutionReportForIntentPrompt(failedExecutionReport));
   assert(safeFailedReportJson.indexOf('routedDiagnostics') < 0, 'LLM-safe failed report must not expose raw runtime diagnostics');
-  assert(safeFailedReportJson.indexOf('create object name=Ghost') < 0, 'LLM-safe failed report must not expose target DSL command text');
+  assert(safeFailedReportJson.indexOf('create object name=Ghost') < 0, 'LLM-safe failed report must not expose target-plan command text');
   assert(safeFailedReportJson.indexOf('route-to-owner') >= 0, 'LLM-safe failed report should preserve owner-routing summary');
 
   var safeWorld = projectWorld.sanitizeProjectWorldForIntentPrompt(world);

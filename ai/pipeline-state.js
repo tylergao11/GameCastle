@@ -1,6 +1,6 @@
 var projectWorld = require('./project-world');
 var intentSurfaceGuard = require('./intent-surface-guard');
-var dslAgent = require('./dsl-agent');
+var intentAgent = require('./intent-agent');
 var semanticFeedback = require('./semantic-feedback');
 
 var PIPELINE_STATE_SCHEMA_VERSION = 1;
@@ -15,9 +15,8 @@ var PROHIBITED_AI_VISIBLE_KEYS = {
   componentId: true,
   adapter: true,
   runtimeAdapter: true,
-  internalDslText: true,
-  dslText: true,
-  dslLines: true,
+  targetPlanText: true,
+  targetPlanLines: true,
   commandResults: true,
   projectJson: true,
 };
@@ -40,7 +39,7 @@ var NODE_CONTRACTS = {
       'requirement.diff',
       'projectWorld.world',
       'bridge.bridgePlan',
-      'bridge.internalDslText',
+      'bridge.targetPlanText',
       'runtime.executionReport',
     ],
   },
@@ -54,10 +53,10 @@ var NODE_CONTRACTS = {
   },
   bridge: {
     reads: ['intentGraph.graph', 'resolver.placementPlan', 'compiler.contracts'],
-    writes: ['bridge.bridgePlan', 'bridge.summary', 'bridge.internalDslText', 'bridge.internalDslLineCount'],
+    writes: ['bridge.bridgePlan', 'bridge.summary', 'bridge.targetPlanText', 'bridge.targetPlanLineCount'],
   },
   runtime: {
-    reads: ['bridge.internalDslText', 'bridge.bridgePlan'],
+    reads: ['bridge.targetPlanText', 'bridge.bridgePlan'],
     writes: ['runtime.executionReport', 'runtime.summary', 'projectWorld.world', 'projectWorld.sanitizedForLlm2'],
   },
 };
@@ -178,7 +177,7 @@ function applyNodeStateUpdate(state, nodeName, update, options) {
   return next;
 }
 
-function normalizeDslLines(textOrLines) {
+function normalizeTextLines(textOrLines) {
   var lines = Array.isArray(textOrLines) ? textOrLines : String(textOrLines || '').split(/\r?\n/);
   return lines.map(function(line) {
     return String(line || '').trim();
@@ -214,7 +213,7 @@ function summarizeBridgePlan(plan) {
   if (!plan) return null;
   return {
     target: plan.target || null,
-    internalDslLines: (plan.dslLines || []).length,
+    targetPlanLines: (plan.targetPlanLines || []).length,
     runtimeAdapterRequirements: (plan.runtimeAdapterRequirements || []).length,
     diagnostics: (plan.diagnostics || []).length,
   };
@@ -248,7 +247,7 @@ function makeStatePartitions(options, summaries) {
       },
     },
     llm2Intent: {
-      owner: 'DSLAgent',
+      owner: 'IntentAgent',
       artifact: 'Intent DSL',
       aiVisibleToLlm2: true,
       evidence: {
@@ -282,7 +281,7 @@ function makeStatePartitions(options, summaries) {
       artifact: 'runtime execution plan',
       aiVisibleToLlm2: false,
       evidence: {
-        internalDslLineCount: summaries.internalDslLineCount || 0,
+        targetPlanLineCount: summaries.targetPlanLineCount || 0,
         runtimeAdapterRequirements: (((options.bridgePlan || {}).runtimeAdapterRequirements) || []).length,
       },
     },
@@ -364,9 +363,9 @@ function makeSanitizedWorldContext(options) {
 
 function makeLlm2NodeInput(options) {
   return {
-    userRequest: dslAgent.sanitizeUserPromptForIntentPrompt(options.userRequest || options.prompt),
-    designBrief: dslAgent.sanitizeDesignBriefForIntentPrompt(options.designBrief),
-    diff: dslAgent.sanitizeDesignDiffForIntentPrompt(options.diff),
+    userRequest: intentAgent.sanitizeUserPromptForIntentPrompt(options.userRequest || options.prompt),
+    designBrief: intentAgent.sanitizeDesignBriefForIntentPrompt(options.designBrief),
+    diff: intentAgent.sanitizeDesignDiffForIntentPrompt(options.diff),
     worldContext: makeSanitizedWorldContext(options),
   };
 }
@@ -378,8 +377,8 @@ function createPipelineState(options) {
     throw new Error('PipelineState only accepts AI-first Intent state');
   }
   var diagnostics = collectDiagnostics(options);
-  var intentDslLines = normalizeDslLines(options.intentDslText);
-  var internalDslLines = normalizeDslLines(options.internalDslText || options.dslText || (options.bridgePlan && options.bridgePlan.dslText));
+  var intentDslLines = normalizeTextLines(options.intentDslText);
+  var targetPlanLines = normalizeTextLines(options.targetPlanText || (options.bridgePlan && options.bridgePlan.targetPlanText));
   var llm2NodeInput = makeLlm2NodeInput(options);
   var intentGraphSummary = summarizeIntentGraph(options.intentGraph);
   var placementSummary = summarizePlacementPlan(options.placementPlan);
@@ -387,7 +386,7 @@ function createPipelineState(options) {
   var resultCardSummary = summarizeResultCard(options.compileResultCard);
   var statePartitions = makeStatePartitions(options, {
     intentDslLineCount: intentDslLines.length,
-    internalDslLineCount: internalDslLines.length,
+    targetPlanLineCount: targetPlanLines.length,
     intentGraphSummary: intentGraphSummary,
     placementSummary: placementSummary,
   });
@@ -429,8 +428,8 @@ function createPipelineState(options) {
     bridge: {
       bridgePlan: clone(options.bridgePlan || null),
       summary: bridgeSummary,
-      internalDslText: options.internalDslText || options.dslText || (options.bridgePlan && options.bridgePlan.dslText) || '',
-      internalDslLineCount: internalDslLines.length,
+      targetPlanText: options.targetPlanText || (options.bridgePlan && options.bridgePlan.targetPlanText) || '',
+      targetPlanLineCount: targetPlanLines.length,
     },
     runtime: {
       executionReport: clone(options.executionReport || null),

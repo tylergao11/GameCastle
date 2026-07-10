@@ -373,7 +373,7 @@ async function runDeepSeekDecisionProvider(options) {
   options = Object.assign({
     endpoint: process.env.LLM_ENDPOINT || 'http://127.0.0.1:18081/v1',
     apiKey: process.env.DEEPSEEK_API_KEY || '',
-    model: process.env.LLM_MODEL || process.env.GAMECASTLE_DSL_MODEL || 'deepseek-v4-flash',
+    model: process.env.LLM_MODEL || process.env.GAMECASTLE_INTENT_MODEL || 'deepseek-v4-flash',
     threshold: 0.9,
   }, options || {});
   var response = await callProvider(options);

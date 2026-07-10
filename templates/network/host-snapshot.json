@@ -74,7 +74,7 @@
     "codecs": [
       "codecs/json.js"
     ],
-    "dsl": [
+    "targetPlan": [
       "install network sync=snapshot authority=host tickRate={{tickRate}}",
       "set topology type=star center=host",
       "set channel=control reliability=reliable ordering=ordered",

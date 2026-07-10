@@ -110,20 +110,20 @@ function makeHandlers(intentDslText, compiled) {
         'bridge.bridgePlan': compiled.bridgePlan,
         'bridge.summary': {
           target: compiled.bridgePlan.target,
-          internalDslLines: lengthOf(compiled.bridgePlan.dslLines),
+          targetPlanLines: lengthOf(compiled.bridgePlan.targetPlanLines),
           runtimeAdapterRequirements: lengthOf(compiled.bridgePlan.runtimeAdapterRequirements),
           diagnostics: lengthOf(compiled.bridgePlan.diagnostics),
         },
-        'bridge.internalDslText': compiled.bridgePlan.dslText,
-        'bridge.internalDslLineCount': lengthOf(compiled.bridgePlan.dslLines),
+        'bridge.targetPlanText': compiled.bridgePlan.targetPlanText,
+        'bridge.targetPlanLineCount': lengthOf(compiled.bridgePlan.targetPlanLines),
       };
     },
     runtime: function(view) {
-      assert(view.state.bridge.internalDslText, 'official LangGraph runtime node should receive target plan');
+      assert(view.state.bridge.targetPlanText, 'official LangGraph runtime node should receive target plan');
       assert(!view.state.requirement, 'official LangGraph runtime node must not see raw requirement state');
       return {
-        'runtime.executionReport': { summary: { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.dslLines), failed: 0 } },
-        'runtime.summary': { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.dslLines), failed: 0 },
+        'runtime.executionReport': { summary: { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.targetPlanLines), failed: 0 } },
+        'runtime.summary': { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.targetPlanLines), failed: 0 },
         'projectWorld.world': null,
         'projectWorld.sanitizedForLlm2': null,
       };

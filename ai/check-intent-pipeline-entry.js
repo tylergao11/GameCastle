@@ -8,7 +8,7 @@ var intentRuntimeCodegen = require('./intent-runtime-codegen');
 
 async function testInternalMoveActionBoundary() {
   var relativeProject = pipeline.emptyProject('RelativeMoveBoundaryCheck');
-  var relativeOps = pipeline.parseDSL([
+  var relativeOps = pipeline.parseTargetPlan([
     'create scene name=Game first=true',
     'on key ArrowRight held -> move Player x=+4 scene=Game',
   ].join('\n'));
@@ -18,7 +18,7 @@ async function testInternalMoveActionBoundary() {
   }
 
   var absoluteProject = pipeline.emptyProject('AbsoluteMoveBoundaryCheck');
-  var absoluteOps = pipeline.parseDSL([
+  var absoluteOps = pipeline.parseTargetPlan([
     'create scene name=Game first=true',
     'on key ArrowRight held -> move Player x=100 y=200 scene=Game',
   ].join('\n'));
@@ -31,7 +31,7 @@ async function testInternalMoveActionBoundary() {
 
 async function testInternalEventParserRejectsPlaceholders() {
   var unknownActionProject = pipeline.emptyProject('UnknownActionBoundaryCheck');
-  var unknownActionOps = pipeline.parseDSL([
+  var unknownActionOps = pipeline.parseTargetPlan([
     'create scene name=Game first=true',
     'on start -> unsupported_action Player scene=Game',
   ].join('\n'));
@@ -43,7 +43,7 @@ async function testInternalEventParserRejectsPlaceholders() {
   assert.strictEqual(unknownActionProject.layouts[0].events.length, 0, 'failed event parse must not add a placeholder event');
 
   var missingActionProject = pipeline.emptyProject('MissingActionBoundaryCheck');
-  var missingActionOps = pipeline.parseDSL([
+  var missingActionOps = pipeline.parseTargetPlan([
     'create scene name=Game first=true',
     'on start -> scene=Game',
   ].join('\n'));
@@ -55,14 +55,14 @@ async function testInternalEventParserRejectsPlaceholders() {
   assert.strictEqual(missingActionProject.layouts[0].events.length, 0, 'missing action must not add a placeholder event');
 }
 
-function testInternalDslParserRejectsMalformedLines() {
+function testTargetPlanParserRejectsMalformedLines() {
   assert.throws(function() {
-    pipeline.parseDSL('create object name="Broken type=ShapePainter scene=Game');
+    pipeline.parseTargetPlan('create object name="Broken type=ShapePainter scene=Game');
   }, /Unclosed quote/, 'internal target parser must reject malformed quoted lines');
 }
 
 async function main() {
-  testInternalDslParserRejectsMalformedLines();
+  testTargetPlanParserRejectsMalformedLines();
   await testInternalMoveActionBoundary();
   await testInternalEventParserRejectsPlaceholders();
 
@@ -76,15 +76,15 @@ async function main() {
     }
   });
 
-  assert(compiled.bridgePlan.dslLines.length > 0, 'Intent fixture should compile to bridge target lines');
+  assert(compiled.bridgePlan.targetPlanLines.length > 0, 'Intent fixture should compile to bridge target lines');
   assert(compiled.bridgePlan.runtimeAdapterRequirements.length >= 5, 'Intent fixture should compile runtime adapter requirements');
 
   var project = pipeline.emptyProject('IntentPipelineCheck');
-  var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
-  assert.strictEqual(ops.length, compiled.bridgePlan.dslLines.length, 'bridge target lines should parse through pipeline parser');
+  var ops = pipeline.parseTargetPlan(compiled.bridgePlan.targetPlanText);
+  assert.strictEqual(ops.length, compiled.bridgePlan.targetPlanLines.length, 'bridge target lines should parse through pipeline parser');
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge target line should execute through pipeline executor: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute through pipeline executor: ' + compiled.bridgePlan.targetPlanLines[i] + ' -> ' + result.msg);
   }
 
   var runtimeJs = intentRuntimeCodegen.generate(compiled.bridgePlan.runtimeAdapterRequirements);

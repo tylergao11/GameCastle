@@ -41,7 +41,7 @@ compiler 做机械匹配，不做语义猜测。
     "state": ["Score", "Player", "Coin", "Enemy"]
   },
   "compiler": {
-    "dsl": [ "create scene name=Game ...", "on collision Player Coin -> score+1" ]
+    "targetPlan": [ "create scene name=Game ...", "on collision Player Coin -> score+1" ]
   }
 }
 ```
@@ -64,7 +64,7 @@ compiler 做机械匹配，不做语义猜测。
     }
   },
   "compiler": {
-    "dsl": [ "install remote tick intent=lockstep tickRate=20", "sync input {{inputs}}" ]
+    "targetPlan": [ "install remote tick intent=lockstep tickRate=20", "sync input {{inputs}}" ]
   }
 }
 ```

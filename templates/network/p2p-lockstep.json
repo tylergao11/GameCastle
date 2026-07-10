@@ -85,7 +85,7 @@
     "protos": [
       "proto/lockstep-input.proto"
     ],
-    "dsl": [
+    "targetPlan": [
       "install network sync=lockstep-input authority=each-owns-own tickRate={{tickRate}}",
       "set topology type=p2p maxPeers=2",
       "set determinism seedFrom=room random=seeded timestep=fixed",

@@ -38,7 +38,7 @@ function main() {
   var compiled = compileFixture();
   assert(compiled.contracts, 'compiler should attach aggregate Intent contract summary');
   assert.strictEqual(compiled.contracts.intentCompile, 'passed', 'aggregate Intent contract should pass');
-  assert.strictEqual(compiled.contracts.bridgePlan.internalDslLines, compiled.bridgePlan.dslLines.length, 'contract summary should count bridge target lines');
+  assert.strictEqual(compiled.contracts.bridgePlan.targetPlanLines, compiled.bridgePlan.targetPlanLines.length, 'contract summary should count bridge target lines');
   var contractSummary = compileContract.assertCompiledIntent(compiled);
   assert.strictEqual(contractSummary.intentCompile, 'passed', 'contract validator should return aggregate summary');
 

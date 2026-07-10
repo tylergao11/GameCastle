@@ -77,7 +77,7 @@ Frontend dependencies live under `platform/`:
 
 ```bash
 npm --prefix platform install
-npm run dev
+npm --prefix platform run dev
 ```
 
 ## Runtime Truth

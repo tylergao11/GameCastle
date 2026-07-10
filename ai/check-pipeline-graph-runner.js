@@ -19,7 +19,7 @@ async function buildState() {
     },
   });
   var project = pipeline.emptyProject('PipelineGraphRunnerCheck');
-  var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
+  var ops = pipeline.parseTargetPlan(compiled.bridgePlan.targetPlanText);
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
     assert(result.ok, 'bridge target plan should execute before graph runner check: ' + result.msg);
@@ -41,8 +41,8 @@ async function buildState() {
   var report = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: world,
-    dslLines: compiled.bridgePlan.dslLines,
-    commandResults: compiled.bridgePlan.dslLines.map(function(line, index) {
+    targetPlanLines: compiled.bridgePlan.targetPlanLines,
+    commandResults: compiled.bridgePlan.targetPlanLines.map(function(line, index) {
       return {
         index: index,
         commandId: 'graph_runner_' + String(index + 1).padStart(3, '0'),
@@ -68,7 +68,7 @@ async function buildState() {
     bridgePlan: compiled.bridgePlan,
     intentContracts: compiled.contracts,
     compileResultCard: compiled.resultCard,
-    internalDslText: compiled.bridgePlan.dslText,
+    targetPlanText: compiled.bridgePlan.targetPlanText,
     executionReport: report,
     projectWorld: world,
   });
@@ -212,14 +212,14 @@ async function main() {
       return {
         'bridge.bridgePlan': compiled.bridgePlan,
         'bridge.summary': completeState.bridge.summary,
-        'bridge.internalDslText': compiled.bridgePlan.dslText,
-        'bridge.internalDslLineCount': compiled.bridgePlan.dslLines.length,
+        'bridge.targetPlanText': compiled.bridgePlan.targetPlanText,
+        'bridge.targetPlanLineCount': compiled.bridgePlan.targetPlanLines.length,
       };
     },
   }, {
     node: 'runtime',
     run: function(view) {
-      assert(view.state.bridge.internalDslText, 'runtime step should read internal target plan');
+      assert(view.state.bridge.targetPlanText, 'runtime step should read internal target plan');
       assert(!view.state.llm2, 'runtime step should not receive LLM2 state');
       return {
         'runtime.executionReport': completeState.runtime.executionReport,
@@ -234,7 +234,7 @@ async function main() {
     assert.strictEqual(item.partial, true, 'full graph runner trace should mark partial execution');
   });
   pipelineState.validatePipelineState(chainResult.state);
-  assert.strictEqual(chainResult.state.bridge.internalDslLineCount, compiled.bridgePlan.dslLines.length, 'full graph runner should produce bridge state');
+  assert.strictEqual(chainResult.state.bridge.targetPlanLineCount, compiled.bridgePlan.targetPlanLines.length, 'full graph runner should produce bridge state');
   assert.strictEqual(chainResult.state.runtime.summary.nextAction, 'done', 'full graph runner should produce runtime summary');
   assert(chainResult.state.projectWorld.sanitizedForLlm2, 'full graph runner should produce sanitized ProjectWorld projection');
 
