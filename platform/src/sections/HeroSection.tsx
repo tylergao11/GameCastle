@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Menu, Sparkles } from "lucide-react";
 
-const particles = Array.from({ length: 12 }, (_, i) => ({
+const particles = Array.from({ length: 12 }, () => ({
   left: Math.random() * 100 + "%",
   top: Math.random() * 70 + "%",
   delay: Math.random() * 4 + "s",

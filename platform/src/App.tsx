@@ -1,12 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import MobileLanding from './pages/MobileLanding'
+import GameCastleExperience from './pages/GameCastleExperience'
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/*" element={<MobileLanding />} />
-      </Routes>
-    </BrowserRouter>
-  )
+  return <GameCastleExperience />
 }
