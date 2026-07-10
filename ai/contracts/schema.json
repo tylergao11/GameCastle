@@ -595,7 +595,7 @@
               "enum": [
                 "new",
                 "continue",
-                "repair"
+                "intent-repair"
               ]
             },
             "iterationIntent": {
@@ -1434,12 +1434,12 @@
         "outputs": {
           "type": "object",
           "required": [
-            "finalPatchPath",
+            "finalArtifactPath",
             "projectPath",
             "resourceManifestPath"
           ],
           "properties": {
-            "finalPatchPath": {
+            "finalArtifactPath": {
               "type": "string"
             },
             "projectPath": {
@@ -1498,7 +1498,7 @@
           "type": "string",
           "enum": [
             "validate",
-            "repair",
+            "route-to-owner",
             "blocked"
           ]
         }
@@ -1611,7 +1611,7 @@
           "type": "string",
           "enum": [
             "done",
-            "repair",
+            "route-to-owner",
             "blocked"
           ]
         }

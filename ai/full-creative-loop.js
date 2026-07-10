@@ -207,7 +207,7 @@ function mockRepairModel(intentWorldView, options) {
     decision: decision,
     providedContext: providedContext,
     contextRoute: contextRoute,
-    decisionSource: 'llm2-context-cache-router.dynamicTail.candidateActions',
+    decisionSource: 'llm2-context-cache-router.dynamicTail.semanticRepairCandidates',
     contextReadPolicy: intentWorldView && intentWorldView.contextRequests ? {
       available: (intentWorldView.contextRequests.available || []).map(function(item) { return item.id; }),
       defaultRead: contextRoute.dynamicTail.requestedContext || intentWorldView.contextRequests.defaultRead || [],

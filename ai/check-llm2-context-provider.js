@@ -38,7 +38,7 @@ function makeIntentWorldView() {
         { id: 'ui_template_policy' },
       ],
     },
-    recommendedActions: [
+    semanticRepairRecommendations: [
       {
         action: 'apply_semantic_repair',
         experienceDimension: 'pressure_balance',
@@ -50,7 +50,7 @@ function makeIntentWorldView() {
       },
     ],
     recommendationPolicy: {
-      authority: 'candidate-only',
+      authority: 'semantic-repair-candidate-only',
       finalDecisionOwner: 'LLM2',
     },
   };
@@ -85,6 +85,7 @@ function main() {
   assert.strictEqual(provided.contexts.project_world_diff.semanticCacheHit, true, 'world diff should preserve cache hit');
   assert(provided.contexts.snapshot_summary.snapshots.length > 0, 'snapshot summary should include nearby snapshots');
   assert.strictEqual(provided.contexts.ui_template_policy.policy.role, 'supporting template layer', 'UI policy should be template layer');
+  assert(Array.isArray(provided.contexts.ui_template_policy.policy.forbiddenAsGameplayIntent), 'UI policy should describe forbidden gameplay Intent usage');
   contextProvider.assertSafeProvidedContext(provided);
 
   var contextRoute = router.routeLlm2Context({

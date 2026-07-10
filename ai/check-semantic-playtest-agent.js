@@ -161,7 +161,7 @@ function main() {
     assert(issue.dimension, 'expanded tick issue should carry experience dimension');
     assert(issue.gameplayRole, 'expanded tick issue should carry gameplay role');
     assert(issue.repairVerb, 'expanded tick issue should carry repair verb');
-    assert(issue.repair && !issue.repair.action, 'expanded tick issue should carry semantic repair params without legacy action ids');
+    assert(issue.repair && issue.repair.subject, 'expanded tick issue should carry semantic repair params');
     assert(issue.evidence && typeof issue.evidence.tick === 'number', 'expanded tick issue should carry tick evidence');
   });
   assert(expandedTickIssues.some(function(issue) {

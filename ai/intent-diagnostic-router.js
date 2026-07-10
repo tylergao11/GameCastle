@@ -49,9 +49,8 @@ function assertAllRouted(diagnostics) {
 
 function classifyDiagnostics(diagnostics) {
   diagnostics = diagnostics || [];
-  var routed = diagnostics.filter(function(diagnostic) {
-    return diagnostic && diagnostic.nextAction;
-  });
+  assertAllRouted(diagnostics);
+  var routed = diagnostics;
   var routeToOwner = routed.filter(function(diagnostic) {
     return diagnostic.nextAction === 'route-to-owner';
   });
@@ -63,7 +62,7 @@ function classifyDiagnostics(diagnostics) {
     routed: routed.length,
     routeToOwner: routeToOwner,
     intentRepair: intentRepair,
-    nextAction: routeToOwner.length ? 'route-to-owner' : (intentRepair.length ? 'intent-repair' : (diagnostics.length ? 'inspect' : 'done'))
+    nextAction: routeToOwner.length ? 'route-to-owner' : (intentRepair.length ? 'intent-repair' : 'done')
   };
 }
 
@@ -72,7 +71,7 @@ function describeDiagnostics(diagnostics) {
     return [
       diagnostic.routeId || diagnostic.category || 'diagnostic',
       diagnostic.owner || diagnostic.routeOwner || 'unknown-owner',
-      diagnostic.nextAction || 'inspect',
+      diagnostic.nextAction || 'unrouted',
       diagnostic.message || ''
     ].join(': ');
   }).join('\n');

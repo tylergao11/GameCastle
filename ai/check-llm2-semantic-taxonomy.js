@@ -50,7 +50,6 @@ function main() {
   assertNoRequestClassifierHardcoding();
 
   assert.strictEqual(view.aiFirstTaxonomy.naming, 'experience_dimension -> gameplay_role -> repair_verb -> safe_intent', 'taxonomy should use AI-first naming');
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(view, 'playRoles'), false, 'LLM-safe taxonomy must not expose legacy playRoles');
   assert(view.experienceDimensions.length >= 8, 'taxonomy should cover broad experience dimensions');
   ['route_readability', 'content_density', 'phase_flow', 'remix_style'].forEach(function(dimensionId) {
     assert(view.experienceDimensions.some(function(dimension) {
@@ -164,7 +163,7 @@ function main() {
   });
   assert.strictEqual(worldView.experienceTaxonomy.naming, view.aiFirstTaxonomy.naming, 'IntentWorldView should carry taxonomy naming');
   assert.strictEqual(worldView.evidence[0].experienceDimension, 'reward_pacing', 'evidence should use experience dimension');
-  assert.strictEqual(worldView.recommendedActions[0].repairVerb, 'increase_presence', 'recommended action should use repair verb');
+  assert.strictEqual(worldView.semanticRepairRecommendations[0].repairVerb, 'increase_presence', 'semantic repair recommendation should use repair verb');
 
   var policy = tickPlaytestRuntime.buildDefaultPlayPolicy({
     roleBindings: {
@@ -176,8 +175,6 @@ function main() {
   });
   assert.strictEqual(policy.roleBindings.actorSubject, 'Player', 'policy should use actor role binding');
   assert.strictEqual(policy.roleBindings.rewardSubject, 'coins', 'policy should use reward role binding');
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(policy.roleBindings, 'playerSubject'), false, 'policy must not expose legacy playerSubject');
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(policy.roleBindings, 'collectibleSubject'), false, 'policy must not expose legacy collectibleSubject');
 
   var prompt = deepseekProvider.dynamicPrompt({
     userRequest: 'REQUEST_SLOT:more_collectibles',

@@ -43,6 +43,12 @@ function assertNoMachineLeak(value, label) {
   assert(text.indexOf('adapter') < 0, label + ' should not expose adapters');
 }
 
+function assertDecisionLoopSourceBoundary() {
+  var source = fs.readFileSync(path.join(__dirname, 'llm2-decision-loop-runner.js'), 'utf8');
+  assert(source.indexOf('executeIntentPatch') < 0, 'Decision Loop must execute Intent artifacts, not retain patch naming');
+  assert(source.indexOf('intentPatch') < 0, 'Decision Loop must not retain intentPatch naming');
+}
+
 function makeView(options) {
   options = options || {};
   return {
@@ -68,9 +74,9 @@ function makeView(options) {
       defaultRead: options.evidence && options.evidence.length ? ['tick_event_window', 'project_world_diff'] : ['project_world_diff'],
       available: [{ id: 'tick_event_window' }, { id: 'project_world_diff' }, { id: 'ui_template_policy' }],
     },
-    recommendedActions: options.actions || [],
+    semanticRepairRecommendations: options.actions || [],
     recommendationPolicy: {
-      authority: 'candidate-only',
+      authority: 'semantic-repair-candidate-only',
       finalDecisionOwner: 'LLM2',
     },
   };
@@ -129,6 +135,7 @@ function testRegressedMeasurementCreatesStructuredRemainingIssue() {
 }
 
 function main() {
+  assertDecisionLoopSourceBoundary();
   testRegressedMeasurementCreatesStructuredRemainingIssue();
   var createIntent = fullCreativeLoop.mockIntentModel(fullCreativeLoop.mockRequirementModel('做一个手机跑酷游戏，金币多一点，别太难'));
   var createIntentPath = path.join(OUTPUT_DIR, 'llm2-decision-loop-base.intent.dsl');

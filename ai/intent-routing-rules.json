@@ -191,7 +191,7 @@
       "routeOwner": "runtime-executor",
       "routeMechanism": "execution-report",
       "prohibitedDslExpansions": ["ask LLM2 to repair internal target DSL"],
-      "resultCardEvidence": ["executionReport", "failedCommands", "ownerTrace"]
+      "resultCardEvidence": ["executionReport", "runtimeFailureSummary", "ownerTrace"]
     },
     {
       "id": "missing-gdjs-runtime-include",

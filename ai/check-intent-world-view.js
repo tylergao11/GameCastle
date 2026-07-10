@@ -71,7 +71,7 @@ function main() {
   assert(view.contextCache.targetSemanticHash, 'view should expose semantic hash for context cache decisions');
   assert(view.contextCache.diff.latestIntentDslLines.length > 0, 'view should include latest Intent DSL diff lines');
   assert(view.contextCache.diff.changedGameplayEvidence.length > 0, 'view should include tick evidence diff');
-  assert.strictEqual(view.recommendationPolicy.authority, 'candidate-only', 'recommended actions should be candidate-only');
+  assert.strictEqual(view.recommendationPolicy.authority, 'semantic-repair-candidate-only', 'semantic repair recommendations should be semantic repair candidate-only');
   assert.strictEqual(view.recommendationPolicy.finalDecisionOwner, 'LLM2', 'LLM2 should own the final gameplay edit decision');
   assert(view.contextRequests.defaultRead.indexOf('tick_event_window') >= 0, 'LLM2 should be able to request focused tick context');
   assert(view.contextRequests.available.some(function(request) { return request.id === 'project_world_diff'; }), 'LLM2 should be able to request world diff context');
@@ -90,7 +90,7 @@ function main() {
   assert.strictEqual(view.evidence[0].experienceDimension, 'reward_pacing', 'view evidence should carry experience dimension');
   assert.strictEqual(view.evidence[0].gameplayRole, 'reward', 'view evidence should carry gameplay role');
   assert.strictEqual(view.evidence[0].repairVerb, 'increase_presence', 'view evidence should carry repair verb');
-  var rewardRepairAction = view.recommendedActions.find(function(action) {
+  var rewardRepairAction = view.semanticRepairRecommendations.find(function(action) {
     return action.action === 'apply_semantic_repair' &&
       action.experienceDimension === 'reward_pacing' &&
       action.gameplayRole === 'reward' &&
@@ -98,12 +98,11 @@ function main() {
       action.priority === 'high' &&
       /^place coins near Player front as trail count \d+$/.test(action.safeIntentDsl || '');
   });
-  assert(rewardRepairAction, 'view should recommend gameplay repair intent through the unified semantic action');
-  assert.strictEqual(rewardRepairAction.repairAction, undefined, 'view should not expose internal repair action ids');
+  assert(rewardRepairAction, 'view should recommend gameplay repair intent through the unified semantic repair recommendation');
   assert(Number(rewardRepairAction.safeIntentDsl.match(/count (\d+)$/)[1]) >= 5, 'reward repair count should not regress below the fixture repair target');
-  assert(view.recommendedActions.every(function(action) {
+  assert(view.semanticRepairRecommendations.every(function(action) {
     return action.action === 'apply_semantic_repair';
-  }), 'view recommended actions should only use the unified semantic repair action');
+  }), 'view semantic repair recommendations should only use the unified semantic repair action');
   assertNoMachineLeak(view, 'IntentWorldView');
 
   var cachedView = intentWorldView.buildIntentWorldView({
@@ -128,7 +127,7 @@ function main() {
     },
   });
   assert.strictEqual(cachedView.contextCache.semanticCacheHit, true, 'matching semantic hashes should be cache hit');
-  assert.deepStrictEqual(cachedView.recommendedActions, [], 'no-op should be represented by DecisionRuntime, not as a candidate action type');
+  assert.deepStrictEqual(cachedView.semanticRepairRecommendations, [], 'no-op should be represented by DecisionRuntime, not as a semantic repair candidate type');
   assert.strictEqual(cachedView.contextCache.contextMode, 'diff-only', 'cache hit should move LLM2 to diff-only context');
 
   console.log('[IntentWorldView] gameplay-first LLM2 context, template UI policy, tick evidence, safe actions passed');

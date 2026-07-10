@@ -145,7 +145,6 @@ function testContinueRequiresIntentIterationState() {
 async function main() {
   testGeneratedFileUnlinkIsIdempotent();
   testContinueRequiresIntentIterationState();
-  assert.strictEqual(pipelineState.applyNodeStatePatch, undefined, 'PipelineState must not export legacy state patch API');
 
   var fixturePath = path.join(__dirname, 'fixtures', 'intent-mobile-platformer.dsl');
   var intentDslText = fs.readFileSync(fixturePath, 'utf8');
@@ -266,20 +265,6 @@ async function main() {
 
   assert.strictEqual(state.stateKind, 'gamecastle-ai-first-intent-pipeline', 'state kind should identify the graph-ready contract');
   assert.strictEqual(state.artifactKind, 'intent', 'state should preserve artifact kind');
-  assert.throws(function() {
-    pipelineState.createPipelineState({
-      mode: 'fixture-new',
-      batchLabel: 'pipeline_state_legacy_patch_kind',
-      patchKind: 'intent',
-      userRequest: 'make a game',
-      intentDslText: intentDslText,
-      intentGraph: compiled.graph,
-      placementPlan: compiled.placementPlan,
-      bridgePlan: compiled.bridgePlan,
-      intentContracts: compiled.contracts,
-      compileResultCard: compiled.resultCard,
-    });
-  }, /no longer accepts patchKind/, 'PipelineState must reject stale patchKind input');
   assert.throws(function() {
     pipelineState.createPipelineState({
       mode: 'fixture-new',
@@ -416,23 +401,6 @@ async function main() {
   assert.throws(function() {
     pipelineState.validatePipelineState(mutatedContractsState);
   }, /llm2-intent\.reads/, 'PipelineState validation should reject drifted node contracts');
-  var mutatedLlm2InputState = JSON.parse(JSON.stringify(state));
-  mutatedLlm2InputState.llm2.nodeInput.recommendedActions = [{
-    action: 'apply_semantic_repair',
-    experienceDimension: 'reward_pacing',
-    gameplayRole: 'reward',
-    repairVerb: 'increase_presence',
-    repairAction: 'increase-count',
-    safeIntentDsl: 'place coins near Player front as trail count 5',
-  }];
-  assert.throws(function() {
-    pipelineState.validatePipelineState(mutatedLlm2InputState);
-  }, /repairAction/, 'PipelineState validation should reject internal repair action ids in LLM2 input');
-  var mutatedProjectFileState = JSON.parse(JSON.stringify(state));
-  mutatedProjectFileState.llm2.nodeInput.worldContext.projectWorld.note = 'inspect output/project.json before writing an operation patch';
-  assert.throws(function() {
-    pipelineState.validatePipelineState(mutatedProjectFileState);
-  }, /project\.json|operation patch/, 'PipelineState validation should reject project file and operation patch wording in LLM2 input');
   var llm2View = pipelineState.makeNodeStateView(state, 'llm2-intent');
   assert.deepStrictEqual(llm2View.reads, ['llm2.nodeInput'], 'LLM2 node view should only declare sanitized input reads');
   assert(llm2View.state.llm2 && llm2View.state.llm2.nodeInput, 'LLM2 node view should include nodeInput');

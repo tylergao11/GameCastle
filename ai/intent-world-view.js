@@ -180,7 +180,7 @@ function priorityForIssue(issue) {
   return 'medium';
 }
 
-function actionFromIssue(issue, line) {
+function semanticRepairRecommendationFromIssue(issue, line) {
   var base = {
     action: 'apply_semantic_repair',
     experienceDimension: safeText(issue.dimension, null),
@@ -221,14 +221,14 @@ function buildExperienceTaxonomy() {
   };
 }
 
-function buildRecommendedActions(report) {
+function buildSemanticRepairRecommendations(report) {
   var issues = tickIssues(report);
   var lines = ((((report || {}).llmReport || {}).repairIntentDslLines) || (report || {}).repairIntentDslLines || []);
   if (!issues.length || !lines.length) {
     return [];
   }
   return issues.map(function(issue, index) {
-    return actionFromIssue(issue, lines[index] || lines[0] || null);
+    return semanticRepairRecommendationFromIssue(issue, lines[index] || lines[0] || null);
   }).filter(function(action) {
     if (!action.safeIntentDsl) return true;
     return intentSurfaceGuard.detectProhibitedSurface(action.safeIntentDsl).length === 0;
@@ -254,7 +254,7 @@ function buildContextRequests(report) {
     },
     {
       id: 'semantic_mapping',
-      purpose: 'inspect available issue profiles and safe repair verbs when a candidate action is not enough',
+      purpose: 'inspect available issue profiles and safe repair verbs when a semantic repair candidate is not enough',
       defaultMode: 'llm-safe-view',
     },
     {
@@ -265,7 +265,7 @@ function buildContextRequests(report) {
   ];
   var issues = tickIssues(report);
   return {
-    policy: 'LLM2 may request more context before choosing Intent DSL; candidate actions are not authoritative.',
+    policy: 'LLM2 may request more context before choosing Intent DSL; semantic repair candidates are not authoritative.',
     defaultRead: issues.length ? ['tick_event_window', 'project_world_diff'] : ['project_world_diff'],
     available: requests,
   };
@@ -325,12 +325,12 @@ function assertSafeIntentWorldView(view) {
   ['gdjs', 'componentId', 'bridgePlan', 'runtime adapter'].forEach(function(token) {
     if (text.indexOf(token) >= 0) throw new Error('IntentWorldView must not expose ' + token);
   });
-  (view.recommendedActions || []).forEach(function(action) {
+  (view.semanticRepairRecommendations || []).forEach(function(action) {
     if (action.action !== 'apply_semantic_repair') {
-      throw new Error('IntentWorldView recommended actions must use the unified semantic repair action');
+      throw new Error('IntentWorldView semantic repair recommendations must use the unified semantic repair action');
     }
     if (action.safeIntentDsl && intentSurfaceGuard.detectProhibitedSurface(action.safeIntentDsl).length) {
-      throw new Error('IntentWorldView recommended action contains prohibited Intent DSL');
+      throw new Error('IntentWorldView semantic repair recommendation contains prohibited Intent DSL');
     }
   });
   return view;
@@ -356,9 +356,9 @@ function buildIntentWorldView(options) {
     contextCache: buildContextCache(options, worldContext, report),
     evidence: buildEvidence(report),
     contextRequests: buildContextRequests(report),
-    recommendedActions: buildRecommendedActions(report),
+    semanticRepairRecommendations: buildSemanticRepairRecommendations(report),
     recommendationPolicy: {
-      authority: 'candidate-only',
+      authority: 'semantic-repair-candidate-only',
       finalDecisionOwner: 'LLM2',
       guidance: 'Use recommendations as hypotheses from tick evidence, then choose, revise, or ignore them after reading needed context.',
     },

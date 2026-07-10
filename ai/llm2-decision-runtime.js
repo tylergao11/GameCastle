@@ -39,8 +39,8 @@ function safeIntentLines(lines) {
   });
 }
 
-function candidateActions(contextRoute) {
-  return (((contextRoute || {}).dynamicTail || {}).candidateActions) || [];
+function semanticRepairCandidates(contextRoute) {
+  return (((contextRoute || {}).dynamicTail || {}).semanticRepairCandidates) || [];
 }
 
 function semanticIterationMemory(contextRoute) {
@@ -112,7 +112,7 @@ function scoreCandidate(action, requestHints, memory) {
 
 function chooseCandidate(contextRoute, requestHints) {
   var memory = semanticIterationMemory(contextRoute);
-  var actions = candidateActions(contextRoute).filter(function(action) {
+  var actions = semanticRepairCandidates(contextRoute).filter(function(action) {
     return action.action === 'apply_semantic_repair' && action.safeIntentDsl;
   });
   if (!actions.length) return null;
@@ -199,7 +199,7 @@ function buildMockDecision(options) {
         gameplayRole: selected.gameplayRole || null,
         repairVerb: selected.repairVerb || null,
       },
-      reason: 'Apply safe Intent DSL chosen from routed candidate actions and available context.',
+      reason: 'Apply safe Intent DSL chosen from routed semantic repair candidates and available context.',
       confidence: hasContext(resolvedContext, 'tick_event_window') ? 0.78 : 0.7,
       contextRoute: contextRoute,
     };
@@ -209,7 +209,7 @@ function buildMockDecision(options) {
     decisionType: DECISION_TYPES.NO_OP,
     intentDslLines: [],
     requestedContext: [],
-    reason: 'No gameplay issue requires a patch under current evidence.',
+    reason: 'No gameplay issue requires an Intent change under current evidence.',
     confidence: 0.76,
     contextRoute: contextRoute,
   };

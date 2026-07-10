@@ -75,11 +75,20 @@ function testRuntimeExecutionFailureRoutesToRuntimeExecutor() {
   assert.strictEqual(diagnostic.command, 'on start -> unsupported_action Player scene=Game', 'runtime diagnostic should retain failed command');
 }
 
+function testClassifierRejectsUnroutedDiagnostics() {
+  assert.throws(function() {
+    diagnosticRouter.classifyDiagnostics([
+      { category: 'compiler', message: 'raw diagnostic without route' },
+    ]);
+  }, /Diagnostic missing routeId/, 'diagnostic classifier must reject unrouted diagnostics');
+}
+
 function main() {
   testCompilerUnknownComponentRoutesToCatalog();
   testPlacementMissingAnchorRoutesToPlacementResolver();
   testBridgeUnknownComponentRoutesToCatalog();
   testRuntimeExecutionFailureRoutesToRuntimeExecutor();
+  testClassifierRejectsUnroutedDiagnostics();
   console.log('[IntentDiagnosticRouter] owner-routed diagnostics passed');
 }
 

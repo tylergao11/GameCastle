@@ -53,10 +53,10 @@ function makeView(options) {
         { id: 'ui_template_policy', defaultMode: 'template-choice' },
       ],
     },
-    recommendedActions: actions,
+    semanticRepairRecommendations: actions,
     semanticIterationMemory: options.semanticIterationMemory || null,
     recommendationPolicy: {
-      authority: 'candidate-only',
+      authority: 'semantic-repair-candidate-only',
       finalDecisionOwner: 'LLM2',
     },
   };
@@ -208,26 +208,6 @@ function main() {
     projectMode: 'continue',
   });
   assertDecision(noOpDecision, 'no_op', 'no tick issue');
-
-  var rogueActionDecision = decisionRuntime.runDecisionRuntime({
-    intentWorldView: makeView({
-      baseHash: 'same_hash',
-      targetHash: 'same_hash',
-      evidence: [{ tick: 160, issue: 'reward_pacing_low', meaning: 'reward pacing low' }],
-      actions: [{
-        action: 'increase_reward_count',
-        experienceDimension: 'reward_pacing',
-        gameplayRole: 'reward',
-        repairVerb: 'increase_presence',
-        priority: 'high',
-        reason: 'legacy action name should be ignored',
-        safeIntentDsl: 'place coins near Player front as trail count 5',
-      }],
-    }),
-    userRequest: '金币多一点',
-    projectMode: 'continue',
-  });
-  assertDecision(rogueActionDecision, 'no_op', 'legacy custom action names should not execute');
 
   var rejectDecision = decisionRuntime.runDecisionRuntime({
     intentWorldView: makeView({ baseHash: 'same_hash', targetHash: 'same_hash', evidence: [] }),

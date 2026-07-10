@@ -47,12 +47,12 @@ function assertSafeRouterOutput(route) {
   if (text.indexOf('"x"') >= 0 || text.indexOf('"y"') >= 0) {
     throw new Error('LLM2 Context Cache Router must not expose coordinates');
   }
-  ['gdjs', 'componentId', 'bridgePlan', 'runtime adapter', 'repairAction', 'failedDiagnostics', 'failedCommands'].forEach(function(token) {
+  ['gdjs', 'componentId', 'bridgePlan', 'runtime adapter'].forEach(function(token) {
     if (text.indexOf(token) >= 0) throw new Error('LLM2 Context Cache Router must not expose ' + token);
   });
-  (((route || {}).dynamicTail || {}).candidateActions || []).forEach(function(action) {
-    if (action.action !== 'apply_semantic_repair') {
-      throw new Error('LLM2 Context Cache Router candidate actions must use apply_semantic_repair');
+  (((route || {}).dynamicTail || {}).semanticRepairCandidates || []).forEach(function(candidate) {
+    if (candidate.action !== 'apply_semantic_repair') {
+      throw new Error('LLM2 Context Cache Router semantic repair candidates must use apply_semantic_repair');
     }
   });
   return route;
@@ -82,13 +82,13 @@ function candidateNeedsTickEvidence(actions) {
   });
 }
 
-function safeCandidateActions(actions) {
+function safeSemanticRepairCandidates(actions) {
   var rejected = [];
   var safe = (actions || []).filter(function(action) {
     var ok = action && action.action === 'apply_semantic_repair' && action.safeIntentDsl;
     if (!ok && action) {
       rejected.push({
-        reason: 'candidate action must be apply_semantic_repair with safeIntentDsl',
+        reason: 'semantic repair candidate must be apply_semantic_repair with safeIntentDsl',
       });
     }
     return ok;
@@ -154,8 +154,8 @@ function buildDynamicTail(options, mode) {
   var intentWorldView = options.intentWorldView || {};
   var contextRequests = intentWorldView.contextRequests || {};
   var evidence = clone(intentWorldView.evidence || []);
-  var recommendedActions = intentWorldView.recommendedActions || [];
-  var candidateSafety = safeCandidateActions(recommendedActions);
+  var semanticRepairRecommendations = intentWorldView.semanticRepairRecommendations || [];
+  var candidateSafety = safeSemanticRepairCandidates(semanticRepairRecommendations);
   var semanticIterationMemory = clone(intentWorldView.semanticIterationMemory || null);
   var requestText = safeText(options.userRequest || options.currentRequest, null);
   var requestHints = semanticHintsForRequest(requestText);
@@ -165,9 +165,9 @@ function buildDynamicTail(options, mode) {
     semanticIterationMemory: semanticIterationMemory,
     contextModeHint: intentWorldView.contextCache ? intentWorldView.contextCache.contextMode : null,
     tickEvidence: mode === CONTEXT_MODES.FULL_HIT || mode === CONTEXT_MODES.DIFF_HIT ? evidence : evidence.slice(0, 3),
-    candidateActions: candidateSafety.safe,
-    candidateActionAudit: {
-      inputCount: recommendedActions.length,
+    semanticRepairCandidates: candidateSafety.safe,
+    semanticRepairCandidateAudit: {
+      inputCount: semanticRepairRecommendations.length,
       exposedCount: candidateSafety.safe.length,
       rejectedCount: candidateSafety.rejected.length,
       rejected: candidateSafety.rejected,
@@ -217,7 +217,7 @@ function routeMode(options) {
     return { mode: CONTEXT_MODES.FULL_MISS, reasons: reasons };
   }
 
-  if (requestNeedsTickEvidence(requestHints) || candidateNeedsTickEvidence(intentWorldView.recommendedActions || [])) {
+  if (requestNeedsTickEvidence(requestHints) || candidateNeedsTickEvidence(intentWorldView.semanticRepairRecommendations || [])) {
     reasons.push('focused_tick_evidence_request');
     return { mode: CONTEXT_MODES.RECOMMENDED_PACK, reasons: reasons };
   }

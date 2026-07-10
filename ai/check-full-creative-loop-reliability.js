@@ -95,13 +95,13 @@ function main() {
     assert(report.create.semanticPlaytest.tickReport.snapshots.length > 0, scenario.id + ' should produce create Snapshot');
     assert.strictEqual(report.create.intentWorldView.owner, 'IntentWorldView', scenario.id + ' should produce create IntentWorldView');
     assert.strictEqual(report.create.intentWorldView.sceneIntent.uiPolicy.role, 'supporting layer only', scenario.id + ' UI should stay supporting');
-    assert.strictEqual(report.create.intentWorldView.recommendationPolicy.authority, 'candidate-only', scenario.id + ' recommendations should be candidate-only');
+    assert.strictEqual(report.create.intentWorldView.recommendationPolicy.authority, 'semantic-repair-candidate-only', scenario.id + ' recommendations should be semantic repair candidate-only');
     assert.strictEqual(report.mockLlm.repairDecision.decision.owner, 'LLM2DecisionRuntime', scenario.id + ' repair should run through Decision Runtime');
     assert.strictEqual(report.mockLlm.repairDecision.decision.verifier.passed, true, scenario.id + ' decision verifier should pass');
-    assert.strictEqual(report.mockLlm.repairDecision.decisionSource, 'llm2-context-cache-router.dynamicTail.candidateActions', scenario.id + ' repair should read routed candidate actions');
+    assert.strictEqual(report.mockLlm.repairDecision.decisionSource, 'llm2-context-cache-router.dynamicTail.semanticRepairCandidates', scenario.id + ' repair should read routed semantic repair candidates');
     assert.strictEqual(report.mockLlm.repairDecision.contextRoute.providerCacheModel.cacheKind, 'text-kv-prefix', scenario.id + ' route should use DeepSeek text KV cache model');
     assert.strictEqual(report.mockLlm.repairDecision.contextRoute.providerCacheModel.reusableAcrossModalities, false, scenario.id + ' route should not reuse multimodal cache assumptions');
-    assert.strictEqual(report.mockLlm.repairDecision.contextReadPolicy.recommendationAuthority, 'candidate-only', scenario.id + ' repair should treat recommendations as candidates');
+    assert.strictEqual(report.mockLlm.repairDecision.contextReadPolicy.recommendationAuthority, 'semantic-repair-candidate-only', scenario.id + ' repair should treat recommendations as semantic repair candidates');
     assert(report.repair.semanticPlaytest.tickReport.eventLog.length > 0, scenario.id + ' should produce after EventLog');
     assert(report.repair.semanticPlaytest.tickReport.snapshots.length > 0, scenario.id + ' should produce after Snapshot');
     assert.strictEqual(report.repair.intentWorldView.owner, 'IntentWorldView', scenario.id + ' should produce after IntentWorldView');

@@ -174,9 +174,9 @@ function makeView(options) {
         { id: 'ui_template_policy' },
       ],
     },
-    recommendedActions: options.actions || [],
+    semanticRepairRecommendations: options.actions || [],
     recommendationPolicy: {
-      authority: 'candidate-only',
+      authority: 'semantic-repair-candidate-only',
       finalDecisionOwner: 'LLM2',
     },
   };

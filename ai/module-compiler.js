@@ -82,7 +82,6 @@ function validateProductModules(schema, modules) {
         throw new Error('Product module ' + manifest.id + ' capability ' + capability.id + ' must not expose low-level DSL');
       }
     });
-    rejectLegacyCompilerPatchTemplateFields(manifest);
     validateUpdateTemplateMap(manifest, 'slotUpdateTemplates');
     validateUpdateTemplateMap(manifest, 'configureUpdateTemplates');
     validateNetworking(manifest);
@@ -115,15 +114,6 @@ function validateRepositoryPolicy(manifest) {
   if (policy.promotionTarget !== 'cloudModuleRepo') {
     throw new Error('Product module ' + manifest.id + ' repositoryPolicy.promotionTarget must be cloudModuleRepo');
   }
-}
-
-function rejectLegacyCompilerPatchTemplateFields(manifest) {
-  var compiler = manifest.compiler || {};
-  ['slotPatches', 'configurePatches'].forEach(function(fieldName) {
-    if (compiler[fieldName] !== undefined) {
-      throw new Error('Product module ' + manifest.id + ' compiler.' + fieldName + ' is removed; use update templates');
-    }
-  });
 }
 
 function validateUpdateTemplateMap(manifest, fieldName) {

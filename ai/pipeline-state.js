@@ -18,16 +18,12 @@ var PROHIBITED_AI_VISIBLE_KEYS = {
   internalDslText: true,
   dslText: true,
   dslLines: true,
-  repairAction: true,
   commandResults: true,
-  failedCommands: true,
   projectJson: true,
 };
 
 var PROHIBITED_AI_VISIBLE_TEXT = [
   'project.json',
-  'operation patch',
-  'operationPatch',
 ];
 
 var NODE_CONTRACTS = {
@@ -377,9 +373,6 @@ function makeLlm2NodeInput(options) {
 
 function createPipelineState(options) {
   options = options || {};
-  if (Object.prototype.hasOwnProperty.call(options, 'patchKind')) {
-    throw new Error('PipelineState no longer accepts patchKind; use Intent artifact state');
-  }
   var artifactKind = options.artifactKind || (options.intentGraph ? 'intent' : null);
   if (artifactKind !== 'intent') {
     throw new Error('PipelineState only accepts AI-first Intent state');

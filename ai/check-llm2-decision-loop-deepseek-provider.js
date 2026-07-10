@@ -31,7 +31,7 @@ function makeView() {
       defaultRead: ['project_world_diff'],
       available: [{ id: 'tick_event_window' }, { id: 'project_world_diff' }, { id: 'snapshot_summary' }, { id: 'ui_template_policy' }],
     },
-    recommendedActions: [{
+    semanticRepairRecommendations: [{
       action: 'apply_semantic_repair',
       experienceDimension: 'reward_pacing',
       gameplayRole: 'reward',
@@ -41,7 +41,7 @@ function makeView() {
       safeIntentDsl: 'place coins near Player front as trail count 5',
     }],
     recommendationPolicy: {
-      authority: 'candidate-only',
+      authority: 'semantic-repair-candidate-only',
       finalDecisionOwner: 'LLM2',
     },
   };

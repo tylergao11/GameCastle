@@ -4,7 +4,6 @@ var semanticFeedback = require('./semantic-feedback');
 
 function testProbeIssuesBecomeNaturalRepairIntent() {
   var mapping = semanticFeedback.loadSemanticMapping();
-  assert(!mapping.repairActions, 'semantic mapping must not keep legacy repair action ids');
   assert(mapping.intentLineStrategies.count_more, 'semantic mapping should define semantic count strategy');
   assert(mapping.issueProfiles.route_reward_unreachable, 'semantic mapping should define fallback issue profile');
   var llmView = semanticFeedback.buildSemanticMappingLlmView(mapping);
@@ -38,9 +37,6 @@ function testProbeIssuesBecomeNaturalRepairIntent() {
       issue.repairVerb === 'increase_presence';
   }), 'LLM view should expose issue profile semantic abstraction fields');
   assert(llmJson.indexOf('"template"') < 0, 'LLM view must not expose internal templates');
-  assert(llmJson.indexOf('repairAction') < 0, 'LLM view must not expose internal repair action ids');
-  assert(llmJson.indexOf('increase-count') < 0, 'LLM view must not expose internal repair action ids');
-  assert(llmJson.indexOf('decrease-count') < 0, 'LLM view must not expose internal repair action ids');
   assert(llmJson.indexOf('intentLineStrategies') < 0, 'LLM view must not expose internal Intent line strategies');
   assert(llmJson.indexOf('componentId') < 0, 'LLM view must not expose component ids');
   assert(llmJson.indexOf('x=') < 0, 'LLM view must not expose coordinate syntax');

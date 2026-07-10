@@ -151,9 +151,6 @@ function makeArtifactReplayHandlers(completeState) {
 
 async function makePipelineStateFromArtifacts(options) {
   options = options || {};
-  if (Object.prototype.hasOwnProperty.call(options, 'patchKind')) {
-    throw new Error('Intent pipeline graph no longer accepts patchKind; use artifactKind');
-  }
   var completeState = pipelineState.createPipelineState(options);
   pipelineState.validatePipelineState(completeState);
   var partialState = pipelineState.createPipelineState({

@@ -104,7 +104,7 @@ function buildUiTemplatePolicy() {
     policy: {
       role: 'supporting template layer',
       allowedDecision: ['choose_style_template', 'choose_icon_template', 'choose_broad_layout_template'],
-      forbiddenAsGameplayPatch: ['pixel tuning', 'custom icon prompt loops', 'button skin iteration as gameplay work'],
+      forbiddenAsGameplayIntent: ['pixel tuning', 'custom icon prompt loops', 'button skin iteration as gameplay work'],
       gameplayEscalation: 'Only escalate to gameplay decision when input access or feedback visibility blocks play.',
     },
     summary: 'UI/icon requests should be handled through selectable templates, not gameplay Intent DSL.',

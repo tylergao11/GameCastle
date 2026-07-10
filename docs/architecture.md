@@ -558,9 +558,9 @@ is a probe issue with `repairVerb` plus semantic repair parameters such as
 subject, anchor, direction, pattern, count delta, or amount; game cases such as
 a parkour fixture are tests of that form, not code branches. The output is only
 safe Intent DSL repair text, for example `place coins near Player front as
-trail count 5` or `adjust JumpButton placement above slightly`. It must never
-output legacy repair action ids, internal target DSL, coordinates, component
-ids, adapter ids, bridge plans, or GDJS names.
+trail count 5` or `adjust JumpButton placement above slightly`. Internal target
+DSL, coordinates, component ids, adapter ids, bridge plans, and GDJS names stay
+inside their owner layers.
 The same dictionary also produces an LLM-safe view through
 `buildSemanticMappingLlmView()`. Intent Commander prompts, PipelineState
 `llm2.nodeInput.worldContext`, and semantic feedback reports read this view, so
@@ -596,7 +596,7 @@ metrics. Semantic Playtest Agent turns those facts into:
   suggested intent lines.
 - `intent-world-view.json`: gameplay-first LLM2 decision context. It maps the
   single scene into gameplay roles, tick evidence, current judgement, context
-  cache/diff state, candidate actions, and allowed context requests.
+  cache/diff state, semantic repair candidates, and allowed context requests.
 - `semantic-playtest-repair.intent.dsl`: executable repair Intent, generated but
   not automatically applied.
 
@@ -607,13 +607,13 @@ analysis, and future ordered-input multiplayer share the same runtime worldview:
 Intent drives ticks, ticks drive state, state produces events, and events
 summarize back into the world.
 
-IntentWorldView is deliberately not an oracle. Its recommended actions are
+IntentWorldView is deliberately not an oracle. Its semantic repair recommendations are
 candidate hypotheses from semantic evidence; LLM2 remains the final decision
 owner. When the semantic hash matches the previous world, the view asks LLM2 to
 use `diff-only` context. When it misses, it uses `summary-plus-diff`. LLM2 may
 request focused tick event windows, snapshot summaries, ProjectWorld diffs,
 semantic mapping, or UI template policy before choosing, revising, or ignoring a
-candidate action. UI and icon choices are treated as selectable style/layout
+semantic repair candidate. UI and icon choices are treated as selectable style/layout
 templates unless input access or feedback visibility is the actual gameplay
 problem.
 
@@ -690,7 +690,7 @@ mapping, so an Intent that improves the requested issue but regresses survival,
 pressure, or reward reachability is marked as needing another iteration instead
 of being accepted as a successful turn.
 The router carries this memory in the dynamic tail for cache discipline, and
-Decision Runtime scores candidate actions against current request hints,
+Decision Runtime scores semantic repair candidates against current request hints,
 remaining semantic issues, and already improved dimensions.
 
 `ai/llm2-semantic-eval-loop.js` is the batch benchmark layer above that bus. It

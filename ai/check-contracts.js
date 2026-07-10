@@ -171,8 +171,8 @@ function main() {
     'invalidateOn',
   ]);
   requireRequiredFields(build.properties.repairPolicy, 'BuildContract.repairPolicy', ['maxRounds', 'routeByOwner', 'retryOwners']);
-
-  assert(!schema.$defs.ModuleDslPatch, 'ModuleDslPatch contract must be removed with the legacy Module DSL input');
+  var buildProjectModes = enumValues(schema, ['$defs', 'BuildContract', 'properties', 'request', 'properties', 'projectMode']);
+  assert(buildProjectModes.indexOf('intent-repair') >= 0, 'BuildContract projectMode must name Intent repair explicitly');
 
   var assetManifest = requireObjectDef(schema, 'AssetManifest');
   requireRequiredFields(assetManifest, 'AssetManifest', ['meta', 'buildContractId', 'assets', 'summary']);
@@ -237,13 +237,20 @@ function main() {
     'assetManifest',
     'assetReview',
   ]);
-  assert(enumValues(schema, ['$defs', 'AssemblyReport', 'properties', 'nextAction']).indexOf('repair') >= 0,
-    'AssemblyReport.nextAction must support repair routing');
+  requireRequiredFields(assembly.properties.outputs, 'AssemblyReport.outputs', [
+    'finalArtifactPath',
+    'projectPath',
+    'resourceManifestPath',
+  ]);
+  var assemblyNextActions = enumValues(schema, ['$defs', 'AssemblyReport', 'properties', 'nextAction']);
+  assert(assemblyNextActions.indexOf('route-to-owner') >= 0,
+    'AssemblyReport.nextAction must support owner routing');
 
   var validation = requireObjectDef(schema, 'ValidationReport');
   requireRequiredFields(validation, 'ValidationReport', ['meta', 'buildContractId', 'checks', 'summary', 'nextAction']);
-  assert(enumValues(schema, ['$defs', 'ValidationReport', 'properties', 'nextAction']).indexOf('repair') >= 0,
-    'ValidationReport.nextAction must support repair routing');
+  var validationNextActions = enumValues(schema, ['$defs', 'ValidationReport', 'properties', 'nextAction']);
+  assert(validationNextActions.indexOf('route-to-owner') >= 0,
+    'ValidationReport.nextAction must support owner routing');
   requireRequiredFields(validation.properties.summary, 'ValidationReport.summary', ['passed', 'failed', 'blocked', 'cacheHit']);
 
   Object.keys(agentWorkflow.ROLE_DEFINITIONS).forEach(function(roleId) {

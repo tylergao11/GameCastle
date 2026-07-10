@@ -197,16 +197,16 @@ async function main() {
     intent: intent,
   });
   assert.strictEqual(failedExecutionReport.summary.nextAction, 'route-to-owner', 'failed runtime execution should route to owner');
-  assert.strictEqual(failedExecutionReport.summary.failedDiagnostics, 1, 'failed runtime execution should summarize failed diagnostics');
+  assert.strictEqual(failedExecutionReport.summary.routedDiagnostics, 1, 'failed runtime execution should summarize routed diagnostics');
   assert.strictEqual(failedExecutionReport.failed[0].commandId, 'failed_line_001', 'failed runtime execution should retain command id');
   assert.strictEqual(failedExecutionReport.failed[0].command, 'create object name=Ghost type=Missing scene=Game', 'failed runtime execution should retain original command');
-  assert.strictEqual(failedExecutionReport.failedDiagnostics.length, 1, 'failed runtime execution should include routed diagnostic');
-  diagnosticRouter.assertRoutedDiagnostic(failedExecutionReport.failedDiagnostics[0]);
-  assert.strictEqual(failedExecutionReport.failedDiagnostics[0].routeId, 'internal-target-execution', 'failed runtime execution should use runtime execution route');
-  assert.strictEqual(failedExecutionReport.failedDiagnostics[0].owner, 'runtime-executor', 'failed runtime execution should route to runtime executor');
-  assert.strictEqual(failedExecutionReport.failedDiagnostics[0].commandId, 'failed_line_001', 'failed runtime diagnostic should retain command id');
+  assert.strictEqual(failedExecutionReport.routedDiagnostics.length, 1, 'failed runtime execution should include routed diagnostic');
+  diagnosticRouter.assertRoutedDiagnostic(failedExecutionReport.routedDiagnostics[0]);
+  assert.strictEqual(failedExecutionReport.routedDiagnostics[0].routeId, 'internal-target-execution', 'failed runtime execution should use runtime execution route');
+  assert.strictEqual(failedExecutionReport.routedDiagnostics[0].owner, 'runtime-executor', 'failed runtime execution should route to runtime executor');
+  assert.strictEqual(failedExecutionReport.routedDiagnostics[0].commandId, 'failed_line_001', 'failed runtime diagnostic should retain command id');
   var safeFailedReportJson = JSON.stringify(projectWorld.sanitizeExecutionReportForIntentPrompt(failedExecutionReport));
-  assert(safeFailedReportJson.indexOf('failedDiagnostics') < 0, 'LLM-safe failed report must not expose raw runtime diagnostics');
+  assert(safeFailedReportJson.indexOf('routedDiagnostics') < 0, 'LLM-safe failed report must not expose raw runtime diagnostics');
   assert(safeFailedReportJson.indexOf('create object name=Ghost') < 0, 'LLM-safe failed report must not expose target DSL command text');
   assert(safeFailedReportJson.indexOf('route-to-owner') >= 0, 'LLM-safe failed report should preserve owner-routing summary');
 

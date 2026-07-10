@@ -836,8 +836,8 @@ function diffDesignBriefs(oldBrief, newBrief) {
       p.direction || '',
       p.pattern || '',
       p.count || '',
-      p.x !== undefined ? 'legacyX:' + p.x : '',
-      p.y !== undefined ? 'legacyY:' + p.y : ''
+      p.x !== undefined ? 'rawX:' + p.x : '',
+      p.y !== undefined ? 'rawY:' + p.y : ''
     ].join('|');
   }
   var oldPlaced = (oldBrief.layout&&oldBrief.layout.placements||[]).map(function(p){return p.object;});
@@ -1286,7 +1286,7 @@ async function previewApprovalArtifact(project, dslText, options) {
     intent: intentArtifacts,
   });
   var failed = commandResults.filter(function(result) { return !result.ok; });
-  var failedDiagnostics = failed.map(function(result) {
+  var routedDiagnostics = failed.map(function(result) {
     return diagnosticRouter.routeDiagnostic('internal-target-execution', {
       category: 'runtime-execution-preview',
       commandId: result.commandId,
@@ -1305,18 +1305,12 @@ async function previewApprovalArtifact(project, dslText, options) {
     baseSemanticHash: options.baseWorld ? options.baseWorld.semanticHash : null,
     cacheHit: !!(options.baseWorld && options.baseWorld.semanticHash === previewWorld.semanticHash),
     commandResults: commandResults,
-    failedCommands: failed,
-    failedDiagnostics: failedDiagnostics,
+    runtimeFailureSummary: failed,
+    routedDiagnostics: routedDiagnostics,
   };
 }
 
 async function makePendingApprovalPacket(options) {
-  if (options && Object.prototype.hasOwnProperty.call(options, 'patchKind')) {
-    throw new Error('Pending approval no longer accepts patchKind; use artifactKind');
-  }
-  if (options && Object.prototype.hasOwnProperty.call(options, 'requiresExistingProject')) {
-    throw new Error('Pending approval no longer accepts requiresExistingProject; use requiresIntentIterationState');
-  }
   if (!options || options.artifactKind !== 'intent') {
     throw new Error('Pending approval only accepts compiled Intent artifacts');
   }
@@ -1411,10 +1405,6 @@ async function approvePendingArtifact() {
   }
   if (pending.artifactKind !== 'intent') {
     console.error('[Approval] Pending approval only accepts Intent artifacts.');
-    process.exit(1);
-  }
-  if (Object.prototype.hasOwnProperty.call(pending, 'requiresExistingProject')) {
-    console.error('[Approval] Pending approval uses removed requiresExistingProject field; regenerate the Intent approval packet.');
     process.exit(1);
   }
 

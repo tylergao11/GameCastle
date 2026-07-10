@@ -272,7 +272,7 @@ function writeLoopArtifacts(outputs, route, providedContext, intentDslText, repo
   writeJson(path.join(OUTPUT_DIR, outputs.report), report);
 }
 
-function executeIntentPatch(intentDslText, outputs, options) {
+function executeIntentArtifact(intentDslText, outputs, options) {
   if (!intentDslText.trim()) return null;
   assertSafeIntentText(intentDslText, 'LLM2 Decision Loop Intent DSL');
   return runNode([
@@ -416,7 +416,7 @@ function runDecisionLoop(options) {
 
   if (finalDecision.decisionType === 'apply_intent' && execute) {
     writeText(path.join(OUTPUT_DIR, outputs.intentDsl), intentDslText);
-    execution = executeIntentPatch(intentDslText, outputs, options);
+    execution = executeIntentArtifact(intentDslText, outputs, options);
     after = {
       semanticPlaytestReport: readJsonOutput('semantic-playtest-report.json'),
       intentWorldView: readJsonOutput('intent-world-view.json'),
@@ -533,7 +533,7 @@ async function runDecisionLoopAsync(options) {
 
   if (finalDecision.decisionType === 'apply_intent' && execute) {
     writeText(path.join(OUTPUT_DIR, outputs.intentDsl), intentDslText);
-    execution = executeIntentPatch(intentDslText, outputs, options);
+    execution = executeIntentArtifact(intentDslText, outputs, options);
     after = {
       semanticPlaytestReport: readJsonOutput('semantic-playtest-report.json'),
       intentWorldView: readJsonOutput('intent-world-view.json'),

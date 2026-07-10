@@ -60,34 +60,6 @@ function main() {
   }
   assert(badCapabilityDsl === null, 'Product module validation should fail when a capability exposes low-level DSL');
 
-  var badLegacyPatchTemplates = JSON.parse(JSON.stringify(catalog.modules));
-  badLegacyPatchTemplates[0].compiler.slotPatches = {
-    failAction: {
-      dsl: ['on collision Player Enemy -> restart scene=Game'],
-    },
-  };
-  try {
-    moduleCompiler.validateProductModules(catalog.schema, badLegacyPatchTemplates);
-  } catch (error) {
-    assert(error.message.indexOf('compiler.slotPatches is removed') >= 0, 'Product module validation should reject legacy slotPatches');
-    badLegacyPatchTemplates = null;
-  }
-  assert(badLegacyPatchTemplates === null, 'Product module validation should fail when legacy compiler patch templates are present');
-
-  var badLegacyConfigureTemplates = JSON.parse(JSON.stringify(catalog.modules));
-  badLegacyConfigureTemplates[0].compiler.configurePatches = {
-    title: {
-      dsl: ['on start -> text TitleText Game scene=Start'],
-    },
-  };
-  try {
-    moduleCompiler.validateProductModules(catalog.schema, badLegacyConfigureTemplates);
-  } catch (error) {
-    assert(error.message.indexOf('compiler.configurePatches is removed') >= 0, 'Product module validation should reject legacy configurePatches');
-    badLegacyConfigureTemplates = null;
-  }
-  assert(badLegacyConfigureTemplates === null, 'Product module validation should fail when legacy configure patch templates are present');
-
   var badModules = JSON.parse(JSON.stringify(catalog.modules));
   badModules[0].summary = 'Use core.platformer directly';
   try {

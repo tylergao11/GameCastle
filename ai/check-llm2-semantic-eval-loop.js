@@ -20,17 +20,17 @@ function assertNoMachineLeak(value, label) {
   assert(text.indexOf('gdjs') < 0, label + ' should not expose gdjs internals');
 }
 
-function assertUnifiedCandidateActions(value, label) {
+function assertUnifiedSemanticRepairActions(value, label) {
   if (value === null || value === undefined) return;
   if (Array.isArray(value)) {
     value.forEach(function(item, index) {
-      assertUnifiedCandidateActions(item, label + '[' + index + ']');
+      assertUnifiedSemanticRepairActions(item, label + '[' + index + ']');
     });
     return;
   }
   if (typeof value !== 'object') return;
   Object.keys(value).forEach(function(key) {
-    if ((key === 'recommendedActions' || key === 'candidateActions') && Array.isArray(value[key])) {
+    if ((key === 'semanticRepairRecommendations' || key === 'semanticRepairCandidates') && Array.isArray(value[key])) {
       value[key].forEach(function(action, index) {
         assert.strictEqual(
           action.action,
@@ -39,7 +39,7 @@ function assertUnifiedCandidateActions(value, label) {
         );
       });
     }
-    assertUnifiedCandidateActions(value[key], label + '.' + key);
+    assertUnifiedSemanticRepairActions(value[key], label + '.' + key);
   });
 }
 
@@ -100,7 +100,7 @@ function main() {
     assert(result.contextRouteMode, result.id + ' should record context route mode');
     assert(result.verifierPassed, result.id + ' decision verifier should pass');
     assertNoMachineLeak(result, result.id);
-    assertUnifiedCandidateActions(result, result.id);
+    assertUnifiedSemanticRepairActions(result, result.id);
   });
 
   assertExists(path.join(OUTPUT_DIR, 'llm2-semantic-eval-report.json'));
@@ -113,7 +113,7 @@ function main() {
   var coinTranscript = JSON.parse(fs.readFileSync(path.join(OUTPUT_DIR, 'llm2-semantic-eval-transcripts', 'coin_more_execute.json'), 'utf8'));
   assert.strictEqual(coinTranscript.improvementComparison.view, 'semantic-tick-improvement-comparison', 'transcript should persist improvement comparison');
   assertNoMachineLeak(coinTranscript.improvementComparison, 'transcript improvement comparison');
-  assertUnifiedCandidateActions(coinTranscript, 'coin transcript');
+  assertUnifiedSemanticRepairActions(coinTranscript, 'coin transcript');
 
   console.log('[LLM2SemanticEvalLoop] ' + report.scenarioCount + ' semantic eval cases passed');
 }

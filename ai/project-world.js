@@ -251,9 +251,6 @@ function countBy(list, key) {
 
 function summarizeIntentArtifacts(options) {
   options = options || {};
-  if (Object.prototype.hasOwnProperty.call(options, 'patchKind')) {
-    throw new Error('Intent artifacts no longer accept patchKind; use artifactKind');
-  }
   var intentGraph = options.intentGraph || null;
   var placementPlan = options.placementPlan || null;
   var bridgePlan = options.bridgePlan || null;
@@ -889,7 +886,7 @@ function makeExecutionReport(options) {
   var intentSummary = options.intent ? summarizeIntentArtifacts(options.intent) : null;
   var intentFulfillment = evaluateIntentFulfillment(world, intentSummary);
   var fulfillmentMissing = intentFulfillment && intentFulfillment.missing > 0;
-  var failedDiagnostics = failed.map(function(result) {
+  var routedDiagnostics = failed.map(function(result) {
     return diagnosticRouter.routeDiagnostic('internal-target-execution', {
       category: 'runtime-execution',
       commandId: result.commandId,
@@ -911,7 +908,7 @@ function makeExecutionReport(options) {
       completed: completed.length,
       failed: failed.length,
       nextAction: failed.length ? 'route-to-owner' : (fulfillmentMissing ? 'route-to-owner' : 'done'),
-      failedDiagnostics: failedDiagnostics.length,
+      routedDiagnostics: routedDiagnostics.length,
       intentFulfillment: intentFulfillment ? {
         status: intentFulfillment.status,
         total: intentFulfillment.total,
@@ -922,7 +919,7 @@ function makeExecutionReport(options) {
     },
     intent: intentSummary,
     intentFulfillment: intentFulfillment,
-    failedDiagnostics: failedDiagnostics,
+    routedDiagnostics: routedDiagnostics,
     completed: completed.map(function(result) {
       return {
         commandId: result.commandId,

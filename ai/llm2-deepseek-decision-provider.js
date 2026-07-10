@@ -33,7 +33,7 @@ function semanticHints(userRequest) {
 function semanticInterpretation(userRequest) {
   var hints = semanticHints(userRequest);
   if (hints.indexOf('reward_pacing') >= 0 && hints.indexOf('increase_presence') >= 0) {
-    return 'Resolved local meaning: increase reward presence or reward pacing through a safe candidate action.';
+    return 'Resolved local meaning: increase reward presence or reward pacing through a safe semantic repair candidate.';
   }
   if (hints.indexOf('pressure_balance') >= 0 && hints.indexOf('soften_pressure') >= 0) {
     return 'Resolved local meaning: soften pressure balance. Use Tick evidence when timing matters.';
@@ -51,7 +51,7 @@ function semanticInterpretation(userRequest) {
 }
 
 function candidateIntentLines(intentWorldView) {
-  return ((intentWorldView || {}).recommendedActions || []).map(function(action) {
+  return ((intentWorldView || {}).semanticRepairRecommendations || []).map(function(action) {
     return {
       action: action.action,
       priority: action.priority,
@@ -69,18 +69,18 @@ function candidateIntentLines(intentWorldView) {
 
 function promptSafeIntentWorldView(intentWorldView) {
   var view = clone(intentWorldView || {});
-  if (Array.isArray(view.recommendedActions)) {
-    view.recommendedActionCount = view.recommendedActions.length;
-    delete view.recommendedActions;
+  if (Array.isArray(view.semanticRepairRecommendations)) {
+    view.semanticRepairRecommendationCount = view.semanticRepairRecommendations.length;
+    delete view.semanticRepairRecommendations;
   }
   return view;
 }
 
 function promptSafeContextRoute(contextRoute) {
   var route = clone(contextRoute || {});
-  if (route.dynamicTail && Array.isArray(route.dynamicTail.candidateActions)) {
-    route.dynamicTail.candidateActionCount = route.dynamicTail.candidateActions.length;
-    delete route.dynamicTail.candidateActions;
+  if (route.dynamicTail && Array.isArray(route.dynamicTail.semanticRepairCandidates)) {
+    route.dynamicTail.semanticRepairCandidateCount = route.dynamicTail.semanticRepairCandidates.length;
+    delete route.dynamicTail.semanticRepairCandidates;
   }
   return route;
 }
@@ -127,7 +127,7 @@ function buildProofSlots(options) {
       resolvedDecisionType: 'no_op',
       provenIntentDslLines: [],
       requestedContext: [],
-      reason: 'local semantic hints and candidate actions indicate stable current state',
+      reason: 'local semantic hints and semantic repair candidates indicate stable current state',
     };
   }
   if (matchedCandidate && (hints.indexOf('needs_tick_evidence') >= 0 || matchedCandidate.requiresTickEvidence === true) && !hasResolvedContext(options, 'tick_event_window')) {

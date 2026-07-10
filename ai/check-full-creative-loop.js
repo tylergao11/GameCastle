@@ -41,7 +41,7 @@ function makeThreatIntentWorldView() {
       defaultRead: ['tick_event_window', 'project_world_diff'],
       available: [{ id: 'tick_event_window' }, { id: 'project_world_diff' }],
     },
-    recommendedActions: [
+    semanticRepairRecommendations: [
       {
         action: 'apply_semantic_repair',
         experienceDimension: 'pressure_balance',
@@ -53,7 +53,7 @@ function makeThreatIntentWorldView() {
       },
     ],
     recommendationPolicy: {
-      authority: 'candidate-only',
+      authority: 'semantic-repair-candidate-only',
       finalDecisionOwner: 'LLM2',
     },
   };
@@ -67,19 +67,18 @@ function main() {
   assert.strictEqual(report.mode, 'deterministic-mock-llm-single-player', 'loop should use deterministic Mock LLM mode');
   assert.strictEqual(report.summary.nextAction, 'done', 'full creative loop should finish after repair');
   assert(report.mockLlm.initialIntent.intentDslText.indexOf('make a mobile parkour platformer') >= 0, 'Mock LLM should generate initial Intent DSL');
-  assert.strictEqual(report.mockLlm.repairDecision.decisionSource, 'llm2-context-cache-router.dynamicTail.candidateActions', 'Mock LLM repair should read routed candidate actions');
+  assert.strictEqual(report.mockLlm.repairDecision.decisionSource, 'llm2-context-cache-router.dynamicTail.semanticRepairCandidates', 'Mock LLM repair should read routed semantic repair candidates');
   assert.strictEqual(report.mockLlm.repairDecision.decision.owner, 'LLM2DecisionRuntime', 'Mock LLM repair should run through Decision Runtime');
   assert.strictEqual(report.mockLlm.repairDecision.decision.decisionType, 'apply_intent', 'repair decision should apply Intent DSL');
   assert.strictEqual(report.mockLlm.repairDecision.decision.verifier.passed, true, 'repair decision verifier should pass');
   assert(report.mockLlm.repairDecision.contextRoute, 'Mock LLM repair should expose context route');
   assert.strictEqual(report.mockLlm.repairDecision.contextRoute.providerCacheModel.cacheKind, 'text-kv-prefix', 'context route should model DeepSeek text KV prefix cache');
   assert.strictEqual(report.mockLlm.repairDecision.contextRoute.providerCacheModel.reusableAcrossModalities, false, 'context route should not reuse multimodal cache assumptions');
-  assert.strictEqual(report.mockLlm.repairDecision.contextReadPolicy.recommendationAuthority, 'candidate-only', 'Mock LLM should treat recommendations as candidates');
+  assert.strictEqual(report.mockLlm.repairDecision.contextReadPolicy.recommendationAuthority, 'semantic-repair-candidate-only', 'Mock LLM should treat recommendations as semantic repair candidates');
   assert(report.mockLlm.repairDecision.contextReadPolicy.available.indexOf('tick_event_window') >= 0, 'Mock LLM should have access to focused tick context');
   assert.strictEqual(report.mockLlm.repairDecision.selectedAction.action, 'apply_semantic_repair', 'Mock LLM should choose the unified semantic repair action');
   assert.strictEqual(report.mockLlm.repairDecision.selectedAction.experienceDimension, 'reward_pacing', 'Mock LLM should preserve gameplay pacing dimension');
   assert.strictEqual(report.mockLlm.repairDecision.selectedAction.repairVerb, 'increase_presence', 'Mock LLM should preserve the repair verb');
-  assert.strictEqual(report.mockLlm.repairDecision.selectedAction.repairAction, undefined, 'Mock LLM should not expose internal repair action ids');
   assert(report.mockLlm.repairDecision.repairIntentDslText.indexOf('place ') >= 0, 'Mock LLM should choose executable repair Intent');
   assert(report.create.semanticPlaytest.tickReport.eventLog.length > 0, 'create playtest should include EventLog');
   assert(report.create.semanticPlaytest.tickReport.snapshots.length > 0, 'create playtest should include Snapshot');
