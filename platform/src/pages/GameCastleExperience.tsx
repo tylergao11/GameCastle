@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from "react";
 import DirectorEye from "../components/DirectorEye";
 
 type Phase = "world" | "building" | "play";
@@ -34,6 +34,18 @@ const buildSteps = [
   ["THE EYE", "Watching for boring parts."],
   ["LAUNCH BAY", "Opening the game."],
 ];
+
+const castleKeyArtUrl = `${import.meta.env.BASE_URL}castle-keyart-v2.png`;
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function appPath(path: string) {
+  return `${basePath}${path}`;
+}
+
+function currentAppPath() {
+  const { pathname } = window.location;
+  return basePath && pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : pathname;
+}
 
 function gameName(idea: string) {
   const words = idea.replace(/[^a-zA-Z0-9 ]/g, " ").split(/\s+/).filter(Boolean).slice(0, 3);
@@ -74,7 +86,7 @@ export default function GameCastleExperience() {
     const keyArt = new Image();
     keyArt.onload = markReady;
     keyArt.onerror = markReady;
-    keyArt.src = "/castle-keyart-v2.png";
+    keyArt.src = castleKeyArtUrl;
     void Promise.resolve(document.fonts?.ready).then(markReady);
     const minimumTime = window.setTimeout(markReady, 620);
 
@@ -86,8 +98,9 @@ export default function GameCastleExperience() {
 
   useEffect(() => {
     const setFromPath = () => {
-      if (window.location.pathname.startsWith("/play/")) setPhase("play");
-      else if (window.location.pathname.startsWith("/build/")) setPhase("building");
+      const pathname = currentAppPath();
+      if (pathname.startsWith("/play/")) setPhase("play");
+      else if (pathname.startsWith("/build/")) setPhase("building");
       else setPhase("world");
     };
     setFromPath();
@@ -103,7 +116,7 @@ export default function GameCastleExperience() {
     }, 850);
     const launchTimer = window.setTimeout(() => {
       setPhase("play");
-      window.history.pushState({}, "", "/play/first-run");
+      window.history.pushState({}, "", appPath("/play/first-run"));
     }, 3900);
     return () => { window.clearInterval(stepTimer); window.clearTimeout(launchTimer); };
   }, [phase]);
@@ -125,7 +138,7 @@ export default function GameCastleExperience() {
     window.setTimeout(() => {
       setPhase("building");
       setDrawer(null);
-      window.history.pushState({}, "", "/build/new-game");
+      window.history.pushState({}, "", appPath("/build/new-game"));
     }, 210);
   }
 
@@ -227,12 +240,16 @@ export default function GameCastleExperience() {
   }
 
   async function share() {
-    try { await navigator.clipboard.writeText(`${window.location.origin}/g/first-run`); setToast("PORTAL COPIED."); }
+    try { await navigator.clipboard.writeText(`${window.location.origin}${appPath("/g/first-run")}`); setToast("PORTAL COPIED."); }
     catch { setToast("PORTAL READY."); }
     setDrawer(null);
   }
 
-  function goHome() { setPhase("world"); setDrawer(null); window.history.pushState({}, "", "/"); }
+  function goHome() { setPhase("world"); setDrawer(null); window.history.pushState({}, "", appPath("/")); }
+
+  const appStyle = {
+    "--castle-keyart": `url("${castleKeyArtUrl}")`,
+  } as CSSProperties & Record<"--castle-keyart", string>;
 
   const drawerView = drawer ? <Drawer
     type={drawer}
@@ -258,7 +275,7 @@ export default function GameCastleExperience() {
     </section>
   </main>;
 
-  return <main className={`gc-app gc-${phase} chaos-${chaos}`}>
+  return <main className={`gc-app gc-${phase} chaos-${chaos}`} style={appStyle}>
     {phase === "world" && <section className="world-screen">
       <div className="key-art" aria-hidden="true" />
       <DirectorEye active={drawer === "director"} onActivate={toggleDirector} />
