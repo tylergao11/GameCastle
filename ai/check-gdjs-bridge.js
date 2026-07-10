@@ -29,15 +29,15 @@ function hasAdapter(plan, adapter, componentId) {
 async function assertBridgeDslExecutes(plan) {
   var project = pipeline.emptyProject('BridgeCheck');
   var ops = pipeline.parseDSL(plan.dslText);
-  assert.strictEqual(ops.length, plan.dslLines.length, 'all bridge DSL lines should parse');
+  assert.strictEqual(ops.length, plan.dslLines.length, 'all bridge target lines should parse');
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge DSL line should execute: ' + plan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute: ' + plan.dslLines[i] + ' -> ' + result.msg);
   }
-  assert(project.layouts.some(function(layout) { return layout.name === 'Game'; }), 'executed bridge DSL should create Game scene');
+  assert(project.layouts.some(function(layout) { return layout.name === 'Game'; }), 'executed bridge target plan should create Game scene');
   var scene = project.layouts.find(function(layout) { return layout.name === 'Game'; });
-  assert(scene.objects.some(function(object) { return object.name === 'Joystick'; }), 'executed bridge DSL should create Joystick object');
-  assert(scene.instances.some(function(instance) { return instance.name === 'JumpButton' && instance.layer === 'UI'; }), 'executed bridge DSL should place JumpButton on UI layer');
+  assert(scene.objects.some(function(object) { return object.name === 'Joystick'; }), 'executed bridge target plan should create Joystick object');
+  assert(scene.instances.some(function(instance) { return instance.name === 'JumpButton' && instance.layer === 'UI'; }), 'executed bridge target plan should place JumpButton on UI layer');
 }
 
 async function testBridgePlanFromIntent() {
@@ -61,11 +61,11 @@ async function testBridgePlanFromIntent() {
   runtimeAdapterContract.assertRequirements(plan.runtimeAdapterRequirements);
   assert(plan, 'Intent compiler should emit a GDJS bridge plan');
   assert.strictEqual(plan.schemaVersion, 1, 'bridge schema should be 1');
-  assert.strictEqual(plan.target, 'gdjs-internal-dsl', 'bridge target should be internal DSL');
+  assert.strictEqual(plan.target, 'gdjs-target-plan', 'bridge target should be target plan');
   assert(plan.contracts && plan.contracts.emission === 'passed', 'bridge should self-validate emission contract');
   assert(plan.contracts && plan.contracts.runtimeAdapters === 'passed', 'bridge should self-validate runtime adapter contract');
   assert.strictEqual(plan.diagnostics.length, 0, 'bridge should not emit diagnostics for the happy path');
-  assert(plan.dslLines.length > 20, 'bridge should combine product module expansion and component expansion into internal target DSL');
+  assert(plan.dslLines.length > 20, 'bridge should combine product module expansion and component expansion into internal target plan');
   assert(plan.dslText.indexOf('create scene name=Game first=true') >= 0, 'bridge should include starter scene line from product module expansion');
 
   assert(
@@ -111,10 +111,10 @@ async function testBridgePlanFromIntent() {
     return req.adapter === 'inventory-storage' && req.routeId === 'inventory-persistence' && req.routeOwner === 'runtime-adapter' && req.mechanism === 'inventory-storage-adapter';
   }), 'inventory storage adapter should carry persistence route evidence');
 
-  assert(hasTrace(compiled.resultCard, 'Emit Internal DSL', 'gdjs-bridge'), 'ResultCard should trace bridge emission');
+  assert(hasTrace(compiled.resultCard, 'Emit Target Plan', 'gdjs-bridge'), 'ResultCard should trace bridge emission');
   assert(
-    compiled.resultCard.emitted.some(function(line) { return line.indexOf('bridge plan internalDslLines=') === 0; }),
-    'ResultCard should summarize bridge DSL lines'
+    compiled.resultCard.emitted.some(function(line) { return line.indexOf('bridge target lines=') === 0; }),
+    'ResultCard should summarize bridge target lines'
   );
   await assertBridgeDslExecutes(plan);
 
@@ -252,7 +252,7 @@ async function main() {
   await testSemanticPlacementEditBridgeEmission();
   await testSemanticGroupPlacementMergesOnExistingWorld();
   testBridgeRoutesUnknownComponentToOwnerDiagnostic();
-  console.log('[GdjsBridge] internal DSL bridge plan passed');
+  console.log('[GdjsBridge] target bridge plan passed');
 }
 
 main().catch(function(error) {

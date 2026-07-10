@@ -46,7 +46,7 @@ async function buildRuntimeArtifacts(compiled, intentDslText) {
   var commandResults = [];
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge DSL should execute before graph check: ' + result.msg);
+    assert(result.ok, 'bridge target plan should execute before graph check: ' + result.msg);
     commandResults.push({
       index: i,
       commandId: 'intent_graph_' + String(i + 1).padStart(3, '0'),
@@ -155,7 +155,7 @@ function makeHandlers(intentDslText, compiled, runtimeArtifacts) {
       };
     },
     runtime: function(view) {
-      assert(view.state.bridge.internalDslText, 'canonical graph runtime should receive internal target DSL');
+      assert(view.state.bridge.internalDslText, 'canonical graph runtime should receive internal target plan');
       assert(!view.state.requirement, 'canonical graph runtime must not receive raw requirement');
       return {
         'runtime.executionReport': runtimeArtifacts.report,

@@ -14,7 +14,7 @@ async function testInternalMoveActionBoundary() {
   ].join('\n'));
   for (var i = 0; i < relativeOps.length; i++) {
     var relativeResult = await pipeline.execute(relativeProject, relativeOps[i]);
-    assert(relativeResult.ok, 'signed relative move should remain valid internal target DSL: ' + relativeResult.msg);
+    assert(relativeResult.ok, 'signed relative move should remain valid internal target syntax: ' + relativeResult.msg);
   }
 
   var absoluteProject = pipeline.emptyProject('AbsoluteMoveBoundaryCheck');
@@ -25,7 +25,7 @@ async function testInternalMoveActionBoundary() {
   var sceneResult = await pipeline.execute(absoluteProject, absoluteOps[0]);
   assert(sceneResult.ok, 'setup scene should execute');
   var absoluteResult = await pipeline.execute(absoluteProject, absoluteOps[1]);
-  assert.strictEqual(absoluteResult.ok, false, 'unsigned absolute move syntax must stay outside the internal target DSL boundary');
+  assert.strictEqual(absoluteResult.ok, false, 'unsigned absolute move syntax must stay outside the internal target boundary');
   assert(/signed relative x\/y/.test(absoluteResult.msg), 'absolute move failure should explain the relative move requirement');
 }
 
@@ -58,7 +58,7 @@ async function testInternalEventParserRejectsPlaceholders() {
 function testInternalDslParserRejectsMalformedLines() {
   assert.throws(function() {
     pipeline.parseDSL('create object name="Broken type=ShapePainter scene=Game');
-  }, /Unclosed quote/, 'internal target DSL parser must reject malformed quoted lines');
+  }, /Unclosed quote/, 'internal target parser must reject malformed quoted lines');
 }
 
 async function main() {
@@ -76,22 +76,22 @@ async function main() {
     }
   });
 
-  assert(compiled.bridgePlan.dslLines.length > 0, 'Intent fixture should compile to bridge DSL');
+  assert(compiled.bridgePlan.dslLines.length > 0, 'Intent fixture should compile to bridge target lines');
   assert(compiled.bridgePlan.runtimeAdapterRequirements.length >= 5, 'Intent fixture should compile runtime adapter requirements');
 
   var project = pipeline.emptyProject('IntentPipelineCheck');
   var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
-  assert.strictEqual(ops.length, compiled.bridgePlan.dslLines.length, 'bridge DSL should parse through pipeline parser');
+  assert.strictEqual(ops.length, compiled.bridgePlan.dslLines.length, 'bridge target lines should parse through pipeline parser');
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge DSL should execute through pipeline executor: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute through pipeline executor: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
   }
 
   var runtimeJs = intentRuntimeCodegen.generate(compiled.bridgePlan.runtimeAdapterRequirements);
   assert(runtimeJs.indexOf('window.GameCastleIntentRuntime') >= 0, 'adapter requirements should generate intent runtime script');
-  assert(project.layouts.some(function(layout) { return layout.name === 'Game'; }), 'bridge DSL should create Game scene');
+  assert(project.layouts.some(function(layout) { return layout.name === 'Game'; }), 'bridge target plan should create Game scene');
 
-  console.log('[IntentPipelineEntry] Intent fixture compiles to executable bridge DSL and runtime adapters');
+  console.log('[IntentPipelineEntry] Intent fixture compiles to executable bridge target lines and runtime adapters');
 }
 
 main().catch(function(error) {

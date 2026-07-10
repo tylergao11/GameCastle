@@ -12,7 +12,7 @@ async function executeBridgeIntoProject(compiled) {
   var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge DSL should execute: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
   }
   return project;
 }
@@ -59,7 +59,7 @@ async function main() {
   }), 'ProjectWorld should retain the last human-facing Intent DSL');
   assert.strictEqual(world.intent.intentGraph.counts.components, compiled.graph.components.length, 'Intent graph count should be recorded');
   assert(world.intent.contracts && world.intent.contracts.intentCompile === 'passed', 'ProjectWorld should retain aggregate Intent contract status');
-  assert.strictEqual(world.intent.bridgePlan.internalDslLines, compiled.bridgePlan.dslLines.length, 'bridge DSL line count should be recorded');
+  assert.strictEqual(world.intent.bridgePlan.internalDslLines, compiled.bridgePlan.dslLines.length, 'bridge target line count should be recorded');
   assert(world.intent.bridgePlan.contracts && world.intent.bridgePlan.contracts.emission === 'passed', 'ProjectWorld should retain bridge contract status');
   assert(world.intent.placementPlan.placements.some(function(placement) {
     return (placement.routeEvidence || []).some(function(item) {
@@ -77,7 +77,7 @@ async function main() {
   assert(world.intent.runtimeAdapterRequirements.some(function(item) {
     return item.adapter === 'virtual-joystick' && item.routeId === 'touch-multitouch-state' && item.routeOwner === 'runtime-adapter' && item.mechanism === 'touch-axis-adapter';
   }), 'ProjectWorld should retain runtime adapter route evidence');
-  assert(hasTrace(world.intent.resultCard, 'Emit Internal DSL', 'gdjs-bridge'), 'ProjectWorld should retain bridge owner trace');
+  assert(hasTrace(world.intent.resultCard, 'Emit Target Plan', 'gdjs-bridge'), 'ProjectWorld should retain bridge owner trace');
   assert(world.intent.resultCard.overrides.some(function(item) {
     return item.component === 'system.inventory' && item.key === 'slots';
   }), 'ProjectWorld should retain component override summary');
@@ -143,9 +143,9 @@ async function main() {
   assert(report.intent, 'ExecutionReport should include Intent summary');
   assert(report.completed.some(function(item) {
     return item.command === 'create scene name=Game first=true';
-  }), 'ExecutionReport should retain original internal target DSL command lines');
+  }), 'ExecutionReport should retain original internal target command lines');
   assert(report.intent.contracts && report.intent.contracts.intentCompile === 'passed', 'ExecutionReport should retain aggregate Intent contract status');
-  assert(hasTrace(report.intent.resultCard, 'Emit Internal DSL', 'gdjs-bridge'), 'ExecutionReport should retain bridge owner trace');
+  assert(hasTrace(report.intent.resultCard, 'Emit Target Plan', 'gdjs-bridge'), 'ExecutionReport should retain bridge owner trace');
   assert.strictEqual(report.intent.bridgePlan.runtimeAdapterRequirements, compiled.bridgePlan.runtimeAdapterRequirements.length, 'ExecutionReport should include adapter count');
   assert(report.intentFulfillment, 'ExecutionReport should include Intent fulfillment validation');
   assert.strictEqual(report.intentFulfillment.status, 'fulfilled', 'ExecutionReport should mark fulfilled Intent world checks');

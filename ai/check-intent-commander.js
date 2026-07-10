@@ -22,7 +22,7 @@ async function main() {
   assert(systemPrompt.indexOf('add joystick controls Player near screen bottom-left') >= 0, 'prompt should include natural joystick example');
   assert(systemPrompt.indexOf('adjust Fox placement above slightly') >= 0, 'prompt should include semantic edit example');
   assert(systemPrompt.indexOf('install module id=') < 0, 'prompt must not expose module install commands');
-  assert(systemPrompt.indexOf('low-level') < 0, 'prompt must not name target DSL levels even as a negative rule');
+  assert(systemPrompt.indexOf('target DSL') < 0, 'prompt must not name internal target levels even as a negative rule');
   assert(systemPrompt.indexOf('GDJS') < 0, 'prompt must not name the target engine to LLM2');
   assert(systemPrompt.indexOf('project.json') < 0, 'prompt must not name engine files to LLM2');
   assert(systemPrompt.indexOf('Product module cards') < 0, 'prompt must describe capabilities, not product module cards');
@@ -194,7 +194,7 @@ async function main() {
           diagnostics: [{ category: 'bridge', message: 'adapter=touch-button failed', nextAction: 'route-to-owner' }]
         },
         bridgePlan: {
-          target: 'gdjs-internal-dsl',
+          target: 'gdjs-target-plan',
           runtimeAdapterRequirements: 1,
           emittedRoutes: { 'awkward-gdjs-parameters': 1 }
         },
@@ -226,7 +226,7 @@ async function main() {
           'set placement object=JumpButton x=640 y=500 scene=Game'
         ],
         intentGraph: { counts: { components: 1 }, things: [], relations: [], placements: [], diagnostics: [] },
-        bridgePlan: { target: 'gdjs-internal-dsl' }
+        bridgePlan: { target: 'gdjs-target-plan' }
       }
     }
   };
@@ -294,8 +294,8 @@ async function main() {
   assert(dangerousPrompt.indexOf('bridge/runtime') < 0, 'Intent user prompt must not name bridge/runtime internals');
   assert(dangerousPrompt.indexOf('Bridge') < 0, 'Intent user prompt must not name Bridge internals');
   assert(dangerousPrompt.indexOf('GDJS') < 0, 'Intent user prompt must not name target engine');
-  assert(dangerousPrompt.indexOf('place object=JumpButton') < 0, 'Intent user prompt must not leak bridge target DSL from reports');
-  assert(dangerousPrompt.indexOf('set placement object=JumpButton') < 0, 'Intent user prompt must not leak edit target DSL from reports');
+  assert(dangerousPrompt.indexOf('place object=JumpButton') < 0, 'Intent user prompt must not leak bridge target instructions from reports');
+  assert(dangerousPrompt.indexOf('set placement object=JumpButton') < 0, 'Intent user prompt must not leak edit target instructions from reports');
   assert(dangerousPrompt.indexOf('10 pixels') < 0, 'Intent user prompt must not leak numeric placement deltas from original user request');
   assert(dangerousPrompt.indexOf('10像素') < 0, 'Intent user prompt must not leak Chinese numeric placement deltas from original user request');
   assert(dangerousPrompt.indexOf('move the jump button a bit') >= 0, 'Intent user prompt should preserve safe natural user wording');

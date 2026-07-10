@@ -10,7 +10,7 @@ var ALLOWED_MECHANISMS = {
 
 function assertEmission(emission) {
   if (!emission) throw new Error('Missing bridge emission');
-  if (emission.kind !== 'internal-dsl') throw new Error('Bridge emission kind must be internal-dsl');
+  if (emission.kind !== 'target-plan-line') throw new Error('Bridge emission kind must be target-plan-line');
   if (!emission.owner) throw new Error('Bridge emission missing owner: ' + (emission.line || 'unknown line'));
   if (!emission.source) throw new Error('Bridge emission missing source: ' + (emission.line || 'unknown line'));
   if (!emission.mechanism) throw new Error('Bridge emission missing mechanism: ' + (emission.line || 'unknown line'));

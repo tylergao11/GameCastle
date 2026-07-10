@@ -55,7 +55,7 @@ async function main() {
 
   var llm2Node = langGraphAdapter.makeLangGraphNode('llm2-intent', async function(view) {
     var safeJson = JSON.stringify(view);
-    assert(safeJson.indexOf('set placement object=') < 0, 'LangGraph LLM2 view must not expose target DSL');
+    assert(safeJson.indexOf('set placement object=') < 0, 'LangGraph LLM2 view must not expose target instructions');
     assert(safeJson.indexOf('"x"') < 0, 'LangGraph LLM2 view must not expose raw coordinates');
     assert(safeJson.indexOf('10 pixels') < 0, 'LangGraph LLM2 view must not expose numeric edit deltas');
     assert(!view.state.bridge, 'LangGraph LLM2 view must not include bridge state');
@@ -125,7 +125,7 @@ async function main() {
   }, { allowPartial: true });
 
   var runtimeNode = langGraphAdapter.makeLangGraphNode('runtime', function(view) {
-    assert(view.state.bridge.internalDslText, 'LangGraph runtime view should receive target DSL');
+    assert(view.state.bridge.internalDslText, 'LangGraph runtime view should receive target plan');
     assert(!view.state.requirement, 'LangGraph runtime view must not include raw requirement');
     return {
       'runtime.executionReport': { summary: { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.dslLines), failed: 0 } },
@@ -147,7 +147,7 @@ async function main() {
   pipelineState.validatePipelineState(graphState.pipelineState);
 
   var illegalNode = langGraphAdapter.makeLangGraphNode('llm2-intent', function() {
-    return { 'bridge.bridgePlan': { target: 'gdjs-internal-dsl' } };
+    return { 'bridge.bridgePlan': { target: 'gdjs-target-plan' } };
   }, { allowPartial: true });
   await assert.rejects(function() {
     return illegalNode(langGraphAdapter.makeLangGraphState(buildPartialState()));

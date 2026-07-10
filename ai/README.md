@@ -2,7 +2,7 @@
 
 `ai/` owns the AI-first intent engine. It converts natural game intent into runnable GDevelop/GDJS output through typed intermediate contracts, deterministic runtime owners, semantic playtest evidence, and owner-routed repair.
 
-The live LLM2 product surface is Intent DSL. Low-level DSL is a compiler/runtime target shape only. LLM2 must not see or produce coordinates, component ids, GDJS event details, runtime adapter ids, internal command fields, or `project.json` edits as its normal product language.
+The live LLM2 product surface is Intent DSL. Internal target instructions are compiler/runtime-owned only. LLM2 must not see or produce coordinates, component ids, GDJS event details, runtime adapter ids, internal command fields, or `project.json` edits as its normal product language.
 
 ## Closed Loop
 

@@ -22,7 +22,7 @@ async function buildState() {
   var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge DSL should execute before graph runner check: ' + result.msg);
+    assert(result.ok, 'bridge target plan should execute before graph runner check: ' + result.msg);
   }
   var intentArtifacts = {
     artifactKind: 'intent',
@@ -121,7 +121,7 @@ async function main() {
     pipelineGraphRunner.runGraph(state, [{
       node: 'llm2-intent',
       run: function() {
-        return { 'bridge.bridgePlan': { target: 'gdjs-internal-dsl' } };
+        return { 'bridge.bridgePlan': { target: 'gdjs-target-plan' } };
       },
     }]);
   }, /may not write/, 'runner should reject node updates outside the contract');
@@ -142,7 +142,7 @@ async function main() {
     node: 'llm2-intent',
     run: function(view) {
       var inputJson = JSON.stringify(view);
-      assert(inputJson.indexOf('set placement object=Player') < 0, 'partial LLM2 view should sanitize target DSL from user request');
+      assert(inputJson.indexOf('set placement object=Player') < 0, 'partial LLM2 view should sanitize target instructions from user request');
       assert(inputJson.indexOf('"x"') < 0, 'partial LLM2 view should not expose raw coordinates');
       assert(inputJson.indexOf('make a mobile platformer') >= 0, 'partial LLM2 view should preserve safe request');
       return {
@@ -157,7 +157,7 @@ async function main() {
     pipelineGraphRunner.runGraph(partialState, [{
       node: 'llm2-intent',
       run: function() {
-        return { 'bridge.bridgePlan': { target: 'gdjs-internal-dsl' } };
+        return { 'bridge.bridgePlan': { target: 'gdjs-target-plan' } };
       },
     }], { allowPartial: true });
   }, /may not write/, 'partial runner should still reject out-of-contract writes');
@@ -219,7 +219,7 @@ async function main() {
   }, {
     node: 'runtime',
     run: function(view) {
-      assert(view.state.bridge.internalDslText, 'runtime step should read internal target DSL');
+      assert(view.state.bridge.internalDslText, 'runtime step should read internal target plan');
       assert(!view.state.llm2, 'runtime step should not receive LLM2 state');
       return {
         'runtime.executionReport': completeState.runtime.executionReport,

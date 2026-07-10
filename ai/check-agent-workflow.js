@@ -129,7 +129,7 @@ function main() {
   assert(previousPrompt.indexOf('"value"') < 0, 'RequirementModel previous brief prompt must sanitize variable value');
   assert(previousPrompt.indexOf('gdjs.BadObject') < 0, 'RequirementModel previous brief prompt must sanitize GDJS-like object names');
   assert(previousPrompt.indexOf('componentId=input.jump_button') < 0, 'RequirementModel previous brief prompt must sanitize component ids in notes');
-  assert(previousPrompt.indexOf('move Player x=-4') < 0, 'RequirementModel previous brief prompt must sanitize low-level rules');
+  assert(previousPrompt.indexOf('move Player x=-4') < 0, 'RequirementModel previous brief prompt must sanitize internal target rules');
     'move the hero slightly forward',
   assert(previousPrompt.indexOf('set placement object=Fox') < 0, 'RequirementModel user prompt must sanitize target DSL');
   assert(previousPrompt.indexOf('make it mobile') >= 0, 'RequirementModel user prompt should preserve safe natural wording');

@@ -69,7 +69,7 @@ function main() {
   assert.strictEqual(view.contextCache.contextMode, 'summary-plus-diff', 'new run should provide summary plus diff');
   assert.strictEqual(view.contextCache.semanticCacheHit, false, 'new run should not claim semantic cache hit');
   assert(view.contextCache.targetSemanticHash, 'view should expose semantic hash for context cache decisions');
-  assert(view.contextCache.diff.latestIntentDslLines.length > 0, 'view should include latest Intent DSL diff lines');
+  assert(view.contextCache.diff.latestIntentDslLines.length > 0, 'view should include latest Intent lines');
   assert(view.contextCache.diff.changedGameplayEvidence.length > 0, 'view should include tick evidence diff');
   assert.strictEqual(view.recommendationPolicy.authority, 'semantic-repair-candidate-only', 'semantic repair recommendations should be semantic repair candidate-only');
   assert.strictEqual(view.recommendationPolicy.finalDecisionOwner, 'LLM2', 'LLM2 should own the final gameplay edit decision');

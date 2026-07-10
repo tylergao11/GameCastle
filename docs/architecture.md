@@ -47,7 +47,7 @@ LLM2 面向可执行意图落地，但仍停留在自然游戏世界模型。它
 
 LLM2 输出应是 AI-first Intent DSL。初次生成也应视为“从空项目表达自然意图到第一个可玩版本”。这样连续迭代不会退化为全量重生成，也不会要求 LLM2 维护低层命令表。
 
-LLM2 具备受限自循环：首轮输出作为 `apply_intent`；如果 parser/surface 层失败，LLM2 可以重写自然 Intent。若 Intent 已经编译到 Resolver/Bridge/Runtime，失败必须回到对应 owner 层修复，不能回退让 LLM2 写低层 DSL diff。已完成意图不能重复输出。当前限制最多 2 轮修复，仍失败则保留产物并返回失败码。
+LLM2 具备受限自循环：首轮输出作为 `apply_intent`；如果 parser/surface 层失败，LLM2 可以重写自然 Intent。若 Intent 已经编译到 Resolver/Bridge/Runtime，失败必须回到对应 owner 层修复，不能回退让 LLM2 写内部目标指令。已完成意图不能重复输出。当前限制最多 2 轮修复，仍失败则保留产物并返回失败码。
 
 项目模式必须先判定：
 
@@ -58,7 +58,7 @@ LLM2 具备受限自循环：首轮输出作为 `apply_intent`；如果 parser/s
 
 Current AI-first override: LLM2 output is AI-first Intent DSL. LLM2 may repair
 parser/surface errors by rewriting natural Intent DSL, but it must not repair
-Bridge/Runtime execution failures by emitting low-level DSL. Once Intent has
+Bridge/Runtime execution failures by emitting internal target instructions. Once Intent has
 compiled to target code, failures route to the owning compiler, placement
 resolver, bridge, runtime adapter, or executor layer.
 
@@ -152,8 +152,8 @@ LLM1 should select from product-level module cards and should not memorize
 template internals. LLM2 selects gameplay through Intent DSL; compiler owners
 choose module ids and expand them into runtime facts.
 
-The compiler expands those modules into the existing internal line-style DSL,
-then the current executor mutates `project.json`. Installed modules are recorded
+The compiler expands those modules into an internal target execution plan,
+then the runtime executor applies it to `project.json`. Installed modules are recorded
 in `ProjectWorld.modules`; future networking metadata is recorded in
 `output/tick-runtime-manifest.json`.
 
@@ -166,8 +166,8 @@ This keeps the product skeleton coarse: a platformer core plus shells is exposed
 as product composition, while player objects, collision events, text objects,
 and fail-scene wiring stay inside runtime/compiler ownership.
 
-The compiler remains the only owner that expands product modules into internal
-line-style DSL. Low-level DSL is target code for compiler/bridge/runtime owners,
+The compiler remains the only owner that expands product modules into the internal
+target execution plan. Target instructions are code for compiler/bridge/runtime owners,
 not an Intent-path LLM2 repair language.
 
 For iteration, `ProjectWorld.modules` is the base module truth. A configuration change such as
@@ -197,13 +197,13 @@ shell module, not hand-edit the core slot value.
 
 Live testing should use `--approval-gate`. It creates a pending approval packet
 with Intent DSL, typed Intent Graph, Placement Plan, Bridge Plan, Compile
-ResultCard, aggregate Intent compile contract summary, compiled internal DSL,
-runtime adapter requirements, module/network state, and a dry-run preview. The
+ResultCard, aggregate Intent compile contract summary, compiled internal target
+plan, runtime adapter requirements, module/network state, and a dry-run preview. The
 preview is the reviewer contract: it reports every command result, whether the
 Intent artifact is expected to execute, what semantic hash it predicts, and
 whether the artifact is a cache hit against the current `ProjectWorld`. Only
 `--approve-pending` mutates the actual generated project. The full packet is a
-human/runtime audit artifact and may contain Bridge Plan, internal DSL, runtime
+human/runtime audit artifact and may contain Bridge Plan, internal target plan, runtime
 adapter requirements, and command results. Any LLM or agent review must use
 `aiVisibleForLlm2`, which is derived from the PipelineState LLM2 node input plus
 safe counts/status only.
@@ -223,7 +223,7 @@ LLM2 Intent DSL
   -> Module + Component graph
   -> Semantic Placement plan
   -> GDJS Bridge plan
-  -> internal low-level DSL
+  -> internal target execution plan
   -> project.json + code*.js + runtime adapters
   -> GDJS Runtime
 ```
@@ -243,7 +243,7 @@ Bridge Plan details, and target DSL from flowing back into Intent generation.
 `ai/pipeline-state.js` also exports machine-checkable node contracts. The
 `llm2-intent` contract only allows reads from `llm2.nodeInput` and writes to the
 Intent DSL fields; tests fail if it tries to read raw requirement, raw
-ProjectWorld, Bridge Plan, runtime report, or internal target DSL fields.
+ProjectWorld, Bridge Plan, runtime report, or internal target-plan fields.
 Each saved `PipelineState` also carries a `nodeContracts` snapshot so external
 or LangGraph runners can audit the same read/write boundary from the
 state file itself instead of relying on prose. Runners should build node inputs
@@ -283,7 +283,7 @@ loads `@langchain/langgraph`, defines the `PipelineState` and `graphTrace`
 channels, compiles the canonical owner sequence into a `StateGraph`, and invokes
 it without giving any node extra state access. A LangGraph node should therefore
 implement only the node's domain work; it must not receive the full PipelineState,
-raw ProjectWorld, Bridge Plan, runtime report, or internal DSL unless its node
+raw ProjectWorld, Bridge Plan, runtime report, or internal target plan unless its node
 contract explicitly allows that read.
 Approval preview packets include this state, and real Intent execution now asks
 the canonical graph entry to assemble the persisted post-runtime state. The
@@ -334,7 +334,7 @@ Layer names:
 
 `llm2-intent` remains intentionally narrow in the total graph: it reads only
 `llm2.nodeInput`. It must not read raw `AssetManifest`, raw `AssetWorld`, Bridge
-Plan, runtime report, or internal target DSL. Resource and assembly details flow
+Plan, runtime report, or internal target plan. Resource and assembly details flow
 downstream through owned runtime nodes and only return to models through
 sanitized world summaries.
 
@@ -382,7 +382,7 @@ as the normal product path; the compiler owns those selections.
 
 Product modules remain as compiler truth and reusable skeletons, and LLM2 selects
 them through Intent DSL.
-Low-level line DSL remains target code for the bridge and runtime executor, not
+Internal target plan remains target code for the bridge and runtime executor, not
 an Intent-path LLM2 repair surface.
 
 Reusable controls and systems live in `ai/components/`. Each component has an
@@ -419,7 +419,7 @@ from actions or adapter ids.
 GDJS object emission is manifest-owned as well. `gdjsBridge.objectSpec` declares
 the target object type plus object, layer, and placement emission route
 evidence, while inherited `defaultConfig` supplies shape, color, size, and
-layer. The bridge may assemble internal DSL from those facts, but it must not
+layer. The bridge may assemble target instructions from those facts, but it must not
 invent `ShapePainter`, colors, layers, or component placement route evidence on
 its own.
 When `defaultConfig` exists, the Compiler Manifest must also declare an
@@ -453,14 +453,14 @@ chain without reading GDJS target details.
 
 The first GDJS bridge owner is `ai/gdjs-bridge.js`. It turns the Intent Graph,
 component compiler manifests, and Placement Plan into a Bridge Plan containing
-internal low-level DSL plus runtime adapter requirements. If a target detail is
-not expressible by the current GDJS/internal DSL, the bridge routes it as an
+internal target plan plus runtime adapter requirements. If a target detail is
+not expressible by the current GDJS target plan, the bridge routes it as an
 owned adapter requirement or diagnostic instead of expanding the LLM2 surface.
 `ai/intent-runtime-codegen.js` then generates `intent-runtime.js` for the HTML
 export, attaching mobile controls and inventory UI through
 `GameCastleIntentRuntime` after the GDJS `RuntimeGame` is created.
 Bridge target emission is contracted by `ai/gdjs-bridge-emission-contract.js`:
-each internal DSL line carries `owner`, `source`, and `mechanism`, with optional
+each internal target line carries `owner`, `source`, and `mechanism`, with optional
 `routeId` and `routeMechanism` evidence. This makes component object expansion,
 component placement rewrites, inventory config expansion, semantic group
 placement, and product module expansion auditable without exposing GDJS target
@@ -480,7 +480,7 @@ Full details live in
 
 The compiler is multi-stage: parse, normalize, resolve symbols, build Intent
 Graph, validate requirements, fill defaults, resolve placement, expand
-components, emit internal DSL, and apply through the GDJS bridge. Each compile
+components, emit the target plan, and apply through the GDJS bridge. Each compile
 must produce a ResultCard showing input, resolved symbols, auto-added defaults,
 placement decisions, emitted target code, warnings, and owner trace.
 
@@ -500,7 +500,7 @@ Small relative edits are owned by the same resolver through
 slightly`; the Intent Graph stores an `editConstraint` with semantic direction
 and amount, while the resolver reads current bounds from placement context or
 `ProjectWorld` and plans the concrete target point. The bridge emits the final
-internal target DSL with `semantic-placement-edit-rewrite` evidence. LLM2 never
+internal target plan with `semantic-placement-edit-rewrite` evidence. LLM2 never
 chooses `dy`, exact coordinates, or GDJS move parameters.
 
 Intent DSL must not grow without a gate. When GDJS integration exposes a hard
@@ -528,9 +528,9 @@ surface-form errors may be repaired by LLM2, but compiled diagnostics with
 `nextAction=route-to-owner` fail fast and preserve the owner-routed diagnostic
 instead of entering the LLM2 repair loop.
 `ai/pipeline.js` enforces the same boundary after execution: if an Intent artifact
-has already compiled to bridge/internal DSL and runtime execution fails, the
+has already compiled to bridge/internal target instructions and runtime execution fails, the
 pipeline records the `ExecutionReport`, returns a failure status, and does not
-ask LLM2 to write low-level DSL repair lines.
+ask LLM2 to write internal target repair lines.
 Runtime validation also records minimum Intent fulfillment evidence in
 `ExecutionReport`. Command success is not the only done signal: the report checks
 that Intent Graph things, component subjects, placements, and semantic edits are
@@ -543,7 +543,7 @@ through PipelineState owner routing instead of asking LLM2 to write target code.
 surfaces. It exercises system prompts, user prompts, Intent repair prompts,
 ProjectWorld/ExecutionReport sanitizers, PipelineState `llm2.nodeInput`,
 contract-bound graph views, and approval `aiVisibleForLlm2` projections with
-dangerous coordinate/GDJS/adapter/component-id/Bridge/internal-DSL payloads.
+dangerous coordinate/GDJS/adapter/component-id/Bridge/internal-target payloads.
 
 `ai/semantic-mapping/semantic-feedback.json` is the truth source for semantic
 feedback mapping: subject aliases, issue profiles, repair verbs, internal
@@ -808,7 +808,7 @@ AI-visible projection through `sanitizeProjectWorldForIntentPrompt` and
 projection when building Intent Commander prompts. The projection preserves
 object names, natural placements, semantic edit facts, and prior safe Intent
 lines while dropping coordinates, bridge plans, runtime adapter ids, GDJS object
-types, low-level execution commands, and internal contract names. Intent repair
+types, target execution commands, and internal contract names. Intent repair
 prompts use the same boundary: if the previous Intent DSL contained prohibited
 machine syntax, the exact line is omitted and LLM2 repairs from the user
 request, design brief, sanitized world card, and natural rules instead of
@@ -825,8 +825,8 @@ capability cards derive LLM-safe ability summaries:
 
 - LLM1 只读取 `llm1Hint` 派生出的轻量摘要。
 - LLM2 读取 Intent Commander 派生出的自然能力摘要、角色/动作/关系和安全 repair intent 候选。
-- Capability cards must not carry DSL examples or low-level compiler prompt context.
-- 低层 module compiler DSL 留在 product module `compiler` manifest 内部，不作为 live LLM2 产品面。
+- Capability cards must not carry target examples or internal compiler prompt context.
+- 内部目标模板留在 product module `compiler` manifest 内部，不作为 live LLM2 产品面。
 - prompt 不再维护另一份硬编码能力表。
 
 当前已覆盖：平台跳跃核心（含移动、收集计分、敌人碰撞、场景、几何对象）、计分系统、开始界面、结束界面。能力卡片从 product-modules 自动派生，不单独维护。

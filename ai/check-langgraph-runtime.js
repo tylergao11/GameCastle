@@ -53,7 +53,7 @@ function makeHandlers(intentDslText, compiled) {
   return {
     'llm2-intent': async function(view) {
       var safeJson = JSON.stringify(view);
-      assert(safeJson.indexOf('set placement object=') < 0, 'official LangGraph LLM2 node must not see target DSL');
+      assert(safeJson.indexOf('set placement object=') < 0, 'official LangGraph LLM2 node must not see target instructions');
       assert(safeJson.indexOf('"x"') < 0, 'official LangGraph LLM2 node must not see raw x/y coordinates');
       assert(safeJson.indexOf('10 pixels') < 0, 'official LangGraph LLM2 node must not see numeric edit deltas');
       assert(!view.state.bridge, 'official LangGraph LLM2 node must not see bridge state');
@@ -119,7 +119,7 @@ function makeHandlers(intentDslText, compiled) {
       };
     },
     runtime: function(view) {
-      assert(view.state.bridge.internalDslText, 'official LangGraph runtime node should receive target DSL');
+      assert(view.state.bridge.internalDslText, 'official LangGraph runtime node should receive target plan');
       assert(!view.state.requirement, 'official LangGraph runtime node must not see raw requirement state');
       return {
         'runtime.executionReport': { summary: { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.dslLines), failed: 0 } },
@@ -154,7 +154,7 @@ async function main() {
   await assert.rejects(async function() {
     await intentPipelineGraph.runIntentLangGraph(buildPartialState(), {
       'llm2-intent': function() {
-        return { 'bridge.bridgePlan': { target: 'gdjs-internal-dsl' } };
+        return { 'bridge.bridgePlan': { target: 'gdjs-target-plan' } };
       },
       'intent-compiler': handlers['intent-compiler'],
       resolver: handlers.resolver,

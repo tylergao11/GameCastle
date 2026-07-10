@@ -29,7 +29,7 @@ function addLine(plan, line, owner, source, meta) {
   plan._lineSeen[lineKey(line)] = true;
   plan.dslLines.push(line);
   plan.emitted.push({
-    kind: 'internal-dsl',
+    kind: 'target-plan-line',
     owner: owner,
     source: source,
     mechanism: meta.mechanism || null,
@@ -167,7 +167,7 @@ function addObjectLines(plan, spec, placement, options, owner) {
   var point = pointOf(placement);
   if (!point) {
     plan.diagnostics.push(diagnosticRouter.routeDiagnostic('missing-placement-anchor', {
-      stage: 'Emit Internal DSL',
+      stage: 'Emit Target Plan',
       category: 'missing-placement',
       intentSubject: spec.name,
       message: 'Component object has no resolved placement: ' + spec.name
@@ -250,7 +250,7 @@ function emitComponent(plan, component, catalog, placementPlan, options) {
   var manifest = componentCatalog.getComponent(catalog, component.componentId);
   if (!manifest) {
     plan.diagnostics.push(diagnosticRouter.routeDiagnostic('new-reusable-game-system', {
-      stage: 'Emit Internal DSL',
+      stage: 'Emit Target Plan',
       category: 'unknown-component',
       intentSubject: component.componentId,
       message: 'No component manifest for bridge emission: ' + component.componentId
@@ -334,7 +334,7 @@ function emitPlacementEdits(plan, placementPlan, options) {
 function createEmptyPlan() {
   return {
     schemaVersion: GDJS_BRIDGE_PLAN_SCHEMA_VERSION,
-    target: 'gdjs-internal-dsl',
+    target: 'gdjs-target-plan',
     dslLines: [],
     dslText: '',
     emitted: [],
@@ -361,7 +361,7 @@ function compileBridge(compiledIntent, options) {
   var resultCard = options.resultCard || compiledIntent.resultCard;
   var catalog = options.componentCatalog || componentCatalog.loadComponentCatalog();
   var plan = createEmptyPlan();
-  addTrace(resultCard, 'Emit Internal DSL', 'gdjs-bridge');
+  addTrace(resultCard, 'Emit Target Plan', 'gdjs-bridge');
 
   var moduleResult = compileModules(graph, options);
   (moduleResult.dslLines || []).forEach(function(line) {
@@ -388,7 +388,7 @@ function compileBridge(compiledIntent, options) {
     emission: 'passed',
     runtimeAdapters: 'passed'
   };
-  addCardEmission(resultCard, 'bridge plan internalDslLines=' + plan.dslLines.length);
+  addCardEmission(resultCard, 'bridge target lines=' + plan.dslLines.length);
   addCardEmission(resultCard, 'bridge plan runtimeAdapters=' + plan.runtimeAdapterRequirements.length);
   return stripInternal(plan);
 }

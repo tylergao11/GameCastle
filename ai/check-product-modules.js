@@ -32,7 +32,7 @@ function assertNoLlm2LowLevelAuthorization(catalog) {
         patterns.forEach(function(pattern) {
           assert(
             !pattern.test(text),
-            'Capability constraint must not authorize LLM2 low-level/machine edits: ' + capability.id + '.' + pathName
+            'Capability constraint must not authorize LLM2 internal-target/machine edits: ' + capability.id + '.' + pathName
           );
         });
       });
@@ -55,10 +55,10 @@ function main() {
   try {
     moduleCompiler.validateProductModules(catalog.schema, badCapabilityDsl);
   } catch (error) {
-    assert(error.message.indexOf('must not expose low-level DSL') >= 0, 'Product module validation should reject capability DSL');
+    assert(error.message.indexOf('must not expose internal target instructions') >= 0, 'Product module validation should reject capability target instructions');
     badCapabilityDsl = null;
   }
-  assert(badCapabilityDsl === null, 'Product module validation should fail when a capability exposes low-level DSL');
+  assert(badCapabilityDsl === null, 'Product module validation should fail when a capability exposes internal target instructions');
 
   var badModules = JSON.parse(JSON.stringify(catalog.modules));
   badModules[0].summary = 'Use core.platformer directly';

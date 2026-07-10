@@ -14,7 +14,7 @@ async function executeBridgeIntoProject(compiled) {
   var ops = pipeline.parseDSL(compiled.bridgePlan.dslText);
   for (var i = 0; i < ops.length; i++) {
     var result = await pipeline.execute(project, ops[i]);
-    assert(result.ok, 'bridge DSL should execute: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
+    assert(result.ok, 'bridge target line should execute: ' + compiled.bridgePlan.dslLines[i] + ' -> ' + result.msg);
   }
   return project;
 }
@@ -273,7 +273,7 @@ async function main() {
       userRequest: 'create scene name=Game first=true',
       internalDslText: 'create scene name=Game first=true',
     });
-  }, /only accepts AI-first Intent state/, 'PipelineState must reject internal low-level artifact state');
+  }, /only accepts AI-first Intent state/, 'PipelineState must reject internal target artifact state');
   assert.throws(function() {
     pipelineState.createPipelineState({
       mode: 'intentFixtureNew',
@@ -430,7 +430,7 @@ async function main() {
   assert.notStrictEqual(updatedByLlm2.llm2.intentDslText, state.llm2.intentDslText, 'node update should return a new updated state');
   assert.throws(function() {
     pipelineState.applyNodeStateUpdate(state, 'llm2-intent', {
-      'bridge.bridgePlan': { target: 'gdjs-internal-dsl' },
+      'bridge.bridgePlan': { target: 'gdjs-target-plan' },
     });
   }, /may not write/, 'LLM2 node update must not write bridge state');
   assert.throws(function() {
@@ -463,7 +463,7 @@ async function main() {
   assert.strictEqual(batch.pipelineState.runtime.summary.intentFulfillment.status, 'fulfilled', 'runtime PipelineState should include fulfillment summary');
   assert(batch.report.completed.some(function(result) {
     return result.command === 'create scene name=Game first=true';
-  }), 'runtime ExecutionReport should retain the original internal target DSL command line');
+  }), 'runtime ExecutionReport should retain the original internal target command line');
   assert(batch.report.completed.every(function(result) {
     return result.command && result.command.indexOf(' ') >= 0;
   }), 'runtime ExecutionReport should not collapse command evidence to verb labels');

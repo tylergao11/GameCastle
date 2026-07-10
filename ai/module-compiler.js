@@ -79,7 +79,7 @@ function validateProductModules(schema, modules) {
     }
     (manifest.capabilities || []).forEach(function(capability) {
       if (capability.dsl !== undefined) {
-        throw new Error('Product module ' + manifest.id + ' capability ' + capability.id + ' must not expose low-level DSL');
+        throw new Error('Product module ' + manifest.id + ' capability ' + capability.id + ' must not expose internal target instructions');
       }
     });
     validateUpdateTemplateMap(manifest, 'slotUpdateTemplates');
@@ -372,7 +372,7 @@ function resolveInstalls(commands, catalog, options) {
       applyCommandParams(existing, command.params);
     }
   });
-  validateInstallCompatibility(installs);
+  validateInstallConflicts(installs);
   return sortInstallsForCompilation(installs);
 }
 
@@ -392,7 +392,7 @@ function sortInstallsForCompilation(installs) {
   });
 }
 
-function validateInstallCompatibility(installs) {
+function validateInstallConflicts(installs) {
   var installed = {};
   installs.forEach(function(install) {
     installed[install.id] = true;

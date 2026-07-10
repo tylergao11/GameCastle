@@ -55,16 +55,16 @@ async function main() {
   assert(packet.bridgePlan && packet.bridgePlan.dslLines.length > 0, 'approval packet should include Bridge Plan');
   assert(packet.intentContracts && packet.intentContracts.intentCompile === 'passed', 'approval packet should include aggregate Intent contract summary');
   assert(packet.compileResultCard && packet.compileResultCard.ownerTrace.length >= 4, 'approval packet should include Compile ResultCard');
-  assert(packet.dslLines.length === packet.bridgePlan.dslLines.length, 'approval packet should include compiled internal DSL lines');
+  assert(packet.dslLines.length === packet.bridgePlan.dslLines.length, 'approval packet should include compiled internal target lines');
   assert(packet.runtimeAdapterRequirements.length >= 5, 'approval packet should include runtime adapter requirements');
   assert(packet.preview && packet.preview.nextAction === 'done', 'approval packet should include dry-run preview');
-  assert(packet.preview.commandResults.length === packet.dslLines.length, 'dry-run preview should include command result for every internal DSL line');
+  assert(packet.preview.commandResults.length === packet.dslLines.length, 'dry-run preview should include command result for every internal target line');
   assert(packet.preview.commandResults.every(function(result, index) {
     return result.commandId === 'intent_approval_check_preview_line_' + String(index + 1).padStart(3, '0');
   }), 'dry-run preview command results should have stable command ids');
   assert(packet.preview.commandResults.some(function(result) {
     return result.command === 'create scene name=Game first=true';
-  }), 'dry-run preview should retain original internal target DSL command lines');
+  }), 'dry-run preview should retain original internal target command lines');
   assert(packet.pipelineState && packet.pipelineState.stateKind === 'gamecastle-ai-first-intent-pipeline', 'approval packet should include graph-ready PipelineState');
   assert.deepStrictEqual(
     packet.pipelineState.graphTrace.map(function(item) { return item.node; }),
@@ -112,10 +112,10 @@ async function main() {
   assert(packet.summary.intentDslLineCount >= 5, 'summary should count Intent DSL lines');
   assert(packet.summary.intentGraph.components >= 4, 'summary should count Intent Graph components');
   assert(packet.summary.placementPlan.placements >= 4, 'summary should count placement decisions');
-  assert(packet.summary.bridgePlan.internalDslLines === packet.dslLines.length, 'summary should count bridge DSL lines');
+  assert(packet.summary.bridgePlan.internalDslLines === packet.dslLines.length, 'summary should count bridge target lines');
   assert(packet.summary.intentContracts && packet.summary.intentContracts.intentCompile === 'passed', 'summary should expose aggregate Intent contract status');
   assert(packet.summary.compileResultCard.ownerTrace.some(function(item) {
-    return item.stage === 'Emit Internal DSL' && item.owner === 'gdjs-bridge';
+    return item.stage === 'Emit Target Plan' && item.owner === 'gdjs-bridge';
   }), 'summary should expose ResultCard owner trace');
 
   console.log('[IntentApprovalGate] pending approval packet includes Intent proof objects');

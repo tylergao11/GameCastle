@@ -90,7 +90,7 @@ function createInitialState() {
     project: makeProject(),
     bridge: {
       bridgePlan: {
-        target: 'gdjs-internal-dsl',
+        target: 'gdjs-target-plan',
         dslLines: ['create scene name=Game'],
         runtimeAdapterRequirements: [],
         diagnostics: [],

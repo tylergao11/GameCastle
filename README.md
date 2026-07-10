@@ -44,7 +44,7 @@ The important property is ownership. AI decides in natural game terms; determini
 - Continue mode requires complete Intent iteration state: generated project output, `ProjectWorld`, and `ExecutionLedger`.
 - Parser and surface errors may ask LLM2 to rewrite natural Intent DSL.
 - Resolver, bridge, runtime, GDevelop truth, semantic playtest, and cache failures route to their owning system layer.
-- Action candidates are consolidated as semantic repair intent, not allowed to grow into a large list of low-level action types.
+- Action candidates are consolidated as semantic repair intent, not allowed to grow into a large list of internal target action types.
 - The Intent Engine keeps one live owner path for each product surface.
 
 ## Main Commands

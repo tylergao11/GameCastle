@@ -15,7 +15,7 @@ The refactor target is a two-layer architecture:
    concepts such as thing, component, relation, near, direction, role, action,
    pattern, and distance.
 2. **Runtime Bridge Layer**: the deterministic compiler/runtime bridge that
-   expands intent into internal DSL, GDevelop project data, generated scene
+   expands intent into an internal target plan, GDevelop project data, generated scene
    code, HTML export files, and GDJS runtime adapters.
 
 This keeps the user and LLM2 in the same low-cognition world model: "put the
@@ -28,9 +28,9 @@ y=520 and add a mouse/touch event".
 - Do not ask LLM2 for exact screen/world coordinates.
 - Do not ask LLM2 to select event indexes.
 - Do not make component implementation details part of prompt memory.
-- Do not make low-level line DSL the normal product surface.
+- Do not make internal target instructions the normal product surface.
 
-Low-level DSL remains compiler target code only. It is not user-facing, LLM2-facing,
+The internal target plan remains compiler target code only. It is not user-facing, LLM2-facing,
 or a second repair surface.
 
 ## Current Pipeline
@@ -46,7 +46,7 @@ User prompt / iteration request
   -> Module + Component graph
   -> Semantic Placement plan
   -> GDJS Bridge plan
-  -> internal low-level DSL
+  -> internal target execution plan
   -> project.json + code*.js + runtime adapters
   -> GDJS Runtime
 ```
@@ -123,12 +123,12 @@ AI Manifest / Compiler Manifest component library, and `ai/component-catalog.js`
 lets the compiler resolve natural aliases such as joystick, jump button, attack
 button, backpack, and platformer movement without exposing component ids to
 LLM2. `ai/gdjs-bridge.js` now emits the first Bridge Plan: product modules and
-resolved component placements compile to internal low-level DSL, while touch,
+resolved component placements compile to the internal target plan, while touch,
 joystick, and inventory runtime gaps become explicit runtime adapter
 requirements. `ai/intent-runtime-codegen.js` now turns those adapter
 requirements into `intent-runtime.js` for HTML export, and `pipeline.js` accepts
 `--intent-fixture-file` as a real fixture entry into the Intent -> Bridge -> GDJS
-internal DSL path.
+internal target-plan path.
 
 ### Intent AST
 
@@ -442,7 +442,7 @@ owner.
 | A component needs extra generated objects/events | component expansion / GDJS bridge | exposing GDJS events to LLM2 |
 | A GDJS instruction has awkward parameters | GDJS bridge target rewrite | adding instruction-shaped Intent DSL |
 | A runtime adapter needs internal config | Compiler Manifest | showing adapter names to LLM2 |
-| A module/component combination is invalid | requirement validation diagnostic | letting LLM2 edit low-level DSL |
+| A module/component combination is invalid | requirement validation diagnostic | letting LLM2 edit internal target instructions |
 | A genuinely new reusable game feature appears | new component or module | expanding generic DSL syntax |
 
 This is the pressure valve that keeps Intent DSL from becoming infinite.
@@ -467,7 +467,7 @@ natural LLM2 phrase
   -> typed Intent Graph
   -> component expansion
   -> bridge target rewrite
-  -> internal DSL / GDJS artifacts
+  -> internal target plan / GDJS artifacts
 ```
 
 ### Rewrite Types
@@ -597,7 +597,7 @@ counts for audit, but Intent Commander prompts must receive only the
 AI-visible projection owned by `ai/project-world.js`. That projection keeps
 prior safe Intent lines, thing names, relations, natural placements, object
 names, and run summaries; it drops coordinates, GDJS object types, bridge plans,
-runtime adapter ids, component ids, internal contract names, and low-level
+runtime adapter ids, component ids, internal contract names, and target
 execution commands. Intent repair prompts must follow the same rule. When a
 previous Intent DSL contains
 prohibited machine syntax, the repair prompt may say that such a line was
@@ -867,7 +867,7 @@ Intent DSL
   -> Fill Defaults
   -> Resolve Placement
   -> Expand Components
-  -> Emit Internal DSL
+  -> Emit Target Plan
   -> GDJS Bridge Apply
 ```
 
@@ -929,7 +929,7 @@ LLM2 should not see or maintain this expansion.
 3. Resolve semantic placement to concrete positions.
 4. Generate action bindings such as touch button -> `jump`, joystick axis ->
    movement input, inventory button -> open panel.
-5. Emit internal low-level DSL as target code.
+5. Emit the internal target execution plan.
 6. Let existing executors produce GDevelop project data.
 7. Let runtime-codegen/html-exporter produce GDJS scene functions and HTML.
 
@@ -954,7 +954,7 @@ This plan is the future approval-gate review unit. It should make visible:
 - what LLM2 asked for;
 - what component manifests were used;
 - what placements were resolved;
-- what low-level DSL will be executed;
+- what internal target instructions will be executed;
 - what runtime adapters will be copied or generated;
 - which owner handles repair if a step fails.
 
@@ -996,7 +996,7 @@ debugging, approval gate review, and owner-routed repair.
   "ownerTrace": [
     { "stage": "Resolve Symbols", "owner": "intent-compiler" },
     { "stage": "Resolve Placement", "owner": "placement-resolver" },
-    { "stage": "Emit Internal DSL", "owner": "gdjs-bridge" }
+    { "stage": "Emit Target Plan", "owner": "gdjs-bridge" }
   ]
 }
 ```
@@ -1029,7 +1029,7 @@ The bridge must not expose these as normal LLM2 prompt surface.
 | Semantic placement | `ai/placement-resolver.js` |
 | GDJS bridge plan | `ai/gdjs-bridge.js` |
 | Intent runtime adapters | `ai/intent-runtime-codegen.js` and `intent-runtime.js` |
-| Low-level execution | `ai/pipeline.js` executor until split |
+| Target-plan execution | `ai/pipeline.js` executor until split |
 | Project state summary | `ai/project-world.js` |
 | GDevelop runtime truth | `ai/gdevelop-truth.js` and `runtime-truth.json` |
 | Browser runtime export | `ai/runtime-codegen.js`, `ai/html-exporter.js`, `engine/` |
@@ -1046,9 +1046,9 @@ Repair should happen at the highest owner that can fix the issue:
 | Unsupported component/module combination | owner-routed compiler/component diagnostic |
 | Placement overlap or missing anchor | Placement resolver if fallback exists, otherwise owner-routed diagnostic |
 | Unsupported GDJS object/behavior/instruction | GDJS bridge or GDevelop truth update |
-| Low-level command execution failure | bridge/runtime/executor owner; do not ask LLM2 for low-level DSL |
+| Internal target command execution failure | bridge/runtime/executor owner; do not ask LLM2 for internal target instructions |
 
-The model should avoid teaching LLM2 to edit low-level GDJS symptoms. LLM2 may
+The model should avoid teaching LLM2 to edit target-specific GDJS symptoms. LLM2 may
 repair natural Intent DSL when the diagnostic owner is `llm2-intent`; after
 Intent has compiled to target code, failures stay below the AI surface and are
 handled by the owning compiler, bridge, runtime adapter, or executor layer.
@@ -1074,14 +1074,14 @@ The refactor is not complete until these can be proven by code/tests:
   with traceability.
 - Placement resolver converts semantic edits such as "up a little" into planned
   target positions without asking LLM2 for numeric deltas.
-- GDJS bridge compiles Intent Graph into existing internal DSL.
+- GDJS bridge compiles Intent Graph into the internal target plan.
 - Intent DSL fixtures produce `project.json`, `code*.js`, and `game.html`.
 - Approval gate includes Intent DSL, Intent Graph, Bridge Plan, compiled
-  internal DSL, and dry-run execution report.
+  internal target plan, and dry-run execution report.
 - LLM2 repair uses owner-routed diagnostics instead of immediately dropping to
-  low-level DSL.
+  internal target instructions.
 - Intent execution failures record the `ExecutionReport` and route the issue to
-  the lower-layer owner; there is no LLM low-level repair fallback.
+  the lower-layer owner; there is no LLM internal-target repair fallback.
 
 ## Design Principle
 

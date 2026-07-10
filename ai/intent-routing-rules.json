@@ -155,7 +155,7 @@
     },
     {
       "id": "awkward-gdjs-parameters",
-      "problem": "A GDJS instruction has awkward parameter order or low-level naming.",
+      "problem": "A GDJS instruction has awkward parameter order or target-specific naming.",
       "routeOwner": "gdjs-bridge",
       "routeMechanism": "target-rewrite",
       "prohibitedDslExpansions": ["set gdjs parameter ..."],
@@ -190,7 +190,7 @@
       "problem": "A compiled internal target command failed while mutating the engine project.",
       "routeOwner": "runtime-executor",
       "routeMechanism": "execution-report",
-      "prohibitedDslExpansions": ["ask LLM2 to repair internal target DSL"],
+      "prohibitedDslExpansions": ["ask LLM2 to repair internal target instructions"],
       "resultCardEvidence": ["executionReport", "runtimeFailureSummary", "ownerTrace"]
     },
     {
@@ -206,7 +206,7 @@
       "problem": "The request names a genuinely new reusable game-world system.",
       "routeOwner": "component-catalog",
       "routeMechanism": "new-component-or-module-candidate",
-      "prohibitedDslExpansions": ["generic low-level command expansion"],
+      "prohibitedDslExpansions": ["generic internal target command expansion"],
       "resultCardEvidence": ["diagnostics", "ownerTrace"]
     }
   ],

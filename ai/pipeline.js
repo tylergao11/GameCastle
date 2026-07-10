@@ -194,7 +194,7 @@ function parseLine(line) {
     else if (ch === " ") { if (current) { tokens.push(current); current = ""; } }
     else current += ch;
   }
-  if (inQuote) throw new Error('Unclosed quote in internal target DSL line: ' + line);
+  if (inQuote) throw new Error('Unclosed quote in internal target line: ' + line);
   if (current) tokens.push(current);
   if (tokens.length < 1) return null;
   var verb = tokens[0];
@@ -1059,7 +1059,7 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   var dslLines = getExecutableDslLines(dslText);
   var ops = parseDSL(dslText);
   if (dslLines.length !== ops.length) {
-    throw new Error('Internal target DSL parse mismatch for ' + batchLabel + ': ' + dslLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
+    throw new Error('Internal target plan parse mismatch for ' + batchLabel + ': ' + dslLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
   }
   if (!ops.length && !options.allowEmpty) throw new Error('No ops parsed for ' + batchLabel);
   console.log('[Parse:' + batchLabel + '] ' + ops.length + ' ops');
@@ -1265,7 +1265,7 @@ async function previewApprovalArtifact(project, dslText, options) {
   var dslLines = getExecutableDslLines(dslText);
   var ops = parseDSL(dslText || '');
   if (dslLines.length !== ops.length) {
-    throw new Error('Internal target DSL preview parse mismatch: ' + dslLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
+    throw new Error('Internal target plan preview parse mismatch: ' + dslLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
   }
   var previewBatchLabel = options.batchLabel || 'approval_preview';
   var commandResults = [];
@@ -1504,7 +1504,7 @@ async function run(prompt) {
     });
     dslText = compiledIntentArtifact.bridgePlan.dslText;
     console.log('[IntentFixture] ' + resolvedIntentFixtureFile + ' (' + intentDslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
-    console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.dslLines.length + ' low-level DSL lines, ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
+    console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.dslLines.length + ' internal target line(s), ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
   } else {
     var prev = isContinue ? loadState() : { brief: null, history: [] };
     var previousBrief = prev.brief;
@@ -1584,7 +1584,7 @@ async function run(prompt) {
       intentDslText = intentCompileResult.intentDslText;
       compiledIntentArtifact = intentCompileResult.compiled;
       dslText = compiledIntentArtifact.bridgePlan.dslText;
-      console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.dslLines.length + ' low-level DSL lines, ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
+      console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.dslLines.length + ' internal target line(s), ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
     }
   }
 

@@ -58,7 +58,7 @@ function validateCapabilityCatalog(schema, cards) {
     if (seen[card.id]) throw new Error('Duplicate capability id: ' + card.id);
     seen[card.id] = true;
     if (card.dsl) {
-      throw new Error('Capability ' + card.id + ' must not expose low-level DSL examples (source: ' + (card._sourceModule || 'unknown') + ')');
+      throw new Error('Capability ' + card.id + ' must not expose internal target examples (source: ' + (card._sourceModule || 'unknown') + ')');
     }
   });
 }

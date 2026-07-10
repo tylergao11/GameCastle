@@ -33,7 +33,7 @@ var INTERNAL_AI_HIDDEN_TOKENS = [
   'install module id=',
   'configure module id=',
   'core.platformer',
-  'low-level DSL',
+  'internal target instruction',
   'set placement object=',
   'place object=',
   'internalDsl',
