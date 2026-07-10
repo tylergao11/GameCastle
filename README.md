@@ -45,7 +45,7 @@ The important property is ownership. AI decides in natural game terms; determini
 - Parser and surface errors may ask LLM2 to rewrite natural Intent DSL.
 - Resolver, bridge, runtime, GDevelop truth, semantic playtest, and cache failures route to their owning system layer.
 - Action candidates are consolidated as semantic repair intent, not allowed to grow into a large list of low-level action types.
-- Deprecated inputs and compatibility aliases should be removed, not disabled or preserved.
+- The Intent Engine keeps one live owner path for each product surface.
 
 ## Main Commands
 

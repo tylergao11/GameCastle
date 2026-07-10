@@ -30,33 +30,10 @@ y=520 and add a mouse/touch event".
 - Do not make component implementation details part of prompt memory.
 - Do not make low-level line DSL the normal product surface.
 
-Low-level DSL remains useful as compiler target code and as a bounded internal
-repair escape hatch. It is not a user-facing or LLM2-facing compatibility mode.
+Low-level DSL remains compiler target code only. It is not user-facing, LLM2-facing,
+or a second repair surface.
 
-## Historical Baseline
-
-Before the AI-first Intent migration, the partially AI-friendly path was:
-
-```text
-LLM1 design brief
-  -> LLM2 Intent DSL
-  -> Intent Compiler / Bridge
-  -> internal line DSL
-  -> ai/pipeline.js executor
-  -> output/project.json
-  -> output/code*.js + output/game.html
-  -> GDJS runtime
-```
-
-Product modules such as `core.platformer`, `core.shooter`, and
-`shell.start_screen` remain coarse compiler truth and reusable skeletons. The
-live LLM2 path now selects them through AI-first Intent DSL instead of writing
-module ids or old text commands directly.
-
-This is a refactor, not a compatibility wrapper. The live LLM2 path must not
-keep a second old-command path as an equal product surface. Product modules
-remain as compiler truth and reusable skeletons, but LLM2 selects them through
-Intent DSL.
+## Current Pipeline
 
 The live target pipeline is:
 
@@ -73,6 +50,11 @@ User prompt / iteration request
   -> project.json + code*.js + runtime adapters
   -> GDJS Runtime
 ```
+
+Product modules such as `core.platformer`, `core.shooter`, and
+`shell.start_screen` are compiler truth and reusable skeletons. LLM2 selects
+capability through AI-first Intent DSL; module ids stay inside compiler-owned
+facts.
 
 ## Layer 1: Intent Layer
 
@@ -1074,78 +1056,7 @@ repair natural Intent DSL when the diagnostic owner is `llm2-intent`; after
 Intent has compiled to target code, failures stay below the AI surface and are
 handled by the owning compiler, bridge, runtime adapter, or executor layer.
 
-## Migration Plan
-
-### Phase A: Specification and boundaries
-
-- Add this architecture spec.
-- Add roadmap entry for AI-first Intent Layer and GDJS Bridge.
-- Declare Intent DSL as the next canonical LLM2 surface.
-- Remove old text module command inputs after the Intent migration, rather than
-  keeping them as a parallel LLM2 surface.
-
-### Phase B: Parser and graph skeleton
-
-- Add `ai/intent-dsl.js`.
-- Parse canonical lines into Intent AST.
-- Add `ai/intent-compiler.js` that converts AST into an Intent Graph.
-- Add fixture tests that assert no coordinates or GDJS instructions are present
-  in Intent AST.
-- Reject stale compatibility aliases in the parser once the canonical shape is
-  in place.
-
-### Phase C: Component catalog
-
-- Done: add `ai/components/schema.json`.
-- Done: add first component manifests:
-  - `input.virtual_joystick`
-  - `input.jump_button`
-  - `input.attack_button`
-  - `system.inventory`
-- Done: add `movement.platformer` as the inherited receiver for mobile controls.
-- Done: add catalog validation script.
-
-### Phase D: Placement resolver
-
-- Done: add `ai/placement-resolver.js`.
-- Done: support `screen` anchors and safe-area placement first.
-- Done: support object-relative `near <object> <direction>` second.
-- Done: support `trail`, `line`, `stairs`, and `guard` style group patterns.
-- Done: support semantic placement edit constraints such as
-  `adjust Fox placement above slightly`, with local step-size planning and
-  route evidence.
-
-### Phase E: GDJS bridge
-
-- Done: add `ai/gdjs-bridge.js`.
-- Done: compile product modules, component objects, resolved placement plans,
-  semantic group placements, semantic placement edits, and runtime adapter
-  requirements into a Bridge Plan with internal DSL.
-- Done: generate `intent-runtime.js` from Bridge Plan runtime adapter
-  requirements and attach it in the HTML export.
-- Done: add `--intent-fixture-file` fixture entry to the pipeline.
-- Reuse current `pipeline.js` executor as the temporary target backend only
-  while splitting owners. The final owner boundary is Intent Compiler -> GDJS
-  Bridge -> internal executor.
-- Done: add approval-gate output for Intent DSL, Intent Graph, Placement Plan,
-  Bridge Plan, Compile ResultCard, compiled internal DSL, runtime adapter
-  requirements, and dry-run command results.
-
-### Phase F: LLM2 surface migration
-
-- Done: update `dsl-agent.js` so the primary role is Intent DSL.
-- Done: replace the live old-command commander surface with Intent DSL.
-- Let Intent Compiler select product modules internally when an intent requires
-  `core.*`, `shell.*`, `meta.*`, or `network.*` skeletons.
-- Keep low-level DSL only as bridge/runtime target code, not as an Intent-path
-  LLM2 repair surface.
-- Done: update prompts so LLM2 sees component cards, natural game capability
-  cards, ProjectWorld, and placement/edit vocabulary; it must not see module
-  cards, raw `project.json`, or event templates as the normal path.
-- Remove old prompt examples, fixtures, and docs that teach LLM2 to emit Module
-  DSL directly as the primary surface.
-
-### Phase G: Runtime adapter hardening
+## Runtime Adapter Hardening
 
 - Add touch/button/joystick adapters as runtime-owned code.
 - Map UI controls to the same action/input model used by network sync.
@@ -1158,8 +1069,7 @@ The refactor is not complete until these can be proven by code/tests:
 
 - LLM2 can produce Intent DSL without concrete coordinates.
 - The live LLM2 path uses Intent DSL as its only product surface.
-- Old text command inputs are not accepted as live or fixture compatibility
-  modes after migration.
+- Intent fixtures and live requests use the canonical Intent DSL surface.
 - Intent parser rejects GDJS instruction names and event indexes in normal
   intent commands.
 - Component catalog validates required/provided capabilities.

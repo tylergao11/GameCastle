@@ -1,137 +1,26 @@
-# GameCastle 路线图
+# GameCastle Roadmap
 
-## Phase 1: 当前骨架
+This roadmap tracks the live AI-first Intent Engine, not migration history.
 
-- [x] 仓库目录和基础文档
-- [x] GDJS Runtime 嵌入
-- [x] DSL 解析与执行主路径
-- [x] Mock 生成 `output/project.json` + `output/game.html`
-- [x] React/Vite 平台壳
-- [x] 清理旧路径、临时拼装脚本和旧平台残留
-- [x] 生成稳定 `ProjectWorld` 和追加式 `ExecutionLedger`
-- [x] 建立 `ai/product-modules/` 唯一真相源（合并 capabilities），接入 LLM1/LLM2 上下文派生
-- [x] Historical baseline: 旧 LLM2 repair loop 曾使用失败报告 -> DSL diff -> 再执行；当前 live Intent 路径已改为自然 Intent repair、owner-routed diagnostics 和 Semantic Iteration Memory
-- [x] 建立 Intent fixture 测试器，覆盖状态边界、repair batch、缓存命中和超时防护
-- [x] 建立产品模块编译骨架：product module manifests -> structured compiler commands -> internal DSL -> ProjectWorld/tick runtime manifest
+## Current Intent Loop
 
-## Phase 2: 模块化生成管线
+- User request becomes a natural creative brief.
+- LLM2 writes natural Intent DSL only.
+- Intent Compiler, Resolver, Bridge, Runtime, GDevelop truth, and Semantic Playtest own lowering, validation, execution, and diagnostics.
+- ProjectWorld, ExecutionLedger, IntentWorldView, and Semantic Iteration Memory preserve enough state for continued iteration.
+- Repair uses owner-routed diagnostics or safe semantic repair Intent.
 
-- [x] 清理 `templates/` 游戏原型样例，能力迁移到 product-modules
-- [x] 定义 AI-facing 产品模块 schema，保持 `core.*`、`shell.*`、`system.*`、`meta.*` 等粗颗粒模块边界
-- [x] 为产品模块预留 sync/authority/tickRate/seed，同步策略写入 `output/tick-runtime-manifest.json`
-- [x] Historical baseline removed: 模块命令器在线编辑入口已被 AI-first Intent Commander 取代，旧文本入口不再保留
-- [x] 支持 `--continue` 基于 `ProjectWorld.modules` 追加模块，并拒绝重复安装已有模块
-- [x] 闭合 `configure module`：支持已安装模块参数 update template、sync-only metadata update、非法配置 fail-fast
-- [x] 增加测试审批闸门：`--approval-gate` 生成 pending approval，人工审查后 `--approve-pending` 执行
-- [x] 定义模块能力 schema：对象、变量、事件、依赖、兼容关系、运行时限制
-- [x] 明确 LLM1 只看轻量能力提示和当前体验摘要，不看模板结构
-- [x] 明确当前 LLM2 读取 IntentWorldView、安全 ProjectWorld、自然能力摘要、语义试玩证据和 owner-routed diagnostics；结构化模块能力、DSL 能力和参数约束留在 compiler owner 内部
-- [x] 明确只有 LLM2 输出自然 Intent DSL；确定性编译、低层执行计划和 runtime 写入由 compiler/resolver/bridge/runtime owners 负责
-- [ ] 把 `pipeline.js` 拆成设计、编译、执行、状态、provider 五个边界
-- [x] 用 `ai/gdevelop-truth/runtime-truth.json` 统一 GDevelop runtime 类型、include 和数据字段真相源
+## Active Priorities
 
-## Phase 3: 可反复迭代的项目状态
+- Split `ai/pipeline.js` into clearer design, compile, execute, state, and provider owners.
+- Keep the LLM2 surface small: natural intent, semantic evidence, owner routes, and safe requested context slots.
+- Continue strengthening semantic playtest coverage for creation and follow-up iteration.
+- Expose current module, generation step, and playable version state in the platform UI.
+- Keep generated artifacts out of review noise unless the command explicitly asks to refresh them.
 
-- [x] AI-first Intent refactor: make Intent DSL the only live LLM2 product surface; remove older command surfaces instead of keeping parallel compatibility paths
-- [x] Add `ai/intent-dsl.js`: parse natural Intent DSL into an AST that rejects coordinates, event indexes, GDJS instruction names, module ids, component ids, runtime adapter names, and `key=value` machine fields in the LLM2 surface
-- [x] Add `ai/intent-compiler.js`: compile Intent AST into a typed Intent Graph with things, components, relations, placements, semantic values, bindings, requirements, and diagnostics
-- [x] Add `ai/components/` component library schema and first manifests with split AI Manifest and Compiler Manifest views: virtual joystick, jump button, attack button, inventory
-- [x] Add component inheritance/override contracts: default config keys are classified as exposed natural overrides or sealed internal defaults, and ResultCard records both inherited defaults and overrides
-- [x] Add compiler-only component family inheritance: abstract parents such as `input.touch_button`, `system.storage`, and `ui.panel` provide shared defaults, bindings, bridge expansions, and runtime adapter ownership without entering the LLM2 prompt
-- [x] Move runtime adapter keys, labels, panel titles, and sizing into sealed component defaults so generated runtime code consumes config instead of inferring behavior from component ids
-- [x] Move runtime adapter route metadata into component manifests via `gdjsBridge.adapterRoutes`, so the GDJS bridge copies owner/mechanism evidence instead of branching on adapter ids
-- [x] Enforce runtime adapter config contracts so keys, labels, inputs, panel titles, slots, persistence, and dimensions must come from inherited component config rather than codegen fallbacks
-- [x] Move GDJS component object emission into manifest `gdjsBridge.objectSpec`, so target object type, visual defaults, and object/layer/placement route evidence come from inheritance instead of bridge fallbacks
-- [x] Add Intent Rewrite Contract: ResultCard rewrites must carry owner, mechanism, and stage for module inference, component aliases, natural anchors, and semantic groups
-- [x] Enforce rewrite/emission/runtime adapter contracts in the compiler and bridge return paths, not only in standalone checks
-- [x] Add aggregate Intent Compile Contract: compiled Intent artifacts must validate graph, ResultCard, diagnostics, rewrites, placement, bridge emission, and runtime adapter evidence before returning, then expose the passed contract summary to downstream runtime surfaces
-- [x] Add `ai/placement-resolver.js`: implement the Placement Contract, resolving `near/direction/distance/pattern` with screen/world/camera/object context and traceability
-- [x] Add Placement Resolution Contract: resolved placements carry route evidence for safe-area placement, UI overlap avoidance, object-relative placement, contextual direction rewrite, and semantic pattern placement
-- [x] Add semantic placement emission metadata: pattern/group placements carry bridge emission evidence from the Placement Plan instead of hard-coded bridge route labels
-- [x] Add semantic placement edit constraints: LLM2 can say `adjust Fox placement above slightly`, while placement resolver and GDJS bridge own numeric step planning and target emission
-- [x] Add `ai/gdjs-bridge.js`: compile Intent Graph and placement plan into internal low-level DSL and runtime adapter requirements
-- [x] Add GDJS Bridge Emission Contract: every emitted internal DSL target line carries owner/source/mechanism and optional route evidence
-- [x] Add Runtime Adapter Requirement Contract: adapter needs carry runtime owner/source/mechanism/route evidence for touch controls and inventory systems
-- [x] Add `ai/intent-runtime-codegen.js` and `--intent-fixture-file`: generate HTML intent runtime adapters from bridge requirements and execute Intent fixtures through the bridge path
-- [x] Switch live Stage2 LLM2 path to Intent Commander: Intent DSL -> Intent Compiler -> Bridge Plan -> internal DSL -> executor; remove old text fixture inputs
-- [x] Add Compile ResultCard with input, resolved symbols, auto-added defaults, placement decisions, emitted target code, warnings, and owner trace
-- [x] Add DSL Growth Control and Rewrite Contract checks: GDJS bridge issues must route to symbol rewrite, inheritance, component manifest, placement, bridge target rewrite, or owner diagnostics before any new LLM2-facing DSL concept is admitted
-- [x] Add bridge issue routing fixtures for touch controls, UI overlap, collision masks, inventory persistence, networked input, and awkward GDJS parameters; each fixture must prove no new LLM2-facing syntax was needed
-- [x] Add owner-routed diagnostics for compiler, placement, and bridge failures so failures carry `routeId`, `routeOwner`, `routeMechanism`, and `nextAction`
-- [x] Enforce Intent compile repair routing: parser/surface errors may use LLM2 repair, but system-owner diagnostics fail fast instead of leaking into LLM2 repair
-- [x] Update approval gate to include Intent DSL, typed Intent Graph, Bridge Plan, aggregate Intent compile contract, Compile ResultCard, compiled internal DSL, runtime adapter requirements, and dry-run command results
-- [x] Store AI-first Intent, aggregate compile contract, and GDJS Bridge summaries in `ProjectWorld` and `ExecutionReport`, while keeping raw Intent wording out of `semanticHash`
-- [x] Sanitize ProjectWorld/ExecutionReport before Intent Commander prompts so LLM2 sees game-world planning context instead of component ids, runtime adapter ids, coordinates, bridge plans, or target DSL commands
-- [x] Sanitize Intent repair prompts so prohibited machine-syntax lines are omitted instead of being repeated back to LLM2
-- [x] Sanitize LLM1 design briefs and diffs before Intent Commander prompts so coordinates, object sizes, variable values, and implementation defaults become natural game-world planning hints
-- [x] Move RequirementModel DesignBrief contract to natural placement hints and reject coordinates, object sizes, implementation colors, and runtime variable values at validation time
-- [x] Add a LangGraph-friendly `PipelineState` contract that separates internal graph slots from the LLM2-safe ProjectWorld projection
-- [x] Add official `@langchain/langgraph` runtime integration through `ai/langgraph-runtime.js`, using `StateGraph` while preserving contract-bound PipelineState view/update access
-- [x] Keep a dependency-free local graph runner for fast contract tests and fallback validation
-- [x] Add canonical `ai/intent-pipeline-graph.js` owner order and graph entry that can run local async handlers or generate contract-bound LangGraph nodes
-- [x] Route live Intent approval/runtime PipelineState assembly through canonical graph-owned artifact replay backed by official LangGraph `StateGraph`, and persist five-node `graphTrace` evidence
-- [x] Add runtime Intent fulfillment validation so ExecutionReport checks world-level things/components/placements/edits instead of treating command success alone as done
-- [x] Add unified `ai/check-ai-visible-boundary.js` gate for prompts, sanitizers, PipelineState views, graph views, and approval AI projections
-- [x] Add semantic feedback owner and parkour-case loop coverage: structured probe issues -> safe repair Intent DSL -> incremental compile/execute -> ProjectWorld update
-- [x] Add LLM-Guided Tick Playtest Loop v1: ProjectWorld + LLM-safe semantic mapping -> PlayPolicy -> Tick EventLog/Snapshot -> tick evidence -> SemanticFeedback repair Intent -> real rerun improvement
-- [x] Add Semantic Playtest Agent v1: pipeline automatically writes PlayPolicy, Tick report, LLM/user feedback reports, and executable Repair Intent after creation
-- [x] Add Full Creative Loop v1: deterministic Mock LLM -> Intent generation -> real create -> Semantic Playtest -> automatic repair -> rerun improvement -> final user summary
-- [x] Add Full Creative Loop Reliability v1: multiple deterministic creative-loop scenarios cover repair/no-repair outcomes with EventLog/Snapshot evidence and safe Mock LLM boundaries
-- [x] Add gameplay-first IntentWorldView for LLM2: ProjectWorld + tick evidence -> roles, judgement, cache/diff state, semantic repair candidates, and context request policy; UI/Icon remain template-backed support surfaces
-- [x] Add LLM2 Context Cache Router debug layer: DeepSeek text KV prefix cache routing for `full_hit`, `diff_hit`, `recommended_pack`, and `full_miss`, including Mock LLM2 route evidence
-- [x] Add LLM2 Decision Runtime skeleton: Router + IntentWorldView -> verified `apply_intent` / `request_context` / `no_op` / `reject`, with deterministic Mock engine before real LLM calls
-- [x] Add LLM2 Context Provider loop: `request_context` resolves safe `tick_event_window`, `project_world_diff`, `snapshot_summary`, and `ui_template_policy`, then reruns Decision Runtime
-- [x] Add LLM2 Decision Loop Runner: replayable Router -> Provider -> Decision -> Intent DSL -> pipeline --continue -> Semantic Playtest report loop
-- [x] Add LLM2 Semantic Eval Loop: natural-language benchmark set -> batch Decision Loop runs -> request_context evidence -> optional Intent execution -> before/after Tick summaries -> transcripts
-- [x] Add Semantic Iteration Memory: executed Decision Loop turns persist before/after Tick improvement evidence, inject matching safe memory into the next LLM2 IntentWorldView, and steer follow-up decisions toward remaining semantic issues
-- [x] Add DeepSeek Cache Monitor: real Responses bridge usage listener -> hot-step cache hit rate -> 90% fail-closed gate for LLM2 stable-prefix debugging
-- [x] Finish migrating docs and approval surfaces to Intent DSL primary examples
-- [x] Harden semantic count repair against stale IntentGraph summaries: count-based repair now uses current ProjectWorld instances as the floor before emitting natural Intent DSL, the bridge merges existing semantic groups on continue instead of appending duplicate action effects, and checks verify Decision Loop improvement/memory behavior instead of fixed fixture counts
-- [x] Tighten AI-first closure gates: README/architecture/AI docs now describe IntentWorldView -> Intent DSL -> Intent Graph/Resolver/Bridge -> Runtime -> Semantic Playtest/Repair Intent as the primary path, stale LLM2 low-level DSL edit wording fails doc-boundary checks, and semantic eval executed `apply_intent` cases fail on missing, regressed, or non-improving gameplay metrics
-- [x] Finish AI README drift cleanup: current pipeline, LLM-visible boundary, and repair-loop docs now describe safe IntentWorldView/Semantic Iteration Memory/owner-routed diagnostics, with doc-boundary checks focused on the live AI-first contract
-- [x] Collapse LLM2 decisions into the semantic repair model: IntentWorldView now emits semantic repair candidates with `apply_semantic_repair`, `experienceDimension`, `gameplayRole`, and `repairVerb`; SemanticFeedback renders repair Intent from repair verbs plus semantic parameters
-- [x] Make Semantic Iteration Memory consume metric regressions structurally: regressed semantic measurements now map back to experience dimensions, gameplay roles, and repair verbs even when the after-run tick report has no explicit issue rows, so the next Decision Loop can focus a real remaining issue instead of a free-text regression note
-- [x] Stabilize generated-output cleanup for repeated closure checks: pipeline output deletion is now idempotent for already-missing generated files and retries transient locked runtime files, with PipelineState coverage so verification failures do not masquerade as Intent/semantic regressions
-- [x] 完整建立项目状态模型：PipelineState.statePartitions 区分 design brief、Intent DSL、Intent Graph、Resolver plan、compiler-owned module facts、runtime execution plan、ProjectWorld、engine project file(output-only)，并由 check-pipeline-state 验证 LLM2 只读安全 nodeInput
-- [ ] 支持用户连续修改，例如“再难一点”“加入 Boss”“改成双人”
-- [x] 让 LLM2 生成自然 Intent DSL，并通过 Intent Graph/Resolver/Bridge 增量落到运行时；不再要求 LLM2 生成低层执行修改
-- [ ] 保留版本历史和回滚点
-- [ ] 在平台端展示当前模块、生成步骤和可试玩版本
+## Boundary Rules
 
-## Phase 4: 平台接入
-
-- [ ] 前端创建页真正调用生成管线
-- [ ] iframe 试玩 `output/game.html`
-- [ ] postMessage 上报加载、分数、错误和游戏结束
-- [ ] 发布到发现流
-- [ ] 分享和作品管理
-
-## Phase 5: 联机能力
-
-- [x] 定义六种互动模式（轮流事件、主机照镜子、帧同步对战、服务器裁判、各自为战、异步社交）
-- [x] 四种同步模型（event / snapshot / lockstep-input / server-authoritative）+ 两种扩展（peer-event / async-state）
-- [x] 所有同步基于 GDJS getNetworkSyncData/updateFromNetworkSyncData，不依赖 GDevelop 云服务
-- [x] ~~engine/network/ 骨架代码~~ → 已删除，统一为 ai/network-runtime/ + RuntimeAdapter 架构
-- [x] 6 个 network 模板，llm1Card 反向声明互动模式
-- [x] server/signaling-server.js 信令服务器（单端口、所有游戏共用）
-- [x] game template 和 network template 两轴独立选择
-- [ ] llm1Card 接入 LLM1 卡片流（network 模板暂未喂给 LLM1）
-- [ ] 联机编译接入 html-exporter
-- [x] 联机冒烟测试 + lockstep 测试通过（server/test-smoke.js, server/test-lockstep.js）
-
-## Phase 5.5: 联机架构 v2（2026-07）
-
-- [x] RuntimeAdapter 隔离 GDevelop（公开 API 注入，不碰私有字段）
-- [x] tick-intent-bridge.js 重写：Bridge 接管帧推进，固定 tick + 正确输入顺序
-- [x] 删除 engine/network/ 旧层，消除双栈不兼容
-- [x] server load_state 按 playerId 隔离
-- [x] GameLoop 处理上限防死循环
-- [x] Room 支持 inputDelay 透传
-
-## Phase 6: 质量门
-
-- [ ] 生成器单元测试
-- [x] Intent fixture 测试
-- [x] `project.json` schema 校验：`gdevelop-truth.validateProject()` 校验 output-only engine project 的顶层结构、layout/layer/instance/event/instruction、对象/行为 official truth 字段和实例引用，并由 `check-gdevelop-project-schema.js` 覆盖正负例
-- [ ] 浏览器运行时冒烟测试
-- [ ] 前端 lint/typecheck/build 纳入根命令
+- LLM2 has one product surface: natural Intent DSL.
+- Intent Engine entry points use one canonical shape per owner path.
+- Prompt examples and fixtures use current Intent DSL and semantic evidence.
+- No broad action-command list growth; action instructions are consolidated through semantic repair intent and verified decision outcomes.

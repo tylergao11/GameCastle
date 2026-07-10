@@ -66,7 +66,7 @@ The AI continuation interface is complete Intent iteration state, not a standalo
 - Resolver, bridge, runtime, GDevelop truth, HTML export, and semantic playtest failures route to the owning layer.
 - Decision candidates are consolidated around semantic repair intent. `no_op`, `request_context`, and `reject` are decision outcomes, not expanding action-command families.
 - Runtime command evidence may exist in full audit artifacts, but LLM2-visible views must carry semantic summaries and owner routes instead of target command fields.
-- Deprecated command shapes, fixture aliases, and compatibility paths should be removed outright.
+- Intent Engine entry points keep one canonical shape per owner path.
 
 ## Checks
 

@@ -204,5 +204,5 @@ Canonical protocol/server templates:
 - `server-ordered-input`: server-side input ordering. Server owner:
   `ServerOrderedInputSession`; timer wrapper: `GameLoop`.
 
-The old `strategies/` directory is intentionally removed. New templates must be
-added as canonical runtime/server files, not as compatibility wrappers.
+New templates are added as canonical runtime/server files owned by the matching
+runtime or server module.

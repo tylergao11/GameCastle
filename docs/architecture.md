@@ -210,9 +210,9 @@ safe counts/status only.
 
 ### AI-first Intent Layer
 
-The live LLM2 product surface is now the AI-first Intent DSL. This is a breaking
-refactor, not a compatibility layer. The goal is to lower AI and user cognition
-by making LLM2 describe game-world intent instead of engine details.
+The live LLM2 product surface is the AI-first Intent DSL. The goal is to lower
+AI and user cognition by making LLM2 describe game-world intent instead of
+engine details.
 
 The new canonical chain is:
 
@@ -572,10 +572,9 @@ explanation source without exposing internal templates.
 `ProjectWorld` and the LLM-safe semantic mapping view, runs the local Tick
 pseudo-runner, writes user/LLM feedback layers, and emits executable repair
 Intent DSL. `ai/tick-playtest-runtime.js` stays underneath it as the deterministic
-Tick execution owner. It is not a network compatibility layer and it does not
-special-case one genre. Its input is a `PlayPolicy` built from semantic roles
-such as player, collectible, threat, and control. Every sampled gameplay change
-happens on a tick:
+Tick execution owner. Its input is a `PlayPolicy` built from semantic roles such
+as player, collectible, threat, and control. Every sampled gameplay change happens
+on a tick:
 
 ```text
 PlayPolicy
@@ -786,8 +785,7 @@ Agent/model 内容不应继续堆在这里：
 - `ai/llm-provider.js` owns Responses/SSE text model calls.
 - `ai/requirement-agent.js` owns LLM1 design brief generation.
 - `ai/dsl-agent.js` owns LLM2 Intent Commander prompts and Intent compile
-  repair. Module Commander and internal low-level repair prompt builders have
-  been removed instead of retained as compatibility paths.
+  repair.
 - `ai/agent-workflow.js` owns role/model routing.
 
 后续接入生图/识图时，应继续通过 Agent/contract 边界接入，而不是把 prompt 分支加回 `pipeline.js`。

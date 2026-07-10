@@ -19,7 +19,7 @@ var REQUIRED_DOC_PHRASES = {
     'semantic repair candidates',
   ],
   'docs/ai-first-intent-runtime-bridge.md': [
-    'live LLM2 path now selects them through AI-first Intent DSL',
+    'capability through AI-first Intent DSL',
   ],
 };
 
