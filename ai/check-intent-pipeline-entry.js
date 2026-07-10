@@ -25,7 +25,7 @@ async function testInternalMoveActionBoundary() {
   var sceneResult = await pipeline.execute(absoluteProject, absoluteOps[0]);
   assert(sceneResult.ok, 'setup scene should execute');
   var absoluteResult = await pipeline.execute(absoluteProject, absoluteOps[1]);
-  assert.strictEqual(absoluteResult.ok, false, 'unsigned absolute move syntax must not be accepted as a compatibility path');
+  assert.strictEqual(absoluteResult.ok, false, 'unsigned absolute move syntax must stay outside the internal target DSL boundary');
   assert(/signed relative x\/y/.test(absoluteResult.msg), 'absolute move failure should explain the relative move requirement');
 }
 

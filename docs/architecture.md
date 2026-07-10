@@ -868,7 +868,7 @@ module capability
   -> required objects
   -> required variables
   -> events/actions
-  -> compatible modules
+  -> matching modules
   -> runtime constraints
   -> sync constraints
 ```
