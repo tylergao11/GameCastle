@@ -37,7 +37,7 @@ export default function GameCastleExperience() {
   const [score, setScore] = useState(164);
   const [jumping, setJumping] = useState(false);
   const [toast, setToast] = useState("");
-  const [lastPatch, setLastPatch] = useState("");
+  const [lastChange, setLastChange] = useState("");
   const startY = useRef<number | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
 
@@ -171,15 +171,15 @@ export default function GameCastleExperience() {
     setToast(message);
   }
 
-  function applyPatch(request: string) {
+  function applyChange(request: string) {
     const clean = request.trim();
     if (!clean) return;
     const lower = clean.toLowerCase();
     const nextChaos = lower.includes("chair") || lower.includes("boss") ? 1 : lower.includes("fast") || lower.includes("more") || lower.includes("enemy") ? 2 : 1;
     setChaos((value) => Math.max(value, nextChaos));
-    setLastPatch(clean);
+    setLastChange(clean);
     setDrawer(null);
-    setToast(`PATCHED: ${clean.slice(0, 42).toUpperCase()}${clean.length > 42 ? "…" : ""}`);
+    setToast(`CHANGED: ${clean.slice(0, 42).toUpperCase()}${clean.length > 42 ? "…" : ""}`);
   }
 
   async function share() {
@@ -233,7 +233,7 @@ export default function GameCastleExperience() {
 
       <div className="world-bottom"><button type="button" onClick={() => setDrawer("remix")}><span>01</span> REMIX A GAME</button><button type="button" onClick={() => setDrawer("director")}><span>02</span> LET THE CASTLE INTERFERE</button></div>
       {toast && <button className="world-toast" onClick={() => setToast("")}>{toast}</button>}
-      {drawer && <Drawer type={drawer} onClose={() => setDrawer(null)} onBlueprint={chooseBlueprint} onChaos={makeChaotic} onPatch={applyPatch} onShare={share} />}
+      {drawer && <Drawer type={drawer} onClose={() => setDrawer(null)} onBlueprint={chooseBlueprint} onChaos={makeChaotic} onChangeIntent={applyChange} onShare={share} />}
     </section>}
 
     {phase === "building" && <section className="build-screen" aria-live="polite">
@@ -248,24 +248,24 @@ export default function GameCastleExperience() {
       <header className="play-head"><button type="button" onClick={goHome}>✦ GameCastle</button><strong>{title}</strong><span>LIVE</span></header>
       <div className="game-world" onPointerDown={jump} role="button" tabIndex={0} aria-label="Tap to jump">
         <div className="game-horizon"><i /><i /><i /><i /><i /></div><div className="game-sun">☾</div><div className="game-stars">✦　　✦　　　✦</div>
-        <div className="game-stats"><b>RUN {score}m</b><span>{lastPatch ? "WORLD PATCHED" : chaos ? `THE CASTLE IS BORED ×${chaos}` : "NIGHT SHIFT"}</span></div>
+        <div className="game-stats"><b>RUN {score}m</b><span>{lastChange ? "WORLD CHANGED" : chaos ? `THE CASTLE IS BORED ×${chaos}` : "NIGHT SHIFT"}</span></div>
         <div className={`runner ${jumping ? "jump" : ""}`}><i>⌃⌃</i><b>•ᴗ•</b><em /></div><div className="chaser">🚓</div><div className="thing-in-way">{chaos > 1 ? "🪑" : "🛒"}</div>{chaos > 0 && <div className="extra-problem">🪑</div>}
         <div className="road"><i /><i /><i /><i /></div><p>TAP TO JUMP</p>
       </div>
       <nav className="play-dock"><button type="button" onClick={() => setDrawer("mutate")}>MUTATE</button><button type="button" onClick={() => setDrawer("director")}>DIRECTOR</button><button type="button" onClick={() => setDrawer("friends")}>PORTAL</button><button type="button" onClick={() => setDrawer("share")}>SHARE</button></nav>
-      {drawer && <Drawer type={drawer} onClose={() => setDrawer(null)} onBlueprint={chooseBlueprint} onChaos={makeChaotic} onPatch={applyPatch} onShare={share} />}
+      {drawer && <Drawer type={drawer} onClose={() => setDrawer(null)} onBlueprint={chooseBlueprint} onChaos={makeChaotic} onChangeIntent={applyChange} onShare={share} />}
       {toast && <button className="world-toast play-toast" onClick={() => setToast("")}>{toast}</button>}
     </section>}
   </main>;
 }
 
-function Drawer({ type, onClose, onBlueprint, onChaos, onPatch, onShare }: { type: Drawer; onClose: () => void; onBlueprint: (blueprint: (typeof blueprints)[number]) => void; onChaos: (level: number, message: string) => void; onPatch: (request: string) => void; onShare: () => void }) {
+function Drawer({ type, onClose, onBlueprint, onChaos, onChangeIntent, onShare }: { type: Drawer; onClose: () => void; onBlueprint: (blueprint: (typeof blueprints)[number]) => void; onChaos: (level: number, message: string) => void; onChangeIntent: (request: string) => void; onShare: () => void }) {
   const [request, setRequest] = useState("");
   return <aside className={`game-drawer drawer-${type}`}>
     <button className="drawer-x" type="button" onClick={onClose}>×</button>
     {type === "remix" && <><p className="drawer-kicker">ARCADE FLOOR</p><h2>Take something.<br />Make it worse.</h2><div className="blueprint-row">{blueprints.map((item) => <button className={`blueprint ${item.tone}`} type="button" key={item.title} onClick={() => onBlueprint(item)}><span>{item.emoji}</span><strong>{item.title}</strong><small>{item.line}</small><em>REMIX THIS →</em></button>)}</div></>}
     {type === "director" && <><p className="drawer-kicker">THE EYE IS OPEN</p><h2>How helpful<br />should it be?</h2><div className="big-actions"><button type="button" onClick={() => onChaos(0, "THE CASTLE IS BEHAVING.")}>KEEP IT FAIR <small>No cheap shots.</small></button><button type="button" onClick={() => onChaos(2, "THE CASTLE HAS AN OPINION.")}>CAUSE PROBLEMS <small>Make it interesting.</small></button><button type="button" onClick={() => onChaos(3, "NO ONE APPROVED THIS.")}>ABSOLUTE CHAOS <small>We&apos;ll figure it out.</small></button></div></>}
-    {type === "mutate" && <><p className="drawer-kicker">CHANGE THE RULES</p><h2>What should<br />change next?</h2><form className="change-form" onSubmit={(event) => { event.preventDefault(); onPatch(request); }}><textarea value={request} onChange={(event) => setRequest(event.target.value)} rows={3} placeholder="The boss should throw office chairs." /><button type="submit">CHANGE IT <b>→</b></button></form><p className="suggestion-label">OR START HERE</p><div className="patch-suggestions"><button type="button" onClick={() => setRequest("The boss should throw office chairs.")}>BOSS THROWS CHAIRS</button><button type="button" onClick={() => setRequest("Make the whole game much faster.")}>TOO FAST</button><button type="button" onClick={() => setRequest("Add more enemies near the end.")}>MORE ENEMIES</button></div></>}
+    {type === "mutate" && <><p className="drawer-kicker">CHANGE THE RULES</p><h2>What should<br />change next?</h2><form className="change-form" onSubmit={(event) => { event.preventDefault(); onChangeIntent(request); }}><textarea value={request} onChange={(event) => setRequest(event.target.value)} rows={3} placeholder="The boss should throw office chairs." /><button type="submit">CHANGE IT <b>→</b></button></form><p className="suggestion-label">OR START HERE</p><div className="change-suggestions"><button type="button" onClick={() => setRequest("The boss should throw office chairs.")}>BOSS THROWS CHAIRS</button><button type="button" onClick={() => setRequest("Make the whole game much faster.")}>TOO FAST</button><button type="button" onClick={() => setRequest("Add more enemies near the end.")}>MORE ENEMIES</button></div></>}
     {type === "friends" && <><p className="drawer-kicker">OPEN A PORTAL</p><h2>Who&apos;s causing<br />the trouble?</h2><div className="big-actions"><button type="button" onClick={() => onChaos(1, "TEAM PORTAL READY.")}>JOIN MY TEAM <small>Help me escape.</small></button><button type="button" onClick={() => onChaos(2, "BOSS PORTAL READY.")}>CONTROL THE MONSTERS <small>Be awful.</small></button></div></>}
     {type === "share" && <><p className="drawer-kicker">SEND THE PROBLEM</p><h2>Give somebody<br />a weird little game.</h2><button className="share-tape" type="button" onClick={onShare}><span>PLAY IT</span><strong>ESCAPE<br />THE STORE</strong><em>REMIX IT →</em></button></>}
   </aside>;

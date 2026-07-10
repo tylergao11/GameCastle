@@ -4,9 +4,9 @@ const steps = [
   { icon: Lightbulb, color: "#fbbf24", bg: "rgba(251,191,36,0.1)", title: "创意描述", desc: "用户说出世界设定、玩法和体验目标" },
   { icon: Brain,       color: "#a855f7", bg: "rgba(168,85,247,0.1)", title: "AI 设计规划", desc: "拆解玩法、角色、规则和体验变化" },
   { icon: Puzzle,      color: "#4ade80", bg: "rgba(74,222,128,0.1)", title: "模块能力组合", desc: "选择平台跳跃、金币、敌人、Boss、UI、关卡等模块" },
-  { icon: Code,        color: "#38bdf8", bg: "rgba(56,189,248,0.1)", title: "确定性编译", desc: "Module DSL 编译成可执行项目补丁" },
+  { icon: Code,        color: "#38bdf8", bg: "rgba(56,189,248,0.1)", title: "确定性编译", desc: "Intent DSL 编译成可执行游戏项目" },
   { icon: Play,        color: "#f472b6", bg: "rgba(244,114,182,0.1)", title: "实时试玩", desc: "生成 project.json + game.html，浏览器立即运行" },
-  { icon: RefreshCw,   color: "#fb923c", bg: "rgba(251,146,60,0.1)", title: "持续迭代", desc: "后续请求以 patch 修改项目状态" },
+  { icon: RefreshCw,   color: "#fb923c", bg: "rgba(251,146,60,0.1)", title: "持续迭代", desc: "后续请求以自然意图更新项目状态" },
 ];
 
 export default function FlowSection() {

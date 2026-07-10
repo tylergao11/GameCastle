@@ -36,7 +36,7 @@ npm run lint
 ## 待接入
 
 - 调用生成管线，而不是本地 `setTimeout` 模拟。
-- 展示 LLM1 的创意摘要和 LLM2 的 patch/DSL 执行进度。
+- 展示 LLM1 的创意摘要和 LLM2 的 Intent DSL 与语义执行进度。
 - iframe 加载可玩版本。
 - postMessage 接收运行时事件、分数、错误和完成状态。
 - 版本历史、发布、分享。
