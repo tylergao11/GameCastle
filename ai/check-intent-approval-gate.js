@@ -19,7 +19,7 @@ async function main() {
 
   var packet = await pipeline.makePendingApprovalPacket({
     prompt: 'make a mobile platformer',
-    projectMode: 'fixture-new',
+    projectMode: 'intentFixtureNew',
     batchLabel: 'intent_approval_check',
     isNewProject: true,
     requiresIntentIterationState: false,

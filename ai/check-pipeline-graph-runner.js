@@ -56,7 +56,7 @@ async function buildState() {
     intent: intentArtifacts,
   });
   return pipelineState.createPipelineState({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'pipeline_graph_runner_check',
     artifactKind: 'intent',
     userRequest: 'make a mobile platformer',
@@ -76,7 +76,7 @@ async function buildState() {
 
 function buildPartialState() {
   return pipelineState.createPipelineState({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'pipeline_graph_runner_partial_check',
     artifactKind: 'intent',
     userRequest: [

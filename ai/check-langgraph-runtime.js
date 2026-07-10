@@ -27,7 +27,7 @@ function compileFixture(intentDslText) {
 
 function buildPartialState() {
   return pipelineState.createPipelineState({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'official_langgraph_runtime_check',
     artifactKind: 'intent',
     userRequest: [

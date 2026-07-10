@@ -26,7 +26,7 @@ function lengthOf(list) {
 
 function buildPartialState() {
   return pipelineState.createPipelineState({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'langgraph_adapter_partial_check',
     artifactKind: 'intent',
     userRequest: [

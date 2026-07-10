@@ -166,7 +166,7 @@ async function buildRuntimeSurfaces(productModules, components) {
     intent: intent,
   });
   var state = await intentPipelineGraph.makePipelineStateFromArtifacts({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'ai_visible_boundary_check',
     artifactKind: 'intent',
     userRequest: 'make a mobile platformer',
@@ -184,7 +184,7 @@ async function buildRuntimeSurfaces(productModules, components) {
   });
   var approvalPacket = await pipeline.makePendingApprovalPacket({
     prompt: 'make a mobile platformer',
-    projectMode: 'fixture-new',
+    projectMode: 'intentFixtureNew',
     batchLabel: 'ai_visible_approval_check',
     isNewProject: true,
     requiresIntentIterationState: false,

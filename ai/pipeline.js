@@ -1465,16 +1465,16 @@ async function run(prompt) {
   var batchLabel = getArgValue('--batch-label') || 'apply';
   var approvalGate = hasArg('--approval-gate');
   if (approvalGate) clearPendingApproval();
-  var projectMode = intentFixtureFile ? (isContinue ? 'fixture-continue' : 'fixture-new') : (isContinue ? 'continue' : 'new');
+  var projectMode = intentFixtureFile ? (isContinue ? 'intentFixtureContinue' : 'intentFixtureNew') : (isContinue ? 'continue' : 'new');
   var isNewProject = projectMode !== 'continue';
-  if (projectMode === 'fixture-continue') isNewProject = false;
+  if (projectMode === 'intentFixtureContinue') isNewProject = false;
   if (isNewProject && !approvalGate) {
     resetGeneratedStateForNewProject();
     console.log('[State] Starting new project mode: ' + projectMode);
   } else if (isNewProject && approvalGate) {
     console.log('[State] Approval gate new project mode: ' + projectMode + ' (no output reset before approval)');
   }
-  var existingIterationState = (projectMode === 'continue' || projectMode === 'fixture-continue')
+  var existingIterationState = (projectMode === 'continue' || projectMode === 'intentFixtureContinue')
     ? loadExistingIntentIterationState(STATE_DIR)
     : null;
   if (existingIterationState && !existingIterationState.ok) {
@@ -1603,7 +1603,7 @@ async function run(prompt) {
       projectMode: projectMode,
       batchLabel: batchLabel,
       isNewProject: isNewProject,
-      requiresIntentIterationState: projectMode === 'continue' || projectMode === 'fixture-continue',
+      requiresIntentIterationState: projectMode === 'continue' || projectMode === 'intentFixtureContinue',
       artifactKind: 'intent',
       project: project,
       baseWorld: compileBaseWorld,

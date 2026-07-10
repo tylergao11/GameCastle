@@ -18,7 +18,7 @@ function lengthOf(list) {
 
 function buildPartialState() {
   return pipelineState.createPipelineState({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'intent_pipeline_graph_check',
     artifactKind: 'intent',
     userRequest: [
@@ -199,7 +199,7 @@ async function main() {
   pipelineState.validatePipelineState(result.state);
 
   var artifactState = await intentPipelineGraph.makePipelineStateFromArtifacts({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'intent_pipeline_graph_artifact_check',
     artifactKind: 'intent',
     userRequest: 'make a mobile platformer\nset placement object=Player x=100 y=400 scene=Game',

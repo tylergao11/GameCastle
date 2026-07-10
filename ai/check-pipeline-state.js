@@ -189,7 +189,7 @@ async function main() {
   });
 
   var state = pipelineState.createPipelineState({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'pipeline_state_check',
     artifactKind: 'intent',
     userRequest: [
@@ -267,7 +267,7 @@ async function main() {
   assert.strictEqual(state.artifactKind, 'intent', 'state should preserve artifact kind');
   assert.throws(function() {
     pipelineState.createPipelineState({
-      mode: 'fixture-new',
+      mode: 'intentFixtureNew',
       batchLabel: 'pipeline_state_internal_reject',
       artifactKind: 'internal',
       userRequest: 'create scene name=Game first=true',
@@ -276,7 +276,7 @@ async function main() {
   }, /only accepts AI-first Intent state/, 'PipelineState must reject internal low-level artifact state');
   assert.throws(function() {
     pipelineState.createPipelineState({
-      mode: 'fixture-new',
+      mode: 'intentFixtureNew',
       batchLabel: 'pipeline_state_missing_patch_kind',
       userRequest: 'make a game',
     });
@@ -356,7 +356,7 @@ async function main() {
     intent: intentArtifacts,
   });
   var missingState = pipelineState.createPipelineState({
-    mode: 'fixture-new',
+    mode: 'intentFixtureNew',
     batchLabel: 'pipeline_state_missing_fulfillment_check',
     artifactKind: 'intent',
     userRequest: 'make a mobile platformer',
@@ -444,7 +444,7 @@ async function main() {
 
   var batchProject = pipeline.emptyProject('PipelineStateRuntimeCheck');
   var batch = await pipeline.executeDslBatch(batchProject, compiled.bridgePlan.dslText, 'pipeline_state_runtime_check', {
-    projectMode: 'fixture-new',
+    projectMode: 'intentFixtureNew',
     userRequest: 'make a mobile platformer',
     designBrief: { theme: 'mobile platformer', objects: [], rules: [], layout: { placements: [] } },
     diff: { isNew: true },
