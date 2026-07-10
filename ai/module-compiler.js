@@ -1,6 +1,5 @@
 var fs = require('fs');
 var path = require('path');
-var moduleDsl = require('./module-dsl');
 var intentSurfaceGuard = require('./intent-surface-guard');
 
 var PRODUCT_MODULE_SCHEMA_VERSION = 1;
@@ -78,8 +77,14 @@ function validateProductModules(schema, modules) {
     if (!manifest.compiler || !Array.isArray(manifest.compiler.dsl)) {
       throw new Error('Product module ' + manifest.id + ' must define compiler.dsl');
     }
-    validatePatchMap(manifest, 'slotPatches');
-    validatePatchMap(manifest, 'configurePatches');
+    (manifest.capabilities || []).forEach(function(capability) {
+      if (capability.dsl !== undefined) {
+        throw new Error('Product module ' + manifest.id + ' capability ' + capability.id + ' must not expose low-level DSL');
+      }
+    });
+    rejectLegacyCompilerPatchTemplateFields(manifest);
+    validateUpdateTemplateMap(manifest, 'slotUpdateTemplates');
+    validateUpdateTemplateMap(manifest, 'configureUpdateTemplates');
     validateNetworking(manifest);
     validateRepositoryPolicy(manifest);
     validateInteractionContracts(manifest);
@@ -112,14 +117,23 @@ function validateRepositoryPolicy(manifest) {
   }
 }
 
-function validatePatchMap(manifest, fieldName) {
-  var patches = (manifest.compiler && manifest.compiler[fieldName]) || {};
-  Object.keys(patches).forEach(function(key) {
-    var patch = patches[key];
-    if (!Array.isArray(patch.dsl)) {
+function rejectLegacyCompilerPatchTemplateFields(manifest) {
+  var compiler = manifest.compiler || {};
+  ['slotPatches', 'configurePatches'].forEach(function(fieldName) {
+    if (compiler[fieldName] !== undefined) {
+      throw new Error('Product module ' + manifest.id + ' compiler.' + fieldName + ' is removed; use update templates');
+    }
+  });
+}
+
+function validateUpdateTemplateMap(manifest, fieldName) {
+  var templates = (manifest.compiler && manifest.compiler[fieldName]) || {};
+  Object.keys(templates).forEach(function(key) {
+    var template = templates[key];
+    if (!Array.isArray(template.dsl)) {
       throw new Error('Product module ' + manifest.id + ' ' + fieldName + '.' + key + ' must define dsl');
     }
-    if (patch.findEvent && !patch.findEvent.textPrefix) {
+    if (template.findEvent && !template.findEvent.textPrefix) {
       throw new Error('Product module ' + manifest.id + ' ' + fieldName + '.' + key + ' findEvent missing textPrefix');
     }
   });
@@ -134,7 +148,7 @@ function validateNetworking(manifest) {
 
 function validateInteractionContracts(manifest) {
   var triggers = (manifest.interaction && manifest.interaction.fixedTriggers) || [];
-  var configurePatches = (manifest.compiler && manifest.compiler.configurePatches) || {};
+  var configureUpdateTemplates = (manifest.compiler && manifest.compiler.configureUpdateTemplates) || {};
   triggers.forEach(function(trigger) {
     if (!trigger.id) throw new Error('Product module ' + manifest.id + ' interaction trigger missing id');
     if (!trigger.labelParam) throw new Error('Product module ' + manifest.id + ' interaction trigger ' + trigger.id + ' missing labelParam');
@@ -145,7 +159,7 @@ function validateInteractionContracts(manifest) {
     if (trigger.kind === 'mouse_object' && !trigger.object) {
       throw new Error('Product module ' + manifest.id + ' interaction trigger ' + trigger.id + ' missing object');
     }
-    if (!configurePatches[trigger.labelParam]) {
+    if (!configureUpdateTemplates[trigger.labelParam]) {
       throw new Error('Product module ' + manifest.id + ' interaction trigger ' + trigger.id + ' labelParam is not configurable: ' + trigger.labelParam);
     }
     validateInteractionCopy(manifest.id, trigger.labelParam, manifest.defaults && manifest.defaults[trigger.labelParam], trigger);
@@ -156,38 +170,6 @@ function buildProductModuleCards(catalog) {
   return catalog.modules.map(function(manifest) {
     return '- ' + manifest.id + ': ' + manifest.llm1Card;
   }).join('\n');
-}
-
-function buildModuleDslReference(catalog) {
-  var cards = catalog.modules.map(function(manifest) {
-    var publicDefaults = clone(manifest.defaults || {});
-    Object.keys(getInternalSlots(manifest)).forEach(function(key) {
-      delete publicDefaults[key];
-    });
-    return {
-      id: manifest.id,
-      name: manifest.name,
-      category: manifest.category,
-      summary: manifest.summary,
-      presets: Object.keys(manifest.presets || {}),
-      defaultPreset: manifest.defaultPreset,
-      defaults: publicDefaults,
-      repositoryPolicy: manifest.repositoryPolicy,
-      configurable: Object.keys(getConfigurePatches(manifest)),
-      interaction: manifest.interaction || {},
-      networking: manifest.networking
-    };
-  });
-  return [
-    '=== Product module source of truth ===',
-    JSON.stringify(cards, null, 2),
-    '',
-    '=== Module DSL ===',
-    'install module id=<module.id> preset=<preset> sync=<local|lockstep|snapshot|event> authority=<client|host|server> tickRate=<number> seed=<seed>',
-    'configure module id=<installed.module.id> key=value ...',
-    '',
-    'Only output Module DSL lines. Do not output low-level DSL, JSON, Markdown, or project.json.'
-  ].join('\n');
 }
 
 function normalizeCopy(value) {
@@ -264,8 +246,8 @@ function isModuleCommandKey(key) {
   return MODULE_COMMAND_KEYS.indexOf(key) >= 0;
 }
 
-function getConfigurePatches(manifest) {
-  return (manifest.compiler && manifest.compiler.configurePatches) || {};
+function getConfigureUpdateTemplates(manifest) {
+  return (manifest.compiler && manifest.compiler.configureUpdateTemplates) || {};
 }
 
 function getInternalSlots(manifest) {
@@ -287,14 +269,14 @@ function validateInstallParams(manifest, params) {
 }
 
 function validateConfigureParams(manifest, params) {
-  var configurePatches = getConfigurePatches(manifest);
+  var configureUpdateTemplates = getConfigureUpdateTemplates(manifest);
   var slots = getInternalSlots(manifest);
   Object.keys(params || {}).forEach(function(key) {
     if (isModuleCommandKey(key)) return;
     if (slots[key] !== undefined) {
       throw new Error('Module ' + manifest.id + ' configure key ' + key + ' is an internal compiler slot');
     }
-    if (!configurePatches[key]) {
+    if (!configureUpdateTemplates[key]) {
       throw new Error('Module ' + manifest.id + ' does not support configure key: ' + key);
     }
   });
@@ -542,44 +524,44 @@ function buildSlotOverrides(installs) {
 }
 
 function findEventIndex(projectWorld, sceneName, textPrefix) {
-  if (!projectWorld) throw new Error('ProjectWorld is required to patch an installed module slot');
+  if (!projectWorld) throw new Error('ProjectWorld is required to update an installed module slot');
   var scenes = projectWorld.scenes || [];
   var scene = scenes.find(function(candidate) { return candidate.name === sceneName; });
-  if (!scene) throw new Error('Cannot patch module slot; scene not found in ProjectWorld: ' + sceneName);
+  if (!scene) throw new Error('Cannot update module slot; scene not found in ProjectWorld: ' + sceneName);
   var events = scene.events || [];
   for (var i = 0; i < events.length; i++) {
     if (String(events[i].text || '').indexOf(textPrefix) === 0) return i;
   }
-  throw new Error('Cannot patch module slot; event not found in scene ' + sceneName + ': ' + textPrefix);
+  throw new Error('Cannot update module slot; event not found in scene ' + sceneName + ': ' + textPrefix);
 }
 
-function buildSlotPatchLines(install, overrides, projectWorld) {
+function buildSlotUpdateLines(install, overrides, projectWorld) {
   var manifest = install.manifest;
-  var slotPatches = (manifest.compiler && manifest.compiler.slotPatches) || {};
+  var slotUpdateTemplates = (manifest.compiler && manifest.compiler.slotUpdateTemplates) || {};
   var lines = [];
   Object.keys(overrides || {}).forEach(function(slot) {
     if (install.params && install.params[slot] === overrides[slot]) return;
-    var patch = slotPatches[slot];
-    if (!patch) throw new Error('Module ' + install.id + ' does not define a patch for slot ' + slot);
+    var template = slotUpdateTemplates[slot];
+    if (!template) throw new Error('Module ' + install.id + ' does not define an update template for slot ' + slot);
     var values = {};
     Object.keys(install.params || {}).forEach(function(key) { values[key] = install.params[key]; });
     values[slot] = overrides[slot];
-    if (patch.findEvent) {
-      var sceneName = values[patch.findEvent.sceneParam || 'scene'];
-      var indexParam = patch.findEvent.indexParam || (slot + 'EventIndex');
-      values[indexParam] = findEventIndex(projectWorld, sceneName, patch.findEvent.textPrefix);
+    if (template.findEvent) {
+      var sceneName = values[template.findEvent.sceneParam || 'scene'];
+      var indexParam = template.findEvent.indexParam || (slot + 'EventIndex');
+      values[indexParam] = findEventIndex(projectWorld, sceneName, template.findEvent.textPrefix);
     }
-    (patch.dsl || []).forEach(function(line) {
+    (template.dsl || []).forEach(function(line) {
       lines.push(renderTemplate(line, values));
     });
   });
   return lines;
 }
 
-function buildConfigurePatchLines(install, projectWorld) {
+function buildConfigureUpdateLines(install, projectWorld) {
   var manifest = install.manifest;
-  var configurePatches = (manifest.compiler && manifest.compiler.configurePatches) || {};
-  var patchItems = [];
+  var configureUpdateTemplates = (manifest.compiler && manifest.compiler.configureUpdateTemplates) || {};
+  var updateItems = [];
   var changed = {};
   (install.configCommands || []).forEach(function(command) {
     Object.keys(command.params).forEach(function(key) {
@@ -589,34 +571,30 @@ function buildConfigurePatchLines(install, projectWorld) {
     });
   });
   Object.keys(changed).forEach(function(key) {
-    var patch = configurePatches[key];
-    if (!patch) throw new Error('Module ' + install.id + ' does not support configure key: ' + key);
+    var template = configureUpdateTemplates[key];
+    if (!template) throw new Error('Module ' + install.id + ' does not support configure key: ' + key);
     var values = {};
     Object.keys(install.params || {}).forEach(function(paramKey) { values[paramKey] = install.params[paramKey]; });
     var previousValues = {};
     Object.keys(changed[key] || {}).forEach(function(paramKey) { previousValues[paramKey] = changed[key][paramKey]; });
-    if (patch.findEvent) {
-      var sceneName = previousValues[patch.findEvent.sceneParam || 'scene'];
-      var indexParam = patch.findEvent.indexParam || (key + 'EventIndex');
-      values[indexParam] = findEventIndex(projectWorld, sceneName, renderTemplate(patch.findEvent.textPrefix, previousValues));
+    if (template.findEvent) {
+      var sceneName = previousValues[template.findEvent.sceneParam || 'scene'];
+      var indexParam = template.findEvent.indexParam || (key + 'EventIndex');
+      values[indexParam] = findEventIndex(projectWorld, sceneName, renderTemplate(template.findEvent.textPrefix, previousValues));
     }
-    patchItems.push({
-      eventIndex: patch.findEvent ? values[patch.findEvent.indexParam || (key + 'EventIndex')] : -1,
-      lines: (patch.dsl || []).map(function(line) {
+    updateItems.push({
+      eventIndex: template.findEvent ? values[template.findEvent.indexParam || (key + 'EventIndex')] : -1,
+      lines: (template.dsl || []).map(function(line) {
         return renderTemplate(line, values);
       })
     });
   });
-  patchItems.sort(function(a, b) {
+  updateItems.sort(function(a, b) {
     return b.eventIndex - a.eventIndex;
   });
-  return patchItems.reduce(function(all, item) {
+  return updateItems.reduce(function(all, item) {
     return all.concat(item.lines);
   }, []);
-}
-
-function compileModuleDslText(text, catalog, options) {
-  return compileModuleCommands(moduleDsl.parseModuleDsl(text), catalog, options);
 }
 
 function compileModuleCommands(commands, catalog, options) {
@@ -639,8 +617,8 @@ function compileModuleCommands(commands, catalog, options) {
     var effectiveParams = clone(install.params);
     Object.keys(slots).forEach(function(key) { effectiveParams[key] = slots[key]; });
     if (install.isBase) {
-      lines = lines.concat(buildSlotPatchLines(install, slotOverrides[install.id], options.projectWorld));
-      lines = lines.concat(buildConfigurePatchLines(install, options.projectWorld));
+      lines = lines.concat(buildSlotUpdateLines(install, slotOverrides[install.id], options.projectWorld));
+      lines = lines.concat(buildConfigureUpdateLines(install, options.projectWorld));
     } else {
       (manifest.compiler.dsl || []).forEach(function(line) {
         lines.push(renderTemplate(line, values));
@@ -689,8 +667,6 @@ module.exports = {
   loadProductModuleCatalog: loadProductModuleCatalog,
   validateProductModules: validateProductModules,
   buildProductModuleCards: buildProductModuleCards,
-  buildModuleDslReference: buildModuleDslReference,
-  compileModuleDslText: compileModuleDslText,
   compileModuleCommands: compileModuleCommands,
   makeNetworkPlan: makeNetworkPlan,
   saveTickRuntimeManifest: saveTickRuntimeManifest

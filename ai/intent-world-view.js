@@ -173,43 +173,27 @@ function buildEvidence(report) {
   });
 }
 
+function priorityForIssue(issue) {
+  if (issue.dimension === 'reward_pacing' || issue.dimension === 'survival_window' || issue.dimension === 'pressure_balance') {
+    return 'high';
+  }
+  return 'medium';
+}
+
 function actionFromIssue(issue, line) {
   var base = {
+    action: 'apply_semantic_repair',
     experienceDimension: safeText(issue.dimension, null),
     gameplayRole: safeText(issue.gameplayRole, null),
     repairVerb: safeText(issue.repairVerb, null),
-  };
-  if (issue.dimension === 'reward_pacing') {
-    return Object.assign(base, {
-      action: 'increase_reward_pacing',
-      priority: 'high',
-      reason: safeText(issue.message, 'collection rate below target'),
-      safeIntentDsl: line || null,
-    });
-  }
-  if (issue.dimension === 'survival_window' || issue.dimension === 'pressure_balance') {
-    return Object.assign(base, {
-      action: 'reduce_pressure',
-      priority: 'high',
-      reason: safeText(issue.message, 'pressure is too high'),
-      safeIntentDsl: line || null,
-    });
-  }
-  if (issue.dimension === 'action_access') {
-    return Object.assign(base, {
-      action: 'adjust_action_entry',
-      priority: 'medium',
-      reason: safeText(issue.message, 'action entry is uncomfortable'),
-      safeIntentDsl: line || null,
-      uiPolicy: 'action entry adjustment only',
-    });
-  }
-  return Object.assign(base, {
-    action: 'apply_semantic_repair',
-    priority: 'medium',
+    priority: priorityForIssue(issue),
     reason: safeText(issue.message, issue.kind),
     safeIntentDsl: line || null,
-  });
+  };
+  if (issue.dimension === 'action_access') {
+    base.uiPolicy = 'action entry adjustment only';
+  }
+  return base;
 }
 
 function buildExperienceTaxonomy() {
@@ -241,28 +225,14 @@ function buildRecommendedActions(report) {
   var issues = tickIssues(report);
   var lines = ((((report || {}).llmReport || {}).repairIntentDslLines) || (report || {}).repairIntentDslLines || []);
   if (!issues.length || !lines.length) {
-    return [
-      {
-        action: 'no_op',
-        priority: 'high',
-        reason: 'Current playtest evidence satisfies the active gameplay goals.',
-        safeIntentDsl: null,
-      },
-    ];
+    return [];
   }
   return issues.map(function(issue, index) {
     return actionFromIssue(issue, lines[index] || lines[0] || null);
   }).filter(function(action) {
     if (!action.safeIntentDsl) return true;
     return intentSurfaceGuard.detectProhibitedSurface(action.safeIntentDsl).length === 0;
-  }).concat([
-    {
-      action: 'no_op',
-      priority: 'low',
-      reason: 'Use only if the designer chooses not to change gameplay pacing this turn.',
-      safeIntentDsl: null,
-    },
-  ]);
+  });
 }
 
 function buildContextRequests(report) {
@@ -295,7 +265,7 @@ function buildContextRequests(report) {
   ];
   var issues = tickIssues(report);
   return {
-    policy: 'LLM2 may request more context before choosing an Intent DSL patch; candidate actions are not authoritative.',
+    policy: 'LLM2 may request more context before choosing Intent DSL; candidate actions are not authoritative.',
     defaultRead: issues.length ? ['tick_event_window', 'project_world_diff'] : ['project_world_diff'],
     available: requests,
   };
@@ -356,6 +326,9 @@ function assertSafeIntentWorldView(view) {
     if (text.indexOf(token) >= 0) throw new Error('IntentWorldView must not expose ' + token);
   });
   (view.recommendedActions || []).forEach(function(action) {
+    if (action.action !== 'apply_semantic_repair') {
+      throw new Error('IntentWorldView recommended actions must use the unified semantic repair action');
+    }
     if (action.safeIntentDsl && intentSurfaceGuard.detectProhibitedSurface(action.safeIntentDsl).length) {
       throw new Error('IntentWorldView recommended action contains prohibited Intent DSL');
     }

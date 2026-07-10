@@ -1,15 +1,15 @@
 var pipelineState = require('./pipeline-state');
 
-function applyStepPatch(state, step, view, patch, validationOptions, options) {
-  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-    throw new Error('Graph step ' + step.node + ' must return a path-object patch');
+function applyStepUpdate(state, step, view, update, validationOptions, options) {
+  if (!update || typeof update !== 'object' || Array.isArray(update)) {
+    throw new Error('Graph step ' + step.node + ' must return a path-object state update');
   }
   return {
-    state: pipelineState.applyNodeStatePatch(state, step.node, patch, validationOptions),
+    state: pipelineState.applyNodeStateUpdate(state, step.node, update, validationOptions),
     traceEntry: {
       node: step.node,
       reads: view.reads,
-      writes: Object.keys(patch),
+      writes: Object.keys(update),
       partial: !!options.allowPartial,
     },
   };
@@ -25,8 +25,8 @@ function runGraph(initialState, steps, options) {
       throw new Error('Graph step #' + index + ' must provide node and run(view)');
     }
     var view = pipelineState.makeNodeStateView(state, step.node, validationOptions);
-    var patch = step.run(view);
-    var applied = applyStepPatch(state, step, view, patch, validationOptions, options);
+    var update = step.run(view);
+    var applied = applyStepUpdate(state, step, view, update, validationOptions, options);
     state = applied.state;
     trace.push(applied.traceEntry);
   });
@@ -47,8 +47,8 @@ async function runGraphAsync(initialState, steps, options) {
       throw new Error('Graph step #' + index + ' must provide node and run(view)');
     }
     var view = pipelineState.makeNodeStateView(state, step.node, validationOptions);
-    var patch = await step.run(view);
-    var applied = applyStepPatch(state, step, view, patch, validationOptions, options);
+    var update = await step.run(view);
+    var applied = applyStepUpdate(state, step, view, update, validationOptions, options);
     state = applied.state;
     trace.push(applied.traceEntry);
   }

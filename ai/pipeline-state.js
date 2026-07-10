@@ -18,10 +18,17 @@ var PROHIBITED_AI_VISIBLE_KEYS = {
   internalDslText: true,
   dslText: true,
   dslLines: true,
+  repairAction: true,
   commandResults: true,
   failedCommands: true,
   projectJson: true,
 };
+
+var PROHIBITED_AI_VISIBLE_TEXT = [
+  'project.json',
+  'operation patch',
+  'operationPatch',
+];
 
 var NODE_CONTRACTS = {
   requirement: {
@@ -160,16 +167,16 @@ function makeNodeStateView(state, nodeName, options) {
   return view;
 }
 
-function applyNodeStatePatch(state, nodeName, patch, options) {
+function applyNodeStateUpdate(state, nodeName, update, options) {
   validatePipelineState(state, options);
-  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-    throw new Error('PipelineState node patch must be an object keyed by state path');
+  if (!update || typeof update !== 'object' || Array.isArray(update)) {
+    throw new Error('PipelineState node update must be an object keyed by state path');
   }
-  var writes = Object.keys(patch);
+  var writes = Object.keys(update);
   assertAllowedNodeAccess(nodeName, { writes: writes });
   var next = clone(state);
   writes.forEach(function(pathName) {
-    setPathValue(next, pathName, patch[pathName]);
+    setPathValue(next, pathName, update[pathName]);
   });
   validatePipelineState(next, options);
   return next;
@@ -228,6 +235,79 @@ function summarizeResultCard(card) {
     diagnostics: (card.diagnostics || []).length,
     warnings: (card.warnings || []).length,
     ownerTrace: clone(card.ownerTrace || []),
+  };
+}
+
+function makeStatePartitions(options, summaries) {
+  options = options || {};
+  summaries = summaries || {};
+  return {
+    requirement: {
+      owner: 'RequirementModel',
+      artifact: 'designBrief',
+      aiVisibleToLlm2: false,
+      evidence: {
+        hasDesignBrief: !!options.designBrief,
+        hasDiff: !!options.diff,
+      },
+    },
+    llm2Intent: {
+      owner: 'DSLAgent',
+      artifact: 'Intent DSL',
+      aiVisibleToLlm2: true,
+      evidence: {
+        intentDslLineCount: summaries.intentDslLineCount || 0,
+        reads: ['llm2.nodeInput'],
+      },
+    },
+    intentGraph: {
+      owner: 'IntentCompiler',
+      artifact: 'Intent Graph',
+      aiVisibleToLlm2: false,
+      evidence: summaries.intentGraphSummary || null,
+    },
+    resolver: {
+      owner: 'PlacementResolver',
+      artifact: 'Placement Plan',
+      aiVisibleToLlm2: false,
+      evidence: summaries.placementSummary || null,
+    },
+    compilerModuleFacts: {
+      owner: 'IntentCompiler/ModuleCompiler',
+      artifact: 'compiler-owned module facts',
+      aiVisibleToLlm2: false,
+      evidence: {
+        installedModules: (((options.bridgePlan || {}).installedModules) || []).length,
+        tickRuntimeModules: (((((options.bridgePlan || {}).tickRuntimeManifest) || {}).modules) || []).length,
+      },
+    },
+    runtimeExecutionPlan: {
+      owner: 'GDJSBridge/RuntimeExecutor',
+      artifact: 'runtime execution plan',
+      aiVisibleToLlm2: false,
+      evidence: {
+        internalDslLineCount: summaries.internalDslLineCount || 0,
+        runtimeAdapterRequirements: (((options.bridgePlan || {}).runtimeAdapterRequirements) || []).length,
+      },
+    },
+    projectWorld: {
+      owner: 'ProjectWorld',
+      artifact: 'semantic world snapshot',
+      aiVisibleToLlm2: false,
+      evidence: {
+        worldVersion: options.projectWorld ? options.projectWorld.worldVersion : null,
+        semanticHash: options.projectWorld ? options.projectWorld.semanticHash : null,
+      },
+    },
+    engineProjectFile: {
+      owner: 'RuntimeExecutor/GDJS',
+      artifact: 'engine project file',
+      aiVisibleToLlm2: false,
+      evidence: {
+        outputOnly: true,
+        storedInPipelineState: false,
+      },
+    },
   };
 }
 
@@ -297,10 +377,27 @@ function makeLlm2NodeInput(options) {
 
 function createPipelineState(options) {
   options = options || {};
+  if (Object.prototype.hasOwnProperty.call(options, 'patchKind')) {
+    throw new Error('PipelineState no longer accepts patchKind; use Intent artifact state');
+  }
+  var artifactKind = options.artifactKind || (options.intentGraph ? 'intent' : null);
+  if (artifactKind !== 'intent') {
+    throw new Error('PipelineState only accepts AI-first Intent state');
+  }
   var diagnostics = collectDiagnostics(options);
   var intentDslLines = normalizeDslLines(options.intentDslText);
   var internalDslLines = normalizeDslLines(options.internalDslText || options.dslText || (options.bridgePlan && options.bridgePlan.dslText));
   var llm2NodeInput = makeLlm2NodeInput(options);
+  var intentGraphSummary = summarizeIntentGraph(options.intentGraph);
+  var placementSummary = summarizePlacementPlan(options.placementPlan);
+  var bridgeSummary = summarizeBridgePlan(options.bridgePlan);
+  var resultCardSummary = summarizeResultCard(options.compileResultCard);
+  var statePartitions = makeStatePartitions(options, {
+    intentDslLineCount: intentDslLines.length,
+    internalDslLineCount: internalDslLines.length,
+    intentGraphSummary: intentGraphSummary,
+    placementSummary: placementSummary,
+  });
   return {
     schemaVersion: PIPELINE_STATE_SCHEMA_VERSION,
     stateKind: 'gamecastle-ai-first-intent-pipeline',
@@ -308,7 +405,8 @@ function createPipelineState(options) {
     graphTrace: clone(options.graphTrace || []),
     mode: options.mode || options.projectMode || null,
     batchLabel: options.batchLabel || null,
-    patchKind: options.patchKind || (options.intentGraph ? 'intent' : null),
+    artifactKind: artifactKind,
+    statePartitions: statePartitions,
     userRequest: {
       text: options.userRequest || options.prompt || null,
     },
@@ -324,20 +422,20 @@ function createPipelineState(options) {
     },
     intentGraph: {
       graph: clone(options.intentGraph || null),
-      summary: summarizeIntentGraph(options.intentGraph),
+      summary: intentGraphSummary,
     },
     resolver: {
       placementPlan: clone(options.placementPlan || null),
-      summary: summarizePlacementPlan(options.placementPlan),
+      summary: placementSummary,
     },
     compiler: {
       contracts: clone(options.intentContracts || null),
       resultCard: clone(options.compileResultCard || null),
-      resultCardSummary: summarizeResultCard(options.compileResultCard),
+      resultCardSummary: resultCardSummary,
     },
     bridge: {
       bridgePlan: clone(options.bridgePlan || null),
-      summary: summarizeBridgePlan(options.bridgePlan),
+      summary: bridgeSummary,
       internalDslText: options.internalDslText || options.dslText || (options.bridgePlan && options.bridgePlan.dslText) || '',
       internalDslLineCount: internalDslLines.length,
     },
@@ -381,6 +479,11 @@ function assertNoProhibitedAiVisibleSurface(value, label) {
     if (hits.length) {
       failures.push((label || 'value') + '.' + path.join('.') + ': ' + hits.join(','));
     }
+    PROHIBITED_AI_VISIBLE_TEXT.forEach(function(token) {
+      if (text.indexOf(token) >= 0) {
+        failures.push((label || 'value') + '.' + path.join('.') + ': ' + token);
+      }
+    });
   });
   if (failures.length) {
     throw new Error('PipelineState AI-visible surface leaked machine form(s): ' + failures.join('; '));
@@ -393,7 +496,7 @@ function validatePipelineState(state, options) {
     throw new Error('PipelineState schemaVersion mismatch');
   }
   validateNodeContractsSnapshot(state.nodeContracts);
-  if (state.patchKind === 'intent' && !options.allowPartial) {
+  if (state.artifactKind === 'intent' && !options.allowPartial) {
     if (!state.llm2 || !state.llm2.intentDslText) throw new Error('Intent PipelineState requires llm2.intentDslText');
     if (!state.intentGraph || !state.intentGraph.graph) throw new Error('Intent PipelineState requires intentGraph.graph');
     if (!state.resolver || !state.resolver.placementPlan) throw new Error('Intent PipelineState requires resolver.placementPlan');
@@ -417,7 +520,7 @@ module.exports = {
   getNodeContract: getNodeContract,
   assertAllowedNodeAccess: assertAllowedNodeAccess,
   makeNodeStateView: makeNodeStateView,
-  applyNodeStatePatch: applyNodeStatePatch,
+  applyNodeStateUpdate: applyNodeStateUpdate,
   validateNodeContractsSnapshot: validateNodeContractsSnapshot,
   validatePipelineState: validatePipelineState,
   assertNoProhibitedAiVisibleSurface: assertNoProhibitedAiVisibleSurface,

@@ -10,29 +10,29 @@
 - [x] 清理旧路径、临时拼装脚本和旧平台残留
 - [x] 生成稳定 `ProjectWorld` 和追加式 `ExecutionLedger`
 - [x] 建立 `ai/product-modules/` 唯一真相源（合并 capabilities），接入 LLM1/LLM2 上下文派生
-- [x] 接入 LLM2 repair loop：失败报告 -> 追加修复 DSL diff -> 再执行
-- [x] 建立 DSL fixture 测试器，覆盖状态边界、repair batch、缓存命中和超时防护
-- [x] 建立产品模块 DSL 骨架：product module manifests -> Module DSL -> compiler -> internal DSL -> ProjectWorld/tick runtime manifest
+- [x] Historical baseline: 旧 LLM2 repair loop 曾使用失败报告 -> DSL diff -> 再执行；当前 live Intent 路径已改为自然 Intent repair、owner-routed diagnostics 和 Semantic Iteration Memory
+- [x] 建立 Intent fixture 测试器，覆盖状态边界、repair batch、缓存命中和超时防护
+- [x] 建立产品模块编译骨架：product module manifests -> structured compiler commands -> internal DSL -> ProjectWorld/tick runtime manifest
 
 ## Phase 2: 模块化生成管线
 
 - [x] 清理 `templates/` 游戏原型样例，能力迁移到 product-modules
 - [x] 定义 AI-facing 产品模块 schema，保持 `core.*`、`shell.*`、`system.*`、`meta.*` 等粗颗粒模块边界
 - [x] 为产品模块预留 sync/authority/tickRate/seed，同步策略写入 `output/tick-runtime-manifest.json`
-- [x] Historical baseline: 将在线 LLM2 主路径切到 Module Patch Commander：Module DSL -> compiler -> internal DSL -> executor
+- [x] Historical baseline removed: 模块命令器在线编辑入口已被 AI-first Intent Commander 取代，旧文本入口不再保留
 - [x] 支持 `--continue` 基于 `ProjectWorld.modules` 追加模块，并拒绝重复安装已有模块
-- [x] 闭合 `configure module`：支持已安装模块参数 patch、sync-only metadata patch、非法配置 fail-fast
+- [x] 闭合 `configure module`：支持已安装模块参数 update template、sync-only metadata update、非法配置 fail-fast
 - [x] 增加测试审批闸门：`--approval-gate` 生成 pending approval，人工审查后 `--approve-pending` 执行
 - [x] 定义模块能力 schema：对象、变量、事件、依赖、兼容关系、运行时限制
 - [x] 明确 LLM1 只看轻量能力提示和当前体验摘要，不看模板结构
-- [x] 明确 LLM2 读取模块能力库、DSL 能力、参数约束和项目状态
-- [x] 明确只有 LLM2 输出确定性 patch
+- [x] 明确当前 LLM2 读取 IntentWorldView、安全 ProjectWorld、自然能力摘要、语义试玩证据和 owner-routed diagnostics；结构化模块能力、DSL 能力和参数约束留在 compiler owner 内部
+- [x] 明确只有 LLM2 输出自然 Intent DSL；确定性编译、低层执行计划和 runtime 写入由 compiler/resolver/bridge/runtime owners 负责
 - [ ] 把 `pipeline.js` 拆成设计、编译、执行、状态、provider 五个边界
 - [x] 用 `ai/gdevelop-truth/runtime-truth.json` 统一 GDevelop runtime 类型、include 和数据字段真相源
 
 ## Phase 3: 可反复迭代的项目状态
 
-- [x] AI-first Intent refactor: make Intent DSL the only live LLM2 product surface; do not keep Module DSL as a parallel compatibility path
+- [x] AI-first Intent refactor: make Intent DSL the only live LLM2 product surface; remove older command surfaces instead of keeping parallel compatibility paths
 - [x] Add `ai/intent-dsl.js`: parse natural Intent DSL into an AST that rejects coordinates, event indexes, GDJS instruction names, module ids, component ids, runtime adapter names, and `key=value` machine fields in the LLM2 surface
 - [x] Add `ai/intent-compiler.js`: compile Intent AST into a typed Intent Graph with things, components, relations, placements, semantic values, bindings, requirements, and diagnostics
 - [x] Add `ai/components/` component library schema and first manifests with split AI Manifest and Compiler Manifest views: virtual joystick, jump button, attack button, inventory
@@ -52,8 +52,8 @@
 - [x] Add `ai/gdjs-bridge.js`: compile Intent Graph and placement plan into internal low-level DSL and runtime adapter requirements
 - [x] Add GDJS Bridge Emission Contract: every emitted internal DSL target line carries owner/source/mechanism and optional route evidence
 - [x] Add Runtime Adapter Requirement Contract: adapter needs carry runtime owner/source/mechanism/route evidence for touch controls and inventory systems
-- [x] Add `ai/intent-runtime-codegen.js` and `--intent-dsl-file`: generate HTML intent runtime adapters from bridge requirements and execute Intent fixtures through the bridge path
-- [x] Switch live Stage2 LLM2 path to Intent Commander: Intent DSL -> Intent Compiler -> Bridge Plan -> internal DSL -> executor; keep Module DSL only as explicit fixture/internal migration input
+- [x] Add `ai/intent-runtime-codegen.js` and `--intent-fixture-file`: generate HTML intent runtime adapters from bridge requirements and execute Intent fixtures through the bridge path
+- [x] Switch live Stage2 LLM2 path to Intent Commander: Intent DSL -> Intent Compiler -> Bridge Plan -> internal DSL -> executor; remove old text fixture inputs
 - [x] Add Compile ResultCard with input, resolved symbols, auto-added defaults, placement decisions, emitted target code, warnings, and owner trace
 - [x] Add DSL Growth Control and Rewrite Contract checks: GDJS bridge issues must route to symbol rewrite, inheritance, component manifest, placement, bridge target rewrite, or owner diagnostics before any new LLM2-facing DSL concept is admitted
 - [x] Add bridge issue routing fixtures for touch controls, UI overlap, collision masks, inventory persistence, networked input, and awkward GDJS parameters; each fixture must prove no new LLM2-facing syntax was needed
@@ -66,7 +66,7 @@
 - [x] Sanitize LLM1 design briefs and diffs before Intent Commander prompts so coordinates, object sizes, variable values, and implementation defaults become natural game-world planning hints
 - [x] Move RequirementModel DesignBrief contract to natural placement hints and reject coordinates, object sizes, implementation colors, and runtime variable values at validation time
 - [x] Add a LangGraph-friendly `PipelineState` contract that separates internal graph slots from the LLM2-safe ProjectWorld projection
-- [x] Add official `@langchain/langgraph` runtime integration through `ai/langgraph-runtime.js`, using `StateGraph` while preserving contract-bound PipelineState view/patch access
+- [x] Add official `@langchain/langgraph` runtime integration through `ai/langgraph-runtime.js`, using `StateGraph` while preserving contract-bound PipelineState view/update access
 - [x] Keep a dependency-free local graph runner for fast contract tests and fallback validation
 - [x] Add canonical `ai/intent-pipeline-graph.js` owner order and graph entry that can run local async handlers or generate contract-bound LangGraph nodes
 - [x] Route live Intent approval/runtime PipelineState assembly through canonical graph-owned artifact replay backed by official LangGraph `StateGraph`, and persist five-node `graphTrace` evidence
@@ -85,10 +85,16 @@
 - [x] Add LLM2 Semantic Eval Loop: natural-language benchmark set -> batch Decision Loop runs -> request_context evidence -> optional Intent execution -> before/after Tick summaries -> transcripts
 - [x] Add Semantic Iteration Memory: executed Decision Loop turns persist before/after Tick improvement evidence, inject matching safe memory into the next LLM2 IntentWorldView, and steer follow-up decisions toward remaining semantic issues
 - [x] Add DeepSeek Cache Monitor: real Responses bridge usage listener -> hot-step cache hit rate -> 90% fail-closed gate for LLM2 stable-prefix debugging
-- [ ] Finish migrating stale docs and approval surfaces from Module DSL primary examples to Intent DSL primary examples; stale primary forms fail fast
-- [ ] 完整建立项目状态模型，区分 design brief、module graph、DSL patch、ProjectWorld、project.json
+- [x] Finish migrating stale docs and approval surfaces from older command primary examples to Intent DSL primary examples; stale primary forms fail fast
+- [x] Harden semantic count repair against stale IntentGraph summaries: count-based repair now uses current ProjectWorld instances as the floor before emitting natural Intent DSL, the bridge merges existing semantic groups on continue instead of appending duplicate action effects, and checks verify Decision Loop improvement/memory behavior instead of fixed fixture counts
+- [x] Tighten AI-first closure gates: README/architecture/AI docs now describe IntentWorldView -> Intent DSL -> Intent Graph/Resolver/Bridge -> Runtime -> Semantic Playtest/Repair Intent as the primary path, stale LLM2 low-level DSL edit wording fails doc-boundary checks, and semantic eval executed `apply_intent` cases fail on missing, regressed, or non-improving gameplay metrics
+- [x] Finish AI README drift cleanup: current pipeline, LLM-visible boundary, and repair-loop docs now describe safe IntentWorldView/Semantic Iteration Memory/owner-routed diagnostics instead of legacy LLM2 DSL diff repair, and doc-boundary checks forbid those stale primary-path phrases
+- [x] Collapse LLM2 candidate action names into the semantic repair model: IntentWorldView now emits unified `apply_semantic_repair` actions with `experienceDimension`, `gameplayRole`, and `repairVerb`; SemanticFeedback now renders repair Intent from repair verbs plus semantic parameters instead of preserving legacy repair action ids
+- [x] Make Semantic Iteration Memory consume metric regressions structurally: regressed semantic measurements now map back to experience dimensions, gameplay roles, and repair verbs even when the after-run tick report has no explicit issue rows, so the next Decision Loop can focus a real remaining issue instead of a free-text regression note
+- [x] Stabilize generated-output cleanup for repeated closure checks: pipeline output deletion is now idempotent for already-missing generated files and retries transient locked runtime files, with PipelineState coverage so verification failures do not masquerade as Intent/semantic regressions
+- [x] 完整建立项目状态模型：PipelineState.statePartitions 区分 design brief、Intent DSL、Intent Graph、Resolver plan、compiler-owned module facts、runtime execution plan、ProjectWorld、engine project file(output-only)，并由 check-pipeline-state 验证 LLM2 只读安全 nodeInput
 - [ ] 支持用户连续修改，例如“再难一点”“加入 Boss”“改成双人”
-- [ ] 让 LLM2 生成 DSL/operation patch，而不是每次重建全量项目
+- [x] 让 LLM2 生成自然 Intent DSL，并通过 Intent Graph/Resolver/Bridge 增量落到运行时；不再要求 LLM2 生成低层执行修改
 - [ ] 保留版本历史和回滚点
 - [ ] 在平台端展示当前模块、生成步骤和可试玩版本
 
@@ -125,7 +131,7 @@
 ## Phase 6: 质量门
 
 - [ ] 生成器单元测试
-- [x] DSL fixture 测试
-- [ ] `project.json` schema 校验
+- [x] Intent fixture 测试
+- [x] `project.json` schema 校验：`gdevelop-truth.validateProject()` 校验 output-only engine project 的顶层结构、layout/layer/instance/event/instruction、对象/行为 official truth 字段和实例引用，并由 `check-gdevelop-project-schema.js` 覆盖正负例
 - [ ] 浏览器运行时冒烟测试
 - [ ] 前端 lint/typecheck/build 纳入根命令

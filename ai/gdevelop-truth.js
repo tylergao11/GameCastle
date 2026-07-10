@@ -296,8 +296,201 @@ function validateRecordFields(kind, type, value, fields) {
   });
 }
 
+function assertObject(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(label + ' must be an object');
+  }
+}
+
+function assertArray(value, label) {
+  if (!Array.isArray(value)) {
+    throw new Error(label + ' must be an array');
+  }
+}
+
+function assertString(value, label) {
+  if (typeof value !== 'string') {
+    throw new Error(label + ' must be a string');
+  }
+}
+
+function assertNumber(value, label) {
+  if (typeof value !== 'number' || !isFinite(value)) {
+    throw new Error(label + ' must be a finite number');
+  }
+}
+
+function assertBoolean(value, label) {
+  if (typeof value !== 'boolean') {
+    throw new Error(label + ' must be a boolean');
+  }
+}
+
+function indexProjectObjects(project, layout) {
+  var byName = {};
+  (project.objects || []).forEach(function(object) {
+    byName[object.name] = object;
+  });
+  ((layout || {}).objects || []).forEach(function(object) {
+    byName[object.name] = object;
+  });
+  return byName;
+}
+
+function validateVariables(variables, label) {
+  assertArray(variables, label);
+  variables.forEach(function(variable, index) {
+    assertObject(variable, label + '[' + index + ']');
+    assertString(variable.name, label + '[' + index + '].name');
+    assertNumber(variable.type, label + '[' + index + '].type');
+    if (variable.value !== undefined) assertString(String(variable.value), label + '[' + index + '].value');
+  });
+}
+
+function validateInstruction(instruction, label) {
+  assertObject(instruction, label);
+  assertObject(instruction.type, label + '.type');
+  assertBoolean(instruction.type.inverted, label + '.type.inverted');
+  assertString(instruction.type.value, label + '.type.value');
+  assertArray(instruction.parameters, label + '.parameters');
+  instruction.parameters.forEach(function(parameter, index) {
+    if (typeof parameter !== 'string') {
+      throw new Error(label + '.parameters[' + index + '] must be a string');
+    }
+  });
+}
+
+function validateEvent(event, label) {
+  assertObject(event, label);
+  assertBoolean(event.disabled, label + '.disabled');
+  assertBoolean(event.folded, label + '.folded');
+  assertString(event.type, label + '.type');
+  assertArray(event.conditions, label + '.conditions');
+  assertArray(event.actions, label + '.actions');
+  assertArray(event.events, label + '.events');
+  event.conditions.forEach(function(condition, index) {
+    validateInstruction(condition, label + '.conditions[' + index + ']');
+  });
+  event.actions.forEach(function(action, index) {
+    validateInstruction(action, label + '.actions[' + index + ']');
+  });
+  event.events.forEach(function(child, index) {
+    validateEvent(child, label + '.events[' + index + ']');
+  });
+}
+
+function validateLayer(layer, label) {
+  assertObject(layer, label);
+  assertString(layer.name, label + '.name');
+  assertBoolean(layer.visibility, label + '.visibility');
+  assertArray(layer.cameras, label + '.cameras');
+  assertArray(layer.effects, label + '.effects');
+  layer.cameras.forEach(function(camera, index) {
+    assertObject(camera, label + '.cameras[' + index + ']');
+    ['height', 'width', 'viewportBottom', 'viewportLeft', 'viewportRight', 'viewportTop'].forEach(function(field) {
+      assertNumber(camera[field], label + '.cameras[' + index + '].' + field);
+    });
+    assertBoolean(camera.defaultSize, label + '.cameras[' + index + '].defaultSize');
+    assertBoolean(camera.defaultViewport, label + '.cameras[' + index + '].defaultViewport');
+  });
+}
+
+function validateInstance(instance, label, objectIndex) {
+  assertObject(instance, label);
+  assertString(instance.name, label + '.name');
+  if (!objectIndex[instance.name]) throw new Error(label + ' references unknown object: ' + instance.name);
+  assertNumber(instance.x, label + '.x');
+  assertNumber(instance.y, label + '.y');
+  assertNumber(instance.zOrder, label + '.zOrder');
+  assertNumber(instance.angle, label + '.angle');
+  assertBoolean(instance.customSize, label + '.customSize');
+  assertNumber(instance.width, label + '.width');
+  assertNumber(instance.height, label + '.height');
+  assertString(instance.layer, label + '.layer');
+  assertArray(instance.numberProperties, label + '.numberProperties');
+  assertArray(instance.stringProperties, label + '.stringProperties');
+  assertArray(instance.initialVariables, label + '.initialVariables');
+}
+
+function validateProjectShape(project) {
+  assertObject(project, 'Project');
+  assertObject(project.gdVersion, 'Project.gdVersion');
+  ['build', 'major', 'minor', 'revision'].forEach(function(field) {
+    assertNumber(project.gdVersion[field], 'Project.gdVersion.' + field);
+  });
+  assertObject(project.properties, 'Project.properties');
+  assertString(project.properties.name, 'Project.properties.name');
+  assertNumber(project.properties.windowWidth, 'Project.properties.windowWidth');
+  assertNumber(project.properties.windowHeight, 'Project.properties.windowHeight');
+  assertArray(project.properties.extensions, 'Project.properties.extensions');
+  project.properties.extensions.forEach(function(extension, index) {
+    assertObject(extension, 'Project.properties.extensions[' + index + ']');
+    assertString(extension.name, 'Project.properties.extensions[' + index + '].name');
+  });
+  [
+    'resources',
+    'objects',
+    'objectsGroups',
+    'variables',
+    'layouts',
+    'usedResources',
+    'externalEvents',
+    'eventsFunctionsExtensions',
+    'externalLayouts',
+    'externalSourceFiles',
+  ].forEach(function(field) {
+    if (field === 'resources') assertObject(project.resources, 'Project.resources');
+    else assertArray(project[field], 'Project.' + field);
+  });
+  assertArray(project.resources.resources, 'Project.resources.resources');
+  assertArray(project.resources.resourceFolders, 'Project.resources.resourceFolders');
+  validateVariables(project.variables, 'Project.variables');
+  if (project.layouts.length) {
+    assertString(project.firstLayout, 'Project.firstLayout');
+    if (!project.layouts.some(function(layout) { return layout.name === project.firstLayout; })) {
+      throw new Error('Project.firstLayout must reference an existing layout');
+    }
+  }
+}
+
+function validateLayout(project, layout, index) {
+  var label = 'Project.layouts[' + index + ']';
+  assertObject(layout, label);
+  assertString(layout.name, label + '.name');
+  assertString(layout.mangledName, label + '.mangledName');
+  assertBoolean(layout.disableInputWhenNotFocused, label + '.disableInputWhenNotFocused');
+  assertBoolean(layout.standardSortMethod, label + '.standardSortMethod');
+  assertBoolean(layout.stopSoundsOnStartup, label + '.stopSoundsOnStartup');
+  assertArray(layout.instances, label + '.instances');
+  assertArray(layout.objects, label + '.objects');
+  assertArray(layout.events, label + '.events');
+  assertArray(layout.layers, label + '.layers');
+  assertArray(layout.variables, label + '.variables');
+  assertArray(layout.objectsGroups, label + '.objectsGroups');
+  assertArray(layout.behaviorsSharedData, label + '.behaviorsSharedData');
+  assertArray(layout.usedResources, label + '.usedResources');
+  validateVariables(layout.variables, label + '.variables');
+  layout.layers.forEach(function(layer, layerIndex) {
+    validateLayer(layer, label + '.layers[' + layerIndex + ']');
+  });
+  var objectIndex = indexProjectObjects(project, layout);
+  layout.instances.forEach(function(instance, instanceIndex) {
+    validateInstance(instance, label + '.instances[' + instanceIndex + ']', objectIndex);
+  });
+  layout.events.forEach(function(event, eventIndex) {
+    validateEvent(event, label + '.events[' + eventIndex + ']');
+  });
+}
+
 function validateProject(project) {
+  validateProjectShape(project);
   function visitObject(object) {
+    assertObject(object, 'Project object');
+    assertString(object.name, 'Project object.name');
+    assertString(object.type, 'Project object.type');
+    assertArray(object.variables, 'Project object.variables');
+    assertArray(object.behaviors, 'Project object.behaviors');
+    assertArray(object.effects, 'Project object.effects');
     var objectRecord = requireObjectType(object.type);
     validateRecordFields('Object', object.type, object, objectRecord.dataFields);
     (object.behaviors || []).forEach(function(behavior) {
@@ -308,6 +501,9 @@ function validateProject(project) {
     });
   }
   visitProjectObjects(project, visitObject);
+  (project.layouts || []).forEach(function(layout, index) {
+    validateLayout(project, layout, index);
+  });
 }
 
 module.exports = {

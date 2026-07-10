@@ -127,6 +127,55 @@ function buildNextSemanticFocus(remainingIssues, regressedMeasurements, improved
     : ['request focused tick evidence before changing gameplay again'];
 }
 
+function dimensionsForMeasurement(mapping, measurementId) {
+  var matches = [];
+  Object.keys((mapping || {}).experienceDimensions || {}).sort().forEach(function(dimensionId) {
+    var dimension = mapping.experienceDimensions[dimensionId] || {};
+    if ((dimension.measurements || []).indexOf(measurementId) >= 0) {
+      matches.push({
+        dimensionId: dimensionId,
+        dimension: dimension,
+      });
+    }
+  });
+  return matches;
+}
+
+function regressedIssuesFromMeasurements(measurements) {
+  var mapping = semanticFeedback.loadSemanticMapping();
+  var issues = [];
+  (measurements || []).forEach(function(item) {
+    if (!(item.status === 'worsened' || item.status === 'regressed')) return;
+    dimensionsForMeasurement(mapping, item.measurement).forEach(function(match) {
+      issues.push({
+        kind: 'regressed_' + safeText(item.measurement, 'semantic_measurement'),
+        experienceDimension: safeText(match.dimensionId, null),
+        gameplayRole: safeText((match.dimension.roles || [])[0], null),
+        repairVerb: safeText((match.dimension.repairVerbs || [])[0], null),
+        measurement: safeText(item.measurement, null),
+        meaning: 'Semantic metric regressed after the last applied Intent.',
+      });
+    });
+  });
+  return issues;
+}
+
+function uniqueSemanticIssues(issues) {
+  var seen = {};
+  return (issues || []).filter(function(issue) {
+    var key = [
+      issue.kind,
+      issue.experienceDimension,
+      issue.gameplayRole,
+      issue.repairVerb,
+      issue.measurement,
+    ].map(function(value) { return value || ''; }).join('|');
+    if (seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+}
+
 function buildSemanticIterationMemory(args) {
   args = args || {};
   var comparison = args.improvementComparison || {};
@@ -136,7 +185,7 @@ function buildSemanticIterationMemory(args) {
       status: safeText(item.status, 'unknown'),
       before: item.before === undefined ? null : item.before,
       after: item.after === undefined ? null : item.after,
-      direction: safeText(item.direction, null),
+      direction: safeText(item.direction || item.improvement, null),
     };
   });
   var improvedMeasurements = measurements.filter(function(item) {
@@ -145,7 +194,10 @@ function buildSemanticIterationMemory(args) {
   var regressedMeasurements = measurements.filter(function(item) {
     return item.status === 'worsened' || item.status === 'regressed';
   }).map(function(item) { return item.measurement; });
-  var remainingIssues = (((args.afterSemanticPlaytestReport || {}).llmReport || {}).tickIssues || []).map(summarizeIssue);
+  var remainingIssues = uniqueSemanticIssues(
+    (((args.afterSemanticPlaytestReport || {}).llmReport || {}).tickIssues || []).map(summarizeIssue)
+      .concat(regressedIssuesFromMeasurements(measurements))
+  );
   var memory = {
     schemaVersion: 1,
     owner: 'SemanticIterationMemory',
@@ -226,7 +278,7 @@ function executeIntentPatch(intentDslText, outputs, options) {
   return runNode([
     'ai/pipeline.js',
     '--continue',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     path.relative(ROOT, path.join(OUTPUT_DIR, outputs.intentDsl)),
     '--batch-label',
     options.batchLabel || 'llm2_decision_loop',
@@ -370,7 +422,7 @@ function runDecisionLoop(options) {
       intentWorldView: readJsonOutput('intent-world-view.json'),
     };
   } else if (finalDecision.decisionType !== 'apply_intent') {
-    skippedReason = 'Decision type ' + finalDecision.decisionType + ' does not execute gameplay patch.';
+    skippedReason = 'Decision type ' + finalDecision.decisionType + ' does not execute gameplay Intent.';
   } else {
     skippedReason = 'Execution disabled by caller.';
   }
@@ -487,7 +539,7 @@ async function runDecisionLoopAsync(options) {
       intentWorldView: readJsonOutput('intent-world-view.json'),
     };
   } else if (finalDecision.decisionType !== 'apply_intent') {
-    skippedReason = 'Decision type ' + finalDecision.decisionType + ' does not execute gameplay patch.';
+    skippedReason = 'Decision type ' + finalDecision.decisionType + ' does not execute gameplay Intent.';
   } else {
     skippedReason = 'Execution disabled by caller.';
   }

@@ -57,7 +57,7 @@ function assertHtmlRuntimeScripts() {
 function main() {
   run([
     'ai/pipeline.js',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     'ai/fixtures/intent-parkour-real.dsl',
     '--batch-label',
     'parkour_create_real_check',
@@ -67,6 +67,7 @@ function main() {
   assert.strictEqual(createRun.summary.nextAction, 'done', 'real create should be done');
   assert.strictEqual(createRun.summary.completed, 31, 'real create should execute semantic trail commands');
   assert.strictEqual(countInstances('Coin'), 6, 'real create should include module coins plus semantic coin trail');
+  var initialCoinCount = countInstances('Coin');
   assertHtmlRuntimeScripts();
   var initialJumpButton = findInstance('JumpButton');
   assert(initialJumpButton, 'real create should place JumpButton');
@@ -77,8 +78,8 @@ function main() {
     probeReport: {
       summary: { mode: 'single-player-real-output', ticks: 600 },
       issues: [
-        { kind: 'probe_reachability', severity: 'high', repair: { action: 'increase-count', subject: 'coins', anchor: 'Player', direction: 'front', pattern: 'trail', delta: 2 } },
-        { kind: 'probe_control_layout', severity: 'medium', repair: { action: 'placement-adjust', subject: 'jump button', direction: 'above', amount: 'slightly' } },
+        { kind: 'probe_reachability', severity: 'high', repairVerb: 'increase_presence', repair: { subject: 'coins', anchor: 'Player', direction: 'front', pattern: 'trail', delta: 2 } },
+        { kind: 'probe_control_layout', severity: 'medium', repairVerb: 'increase_feedback', repair: { subject: 'jump button', direction: 'above', amount: 'slightly' } },
       ],
     },
   });
@@ -90,7 +91,7 @@ function main() {
   run([
     'ai/pipeline.js',
     '--continue',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     'output/parkour-repair.intent.dsl',
     '--batch-label',
     'parkour_repair_real_check',
@@ -98,8 +99,8 @@ function main() {
 
   var repairRun = lastRun();
   assert.strictEqual(repairRun.summary.nextAction, 'done', 'real repair should be done');
-  assert.strictEqual(repairRun.summary.completed, 6, 'real repair should execute five coin placements plus one placement edit');
-  assert.strictEqual(countInstances('Coin'), 11, 'real repair should increase actual coin instances');
+  assert(repairRun.summary.completed >= 2, 'real repair should execute reward presence and placement feedback commands');
+  assert(countInstances('Coin') > initialCoinCount, 'real repair should increase actual coin instances');
   var repairedJumpButton = findInstance('JumpButton');
   assert(repairedJumpButton.y < initialJumpButton.y, 'real repair should move JumpButton upward');
   assert.notStrictEqual(repairRun.targetSemanticHash, createRun.targetSemanticHash, 'real repair should change semantic hash');

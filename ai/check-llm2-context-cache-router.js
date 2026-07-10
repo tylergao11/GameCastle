@@ -45,7 +45,7 @@ function makeView(options) {
     },
     evidence: issues,
     contextRequests: {
-      policy: 'LLM2 may request more context before choosing an Intent DSL patch; candidate actions are not authoritative.',
+      policy: 'LLM2 may request more context before choosing Intent DSL; candidate actions are not authoritative.',
       defaultRead: issues.length ? ['tick_event_window', 'project_world_diff'] : ['project_world_diff'],
       available: [
         { id: 'project_world_diff', defaultMode: 'diff' },
@@ -55,20 +55,17 @@ function makeView(options) {
         { id: 'ui_template_policy', defaultMode: 'template-choice' },
       ],
     },
-    recommendedActions: options.recommendedActions || [
+    recommendedActions: options.recommendedActions || (issues.length ? [
       {
-        action: 'increase_reward_pacing',
+        action: 'apply_semantic_repair',
+        experienceDimension: 'reward_pacing',
+        gameplayRole: 'reward',
+        repairVerb: 'increase_presence',
         priority: 'high',
         reason: 'collection rate below target',
         safeIntentDsl: 'place coins near Player front as trail count 5',
       },
-      {
-        action: 'no_op',
-        priority: 'low',
-        reason: 'designer may skip this turn',
-        safeIntentDsl: null,
-      },
-    ],
+    ] : []),
     recommendationPolicy: {
       authority: 'candidate-only',
       finalDecisionOwner: 'LLM2',
@@ -124,7 +121,10 @@ function main() {
       pressure: 'too_high',
       recommendedActions: [
         {
-          action: 'reduce_pressure',
+          action: 'apply_semantic_repair',
+          experienceDimension: 'pressure_balance',
+          gameplayRole: 'pressure',
+          repairVerb: 'soften_pressure',
           priority: 'high',
           reason: 'enemy density high',
           safeIntentDsl: 'reduce enemy pressure near Player early route',
@@ -135,6 +135,42 @@ function main() {
   });
   assertMode('focused threat density request', threatDensity, 'recommended_pack');
   assert(threatDensity.dynamicTail.requestedContext.indexOf('tick_event_window') >= 0, 'recommended_pack should request tick_event_window');
+
+  var rogueCandidateRoute = route({
+    intentWorldView: makeView({
+      baseHash: 'same_hash',
+      targetHash: 'same_hash',
+      issues: [{ tick: 160, issue: 'reward_pacing_low', meaning: 'reward pacing low' }],
+      recommendedActions: [
+        {
+          action: 'increase_reward_count',
+          repairAction: 'increase-count',
+          experienceDimension: 'reward_pacing',
+          gameplayRole: 'reward',
+          repairVerb: 'increase_presence',
+          priority: 'high',
+          reason: 'legacy action should not be exposed',
+          safeIntentDsl: 'place coins near Player front as trail count 5',
+        },
+        {
+          action: 'apply_semantic_repair',
+          experienceDimension: 'reward_pacing',
+          gameplayRole: 'reward',
+          repairVerb: 'increase_presence',
+          priority: 'medium',
+          reason: 'safe unified action',
+          safeIntentDsl: 'place coins near Player front as trail count 4',
+        },
+      ],
+    }),
+    userRequest: '金币多一点',
+  });
+  assert.strictEqual(rogueCandidateRoute.dynamicTail.candidateActions.length, 1, 'router should expose only unified semantic repair candidates');
+  assert.strictEqual(rogueCandidateRoute.dynamicTail.candidateActions[0].action, 'apply_semantic_repair', 'router should keep unified semantic action');
+  assert.strictEqual(rogueCandidateRoute.dynamicTail.candidateActionAudit.inputCount, 2, 'router should audit input candidate count');
+  assert.strictEqual(rogueCandidateRoute.dynamicTail.candidateActionAudit.rejectedCount, 1, 'router should audit rejected rogue candidate count');
+  assert(JSON.stringify(rogueCandidateRoute).indexOf('repairAction') < 0, 'router output must not expose legacy repair action ids');
+  assert(JSON.stringify(rogueCandidateRoute).indexOf('increase_reward_count') < 0, 'router output must not expose rogue action names');
 
   var repeatedFailureWithPrefix = route({
     intentWorldView: makeView({ baseHash: 'hash_a', targetHash: 'hash_b', issues: [{ tick: 160, issue: 'reward_pacing_low' }] }),
@@ -162,7 +198,10 @@ function main() {
     issues: [{ tick: 90, issue: 'pressure_balance_high', meaning: 'pressure balance high' }],
     recommendedActions: [
       {
-        action: 'reduce_pressure',
+        action: 'apply_semantic_repair',
+        experienceDimension: 'pressure_balance',
+        gameplayRole: 'pressure',
+        repairVerb: 'soften_pressure',
         priority: 'high',
         reason: 'enemy density high',
         safeIntentDsl: 'reduce enemy pressure near Player early route',

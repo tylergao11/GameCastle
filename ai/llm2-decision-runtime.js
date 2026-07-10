@@ -113,7 +113,7 @@ function scoreCandidate(action, requestHints, memory) {
 function chooseCandidate(contextRoute, requestHints) {
   var memory = semanticIterationMemory(contextRoute);
   var actions = candidateActions(contextRoute).filter(function(action) {
-    return action.action !== 'no_op' && action.safeIntentDsl;
+    return action.action === 'apply_semantic_repair' && action.safeIntentDsl;
   });
   if (!actions.length) return null;
   return actions.map(function(action, index) {

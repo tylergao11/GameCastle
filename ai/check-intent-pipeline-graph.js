@@ -20,7 +20,7 @@ function buildPartialState() {
   return pipelineState.createPipelineState({
     mode: 'fixture-new',
     batchLabel: 'intent_pipeline_graph_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: [
       'make a mobile platformer',
       'set placement object=Player x=100 y=400 scene=Game',
@@ -56,7 +56,7 @@ async function buildRuntimeArtifacts(compiled, intentDslText) {
     });
   }
   var intent = {
-    patchKind: 'intent',
+    artifactKind: 'intent',
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -201,7 +201,7 @@ async function main() {
   var artifactState = await intentPipelineGraph.makePipelineStateFromArtifacts({
     mode: 'fixture-new',
     batchLabel: 'intent_pipeline_graph_artifact_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: 'make a mobile platformer\nset placement object=Player x=100 y=400 scene=Game',
     designBrief: {
       theme: 'mobile platformer',

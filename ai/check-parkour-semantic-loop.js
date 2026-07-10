@@ -48,6 +48,11 @@ function countInstances(project, objectName) {
   return count;
 }
 
+function extractTrailCount(line) {
+  var match = String(line || '').match(/count (\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
 async function main() {
   var createIntent = [
     'make a mobile platformer',
@@ -108,23 +113,30 @@ async function main() {
         {
           kind: 'probe_reachability',
           severity: 'high',
-          repair: { action: 'increase-count', subject: 'coins', anchor: 'Player', direction: 'front', pattern: 'trail', delta: 2 },
+          repairVerb: 'increase_presence',
+          repair: { subject: 'coins', anchor: 'Player', direction: 'front', pattern: 'trail', delta: 2 },
         },
         {
           kind: 'probe_control_layout',
           severity: 'medium',
-          repair: { action: 'placement-adjust', subject: 'jump button', direction: 'above', amount: 'slightly' },
+          repairVerb: 'increase_feedback',
+          repair: { subject: 'jump button', direction: 'above', amount: 'slightly' },
         },
       ],
     },
   });
 
   assert.strictEqual(feedback.summary.nextAction, 'repair-intent', 'feedback should produce repair intent');
-  assert(feedback.repairIntentDslLines.indexOf('place coins near Player front as trail count 5') >= 0, 'feedback should repair collectible density semantically');
+  var coinRepairLine = feedback.repairIntentDslLines.find(function(line) {
+    return /^place coins near Player front as trail count \d+$/.test(line);
+  });
+  var coinRepairCount = extractTrailCount(coinRepairLine);
+  assert(coinRepairCount > countInstances(project, 'Coin'), 'feedback should repair collectible density from current world instances');
   assert(feedback.repairIntentDslLines.indexOf('adjust JumpButton placement above slightly') >= 0, 'feedback should repair control placement semantically');
   assert(feedback.repairIntentDslText.indexOf('x=') < 0, 'feedback repair must not contain coordinates');
 
   var repairCompiled = intentCompiler.compileIntentDsl(feedback.repairIntentDslText, {
+    baseWorld: createWorld,
     placementContext: {
       objectBounds: makeObjectBounds(project),
     },
@@ -134,7 +146,7 @@ async function main() {
     return edit.subject === 'JumpButton' && edit.direction === 'above';
   }), 'repair graph should contain semantic placement edit');
   assert(repairCompiled.graph.placements.some(function(placement) {
-    return placement.subject === 'CoinsGroup' && placement.count === 5;
+    return placement.subject === 'CoinsGroup' && placement.count === coinRepairCount;
   }), 'repair graph should contain updated semantic coin trail count');
 
   var repairResults = await executeBridgePlan(project, repairCompiled.bridgePlan, 'parkour_repair');
@@ -164,7 +176,7 @@ async function main() {
   });
 
   assert.strictEqual(repairReport.summary.nextAction, 'done', 'semantic repair should execute cleanly');
-  assert(countInstances(project, 'Coin') > 6, 'repair should add reachable collectible trail instances');
+  assert.strictEqual(countInstances(project, 'Coin'), coinRepairCount, 'repair should merge reachable collectible trail instances to the target count');
   assert.notStrictEqual(repairWorld.semanticHash, createWorld.semanticHash, 'repair should change semantic world state');
   assert.strictEqual(repairWorld.worldVersion, createWorld.worldVersion + 1, 'repair should advance ProjectWorld version');
   assert(JSON.stringify(projectWorld.sanitizeProjectWorldForIntentPrompt(repairWorld)).indexOf('"x"') < 0, 'sanitized repaired world must hide coordinates');

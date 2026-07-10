@@ -57,8 +57,8 @@ function validateCapabilityCatalog(schema, cards) {
     if (!card.id) throw new Error('Capability missing id from source module ' + (card._sourceModule || 'unknown'));
     if (seen[card.id]) throw new Error('Duplicate capability id: ' + card.id);
     seen[card.id] = true;
-    if (!card.dsl || !Array.isArray(card.dsl.commands)) {
-      throw new Error('Capability ' + card.id + ' must define dsl.commands (source: ' + (card._sourceModule || 'unknown') + ')');
+    if (card.dsl) {
+      throw new Error('Capability ' + card.id + ' must not expose low-level DSL examples (source: ' + (card._sourceModule || 'unknown') + ')');
     }
   });
 }
@@ -69,48 +69,8 @@ function buildCreativeCapabilitySummary(catalog) {
   }).join('\n');
 }
 
-function buildDslReference(catalog) {
-  var commandMap = {};
-  catalog.cards.forEach(function(card) {
-    (card.dsl.commands || []).forEach(function(command) {
-      commandMap[command] = true;
-    });
-  });
-  return Object.keys(commandMap).sort().map(function(command) {
-    return '- ' + command;
-  }).join('\n');
-}
-
-function buildCompilerCapabilityContext(catalog) {
-  return catalog.cards.map(function(card) {
-    return {
-      id: card.id,
-      name: card.name,
-      summary: card.summary,
-      provides: card.provides,
-      requires: card.requires,
-      dsl: card.dsl,
-      constraints: card.constraints,
-      networking: card.networking,
-    };
-  });
-}
-
-function buildCompilerPromptSection(catalog) {
-  return [
-    '=== Capability source of truth ===',
-    JSON.stringify(buildCompilerCapabilityContext(catalog), null, 2),
-    '',
-    '=== DSL commands available from capabilities ===',
-    buildDslReference(catalog),
-  ].join('\n');
-}
-
 module.exports = {
   loadCapabilityCatalog: loadCapabilityCatalog,
   validateCapabilityCatalog: validateCapabilityCatalog,
   buildCreativeCapabilitySummary: buildCreativeCapabilitySummary,
-  buildCompilerCapabilityContext: buildCompilerCapabilityContext,
-  buildCompilerPromptSection: buildCompilerPromptSection,
-  buildDslReference: buildDslReference,
 };

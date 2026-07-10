@@ -39,17 +39,17 @@ function makeLangGraphNode(nodeName, handler, options) {
     var state = unwrapPipelineState(graphState);
     pipelineState.validatePipelineState(state, validationOptions);
     var view = pipelineState.makeNodeStateView(state, nodeName, validationOptions);
-    var patch = await handler(view);
-    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-      throw new Error('LangGraph node ' + nodeName + ' must return a path-object patch');
+    var update = await handler(view);
+    if (!update || typeof update !== 'object' || Array.isArray(update)) {
+      throw new Error('LangGraph node ' + nodeName + ' must return a path-object state update');
     }
-    var nextState = pipelineState.applyNodeStatePatch(state, nodeName, patch, validationOptions);
+    var nextState = pipelineState.applyNodeStateUpdate(state, nodeName, update, validationOptions);
     return {
       pipelineState: nextState,
       graphTrace: appendTrace(graphState, {
         node: nodeName,
         reads: view.reads,
-        writes: Object.keys(patch),
+        writes: Object.keys(update),
         partial: !!validationOptions.allowPartial,
       }),
     };

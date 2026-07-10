@@ -1,6 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
+var diagnosticRouter = require('./intent-diagnostic-router');
 var intentSurfaceGuard = require('./intent-surface-guard');
 
 var WORLD_SCHEMA_VERSION = 1;
@@ -224,6 +225,7 @@ function normalizeDslLines(textOrLines) {
 
 function summarizeDiagnostics(list) {
   return compactList(list, function(item) {
+    diagnosticRouter.assertRoutedDiagnostic(item);
     return {
       owner: item.owner || null,
       category: item.category || item.code || null,
@@ -249,6 +251,9 @@ function countBy(list, key) {
 
 function summarizeIntentArtifacts(options) {
   options = options || {};
+  if (Object.prototype.hasOwnProperty.call(options, 'patchKind')) {
+    throw new Error('Intent artifacts no longer accept patchKind; use artifactKind');
+  }
   var intentGraph = options.intentGraph || null;
   var placementPlan = options.placementPlan || null;
   var bridgePlan = options.bridgePlan || null;
@@ -265,7 +270,7 @@ function summarizeIntentArtifacts(options) {
 
   return {
     schemaVersion: 1,
-    patchKind: options.patchKind || 'intent',
+    artifactKind: options.artifactKind || 'intent',
     intentDslLines: intentDslLines,
     contracts: intentContracts || null,
     intentGraph: intentGraph ? {
@@ -884,6 +889,14 @@ function makeExecutionReport(options) {
   var intentSummary = options.intent ? summarizeIntentArtifacts(options.intent) : null;
   var intentFulfillment = evaluateIntentFulfillment(world, intentSummary);
   var fulfillmentMissing = intentFulfillment && intentFulfillment.missing > 0;
+  var failedDiagnostics = failed.map(function(result) {
+    return diagnosticRouter.routeDiagnostic('internal-target-execution', {
+      category: 'runtime-execution',
+      commandId: result.commandId,
+      command: result.command || dslLines[result.index] || result.label,
+      message: result.message || 'internal target command failed',
+    });
+  });
 
   return {
     schemaVersion: LEDGER_SCHEMA_VERSION,
@@ -897,7 +910,8 @@ function makeExecutionReport(options) {
       total: total,
       completed: completed.length,
       failed: failed.length,
-      nextAction: failed.length ? 'repair' : (fulfillmentMissing ? 'route-to-owner' : 'done'),
+      nextAction: failed.length ? 'route-to-owner' : (fulfillmentMissing ? 'route-to-owner' : 'done'),
+      failedDiagnostics: failedDiagnostics.length,
       intentFulfillment: intentFulfillment ? {
         status: intentFulfillment.status,
         total: intentFulfillment.total,
@@ -908,17 +922,18 @@ function makeExecutionReport(options) {
     },
     intent: intentSummary,
     intentFulfillment: intentFulfillment,
+    failedDiagnostics: failedDiagnostics,
     completed: completed.map(function(result) {
       return {
         commandId: result.commandId,
-        command: dslLines[result.index] || result.label,
+        command: result.command || dslLines[result.index] || result.label,
         message: result.message,
       };
     }),
     failed: failed.map(function(result) {
       return {
         commandId: result.commandId,
-        command: dslLines[result.index] || result.label,
+        command: result.command || dslLines[result.index] || result.label,
         message: result.message,
       };
     }),

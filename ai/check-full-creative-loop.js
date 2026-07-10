@@ -43,7 +43,10 @@ function makeThreatIntentWorldView() {
     },
     recommendedActions: [
       {
-        action: 'reduce_pressure',
+        action: 'apply_semantic_repair',
+        experienceDimension: 'pressure_balance',
+        gameplayRole: 'pressure',
+        repairVerb: 'soften_pressure',
         priority: 'high',
         reason: 'enemy density high',
         safeIntentDsl: 'reduce enemy pressure near Player early route',
@@ -73,7 +76,10 @@ function main() {
   assert.strictEqual(report.mockLlm.repairDecision.contextRoute.providerCacheModel.reusableAcrossModalities, false, 'context route should not reuse multimodal cache assumptions');
   assert.strictEqual(report.mockLlm.repairDecision.contextReadPolicy.recommendationAuthority, 'candidate-only', 'Mock LLM should treat recommendations as candidates');
   assert(report.mockLlm.repairDecision.contextReadPolicy.available.indexOf('tick_event_window') >= 0, 'Mock LLM should have access to focused tick context');
-  assert.strictEqual(report.mockLlm.repairDecision.selectedAction.action, 'increase_reward_pacing', 'Mock LLM should choose gameplay pacing action');
+  assert.strictEqual(report.mockLlm.repairDecision.selectedAction.action, 'apply_semantic_repair', 'Mock LLM should choose the unified semantic repair action');
+  assert.strictEqual(report.mockLlm.repairDecision.selectedAction.experienceDimension, 'reward_pacing', 'Mock LLM should preserve gameplay pacing dimension');
+  assert.strictEqual(report.mockLlm.repairDecision.selectedAction.repairVerb, 'increase_presence', 'Mock LLM should preserve the repair verb');
+  assert.strictEqual(report.mockLlm.repairDecision.selectedAction.repairAction, undefined, 'Mock LLM should not expose internal repair action ids');
   assert(report.mockLlm.repairDecision.repairIntentDslText.indexOf('place ') >= 0, 'Mock LLM should choose executable repair Intent');
   assert(report.create.semanticPlaytest.tickReport.eventLog.length > 0, 'create playtest should include EventLog');
   assert(report.create.semanticPlaytest.tickReport.snapshots.length > 0, 'create playtest should include Snapshot');

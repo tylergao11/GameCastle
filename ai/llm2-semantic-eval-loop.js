@@ -137,7 +137,7 @@ function makeBaseProject() {
   writeText(createIntentPath, createIntent.intentDslText);
   return runNode([
     'ai/pipeline.js',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     path.relative(ROOT, createIntentPath),
     '--batch-label',
     'llm2_semantic_eval_base',
@@ -174,14 +174,7 @@ function makeView(options) {
         { id: 'ui_template_policy' },
       ],
     },
-    recommendedActions: options.actions || [
-      {
-        action: 'no_op',
-        priority: 'high',
-        reason: 'Current playtest evidence satisfies the active gameplay goals.',
-        safeIntentDsl: null,
-      },
-    ],
+    recommendedActions: options.actions || [],
     recommendationPolicy: {
       authority: 'candidate-only',
       finalDecisionOwner: 'LLM2',
@@ -229,7 +222,7 @@ function caseInputs(testCase) {
       intentWorldView: makeView({
         evidence: [],
         actions: [{
-          action: 'increase_collectibles',
+          action: 'apply_semantic_repair',
           experienceDimension: 'reward_pacing',
           gameplayRole: 'reward',
           repairVerb: 'increase_presence',
@@ -248,7 +241,7 @@ function caseInputs(testCase) {
       intentWorldView: makeView({
         evidence: [{ tick: 220, issue: 'pressure_balance_high', meaning: 'pressure balance high' }],
         actions: [{
-          action: 'reduce_pressure',
+          action: 'apply_semantic_repair',
           experienceDimension: 'pressure_balance',
           gameplayRole: 'pressure',
           repairVerb: 'soften_pressure',
@@ -269,7 +262,7 @@ function caseInputs(testCase) {
         contextMode: 'summary-plus-diff',
         evidence: [{ tick: 300, issue: 'survival_window_short', meaning: 'survival window too short' }],
         actions: [{
-          action: 'make_early_route_safer',
+          action: 'apply_semantic_repair',
           experienceDimension: 'survival_window',
           gameplayRole: 'actor',
           repairVerb: 'add_recovery_window',
@@ -305,7 +298,7 @@ function caseInputs(testCase) {
       intentWorldView: makeView({
         evidence: [{ tick: 180, issue: 'route_readability_low', meaning: 'route readability low' }],
         actions: [{
-          action: 'clarify_route_rewards',
+          action: 'apply_semantic_repair',
           experienceDimension: 'route_readability',
           gameplayRole: 'route',
           repairVerb: 'cluster_near_route',
@@ -324,7 +317,7 @@ function caseInputs(testCase) {
       intentWorldView: makeView({
         evidence: [{ tick: 240, issue: 'content_density_low', meaning: 'content density low' }],
         actions: [{
-          action: 'increase_meaningful_content',
+          action: 'apply_semantic_repair',
           experienceDimension: 'content_density',
           gameplayRole: 'reward',
           repairVerb: 'increase_presence',
@@ -344,7 +337,7 @@ function caseInputs(testCase) {
       intentWorldView: makeView({
         evidence: [{ tick: 360, issue: 'phase_feedback_missing', meaning: 'phase feedback missing' }],
         actions: [{
-          action: 'add_phase_reward_feedback',
+          action: 'apply_semantic_repair',
           experienceDimension: 'phase_flow',
           gameplayRole: 'feedback',
           repairVerb: 'increase_feedback',
@@ -364,7 +357,7 @@ function caseInputs(testCase) {
       intentWorldView: makeView({
         evidence: [{ tick: 120, issue: 'remix_style_shift', meaning: 'remix style shift requested' }],
         actions: [{
-          action: 'remix_route_to_runner_style',
+          action: 'apply_semantic_repair',
           experienceDimension: 'remix_style',
           gameplayRole: 'route',
           repairVerb: 'cluster_near_route',
@@ -383,7 +376,7 @@ function caseInputs(testCase) {
       intentWorldView: makeView({
         evidence: [{ tick: 120, issue: 'remix_style_shift', meaning: 'remix style shift requested' }],
         actions: [{
-          action: 'remix_pressure_to_survivor_style',
+          action: 'apply_semantic_repair',
           experienceDimension: 'remix_style',
           gameplayRole: 'pressure',
           repairVerb: 'soften_pressure',
@@ -457,6 +450,18 @@ function validateCase(testCase, caseSummary) {
   }
   if (!caseSummary.verifierPassed) failures.push('decision verifier did not pass');
   if (testCase.execute && !caseSummary.executed) failures.push('expected pipeline execution');
+  if (testCase.execute && caseSummary.finalDecisionType === 'apply_intent' && caseSummary.executed) {
+    var comparison = caseSummary.improvementComparison || {};
+    if (comparison.view !== 'semantic-tick-improvement-comparison') {
+      failures.push('executed apply_intent did not produce semantic improvement comparison');
+    }
+    if (comparison.regressed) {
+      failures.push('executed apply_intent regressed semantic gameplay measurements');
+    }
+    if (!comparison.improved) {
+      failures.push('executed apply_intent did not improve semantic gameplay measurements');
+    }
+  }
   if (testCase.decisionProvider === 'deepseek' || testCase.expectProvider === 'deepseek') {
     if (caseSummary.provider !== 'LLM2DeepSeekDecisionProvider') failures.push('expected DeepSeek provider trace');
     if (caseSummary.cacheGatePassed !== true) failures.push('expected DeepSeek cache gate to pass');

@@ -23,6 +23,7 @@ var llmProvider = require("./llm-provider");
 var intentCompiler = require("./intent-compiler");
 var intentPipelineGraph = require("./intent-pipeline-graph");
 var semanticPlaytestAgent = require("./semantic-playtest-agent");
+var diagnosticRouter = require("./intent-diagnostic-router");
 
 var STATE_DIR = path.join(__dirname, "..", "output");
 var LOG_PATH = path.join(STATE_DIR, "pipeline.log");
@@ -34,8 +35,8 @@ function callModel(prompt, systemPrompt, opts) {
 }
 var BRIEF_PATH = path.join(STATE_DIR, "design-brief.json");
 var HISTORY_PATH = path.join(STATE_DIR, "conversation.json");
-var CAPABILITIES_DIR = path.join(__dirname, "capabilities");
 var PRODUCT_MODULES_DIR = path.join(__dirname, "product-modules");
+var INTENT_FIXTURES_DIR = path.join(__dirname, "fixtures");
 var GDEVELOP_RUNTIME_DIR = process.env.GAMECASTLE_GDJS_RUNTIME_DIR || path.join(__dirname, '..', 'engine', 'gdevelop-runtime');
 var PROJECT_PATH = path.join(STATE_DIR, "project.json");
 var HTML_EXPORT_MANIFEST_PATH = path.join(STATE_DIR, "html-export-manifest.json");
@@ -50,7 +51,6 @@ var INTENT_WORLD_VIEW_PATH = path.join(STATE_DIR, "intent-world-view.json");
 var PENDING_APPROVAL_PATH = path.join(STATE_DIR, "pending-approval.json");
 var PIPELINE_STATE_PATH = path.join(STATE_DIR, "pipeline-state.json");
 var MAX_LLM2_REPAIR_ROUNDS = 2;
-var MAX_LLM2_MODULE_COMPILE_REPAIR_ROUNDS = 2;
 var MAX_LLM2_INTENT_COMPILE_REPAIR_ROUNDS = 2;
 
 function hasArg(name) {
@@ -65,9 +65,7 @@ function getArgValue(name) {
 
 function getPromptFromArgs() {
   var valueFlags = {
-    '--dsl-file': true,
-    '--module-dsl-file': true,
-    '--intent-dsl-file': true,
+    '--intent-fixture-file': true,
     '--batch-label': true,
   };
   var promptParts = [];
@@ -81,6 +79,24 @@ function getPromptFromArgs() {
     promptParts.push(arg);
   }
   return promptParts.join(' ');
+}
+
+function resolveIntentArtifactFile(fileName) {
+  var resolved = path.resolve(fileName || '');
+  var fixtureRoot = path.resolve(INTENT_FIXTURES_DIR) + path.sep;
+  var outputRoot = path.resolve(STATE_DIR) + path.sep;
+  var isNamedFixture = resolved.indexOf(fixtureRoot) === 0 && path.basename(resolved).indexOf('intent-') === 0;
+  var isGeneratedArtifact = resolved.indexOf(outputRoot) === 0 && path.basename(resolved).lastIndexOf('.intent.dsl') === path.basename(resolved).length - '.intent.dsl'.length;
+  if (!isNamedFixture && !isGeneratedArtifact) {
+    throw new Error('Intent fixture file must be under ' + INTENT_FIXTURES_DIR + ' as intent-*.dsl or under ' + STATE_DIR + ' as *.intent.dsl');
+  }
+  if (path.extname(resolved) !== '.dsl') {
+    throw new Error('Intent fixture file must use .dsl extension');
+  }
+  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+    throw new Error('Intent fixture file must exist');
+  }
+  return resolved;
 }
 
 function loadJsonFile(filePath, fallback) {
@@ -178,6 +194,7 @@ function parseLine(line) {
     else if (ch === " ") { if (current) { tokens.push(current); current = ""; } }
     else current += ch;
   }
+  if (inQuote) throw new Error('Unclosed quote in internal target DSL line: ' + line);
   if (current) tokens.push(current);
   if (tokens.length < 1) return null;
   var verb = tokens[0];
@@ -205,8 +222,16 @@ function parseLine(line) {
   return { verb: verb, target: target, params: params };
 }
 
+function getExecutableDslLines(text) {
+  return String(text || '').split(/\r?\n/).map(function(line) {
+    return line.trim();
+  }).filter(function(line) {
+    return line && line[0] !== '#';
+  });
+}
+
 function parseDSL(text) {
-  var lines = text.split(String.fromCharCode(10));
+  var lines = String(text || '').split(/\r?\n/);
   var ops = [];
   for (var i = 0; i < lines.length; i++) {
     var op = parseLine(lines[i]);
@@ -287,22 +312,24 @@ var ACTIONS = {
 
 function parseEventDSL(line, project) {
   line = line.trim();
-  if (!line) return null;
+  if (!line) throw new Error('event line is empty');
 
   var parts = line.split(/\s*->\s*/);
-  if (parts.length < 2) return null;
+  if (parts.length < 2) throw new Error('event line must include trigger -> action');
 
   var trigger = parts[0].trim();
   var actionsText = parts.slice(1).join(' -> ').trim();
 
   var conditions = parseTrigger(trigger);
-  if (!conditions) return null;
+  if (!conditions) throw new Error('unsupported event trigger: ' + trigger);
 
   var actionList = actionsText.split(/\s*,\s*/).filter(Boolean);
+  if (!actionList.length) throw new Error('event must include at least one action: ' + line);
   var actions = [];
   for (var i = 0; i < actionList.length; i++) {
     var a = parseAction(actionList[i]);
-    if (a) actions.push(a);
+    if (!a) throw new Error('unsupported event action: ' + actionList[i]);
+    actions.push(a);
   }
 
   // Timer events: wrap in repeat structure
@@ -352,7 +379,7 @@ function parseTrigger(text) {
 
   if (words[1] === 'key' && words.length >= 3) {
     var cond = CONDITIONS.key(words[2]);
-    // "on key Space held" — continuous-fire trigger, maps to same KeyPressed condition
+    // "on key Space held" -> continuous-fire trigger, maps to same KeyPressed condition
     // which fires every frame while the key is down in GDevelop
     if (words.length >= 4 && words[3] === 'held') cond._held = true;
     return [cond];
@@ -419,19 +446,18 @@ function parseAction(text) {
   }
   if (words[0] === 'variable' && words.length >= 3) return ACTIONS.set_var(words[1], words[2], words[3] || '0');
   if (words[0] === 'move' && words.length >= 3) {
-    // move Player y=-4         → relative Y
-    // move Player x=+4         → relative X
-    // move Player x=100 y=200  → absolute (legacy)
-    var dx = 0, dy = 0, relX = false, relY = false;
+    // move Player y=-4         -> relative Y
+    // move Player x=+4         -> relative X
+    var dx = 0, dy = 0, relX = false, relY = false, hasMoveAxis = false;
     for (var mi = 2; mi < words.length; mi++) {
       var kv = words[mi].split('=');
       if (kv.length < 2) continue;
       var val = parseFloat(kv[1]) || 0;
-      if (kv[0] === 'x') { dx = val; relX = (kv[1][0] === '+' || kv[1][0] === '-'); }
-      if (kv[0] === 'y') { dy = val; relY = (kv[1][0] === '+' || kv[1][0] === '-'); }
+      if (kv[0] === 'x') { dx = val; relX = (kv[1][0] === '+' || kv[1][0] === '-'); hasMoveAxis = true; }
+      if (kv[0] === 'y') { dy = val; relY = (kv[1][0] === '+' || kv[1][0] === '-'); hasMoveAxis = true; }
     }
     if (relX || relY) return ACTIONS.move_rel(words[1], dx, dy);
-    return ACTIONS.move_to(words[1], dx || 400, dy || 0);
+    if (hasMoveAxis) throw new Error('move action requires signed relative x/y values');
   }
   if (words[0] === 'animate' && words.length >= 3) return ACTIONS.animate(words[1], words[2]);
   if (words[0] === 'camera' && words.length >= 2) return ACTIONS.camera_follow(words[1]);
@@ -591,10 +617,10 @@ EXEC["add event"] = function(p, ps) {
   if (!scene) return {ok:false,msg:"no scene"};
   if (ps.desc) {
     var evt = parseEventDSL(ps.desc, p);
-    if (evt) { scene.events.push(evt); return {ok:true,msg:"event: "+ps.desc.substring(0,50)}; }
+    scene.events.push(evt);
+    return {ok:true,msg:"event: "+ps.desc.substring(0,50)};
   }
-  scene.events.push({disabled:false,folded:false,type:"BuiltinCommonInstructions::Standard",conditions:[],actions:[],events:[]});
-  return {ok:true,msg:"event (placeholder)"};
+  return {ok:false,msg:"event requires a parsed desc"};
 };
 
 EXEC["remove event"] = function(p, ps) {
@@ -861,12 +887,42 @@ function saveState(brief, history) {
   fs.writeFileSync(HISTORY_PATH, JSON.stringify(history,null,2));
 }
 
-function loadOutputProject() {
+function loadOutputProject(stateDir) {
+  var projectPath = path.join(stateDir || STATE_DIR, 'project.json');
   try {
-    return JSON.parse(fs.readFileSync(PROJECT_PATH, 'utf8'));
+    return JSON.parse(fs.readFileSync(projectPath, 'utf8'));
   } catch(e) {
     return null;
   }
+}
+
+function loadExistingIntentIterationState(stateDir) {
+  var dir = stateDir || STATE_DIR;
+  var projectPath = path.join(dir, 'project.json');
+  var worldPath = projectWorld.getWorldPath(dir);
+  var ledgerPath = projectWorld.getLedgerPath(dir);
+  var project = loadOutputProject(dir);
+  var world = projectWorld.loadProjectWorld(dir);
+  var ledgerExists = fs.existsSync(ledgerPath);
+  var ledger = ledgerExists ? projectWorld.loadExecutionLedger(dir) : null;
+  var errors = [];
+  if (!project) errors.push('engine project file: ' + projectPath);
+  if (!world) errors.push('ProjectWorld: ' + worldPath);
+  if (!ledgerExists || !ledger || !Array.isArray(ledger.runs) || ledger.runs.length === 0) {
+    errors.push('ExecutionLedger with at least one run: ' + ledgerPath);
+  }
+  return {
+    ok: errors.length === 0,
+    errors: errors,
+    project: project,
+    world: world,
+    ledger: ledger,
+    paths: {
+      project: projectPath,
+      world: worldPath,
+      ledger: ledgerPath,
+    },
+  };
 }
 
 function resetGeneratedStateForNewProject(options) {
@@ -890,27 +946,46 @@ function resetGeneratedStateForNewProject(options) {
     projectWorld.getLedgerPath(STATE_DIR),
   ].forEach(function(filePath) {
     if (options.keepPendingApproval && filePath === PENDING_APPROVAL_PATH) return;
-    try {
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    } catch(e) {
-      throw new Error('Failed to reset generated state: ' + filePath + ' ' + e.message);
-    }
+    safeUnlinkGeneratedFile(filePath, 'reset generated state');
   });
   removeGeneratedRuntimeCodeFiles();
 }
 
-function clearPendingApproval() {
-  try {
-    if (fs.existsSync(PENDING_APPROVAL_PATH)) fs.unlinkSync(PENDING_APPROVAL_PATH);
-  } catch(e) {
-    throw new Error('Failed to clear pending approval: ' + PENDING_APPROVAL_PATH + ' ' + e.message);
+function waitForFileRetry(ms) {
+  if (typeof SharedArrayBuffer !== 'undefined' && typeof Atomics !== 'undefined' && Atomics.wait) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+    return;
   }
+  var end = Date.now() + ms;
+  while (Date.now() < end) {}
+}
+
+function safeUnlinkGeneratedFile(filePath, label) {
+  var attempts = 4;
+  for (var i = 0; i < attempts; i++) {
+    try {
+      fs.unlinkSync(filePath);
+      return true;
+    } catch(e) {
+      if (e && e.code === 'ENOENT') return false;
+      if (e && (e.code === 'EPERM' || e.code === 'EBUSY') && i < attempts - 1) {
+        waitForFileRetry(25 * (i + 1));
+        continue;
+      }
+      throw new Error('Failed to ' + (label || 'remove generated file') + ': ' + filePath + ' ' + e.message);
+    }
+  }
+  return false;
+}
+
+function clearPendingApproval() {
+  safeUnlinkGeneratedFile(PENDING_APPROVAL_PATH, 'clear pending approval');
 }
 
 function removeGeneratedRuntimeCodeFiles() {
   if (!fs.existsSync(STATE_DIR)) return;
   fs.readdirSync(STATE_DIR).forEach(function(file) {
-    if (/^code\d+\.js$/.test(file)) fs.unlinkSync(path.join(STATE_DIR, file));
+    if (/^code\d+\.js$/.test(file)) safeUnlinkGeneratedFile(path.join(STATE_DIR, file), 'remove generated runtime code');
   });
 }
 
@@ -969,7 +1044,7 @@ function writeProjectOutputs(project, options) {
     htmlExporter.writeHtmlExport(STATE_DIR, htmlManifest, { hasTickRuntime: hasTickRuntime });
     console.log('[HtmlExport] ' + htmlManifest.scriptFiles.length + ' scripts, ' + (htmlManifest.assetFiles || []).length + ' assets -> ' + HTML_EXPORT_MANIFEST_PATH);
   } catch (e) {
-    console.warn('[HtmlExport] Skipped — GDJS runtime not available: ' + e.message);
+    console.warn('[HtmlExport] Skipped: GDJS runtime not available: ' + e.message);
   }
   console.log('[Output] ' + PROJECT_PATH + ' (' + JSON.stringify(project).length + ' bytes)');
   var s0 = project.layouts[0];
@@ -981,12 +1056,11 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   var intentArtifacts = options.intent ? Object.assign({}, options.intent, {
     runtimeAdapterRequirements: options.intent.runtimeAdapterRequirements || options.runtimeAdapterRequirements,
   }) : null;
-  var dslLines = dslText.split(/\r?\n/).map(function(line) {
-    return line.trim();
-  }).filter(function(line) {
-    return line && line[0] !== '#';
-  });
+  var dslLines = getExecutableDslLines(dslText);
   var ops = parseDSL(dslText);
+  if (dslLines.length !== ops.length) {
+    throw new Error('Internal target DSL parse mismatch for ' + batchLabel + ': ' + dslLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
+  }
   if (!ops.length && !options.allowEmpty) throw new Error('No ops parsed for ' + batchLabel);
   console.log('[Parse:' + batchLabel + '] ' + ops.length + ' ops');
 
@@ -1002,6 +1076,7 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
       index: i,
       commandId: batchLabel + '_line_' + String(i + 1).padStart(3, '0'),
       ok: !!r.ok,
+      command: dslLines[i],
       label: label,
       message: r.msg,
     });
@@ -1046,7 +1121,7 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
     state = await makeIntentPipelineStateFromGraph({
       mode: options.projectMode,
       batchLabel: batchLabel,
-      patchKind: options.intent.patchKind || 'intent',
+      artifactKind: options.intent.artifactKind || 'intent',
       userRequest: options.userRequest,
       designBrief: options.designBrief,
       diff: options.diff,
@@ -1074,14 +1149,6 @@ async function executeDslBatch(project, dslText, batchLabel, options) {
   };
 }
 
-function shouldUseLlmInternalExecutionRepair(options) {
-  options = options || {};
-  return !options.compiledIntentPatch &&
-    !options.useMock &&
-    !!options.designBrief &&
-    !!options.llm2SystemPrompt;
-}
-
 function makeIntentPipelineState(options) {
   var state = pipelineState.createPipelineState(options || {});
   pipelineState.validatePipelineState(state);
@@ -1101,9 +1168,6 @@ function makeApprovalSummary(options) {
   var dslLines = String(options.dslText || '').split(/\r?\n/).filter(function(line) {
     return line.trim() && line.trim()[0] !== '#';
   });
-  var moduleDslLines = String(options.moduleDslText || '').split(/\r?\n/).filter(function(line) {
-    return line.trim() && line.trim()[0] !== '#';
-  });
   var intentDslLines = String(options.intentDslText || '').split(/\r?\n/).filter(function(line) {
     return line.trim() && line.trim()[0] !== '#';
   });
@@ -1112,7 +1176,6 @@ function makeApprovalSummary(options) {
     batchLabel: options.batchLabel,
     prompt: options.prompt,
     intentDslLineCount: intentDslLines.length,
-    moduleDslLineCount: moduleDslLines.length,
     internalDslLineCount: dslLines.length,
     intentGraph: options.intentGraph ? {
       things: (options.intentGraph.things || []).length,
@@ -1161,7 +1224,7 @@ function makeApprovalAiVisibleProjection(state, options) {
     note: 'AI-visible approval projection. Use this for LLM2 or agent review; do not pass the full pending approval packet.',
     nodeInput: state && state.llm2 ? state.llm2.nodeInput : null,
     review: {
-      patchKind: options.patchKind || null,
+      artifactKind: options.artifactKind || null,
       mode: options.projectMode || null,
       batchLabel: options.batchLabel || null,
       intentDslLineCount: String(options.intentDslText || '').split(/\r?\n/).filter(function(line) {
@@ -1193,18 +1256,18 @@ function makeApprovalAiVisibleProjection(state, options) {
   return projection;
 }
 
-async function previewApprovalPatch(project, dslText, options) {
+async function previewApprovalArtifact(project, dslText, options) {
   options = options || {};
   var intentArtifacts = options.intent ? Object.assign({}, options.intent, {
     runtimeAdapterRequirements: options.intent.runtimeAdapterRequirements || options.runtimeAdapterRequirements,
   }) : null;
   var previewProject = cloneValue(project);
-  var dslLines = String(dslText || '').split(/\r?\n/).map(function(line) {
-    return line.trim();
-  }).filter(function(line) {
-    return line && line[0] !== '#';
-  });
+  var dslLines = getExecutableDslLines(dslText);
   var ops = parseDSL(dslText || '');
+  if (dslLines.length !== ops.length) {
+    throw new Error('Internal target DSL preview parse mismatch: ' + dslLines.length + ' executable line(s), ' + ops.length + ' parsed op(s)');
+  }
+  var previewBatchLabel = options.batchLabel || 'approval_preview';
   var commandResults = [];
   var ok = 0;
   for (var i = 0; i < ops.length; i++) {
@@ -1212,6 +1275,7 @@ async function previewApprovalPatch(project, dslText, options) {
     if (result.ok) ok++;
     commandResults.push({
       index: i,
+      commandId: previewBatchLabel + '_preview_line_' + String(i + 1).padStart(3, '0'),
       ok: !!result.ok,
       command: dslLines[i] || (ops[i].verb + (ops[i].target ? ' ' + ops[i].target : '')),
       message: result.msg,
@@ -1222,11 +1286,19 @@ async function previewApprovalPatch(project, dslText, options) {
     intent: intentArtifacts,
   });
   var failed = commandResults.filter(function(result) { return !result.ok; });
+  var failedDiagnostics = failed.map(function(result) {
+    return diagnosticRouter.routeDiagnostic('internal-target-execution', {
+      category: 'runtime-execution-preview',
+      commandId: result.commandId,
+      command: result.command,
+      message: result.message || 'internal target command failed during approval preview',
+    });
+  });
   return {
     total: commandResults.length,
     completed: ok,
     failed: failed.length,
-    nextAction: failed.length ? 'repair' : 'done',
+    nextAction: failed.length ? 'route-to-owner' : 'done',
     predictedWorldVersion: previewWorld.worldVersion,
     predictedSemanticHash: previewWorld.semanticHash,
     projectWorld: previewWorld,
@@ -1234,16 +1306,30 @@ async function previewApprovalPatch(project, dslText, options) {
     cacheHit: !!(options.baseWorld && options.baseWorld.semanticHash === previewWorld.semanticHash),
     commandResults: commandResults,
     failedCommands: failed,
+    failedDiagnostics: failedDiagnostics,
   };
 }
 
 async function makePendingApprovalPacket(options) {
-  var preview = await previewApprovalPatch(options.project, options.dslText || '', {
+  if (options && Object.prototype.hasOwnProperty.call(options, 'patchKind')) {
+    throw new Error('Pending approval no longer accepts patchKind; use artifactKind');
+  }
+  if (options && Object.prototype.hasOwnProperty.call(options, 'requiresExistingProject')) {
+    throw new Error('Pending approval no longer accepts requiresExistingProject; use requiresIntentIterationState');
+  }
+  if (!options || options.artifactKind !== 'intent') {
+    throw new Error('Pending approval only accepts compiled Intent artifacts');
+  }
+  if (!options.intentDslText || !options.intentGraph || !options.placementPlan || !options.bridgePlan) {
+    throw new Error('Pending approval requires Intent DSL, Intent Graph, Placement Plan, and Bridge Plan');
+  }
+  var preview = await previewApprovalArtifact(options.project, options.dslText || '', {
+    batchLabel: options.batchLabel,
     baseWorld: options.baseWorld,
     modules: options.modules,
     runtimeAdapterRequirements: options.runtimeAdapterRequirements,
-    intent: options.patchKind === 'intent' ? {
-      patchKind: options.patchKind,
+    intent: {
+      artifactKind: options.artifactKind,
       intentDslText: options.intentDslText,
       intentGraph: options.intentGraph,
       placementPlan: options.placementPlan,
@@ -1251,12 +1337,12 @@ async function makePendingApprovalPacket(options) {
       intentContracts: options.intentContracts,
       compileResultCard: options.compileResultCard,
       runtimeAdapterRequirements: options.runtimeAdapterRequirements,
-    } : null,
+    },
   });
   var stateOptions = {
     mode: options.projectMode,
     batchLabel: options.batchLabel,
-    patchKind: options.patchKind,
+    artifactKind: options.artifactKind,
     userRequest: options.prompt,
     designBrief: options.designBrief,
     diff: options.diff,
@@ -1269,9 +1355,7 @@ async function makePendingApprovalPacket(options) {
     internalDslText: options.dslText,
     projectWorld: preview.projectWorld,
   };
-  var state = options.patchKind === 'intent'
-    ? await makeIntentPipelineStateFromGraph(stateOptions)
-    : makeIntentPipelineState(stateOptions);
+  var state = await makeIntentPipelineStateFromGraph(stateOptions);
   var aiVisibleForLlm2 = makeApprovalAiVisibleProjection(state, Object.assign({}, options, { preview: preview }));
   return {
     schemaVersion: 1,
@@ -1280,8 +1364,8 @@ async function makePendingApprovalPacket(options) {
     projectMode: options.projectMode,
     batchLabel: options.batchLabel,
     isNewProject: !!options.isNewProject,
-    requiresExistingProject: !!options.requiresExistingProject,
-    patchKind: options.patchKind,
+    requiresIntentIterationState: !!options.requiresIntentIterationState,
+    artifactKind: options.artifactKind,
     baseWorldVersion: options.baseWorld ? options.baseWorld.worldVersion : null,
     baseSemanticHash: options.baseWorld ? options.baseWorld.semanticHash : null,
     intentDslText: options.intentDslText || null,
@@ -1290,7 +1374,6 @@ async function makePendingApprovalPacket(options) {
     bridgePlan: options.bridgePlan || null,
     intentContracts: options.intentContracts || null,
     compileResultCard: options.compileResultCard || null,
-    moduleDslText: options.moduleDslText || null,
     dslText: options.dslText || '',
     dslLines: String(options.dslText || '').split(/\r?\n/).filter(function(line) {
       return line.trim() && line.trim()[0] !== '#';
@@ -1310,13 +1393,13 @@ async function makePendingApprovalPacket(options) {
 async function savePendingApproval(options) {
   var pending = await makePendingApprovalPacket(options);
   saveJsonFile(PENDING_APPROVAL_PATH, pending);
-  console.log('[Approval] Pending patch written: ' + PENDING_APPROVAL_PATH);
+  console.log('[Approval] Pending Intent artifact written: ' + PENDING_APPROVAL_PATH);
   console.log('[Approval] Review summary: ' + JSON.stringify(pending.summary, null, 2));
   console.log('[Approval] Execute after review with: node ai/pipeline.js --approve-pending');
   return pending;
 }
 
-async function approvePendingPatch() {
+async function approvePendingArtifact() {
   var pending = loadJsonFile(PENDING_APPROVAL_PATH, null);
   if (!pending) {
     console.error('[Approval] No pending approval found: ' + PENDING_APPROVAL_PATH);
@@ -1326,18 +1409,27 @@ async function approvePendingPatch() {
     console.error('[Approval] Unsupported pending approval schemaVersion: ' + pending.schemaVersion);
     process.exit(1);
   }
+  if (pending.artifactKind !== 'intent') {
+    console.error('[Approval] Pending approval only accepts Intent artifacts.');
+    process.exit(1);
+  }
+  if (Object.prototype.hasOwnProperty.call(pending, 'requiresExistingProject')) {
+    console.error('[Approval] Pending approval uses removed requiresExistingProject field; regenerate the Intent approval packet.');
+    process.exit(1);
+  }
 
   var project;
-  if (pending.requiresExistingProject) {
-    project = loadOutputProject();
-    if (!project) {
-      console.error('[Approval] Pending patch requires existing ' + PROJECT_PATH);
+  if (pending.requiresIntentIterationState) {
+    var pendingIterationState = loadExistingIntentIterationState(STATE_DIR);
+    if (!pendingIterationState.ok) {
+      console.error('[Approval] Pending Intent artifact requires existing Intent iteration state: ' + pendingIterationState.errors.join('; '));
       process.exit(1);
     }
+    project = pendingIterationState.project;
   } else {
     resetGeneratedStateForNewProject({ keepPendingApproval: true });
     project = emptyProject('GameCastle');
-    console.log('[Approval] Starting approved new project patch');
+    console.log('[Approval] Starting approved new Intent artifact');
   }
 
   var batch = await executeDslBatch(project, pending.dslText || '', pending.batchLabel || 'apply', {
@@ -1348,9 +1440,9 @@ async function approvePendingPatch() {
     modules: pending.modules,
     tickRuntimeManifest: pending.tickRuntimeManifest,
     runtimeAdapterRequirements: pending.runtimeAdapterRequirements,
-    allowEmpty: pending.patchKind === 'module',
-    intent: pending.patchKind === 'intent' ? {
-      patchKind: pending.patchKind,
+    allowEmpty: true,
+    intent: {
+      artifactKind: pending.artifactKind,
       intentDslText: pending.intentDslText,
       intentGraph: pending.intentGraph,
       placementPlan: pending.placementPlan,
@@ -1358,10 +1450,10 @@ async function approvePendingPatch() {
       intentContracts: pending.intentContracts,
       compileResultCard: pending.compileResultCard,
       runtimeAdapterRequirements: pending.runtimeAdapterRequirements,
-    } : null,
+    },
   });
   fs.unlinkSync(PENDING_APPROVAL_PATH);
-  console.log('[Approval] Executed pending patch. nextAction=' + batch.report.summary.nextAction);
+  console.log('[Approval] Executed pending Intent artifact. nextAction=' + batch.report.summary.nextAction);
   if (batch.report.summary.nextAction !== 'done') {
     process.exitCode = 1;
   }
@@ -1369,32 +1461,21 @@ async function approvePendingPatch() {
 
 
 // ===== MAIN (two-stage: creative -> deterministic) =====
-async function run(prompt, useMock) {
+async function run(prompt) {
   console.log('[Pipeline] ' + prompt);
   if (hasArg('--approve-pending')) {
-    await approvePendingPatch();
+    await approvePendingArtifact();
     return;
   }
   var capabilityCatalog = capabilities.loadCapabilityCatalog(PRODUCT_MODULES_DIR);
   var productModuleCatalog = moduleCompiler.loadProductModuleCatalog(PRODUCT_MODULES_DIR);
-  var creativeCapabilitySummary = [
-    capabilities.buildCreativeCapabilitySummary(capabilityCatalog),
-    '',
-    'Product modules:',
-    moduleCompiler.buildProductModuleCards(productModuleCatalog),
-  ].join('\n');
+  var creativeCapabilitySummary = capabilities.buildCreativeCapabilitySummary(capabilityCatalog);
   var isContinue = hasArg('--continue');
-  var dslFile = getArgValue('--dsl-file');
-  var moduleDslFile = getArgValue('--module-dsl-file');
-  var intentDslFile = getArgValue('--intent-dsl-file');
+  var intentFixtureFile = getArgValue('--intent-fixture-file');
   var batchLabel = getArgValue('--batch-label') || 'apply';
   var approvalGate = hasArg('--approval-gate');
   if (approvalGate) clearPendingApproval();
-  if ([dslFile, moduleDslFile, intentDslFile].filter(Boolean).length > 1) {
-    console.error('[Input] Use only one of --dsl-file, --module-dsl-file, or --intent-dsl-file');
-    process.exit(1);
-  }
-  var projectMode = (dslFile || moduleDslFile || intentDslFile) ? (isContinue ? 'fixture-continue' : 'fixture-new') : (useMock ? 'mock-new' : (isContinue ? 'continue' : 'new'));
+  var projectMode = intentFixtureFile ? (isContinue ? 'fixture-continue' : 'fixture-new') : (isContinue ? 'continue' : 'new');
   var isNewProject = projectMode !== 'continue';
   if (projectMode === 'fixture-continue') isNewProject = false;
   if (isNewProject && !approvalGate) {
@@ -1403,72 +1484,37 @@ async function run(prompt, useMock) {
   } else if (isNewProject && approvalGate) {
     console.log('[State] Approval gate new project mode: ' + projectMode + ' (no output reset before approval)');
   }
-  var existingProject = (projectMode === 'continue' || projectMode === 'fixture-continue') ? loadOutputProject() : null;
-  if ((projectMode === 'continue' || projectMode === 'fixture-continue') && !existingProject) {
-    console.error('[State] --continue requires an existing ' + PROJECT_PATH);
+  var existingIterationState = (projectMode === 'continue' || projectMode === 'fixture-continue')
+    ? loadExistingIntentIterationState(STATE_DIR)
+    : null;
+  if (existingIterationState && !existingIterationState.ok) {
+    console.error('[State] --continue requires an existing Intent iteration state: ' + existingIterationState.errors.join('; '));
     process.exit(1);
   }
-  var project = existingProject || emptyProject('GameCastle');
-  if ((projectMode === 'continue' || projectMode === 'fixture-continue') && existingProject) {
-    console.log('[State] Loaded existing project for iteration: ' + PROJECT_PATH);
+  var project = existingIterationState ? existingIterationState.project : emptyProject('GameCastle');
+  if (existingIterationState && existingIterationState.ok) {
+    console.log('[State] Loaded existing Intent iteration state: ' + existingIterationState.paths.world + ' + ' + existingIterationState.paths.ledger);
   }
-  var compileBaseWorld = (projectMode === 'continue' || projectMode === 'fixture-continue') ? projectWorld.loadProjectWorld(STATE_DIR) : null;
+  var compileBaseWorld = existingIterationState ? existingIterationState.world : null;
   var compileBaseModules = (compileBaseWorld && compileBaseWorld.modules) || [];
   var dslText;
   var intentDslText = null;
-  var compiledIntentPatch = null;
-  var moduleDslText = null;
-  var compiledModulePatch = null;
+  var compiledIntentArtifact = null;
   var diff = { isNew: false };  // initialized for scope; real value set in iteration path
   var designBrief = null;
   var llm2SystemPrompt = null;
 
-  if (intentDslFile) {
-    intentDslText = fs.readFileSync(path.resolve(intentDslFile), 'utf8');
-    compiledIntentPatch = intentCompiler.compileIntentDsl(intentDslText, {
+  if (intentFixtureFile) {
+    var resolvedIntentFixtureFile = resolveIntentArtifactFile(intentFixtureFile);
+    intentDslText = fs.readFileSync(resolvedIntentFixtureFile, 'utf8');
+    compiledIntentArtifact = intentCompiler.compileIntentDsl(intentDslText, {
       productModuleCatalog: productModuleCatalog,
-      placementContext: placementContext.contextFromProjectWorld(compileBaseWorld)
+      placementContext: placementContext.contextFromProjectWorld(compileBaseWorld),
+      baseWorld: compileBaseWorld
     });
-    dslText = compiledIntentPatch.bridgePlan.dslText;
-    console.log('[IntentDSLFile] ' + path.resolve(intentDslFile) + ' (' + intentDslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
-    console.log('[IntentCompiler] ' + compiledIntentPatch.graph.components.length + ' components -> ' + compiledIntentPatch.bridgePlan.dslLines.length + ' low-level DSL lines, ' + compiledIntentPatch.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
-  } else if (moduleDslFile) {
-    moduleDslText = fs.readFileSync(path.resolve(moduleDslFile), 'utf8');
-    compiledModulePatch = moduleCompiler.compileModuleDslText(moduleDslText, productModuleCatalog, {
-      baseModules: compileBaseModules,
-      projectWorld: compileBaseWorld,
-    });
-    dslText = compiledModulePatch.dslText;
-    console.log('[ModuleDSLFile] ' + path.resolve(moduleDslFile) + ' (' + moduleDslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
-    console.log('[ModuleCompiler] ' + compiledModulePatch.installedModules.length + ' modules -> ' + compiledModulePatch.dslLines.length + ' low-level DSL lines');
-  } else if (dslFile) {
-    dslText = fs.readFileSync(path.resolve(dslFile), 'utf8');
-    console.log('[DSLFile] ' + path.resolve(dslFile) + ' (' + dslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
-  } else if (useMock) {
-    dslText = [
-      'create scene name=Game first=true',
-      'create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game',
-      'create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game',
-      'create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game',
-      'create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game',
-      'create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game',
-      'add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game',
-      'set variable name=Score value=0 type=Number scope=global',
-      'place object=Player at=100,400 scene=Game',
-      'place object=Ground at=400,590 scene=Game width=800 height=20',
-      'place object=Platform at=200,460 scene=Game width=100 height=16',
-      'place object=Platform at=400,380 scene=Game width=100 height=16',
-      'place object=Platform at=600,300 scene=Game width=100 height=16',
-      'place object=Coin at=240,430 scene=Game',
-      'place object=Coin at=440,350 scene=Game',
-      'place object=Coin at=640,270 scene=Game',
-      'place object=Enemy at=550,400 scene=Game',
-      'on start -> Score=0',
-      'on collision Player Coin -> destroy Coin, score+1',
-      'on collision Player Enemy -> restart',
-      'on key Space -> jump Player 500',
-    ].join(String.fromCharCode(10));
-    console.log('[Mock] ' + dslText.split(String.fromCharCode(10)).length + ' lines');
+    dslText = compiledIntentArtifact.bridgePlan.dslText;
+    console.log('[IntentFixture] ' + resolvedIntentFixtureFile + ' (' + intentDslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
+    console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.dslLines.length + ' low-level DSL lines, ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
   } else {
     var prev = isContinue ? loadState() : { brief: null, history: [] };
     var previousBrief = prev.brief;
@@ -1500,7 +1546,7 @@ async function run(prompt, useMock) {
     llm2SystemPrompt = dslAgent.buildIntentCommanderSystemPrompt(productModuleCatalog);
     var diff = diffDesignBriefs(previousBrief, designBrief);
     var currentWorld = compileBaseWorld;
-    var currentLedger = projectMode === 'continue' ? projectWorld.loadExecutionLedger(STATE_DIR) : { runs: [] };
+    var currentLedger = existingIterationState ? existingIterationState.ledger : { runs: [] };
     var lastReport = currentLedger.runs.length ? currentLedger.runs[currentLedger.runs.length - 1] : null;
     var worldContext = {
       projectWorld: currentWorld,
@@ -1515,7 +1561,7 @@ async function run(prompt, useMock) {
     }
 
     if (dslText !== '') {
-      var um = dslAgent.buildIntentPatchUserPrompt({
+      var um = dslAgent.buildIntentUserPrompt({
         userPrompt: prompt,
         worldContext: worldContext,
         designBrief: designBrief,
@@ -1530,7 +1576,7 @@ async function run(prompt, useMock) {
       if (!intentDslText) { console.error('Intent DSL generation failed'); process.exit(1); }
       console.log('[Stage2] Intent DSL (' + intentDslText.split('\n').length + ' lines):');
       console.log(intentDslText);
-      var intentCompileResult = await dslAgent.compileIntentPatchWithRepair({
+      var intentCompileResult = await dslAgent.compileIntentDslWithRepair({
         intentDslText: intentDslText,
         intentCompiler: intentCompiler,
         productModuleCatalog: productModuleCatalog,
@@ -1546,38 +1592,41 @@ async function run(prompt, useMock) {
         callModel: callModel,
       });
       intentDslText = intentCompileResult.intentDslText;
-      compiledIntentPatch = intentCompileResult.compiled;
-      dslText = compiledIntentPatch.bridgePlan.dslText;
-      console.log('[IntentCompiler] ' + compiledIntentPatch.graph.components.length + ' components -> ' + compiledIntentPatch.bridgePlan.dslLines.length + ' low-level DSL lines, ' + compiledIntentPatch.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
+      compiledIntentArtifact = intentCompileResult.compiled;
+      dslText = compiledIntentArtifact.bridgePlan.dslText;
+      console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.dslLines.length + ' low-level DSL lines, ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
     }
   }
 
-  if (dslText === '' && !compiledModulePatch && !compiledIntentPatch) {
+  if (dslText === '' && !compiledIntentArtifact) {
     console.log('[Done] No DSL changes to apply');
     return;
   }
 
   if (approvalGate) {
+    if (!compiledIntentArtifact) {
+      console.error('[Approval] Approval gate only accepts compiled Intent artifacts.');
+      process.exit(1);
+    }
     await savePendingApproval({
       prompt: prompt,
       projectMode: projectMode,
       batchLabel: batchLabel,
       isNewProject: isNewProject,
-      requiresExistingProject: projectMode === 'continue' || projectMode === 'fixture-continue',
-      patchKind: compiledIntentPatch ? 'intent' : (compiledModulePatch ? 'module' : 'internal'),
+      requiresIntentIterationState: projectMode === 'continue' || projectMode === 'fixture-continue',
+      artifactKind: 'intent',
       project: project,
       baseWorld: compileBaseWorld,
       intentDslText: intentDslText,
-      intentGraph: compiledIntentPatch && compiledIntentPatch.graph,
-      placementPlan: compiledIntentPatch && compiledIntentPatch.placementPlan,
-      bridgePlan: compiledIntentPatch && compiledIntentPatch.bridgePlan,
-      intentContracts: compiledIntentPatch && compiledIntentPatch.contracts,
-      compileResultCard: compiledIntentPatch && compiledIntentPatch.resultCard,
-      moduleDslText: moduleDslText,
+      intentGraph: compiledIntentArtifact && compiledIntentArtifact.graph,
+      placementPlan: compiledIntentArtifact && compiledIntentArtifact.placementPlan,
+      bridgePlan: compiledIntentArtifact && compiledIntentArtifact.bridgePlan,
+      intentContracts: compiledIntentArtifact && compiledIntentArtifact.contracts,
+      compileResultCard: compiledIntentArtifact && compiledIntentArtifact.resultCard,
       dslText: dslText,
-      modules: compiledIntentPatch ? compiledIntentPatch.bridgePlan.installedModules : (compiledModulePatch && compiledModulePatch.installedModules),
-      tickRuntimeManifest: compiledIntentPatch ? compiledIntentPatch.bridgePlan.tickRuntimeManifest : (compiledModulePatch && compiledModulePatch.tickRuntimeManifest),
-      runtimeAdapterRequirements: compiledIntentPatch ? compiledIntentPatch.bridgePlan.runtimeAdapterRequirements : (compiledModulePatch && compiledModulePatch.runtimeAdapterRequirements),
+      modules: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.installedModules : null,
+      tickRuntimeManifest: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.tickRuntimeManifest : null,
+      runtimeAdapterRequirements: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements : null,
       designBrief: designBrief,
       diff: diff,
     });
@@ -1589,88 +1638,54 @@ async function run(prompt, useMock) {
     userRequest: prompt,
     designBrief: designBrief,
     diff: diff,
-    modules: compiledIntentPatch ? compiledIntentPatch.bridgePlan.installedModules : (compiledModulePatch && compiledModulePatch.installedModules),
-    tickRuntimeManifest: compiledIntentPatch ? compiledIntentPatch.bridgePlan.tickRuntimeManifest : (compiledModulePatch && compiledModulePatch.tickRuntimeManifest),
-    runtimeAdapterRequirements: compiledIntentPatch ? compiledIntentPatch.bridgePlan.runtimeAdapterRequirements : (compiledModulePatch && compiledModulePatch.runtimeAdapterRequirements),
-    intent: compiledIntentPatch ? {
-      patchKind: 'intent',
+    modules: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.installedModules : null,
+    tickRuntimeManifest: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.tickRuntimeManifest : null,
+    runtimeAdapterRequirements: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements : null,
+    intent: compiledIntentArtifact ? {
+      artifactKind: 'intent',
       intentDslText: intentDslText,
-      intentGraph: compiledIntentPatch.graph,
-      placementPlan: compiledIntentPatch.placementPlan,
-      bridgePlan: compiledIntentPatch.bridgePlan,
-      intentContracts: compiledIntentPatch.contracts,
-      compileResultCard: compiledIntentPatch.resultCard,
-      runtimeAdapterRequirements: compiledIntentPatch.bridgePlan.runtimeAdapterRequirements,
+      intentGraph: compiledIntentArtifact.graph,
+      placementPlan: compiledIntentArtifact.placementPlan,
+      bridgePlan: compiledIntentArtifact.bridgePlan,
+      intentContracts: compiledIntentArtifact.contracts,
+      compileResultCard: compiledIntentArtifact.resultCard,
+      runtimeAdapterRequirements: compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements,
     } : null,
-    allowEmpty: !!(compiledModulePatch || compiledIntentPatch),
+    allowEmpty: !!compiledIntentArtifact,
   });
 
-  if (compiledIntentPatch && batch.report.summary.nextAction === 'repair') {
-    console.error('[Repair] Intent execution failed in the runtime/bridge layer. LLM2 internal DSL repair is disabled; see ' + projectWorld.getLedgerPath(STATE_DIR));
+  if (compiledIntentArtifact && batch.report.summary.nextAction !== 'done') {
+    console.error('[Repair] Intent execution failed in the runtime/bridge layer; route to the owning runtime/bridge diagnostic instead of LLM repair. See ' + projectWorld.getLedgerPath(STATE_DIR));
     process.exitCode = 1;
-  } else if (shouldUseLlmInternalExecutionRepair({
-    useMock: useMock,
-    designBrief: designBrief,
-    llm2SystemPrompt: llm2SystemPrompt,
-    compiledIntentPatch: compiledIntentPatch,
-  })) {
-    for (var repairRound = 1; repairRound <= MAX_LLM2_REPAIR_ROUNDS && batch.report.summary.nextAction === 'repair'; repairRound++) {
-      console.log('[Repair] LLM2 repair round ' + repairRound + '/' + MAX_LLM2_REPAIR_ROUNDS);
-      var repairPrompt = dslAgent.buildInternalExecutionRepairPrompt({
-        userPrompt: prompt,
-        designBrief: designBrief,
-        world: batch.world,
-        report: batch.report,
-        dslText: batch.dslText,
-      });
-      var repairDsl = await callModel(
-        repairPrompt,
-        dslAgent.buildInternalDslRepairSystemPrompt(capabilityCatalog, capabilities),
-        agentWorkflow.buildTextCallOptions('dslInternalRepair', { label: 'LLM2-InternalRepair' })
-      );
-      if (!repairDsl || !repairDsl.trim()) {
-        console.error('[Repair] LLM2 returned empty repair DSL');
-        break;
-      }
-      console.log('[Repair] DSL (' + repairDsl.split('\n').length + ' lines):');
-      console.log(repairDsl);
-      repairDsl = dslAgent.cleanDslOutput(repairDsl);
-      batch = await executeDslBatch(project, repairDsl, 'repair_' + String(repairRound).padStart(2, '0'), {
-        modules: compiledModulePatch && compiledModulePatch.installedModules,
-        tickRuntimeManifest: compiledModulePatch && compiledModulePatch.tickRuntimeManifest,
-      });
-    }
-    if (batch.report.summary.nextAction === 'repair') {
-      console.error('[Repair] Failed after ' + MAX_LLM2_REPAIR_ROUNDS + ' repair round(s). See ' + projectWorld.getLedgerPath(STATE_DIR));
-      process.exitCode = 1;
-    }
+  } else if (batch.report.summary.nextAction !== 'done') {
+    console.error('[Repair] Internal execution failed; route to the owning runtime/executor diagnostic instead of LLM repair. See ' + projectWorld.getLedgerPath(STATE_DIR));
+    process.exitCode = 1;
   }
 }
 
 // ===== CLI =====
 var args = process.argv.slice(2);
-var useMock = hasArg('--mock');
 var prompt = getPromptFromArgs();
 if (require.main === module) {
-  if (!prompt && !hasArg('--approve-pending') && !getArgValue('--module-dsl-file') && !getArgValue('--intent-dsl-file') && !getArgValue('--dsl-file')) {
-    console.log('Usage: node ai/pipeline.js [--mock] [--continue] [--approval-gate] "game description"');
-    console.log('       node ai/pipeline.js --module-dsl-file <file>');
-    console.log('       node ai/pipeline.js --intent-dsl-file <file>');
-    console.log('       node ai/pipeline.js --dsl-file <file>');
+  if (!prompt && !hasArg('--approve-pending') && !getArgValue('--intent-fixture-file')) {
+    console.log('Usage: node ai/pipeline.js [--continue] [--approval-gate] "game description"');
+    console.log('       node ai/pipeline.js --intent-fixture-file ai/fixtures/<intent-name>.dsl');
     console.log('       node ai/pipeline.js --approve-pending');
     process.exit(1);
   }
-  run(prompt, useMock).catch(function(e){console.error(e);process.exit(1);});
+  run(prompt).catch(function(e){console.error(e);process.exit(1);});
 }
 
 module.exports = {
   parseDSL: parseDSL,
   execute: execute,
   executeDslBatch: executeDslBatch,
-  shouldUseLlmInternalExecutionRepair: shouldUseLlmInternalExecutionRepair,
   emptyProject: emptyProject,
-  previewApprovalPatch: previewApprovalPatch,
+  loadExistingIntentIterationState: loadExistingIntentIterationState,
+  previewApprovalArtifact: previewApprovalArtifact,
   makeApprovalSummary: makeApprovalSummary,
   makePendingApprovalPacket: makePendingApprovalPacket,
-  diffDesignBriefs: diffDesignBriefs
+  diffDesignBriefs: diffDesignBriefs,
+  safeUnlinkGeneratedFile: safeUnlinkGeneratedFile,
+  resolveIntentArtifactFile: resolveIntentArtifactFile
 };

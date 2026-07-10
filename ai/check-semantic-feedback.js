@@ -4,7 +4,8 @@ var semanticFeedback = require('./semantic-feedback');
 
 function testProbeIssuesBecomeNaturalRepairIntent() {
   var mapping = semanticFeedback.loadSemanticMapping();
-  assert(mapping.repairActions['increase-count'], 'semantic mapping should define increase-count');
+  assert(!mapping.repairActions, 'semantic mapping must not keep legacy repair action ids');
+  assert(mapping.intentLineStrategies.count_more, 'semantic mapping should define semantic count strategy');
   assert(mapping.issueProfiles.route_reward_unreachable, 'semantic mapping should define fallback issue profile');
   var llmView = semanticFeedback.buildSemanticMappingLlmView(mapping);
   var llmJson = JSON.stringify(llmView);
@@ -37,6 +38,10 @@ function testProbeIssuesBecomeNaturalRepairIntent() {
       issue.repairVerb === 'increase_presence';
   }), 'LLM view should expose issue profile semantic abstraction fields');
   assert(llmJson.indexOf('"template"') < 0, 'LLM view must not expose internal templates');
+  assert(llmJson.indexOf('repairAction') < 0, 'LLM view must not expose internal repair action ids');
+  assert(llmJson.indexOf('increase-count') < 0, 'LLM view must not expose internal repair action ids');
+  assert(llmJson.indexOf('decrease-count') < 0, 'LLM view must not expose internal repair action ids');
+  assert(llmJson.indexOf('intentLineStrategies') < 0, 'LLM view must not expose internal Intent line strategies');
   assert(llmJson.indexOf('componentId') < 0, 'LLM view must not expose component ids');
   assert(llmJson.indexOf('x=') < 0, 'LLM view must not expose coordinate syntax');
 
@@ -66,18 +71,21 @@ function testProbeIssuesBecomeNaturalRepairIntent() {
         {
           kind: 'reward_pacing_low',
           severity: 'high',
-          repair: { action: 'increase-count', subject: 'coins', anchor: 'Player', direction: 'front', pattern: 'trail', delta: 2 },
+          repairVerb: 'increase_presence',
+          repair: { subject: 'coins', anchor: 'Player', direction: 'front', pattern: 'trail', delta: 2 },
           evidence: { tick: 180, metric: 'rewardReachabilityRate', observed: 0.4, expectedAtLeast: 0.6 },
         },
         {
           kind: 'probe_control_layout',
           severity: 'medium',
-          repair: { action: 'placement-adjust', subject: 'jump button', direction: 'above', amount: 'slightly' },
+          repairVerb: 'increase_feedback',
+          repair: { subject: 'jump button', direction: 'above', amount: 'slightly' },
         },
         {
           kind: 'probe_difficulty',
           severity: 'high',
-          repair: { action: 'decrease-count', subject: 'enemies', anchor: 'Player', direction: 'far-front', pattern: 'guard', delta: 1 },
+          repairVerb: 'soften_pressure',
+          repair: { subject: 'enemies', anchor: 'Player', direction: 'far-front', pattern: 'guard', delta: 1 },
         },
       ],
     },
@@ -134,10 +142,80 @@ function testIssueKindProfilesAreFallbackOnly() {
   ], 'known issue profiles should remain fallback defaults');
 }
 
+function testCountRepairUsesRuntimeWorldInstances() {
+  var report = semanticFeedback.analyzeSemanticFeedback({
+    projectWorld: {
+      scenes: [
+        {
+          instances: [
+            { object: 'Coin' },
+            { object: 'Coin' },
+            { object: 'Coin' },
+            { object: 'Coin' },
+            { object: 'Coin' },
+            { object: 'Coin' },
+          ],
+        },
+      ],
+      intent: {
+        intentGraph: {
+          placements: [{ subject: 'CoinsGroup', anchor: 'Player', direction: 'front', pattern: 'trail', count: 3 }],
+        },
+      },
+    },
+    issues: [
+      { kind: 'reward_pacing_low', subject: 'coins' },
+    ],
+  });
+  assert.deepStrictEqual(report.repairIntentDslLines, [
+    'place coins near Player front as trail count 8',
+  ], 'count repair should use current ProjectWorld instances instead of stale IntentGraph count');
+}
+
+function testSemanticComparisonUsesGuardMeasurements() {
+  var comparison = semanticFeedback.compareSemanticTickSummaries({
+    beforeSummary: {
+      rewardReachabilityRate: 0.4,
+      pressureSeen: 0,
+      firstDamageTick: null,
+      firstDeathTick: null,
+      survived: true,
+    },
+    afterSummary: {
+      rewardReachabilityRate: 0.8,
+      pressureSeen: 4,
+      firstDamageTick: 260,
+      firstDeathTick: 300,
+      survived: false,
+    },
+    issues: [
+      {
+        kind: 'reward_pacing_low',
+        dimension: 'reward_pacing',
+        evidence: { metric: 'rewardReachabilityRate' },
+      },
+    ],
+  });
+  assert.strictEqual(comparison.view, 'semantic-tick-improvement-comparison', 'comparison should use the semantic tick view');
+  assert.strictEqual(comparison.improved, false, 'reward improvement must not pass when guard metrics regress');
+  assert.strictEqual(comparison.regressed, true, 'guard metric regression should fail the comparison');
+  assert(comparison.measurements.some(function(item) {
+    return item.measurement === 'reward_reachability' && item.status === 'improved';
+  }), 'comparison should still include the issue-targeted reward improvement');
+  assert(comparison.measurements.some(function(item) {
+    return item.measurement === 'survival_rate' && item.status === 'worsened';
+  }), 'comparison should include global survival regression guard');
+  assert(comparison.measurements.some(function(item) {
+    return item.measurement === 'pressure_count_window' && item.status === 'worsened';
+  }), 'comparison should include global pressure regression guard');
+}
+
 function main() {
   testProbeIssuesBecomeNaturalRepairIntent();
   testUnsupportedIssueRoutesToOwnerWithoutRepairLine();
   testIssueKindProfilesAreFallbackOnly();
+  testCountRepairUsesRuntimeWorldInstances();
+  testSemanticComparisonUsesGuardMeasurements();
   console.log('[SemanticFeedback] probe issues map to safe repair Intent DSL');
 }
 

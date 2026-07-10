@@ -9,8 +9,10 @@ GameCastle 的目标不是“一句话生成一个一次性小游戏”，而是
 ```text
 用户意图/迭代请求
   -> LLM1: 创意设计和体验变化
-  -> LLM2: 读取模块能力库并生成确定性 DSL patch
-  -> DSL 解析与执行
+  -> LLM2: 读取 IntentWorldView 和安全上下文，生成自然 Intent DSL
+  -> Intent Graph / Resolver / Bridge 编译为内部执行计划
+  -> Runtime 执行并生成 ProjectWorld / ExecutionReport
+  -> Semantic Playtest / Repair Intent / Decision Loop 复测
   -> project.json
   -> GDJS Runtime
   -> 浏览器/平台试玩
@@ -20,11 +22,11 @@ GameCastle 的目标不是“一句话生成一个一次性小游戏”，而是
 
 | 目录 | 职责 |
 |------|------|
-| `ai/` | 生成管线主路径，当前由 `pipeline.js` 承担设计稿、DSL 翻译、执行和 CLI |
-| `ai/product-modules/` | 模块能力唯一真相源，描述可组合模块、内嵌 capability 卡片、DSL 映射、约束和同步属性 |
+| `ai/` | 生成管线主路径，当前由 `pipeline.js` 承担设计稿、Intent 编译、执行、语义试玩闭环和 CLI |
+| `ai/product-modules/` | 编译器模块能力真相源，描述可组合模块、内嵌 capability 卡片、内部映射、约束和同步属性 |
 | `ai/assets/` | Seed local/cloud asset repository manifests used by RuntimeAssetResolver |
 | `ai/gdevelop-truth/` | Extracted GDevelop/GDJS runtime truth snapshot generated from `D:\GDevelop-master` |
-| `dsl/` | DSL 操作语言文档，连接 product-modules 能力和 GDevelop JSON |
+| `dsl/` | 内部低层执行协议文档，仅用于 Bridge/Runtime target facts，不是 live LLM2 产品面 |
 | `engine/` | GDJS 浏览器运行时，负责加载 `project.json` 并运行游戏 |
 | `templates/` | 网络同步模型参考模板（游戏原型已迁移至 product-modules） |
 | `platform/` | React/Vite 平台前端，承载发现、创建、迭代、试玩和未来发布/联机入口 |
@@ -33,11 +35,11 @@ GameCastle 的目标不是“一句话生成一个一次性小游戏”，而是
 
 ## 核心原则
 
-- 模块优先：向 LLM1 暴露轻量能力提示，向 LLM2 暴露可编译模块能力，而不是整套可照抄的游戏模板。
-- 可迭代：一次生成只是项目状态的一个版本，后续请求应由 LLM2 以 patch 的方式修改项目。
+- AI-first：用户和 LLM2 只表达自然游戏意图；坐标、组件 id、GDJS、runtime adapter 和低层执行 DSL 由编译器/bridge/runtime 拥有。
+- 可迭代：一次生成只是项目状态的一个版本，后续请求应由 LLM2 以自然 Intent DSL 的方式修改项目。
 - 状态稳定：LLM2 不直接读取完整 `project.json`，而是读取翻译后的 `ProjectWorld` 和追加式执行账本。
-- 自修复：LLM2 执行失败时读取上一轮 `ExecutionReport`，只追加修复 DSL diff。
-- 真相源统一：能力写在 `ai/capabilities/`，prompt 只消费派生上下文，不手写另一套能力表。
+- 自修复：LLM2 只修 parser/surface 层的自然 Intent；编译、placement、bridge、runtime、playtest 问题按 owner 路由，不回退让 LLM2 写低层 DSL。
+- 真相源统一：能力写在 `ai/product-modules/`，`capabilities.js` 只派生安全摘要，不导出低层 DSL prompt 面。
 - 可运行：每次生成都必须落到 `project.json` + `game.html`，能被 GDJS Runtime 打开。
 - 可扩展：未来联机功能会引入帧同步、状态同步、房间/会话和权威状态边界，不能把架构锁死在单机模板思路里。
 
@@ -50,10 +52,10 @@ npm run dev
 # 前端构建
 npm run build
 
-# 离线 mock 生成，写入 output/
+# 离线 Intent fixture 生成，写入 output/
 npm run gen
 
-# 继续迭代当前 output/project.json
+# 继续迭代当前 Intent iteration state
 node ai/pipeline.js --continue "加入一个 Boss，并让金币更密集"
 
 # 生成器语法检查
@@ -66,12 +68,11 @@ npm run test:ai
 npm run truth:extract
 npm run truth:check
 
-# Legacy/internal Module DSL: compile product modules to internal low-level DSL
-node ai/pipeline.js --module-dsl-file ai/fixtures/module-platformer-shells.dsl "module composition"
-
 # AI-first Intent DSL: compile natural intent through bridge plan to internal DSL
-node ai/pipeline.js --intent-dsl-file ai/fixtures/intent-mobile-platformer.dsl
+node ai/pipeline.js --intent-fixture-file ai/fixtures/intent-mobile-platformer.dsl
 ```
+
+`--intent-fixture-file` is an Intent artifact entry only: offline fixtures must live under `ai/fixtures/intent-*.dsl`; generated repair artifacts must live under `output/*.intent.dsl`.
 
 前端依赖位于 `platform/`。首次运行前需要执行：
 
@@ -82,48 +83,27 @@ npm --prefix platform install
 ## Product Module Skeleton
 
 Current AI-first boundary: LLM2 writes natural Intent DSL only. Product modules,
-Module DSL, low-level DSL, runtime adapters, coordinates, and GDJS details are
+low-level DSL, runtime adapters, coordinates, and GDJS details are
 compiler/runtime target facts, not the live LLM2 product language.
 
-This is the current pre-refactor module baseline. The AI-facing module layer
-lives in `ai/product-modules/`. LLM1 should see
-product module cards, such as `core.platformer`, `shell.start_screen`, and
-`shell.game_over_screen`, not low-level object/event templates.
-
-Historically, before the AI-first Intent refactor, LLM2 emitted Module DSL.
-Treat this as a migration baseline and internal compiler target shape, not the
-new LLM2 product surface:
-
-```text
-install module id=core.platformer preset=basic sync=lockstep authority=host tickRate=20 seed=auto
-install module id=shell.start_screen preset=basic sync=local authority=client title="Sky Runner"
-install module id=shell.game_over_screen preset=basic sync=event authority=host
-```
+The module truth layer lives in `ai/product-modules/`. LLM1 may see product
+capability summaries, while LLM2 selects gameplay through Intent DSL instead of
+writing module ids or engine edits.
 
 `ai/module-compiler.js` compiles product modules into the existing internal
 line-style DSL, records installed modules in `ProjectWorld.modules`, and writes
 future networking metadata to `output/tick-runtime-manifest.json`.
 
-The AI-first Intent refactor replaces this as the live product surface instead
-of keeping it as a parallel compatibility path. Low-level DSL and Module DSL are
-machine/compiler shapes only; LLM2 should speak natural game intent, and the
-compiler/runtime bridge should choose ids, modules, components, adapters, and
-coordinates. Low-level DSL stays an internal compiler/runtime protocol and is
-only used by the execution repair fallback after a compiled batch reaches
-`ExecutionReport.summary.nextAction=repair`.
+Low-level DSL is a machine/compiler shape only; LLM2 should speak natural game
+intent, and the compiler/runtime bridge should choose ids, modules, components,
+adapters, and coordinates. Low-level DSL stays an internal compiler/runtime
+protocol.
 On `--continue`, the compiler reads existing `ProjectWorld.modules` as the base
 module set, rejects duplicate reinstalls, and emits only the low-level diff
-needed for newly installed modules or module link patches.
-
-Installed modules can also be configured through closed Module DSL:
-
-```text
-configure module id=shell.start_screen title="Moon Runner" button="Play Now"
-configure module id=shell.start_screen sync=event authority=host
-```
+needed for newly installed modules or module link updates.
 
 Only parameters declared in the product module manifest are configurable. The
-compiler patches existing generated events through `ProjectWorld`, updates
+compiler updates existing generated events through `ProjectWorld`, updates
 `ProjectWorld.modules`, and rewrites the tick runtime manifest for sync-only changes.
 Fixed runtime interactions are also part of the product module truth source.
 For example, a start-screen label can describe the button, but it cannot claim
@@ -138,9 +118,8 @@ that low-level slot directly.
 ## AI-first Intent Refactor
 
 The live LLM2 surface is Intent DSL, not GDJS events and not a parallel
-compatibility wrapper around Module DSL. This is a breaking refactor: the live
-LLM2 product path uses Intent DSL as the single canonical surface. Module DSL is
-kept for explicit fixture/internal migration input only.
+compatibility wrapper around older command formats. The live LLM2 product path
+uses Intent DSL as the single canonical surface.
 
 Intent DSL describes human game-world concepts:
 
@@ -179,7 +158,7 @@ node ai/pipeline.js --approve-pending
 ```
 
 `--approval-gate` writes `output/pending-approval.json` and stops before
-mutating `project.json`. For Intent patches, the pending file includes Intent
+mutating `project.json`. For Intent artifacts, the pending file includes Intent
 DSL, typed Intent Graph, Placement Plan, Bridge Plan, Compile ResultCard,
 compiled internal DSL, runtime adapter requirements, module/network metadata,
 and a dry-run preview with every command result, predicted semantic hash, and

@@ -28,7 +28,7 @@ function buildPartialState() {
   return pipelineState.createPipelineState({
     mode: 'fixture-new',
     batchLabel: 'langgraph_adapter_partial_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: [
       'make a mobile platformer',
       'set placement object=Player x=100 y=400 scene=Game',
@@ -143,7 +143,7 @@ async function main() {
 
   assert.strictEqual(graphState.graphTrace.length, 5, 'LangGraph adapter should record each node trace');
   assert.deepStrictEqual(graphState.graphTrace[0].reads, ['llm2.nodeInput'], 'LangGraph adapter should trace sanitized LLM2 read');
-  assert(graphState.graphTrace[0].writes.indexOf('llm2.intentDslText') >= 0, 'LangGraph adapter should trace LLM2 patch writes');
+  assert(graphState.graphTrace[0].writes.indexOf('llm2.intentDslText') >= 0, 'LangGraph adapter should trace LLM2 state update writes');
   pipelineState.validatePipelineState(graphState.pipelineState);
 
   var illegalNode = langGraphAdapter.makeLangGraphNode('llm2-intent', function() {
@@ -158,7 +158,7 @@ async function main() {
   }, { allowPartial: true });
   await assert.rejects(function() {
     return malformedNode(langGraphAdapter.makeLangGraphState(buildPartialState()));
-  }, /path-object patch/, 'LangGraph adapter must reject malformed node output');
+  }, /path-object state update/, 'LangGraph adapter must reject malformed node output');
 
   assert.throws(function() {
     langGraphAdapter.unwrapPipelineState({ graphTrace: [] });

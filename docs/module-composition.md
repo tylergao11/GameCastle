@@ -99,7 +99,7 @@ compiler 检查：
 - 模块之间不引用实现细节。requires 只声明接口需求。
 - network 模块是契约声明，不包含协议代码。compiler 按 transport/codec 择入实现文件。
 - 一个游戏最多一个 network 模块。
-- compiler 做确定性匹配，AI 只负责从候选集选择模块。
+- compiler 做确定性匹配；Intent compiler 根据自然 Intent 选择模块，LLM2 不直接选择模块 id。
 
 ## Network Plan
 
@@ -152,7 +152,7 @@ Realtime modules compile into a stable three-layer runtime:
 This follows the standard lockstep/rollback split: deterministic games exchange
 input frames, not object positions. Rollback-style prediction can replace or
 extend the tick-intent-runtime session later by implementing the same save/load/replay
-boundary, while module DSL and GDJS bridge code remain stable.
+boundary, while product module declarations and GDJS bridge ownership stay stable.
 
 Current template behavior:
 

@@ -307,7 +307,7 @@ function runFullCreativeLoop(options) {
   writeText(createIntentPath, initialIntent.intentDslText);
   var createRun = runNode([
     'ai/pipeline.js',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     path.relative(ROOT, createIntentPath),
     '--batch-label',
     'full_creative_loop_create',
@@ -333,7 +333,7 @@ function runFullCreativeLoop(options) {
     repairRun = runNode([
       'ai/pipeline.js',
       '--continue',
-      '--intent-dsl-file',
+      '--intent-fixture-file',
       path.relative(ROOT, repairIntentPath),
       '--batch-label',
       'full_creative_loop_repair',

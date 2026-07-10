@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "worldVersion": 3,
+  "worldVersion": 4,
   "project": {
     "name": "PipelineStateRuntimeCheck",
     "firstScene": "Game",
@@ -487,7 +487,7 @@
   ],
   "intent": {
     "schemaVersion": 1,
-    "patchKind": "intent",
+    "artifactKind": "intent",
     "intentDslLines": [
       "make a mobile platformer",
       "add joystick controls Player near screen bottom-left",
@@ -1438,5 +1438,5 @@
     },
     "modules": {}
   },
-  "semanticHash": "01ebc5c8"
+  "semanticHash": "5ef7362f"
 }

@@ -10,16 +10,13 @@ function makeView(options) {
   var targetHash = options.targetHash === undefined ? 'hash_a' : options.targetHash;
   var actions = options.actions === undefined ? [
     {
-      action: 'increase_reward_pacing',
+      action: 'apply_semantic_repair',
+      experienceDimension: 'reward_pacing',
+      gameplayRole: 'reward',
+      repairVerb: 'increase_presence',
       priority: 'high',
       reason: 'collection rate below target',
       safeIntentDsl: 'place coins near Player front as trail count 5',
-    },
-    {
-      action: 'no_op',
-      priority: 'low',
-      reason: 'designer may skip this turn',
-      safeIntentDsl: null,
     },
   ] : options.actions;
   return {
@@ -92,7 +89,10 @@ function main() {
     evidence: [{ tick: 90, issue: 'pressure_balance_high', meaning: 'pressure balance high' }],
     actions: [
       {
-        action: 'reduce_pressure',
+        action: 'apply_semantic_repair',
+        experienceDimension: 'pressure_balance',
+        gameplayRole: 'pressure',
+        repairVerb: 'soften_pressure',
         priority: 'high',
         reason: 'enemy density high',
         safeIntentDsl: 'reduce enemy pressure near Player early route',
@@ -150,7 +150,7 @@ function main() {
     },
     actions: [
       {
-        action: 'increase_reward_pacing',
+        action: 'apply_semantic_repair',
         priority: 'high',
         reason: 'reward pacing already improved',
         experienceDimension: 'reward_pacing',
@@ -202,19 +202,32 @@ function main() {
       baseHash: 'same_hash',
       targetHash: 'same_hash',
       evidence: [],
-      actions: [
-        {
-          action: 'no_op',
-          priority: 'high',
-          reason: 'Current playtest evidence satisfies the active gameplay goals.',
-          safeIntentDsl: null,
-        },
-      ],
+      actions: [],
     }),
     userRequest: '再看一下',
     projectMode: 'continue',
   });
   assertDecision(noOpDecision, 'no_op', 'no tick issue');
+
+  var rogueActionDecision = decisionRuntime.runDecisionRuntime({
+    intentWorldView: makeView({
+      baseHash: 'same_hash',
+      targetHash: 'same_hash',
+      evidence: [{ tick: 160, issue: 'reward_pacing_low', meaning: 'reward pacing low' }],
+      actions: [{
+        action: 'increase_reward_count',
+        experienceDimension: 'reward_pacing',
+        gameplayRole: 'reward',
+        repairVerb: 'increase_presence',
+        priority: 'high',
+        reason: 'legacy action name should be ignored',
+        safeIntentDsl: 'place coins near Player front as trail count 5',
+      }],
+    }),
+    userRequest: '金币多一点',
+    projectMode: 'continue',
+  });
+  assertDecision(rogueActionDecision, 'no_op', 'legacy custom action names should not execute');
 
   var rejectDecision = decisionRuntime.runDecisionRuntime({
     intentWorldView: makeView({ baseHash: 'same_hash', targetHash: 'same_hash', evidence: [] }),

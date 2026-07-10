@@ -65,8 +65,8 @@ async function testBridgePlanFromIntent() {
   assert(plan.contracts && plan.contracts.emission === 'passed', 'bridge should self-validate emission contract');
   assert(plan.contracts && plan.contracts.runtimeAdapters === 'passed', 'bridge should self-validate runtime adapter contract');
   assert.strictEqual(plan.diagnostics.length, 0, 'bridge should not emit diagnostics for the happy path');
-  assert(plan.dslLines.length > 20, 'bridge should combine module DSL and component DSL');
-  assert(plan.dslText.indexOf('create scene name=Game first=true') >= 0, 'bridge should include product module DSL');
+  assert(plan.dslLines.length > 20, 'bridge should combine product module expansion and component expansion into internal target DSL');
+  assert(plan.dslText.indexOf('create scene name=Game first=true') >= 0, 'bridge should include starter scene line from product module expansion');
 
   assert(
     plan.installedModules.some(function(module) {
@@ -172,6 +172,53 @@ async function testSemanticPlacementEditBridgeEmission() {
   assert(foxInstances[0].y < 320, 'semantic placement edit should move existing Fox upward');
 }
 
+async function testSemanticGroupPlacementMergesOnExistingWorld() {
+  var compiled = intentCompiler.compileIntentDsl('place coins near Player front as trail count 8', {
+    baseWorld: {
+      scenes: [
+        {
+          instances: [
+            { object: 'Coin' },
+            { object: 'Coin' },
+            { object: 'Coin' },
+          ]
+        }
+      ]
+    },
+    placementContext: {
+      objectBounds: {
+        Player: { x: 100, y: 400, width: 32, height: 48 }
+      }
+    }
+  });
+  var plan = compiled.bridgePlan;
+  var removeIndex = plan.dslLines.findIndex(function(line) {
+    return line === 'remove placement object=Coin scene=Game';
+  });
+  assert(removeIndex >= 0, 'existing semantic group placement should merge by removing prior Coin placements first');
+  var firstPlaceIndex = plan.dslLines.findIndex(function(line) {
+    return /^place object=Coin at=/.test(line);
+  });
+  assert(removeIndex < firstPlaceIndex, 'semantic group merge should remove prior placements before placing target group');
+
+  var project = pipeline.emptyProject('SemanticGroupMergeCheck');
+  var prelude = [
+    'create scene name=Game first=true',
+    'create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game',
+    'place object=Coin at=100,100 scene=Game',
+    'place object=Coin at=120,100 scene=Game',
+    'place object=Coin at=140,100 scene=Game'
+  ];
+  var lines = prelude.concat(plan.dslLines);
+  var ops = pipeline.parseDSL(lines.join('\n'));
+  for (var i = 0; i < ops.length; i++) {
+    var result = await pipeline.execute(project, ops[i]);
+    assert(result.ok, 'semantic group merge DSL should execute: ' + lines[i] + ' -> ' + result.msg);
+  }
+  var scene = project.layouts.find(function(layout) { return layout.name === 'Game'; });
+  assert.strictEqual(scene.instances.filter(function(instance) { return instance.name === 'Coin'; }).length, 8, 'semantic group merge should leave the target count, not append another group');
+}
+
 function testBridgeRoutesUnknownComponentToOwnerDiagnostic() {
   var plan = gdjsBridge.compileBridge({
     graph: {
@@ -203,6 +250,7 @@ function testBridgeRoutesUnknownComponentToOwnerDiagnostic() {
 async function main() {
   await testBridgePlanFromIntent();
   await testSemanticPlacementEditBridgeEmission();
+  await testSemanticGroupPlacementMergesOnExistingWorld();
   testBridgeRoutesUnknownComponentToOwnerDiagnostic();
   console.log('[GdjsBridge] internal DSL bridge plan passed');
 }

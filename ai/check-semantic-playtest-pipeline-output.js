@@ -32,7 +32,7 @@ function assertExists(fileName) {
 function main() {
   var stdout = run([
     'ai/pipeline.js',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     'ai/fixtures/intent-parkour-real.dsl',
     '--batch-label',
     'semantic_playtest_pipeline_output',
@@ -61,7 +61,12 @@ function main() {
   assert.strictEqual(userReport.audience, 'user', 'pipeline should write user report');
   assert.strictEqual(view.owner, 'IntentWorldView', 'pipeline should write IntentWorldView');
   assert.strictEqual(view.sceneIntent.uiPolicy.role, 'supporting layer only', 'IntentWorldView should keep UI supporting');
-  assert(view.recommendedActions.some(function(action) { return action.action === 'increase_reward_pacing'; }), 'IntentWorldView should recommend gameplay repair');
+  assert(view.recommendedActions.some(function(action) {
+    return action.action === 'apply_semantic_repair' &&
+      action.experienceDimension === 'reward_pacing' &&
+      action.repairVerb === 'increase_presence' &&
+      action.repairAction === undefined;
+  }), 'IntentWorldView should recommend gameplay repair through the unified semantic action');
   assert(report.tickReport.eventLog.length > 0, 'pipeline report should include tick EventLog');
   assert(report.tickReport.snapshots.length > 0, 'pipeline report should include snapshots');
   assert(llmReport.tickIssues[0].evidence && typeof llmReport.tickIssues[0].evidence.tick === 'number', 'LLM report should preserve tick evidence');

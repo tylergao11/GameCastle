@@ -29,7 +29,7 @@
     "slots": {
       "failAction": "restart"
     },
-    "slotPatches": {
+    "slotUpdateTemplates": {
       "failAction": {
         "findEvent": {
           "sceneParam": "scene",
@@ -178,14 +178,6 @@
         "behaviors": [],
         "events": []
       },
-      "dsl": {
-        "commands": [
-          "create scene name=<SceneName> first=true"
-        ],
-        "examples": [
-          "create scene name=Game first=true"
-        ]
-      },
       "constraints": {
         "sceneName": "Use Game unless the user explicitly asks for another scene.",
         "canvas": {
@@ -194,8 +186,19 @@
         }
       },
       "networking": {
-        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 4 } },
-        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
         "inputs": [],
         "state": []
       }
@@ -216,29 +219,25 @@
         "behaviors": [],
         "events": []
       },
-      "dsl": {
-        "commands": [
-          "create object name=<Name> type=ShapePainter shape=rectangle|circle color=#RRGGBB width=<Width> height=<Height> scene=<SceneName>",
-          "create object name=<Name> type=Text scene=<SceneName> size=<Size>",
-          "set object name=<Name> color=#RRGGBB width=<Width> height=<Height> shape=rectangle|circle scene=<SceneName>",
-          "place object=<Name> at=<X>,<Y> scene=<SceneName>",
-          "place object=<Name> at=<X>,<Y> scene=<SceneName> width=<Width> height=<Height>",
-          "set placement object=<Name> x=<X> y=<Y> scene=<SceneName>"
-        ],
-        "examples": [
-          "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=32 scene=Game",
-          "place object=Player at=100,300 scene=Game",
-          "create object name=HudScore type=Text scene=Game size=20"
-        ]
-      },
       "constraints": {
         "objectNames": "Use stable English names. Do not rename objects unless explicitly requested.",
         "shapePainter": "ShapePainter objects must include shape, color, width, and height.",
         "colors": "Use #RRGGBB. Preserve 00 color channels exactly."
       },
       "networking": {
-        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 4 } },
-        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 4
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
         "inputs": [],
         "state": []
       }
@@ -253,23 +252,13 @@
         "4_direction_controls"
       ],
       "requires": {
-        "objects": ["player"],
+        "objects": [
+          "player"
+        ],
         "variables": [],
         "behaviors": [],
-        "events": ["movement_input"]
-      },
-      "dsl": {
-        "commands": [
-          "on key ArrowUp held -> move <Object> y=-<Speed> scene=<SceneName>",
-          "on key ArrowDown held -> move <Object> y=+<Speed> scene=<SceneName>",
-          "on key ArrowLeft held -> move <Object> x=-<Speed> scene=<SceneName>",
-          "on key ArrowRight held -> move <Object> x=+<Speed> scene=<SceneName>",
-          "every <Interval>s -> move <Object> x=+<Speed> scene=<SceneName>"
-        ],
-        "examples": [
-          "on key ArrowUp held -> move Player y=-4 scene=Game",
-          "on key ArrowLeft held -> move Player x=-4 scene=Game",
-          "every 0.05s -> move Bullet x=+8 scene=Game"
+        "events": [
+          "movement_input"
         ]
       },
       "constraints": {
@@ -278,9 +267,25 @@
         "noGravity": "Free 2D objects do NOT use PlatformBehavior. Movement is purely event-driven via move_rel (MettreXY with +/- operators)."
       },
       "networking": {
-        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
-        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
-        "inputs": ["move_up", "move_down", "move_left", "move_right"],
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [
+          "move_up",
+          "move_down",
+          "move_left",
+          "move_right"
+        ],
         "state": []
       }
     },
@@ -295,21 +300,16 @@
         "bullet_collision"
       ],
       "requires": {
-        "objects": ["player", "bullet", "enemy"],
+        "objects": [
+          "player",
+          "bullet",
+          "enemy"
+        ],
         "variables": [],
         "behaviors": [],
-        "events": ["shoot_input", "bullet_enemy_collision"]
-      },
-      "dsl": {
-        "commands": [
-          "on key <Key> -> spawn <ProjectileObject> at <X>,<Y> scene=<SceneName>",
-          "every <Interval>s -> move <ProjectileObject> x=+<Speed> scene=<SceneName>",
-          "on collision <ProjectileObject> <TargetObject> -> destroy <ProjectileObject>, destroy <TargetObject>, score+<Amount> scene=<SceneName>"
-        ],
-        "examples": [
-          "on key Space -> spawn Bullet at 100,300 scene=Game",
-          "every 0.05s -> move Bullet x=+8 scene=Game",
-          "on collision Bullet Enemy -> destroy Bullet, destroy Enemy, score+10 scene=Game"
+        "events": [
+          "shoot_input",
+          "bullet_enemy_collision"
         ]
       },
       "constraints": {
@@ -319,10 +319,25 @@
         "movement": "Bullet movement uses the move_rel action (GDevelop MettreXY with +/- operators) on a repeating timer."
       },
       "networking": {
-        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
-        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
-        "inputs": ["shoot"],
-        "state": ["Bullet"]
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
+        "inputs": [
+          "shoot"
+        ],
+        "state": [
+          "Bullet"
+        ]
       }
     },
     {
@@ -336,21 +351,16 @@
         "endless_mode"
       ],
       "requires": {
-        "objects": ["enemy"],
-        "variables": ["Wave"],
-        "behaviors": [],
-        "events": ["timer_spawn", "enemy_player_collision"]
-      },
-      "dsl": {
-        "commands": [
-          "every <Seconds>s -> spawn <EnemyObject> at <X>,<Y> scene=<SceneName>",
-          "on collision <PlayerObject> <EnemyObject> -> <FailAction> scene=<SceneName>"
+        "objects": [
+          "enemy"
         ],
-        "examples": [
-          "every 2s -> spawn Enemy at 780,100 scene=Game",
-          "every 2s -> spawn Enemy at 780,250 scene=Game",
-          "every 3s -> spawn Enemy at 780,400 scene=Game",
-          "on collision Player Enemy -> restart scene=Game"
+        "variables": [
+          "Wave"
+        ],
+        "behaviors": [],
+        "events": [
+          "timer_spawn",
+          "enemy_player_collision"
         ]
       },
       "constraints": {
@@ -360,10 +370,24 @@
         "ramping": "Difficulty ramping is expressed as higher pressure or denser waves; compiler/runtime owners expand it into counters, timers, or spawn plans."
       },
       "networking": {
-        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
-        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
         "inputs": [],
-        "state": ["Wave", "Enemy"]
+        "state": [
+          "Wave",
+          "Enemy"
+        ]
       }
     },
     {
@@ -377,19 +401,18 @@
         "drop_chance"
       ],
       "requires": {
-        "objects": ["enemy", "powerup", "player"],
-        "variables": ["PlayerHealth"],
-        "behaviors": [],
-        "events": ["enemy_destroy", "powerup_collect"]
-      },
-      "dsl": {
-        "commands": [
-          "every <Seconds>s -> spawn <PowerUpObject> at <X>,<Y> scene=<SceneName>",
-          "on collision <PlayerObject> <PowerUpObject> -> destroy <PowerUpObject>, variable <VarName> = <Value> scene=<SceneName>"
+        "objects": [
+          "enemy",
+          "powerup",
+          "player"
         ],
-        "examples": [
-          "every 15s -> spawn PowerUp at 400,300 scene=Game",
-          "on collision Player PowerUp -> destroy PowerUp, variable PlayerHealth = 3 scene=Game"
+        "variables": [
+          "PlayerHealth"
+        ],
+        "behaviors": [],
+        "events": [
+          "enemy_destroy",
+          "powerup_collect"
         ]
       },
       "constraints": {
@@ -399,10 +422,24 @@
         "spawn": "Power-up spawn placement is semantic, such as near defeated enemies or safe player routes; exact positions and variation are resolver/runtime facts."
       },
       "networking": {
-        "supports": { "syncModels": [], "authority": [], "players": { "min": 1, "max": 2 } },
-        "determinism": { "supported": true, "requiresSeededRNG": true, "requiresFixedTimestep": true },
+        "supports": {
+          "syncModels": [],
+          "authority": [],
+          "players": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        "determinism": {
+          "supported": true,
+          "requiresSeededRNG": true,
+          "requiresFixedTimestep": true
+        },
         "inputs": [],
-        "state": ["PowerUp", "PlayerHealth"]
+        "state": [
+          "PowerUp",
+          "PlayerHealth"
+        ]
       }
     }
   ]

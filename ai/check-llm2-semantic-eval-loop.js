@@ -20,6 +20,29 @@ function assertNoMachineLeak(value, label) {
   assert(text.indexOf('gdjs') < 0, label + ' should not expose gdjs internals');
 }
 
+function assertUnifiedCandidateActions(value, label) {
+  if (value === null || value === undefined) return;
+  if (Array.isArray(value)) {
+    value.forEach(function(item, index) {
+      assertUnifiedCandidateActions(item, label + '[' + index + ']');
+    });
+    return;
+  }
+  if (typeof value !== 'object') return;
+  Object.keys(value).forEach(function(key) {
+    if ((key === 'recommendedActions' || key === 'candidateActions') && Array.isArray(value[key])) {
+      value[key].forEach(function(action, index) {
+        assert.strictEqual(
+          action.action,
+          'apply_semantic_repair',
+          label + '.' + key + '[' + index + '] should use the unified semantic repair action'
+        );
+      });
+    }
+    assertUnifiedCandidateActions(value[key], label + '.' + key);
+  });
+}
+
 function byId(report, id) {
   return report.cases.find(function(item) { return item.id === id; });
 }
@@ -49,6 +72,8 @@ function main() {
   assert(coinCase.before.tickSummary, 'executed case should record before tick summary');
   assert(coinCase.after.tickSummary, 'executed case should record after tick summary');
   assert.strictEqual(coinCase.improvementComparison.view, 'semantic-tick-improvement-comparison', 'executed case should record semantic improvement comparison');
+  assert.strictEqual(coinCase.improvementComparison.improved, true, 'executed case should be gated on semantic improvement');
+  assert.strictEqual(coinCase.improvementComparison.regressed, false, 'executed case should fail if semantic metrics regress');
   assert(coinCase.improvementComparison.measurements.some(function(item) {
     return item.measurement === 'reward_reachability' && item.status === 'improved';
   }), 'executed case should prove reward reachability improvement');
@@ -64,7 +89,7 @@ function main() {
 
   var uiCase = byId(report, 'ui_icon_reject');
   assert(uiCase, 'ui_icon_reject case should exist');
-  assert.strictEqual(uiCase.finalDecisionType, 'reject', 'pure UI icon request should reject gameplay patch');
+  assert.strictEqual(uiCase.finalDecisionType, 'reject', 'pure UI icon request should reject gameplay Intent');
 
   var noOpCase = byId(report, 'look_again_noop');
   assert(noOpCase, 'look_again_noop case should exist');
@@ -75,6 +100,7 @@ function main() {
     assert(result.contextRouteMode, result.id + ' should record context route mode');
     assert(result.verifierPassed, result.id + ' decision verifier should pass');
     assertNoMachineLeak(result, result.id);
+    assertUnifiedCandidateActions(result, result.id);
   });
 
   assertExists(path.join(OUTPUT_DIR, 'llm2-semantic-eval-report.json'));
@@ -87,6 +113,7 @@ function main() {
   var coinTranscript = JSON.parse(fs.readFileSync(path.join(OUTPUT_DIR, 'llm2-semantic-eval-transcripts', 'coin_more_execute.json'), 'utf8'));
   assert.strictEqual(coinTranscript.improvementComparison.view, 'semantic-tick-improvement-comparison', 'transcript should persist improvement comparison');
   assertNoMachineLeak(coinTranscript.improvementComparison, 'transcript improvement comparison');
+  assertUnifiedCandidateActions(coinTranscript, 'coin transcript');
 
   console.log('[LLM2SemanticEvalLoop] ' + report.scenarioCount + ' semantic eval cases passed');
 }

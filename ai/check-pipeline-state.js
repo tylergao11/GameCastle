@@ -1,5 +1,6 @@
 var assert = require('assert');
 var fs = require('fs');
+var os = require('os');
 var path = require('path');
 
 var intentCompiler = require('./intent-compiler');
@@ -32,7 +33,7 @@ function assertMissingTopLevelExcept(view, allowedRoots, nodeName) {
   });
 }
 
-function samplePatchValue(pathName, state) {
+function sampleUpdateValue(pathName, state) {
   if (pathName === 'intentGraph.graph') return state.intentGraph.graph;
   if (pathName === 'intentGraph.summary') return state.intentGraph.summary;
   if (pathName === 'compiler.contracts') return state.compiler.contracts;
@@ -62,20 +63,90 @@ function assertNodeContractRoundTrip(state, nodeName) {
     return pathName.split('.')[0];
   }), nodeName);
 
-  var legalPatch = {};
+  var legalUpdate = {};
   (contract.writes || []).forEach(function(pathName) {
-    legalPatch[pathName] = samplePatchValue(pathName, state);
+    legalUpdate[pathName] = sampleUpdateValue(pathName, state);
   });
-  if (Object.keys(legalPatch).length) {
-    var patched = pipelineState.applyNodeStatePatch(state, nodeName, legalPatch);
-    pipelineState.validatePipelineState(patched);
+  if (Object.keys(legalUpdate).length) {
+    var updated = pipelineState.applyNodeStateUpdate(state, nodeName, legalUpdate);
+    pipelineState.validatePipelineState(updated);
   }
   assert.throws(function() {
-    pipelineState.applyNodeStatePatch(state, nodeName, { 'llm2.nodeInput': {} });
+    pipelineState.applyNodeStateUpdate(state, nodeName, { 'llm2.nodeInput': {} });
   }, /may not write/, nodeName + ' must not write LLM2 input projection');
 }
 
+function testGeneratedFileUnlinkIsIdempotent() {
+  var tempPath = path.join(__dirname, '..', 'output', 'safe-unlink-idempotent.tmp');
+  fs.mkdirSync(path.dirname(tempPath), { recursive: true });
+  fs.writeFileSync(tempPath, 'temporary generated output');
+  assert.strictEqual(pipeline.safeUnlinkGeneratedFile(tempPath, 'test generated unlink'), true, 'first generated unlink should remove existing file');
+  assert.strictEqual(pipeline.safeUnlinkGeneratedFile(tempPath, 'test generated unlink'), false, 'second generated unlink should ignore already-missing file');
+}
+
+function writeJson(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+}
+
+function testContinueRequiresIntentIterationState() {
+  var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-intent-state-'));
+  try {
+    var missing = pipeline.loadExistingIntentIterationState(tempDir);
+    assert.strictEqual(missing.ok, false, 'missing iteration state should not be accepted');
+    assert(missing.errors.some(function(error) {
+      return error.indexOf('engine project file') >= 0;
+    }), 'missing state should report project file');
+
+    writeJson(path.join(tempDir, 'project.json'), pipeline.emptyProject('StandaloneProject'));
+    var projectOnly = pipeline.loadExistingIntentIterationState(tempDir);
+    assert.strictEqual(projectOnly.ok, false, 'standalone project.json must not be enough to continue');
+    assert(projectOnly.errors.some(function(error) {
+      return error.indexOf('ProjectWorld') >= 0;
+    }), 'project-only state should report missing ProjectWorld');
+    assert(projectOnly.errors.some(function(error) {
+      return error.indexOf('ExecutionLedger') >= 0;
+    }), 'project-only state should report missing ExecutionLedger');
+
+    writeJson(projectWorld.getWorldPath(tempDir), {
+      schemaVersion: 1,
+      worldVersion: 1,
+      semanticHash: 'test-world',
+      scenes: [],
+      modules: [],
+    });
+    writeJson(projectWorld.getLedgerPath(tempDir), {
+      schemaVersion: 1,
+      runs: [],
+    });
+    var emptyLedger = pipeline.loadExistingIntentIterationState(tempDir);
+    assert.strictEqual(emptyLedger.ok, false, 'empty ExecutionLedger must not be accepted as an iteration base');
+
+    writeJson(projectWorld.getLedgerPath(tempDir), {
+      schemaVersion: 1,
+      runs: [
+        {
+          runIndex: 1,
+          batchLabel: 'seed',
+          summary: { nextAction: 'done' },
+        },
+      ],
+    });
+    var complete = pipeline.loadExistingIntentIterationState(tempDir);
+    assert.strictEqual(complete.ok, true, 'complete Intent iteration state should be accepted');
+    assert(complete.project, 'complete state should include the engine project output');
+    assert(complete.world, 'complete state should include ProjectWorld');
+    assert.strictEqual(complete.ledger.runs.length, 1, 'complete state should include a non-empty ExecutionLedger');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function main() {
+  testGeneratedFileUnlinkIsIdempotent();
+  testContinueRequiresIntentIterationState();
+  assert.strictEqual(pipelineState.applyNodeStatePatch, undefined, 'PipelineState must not export legacy state patch API');
+
   var fixturePath = path.join(__dirname, 'fixtures', 'intent-mobile-platformer.dsl');
   var intentDslText = fs.readFileSync(fixturePath, 'utf8');
   var compiled = intentCompiler.compileIntentDsl(intentDslText, {
@@ -87,7 +158,7 @@ async function main() {
   });
   var project = await executeBridgeIntoProject(compiled);
   var intentArtifacts = {
-    patchKind: 'intent',
+    artifactKind: 'intent',
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -121,7 +192,7 @@ async function main() {
   var state = pipelineState.createPipelineState({
     mode: 'fixture-new',
     batchLabel: 'pipeline_state_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: [
       'make a mobile platformer',
       'move Player up 10 pixels',
@@ -194,7 +265,56 @@ async function main() {
   });
 
   assert.strictEqual(state.stateKind, 'gamecastle-ai-first-intent-pipeline', 'state kind should identify the graph-ready contract');
-  assert.strictEqual(state.patchKind, 'intent', 'state should preserve patch kind');
+  assert.strictEqual(state.artifactKind, 'intent', 'state should preserve artifact kind');
+  assert.throws(function() {
+    pipelineState.createPipelineState({
+      mode: 'fixture-new',
+      batchLabel: 'pipeline_state_legacy_patch_kind',
+      patchKind: 'intent',
+      userRequest: 'make a game',
+      intentDslText: intentDslText,
+      intentGraph: compiled.graph,
+      placementPlan: compiled.placementPlan,
+      bridgePlan: compiled.bridgePlan,
+      intentContracts: compiled.contracts,
+      compileResultCard: compiled.resultCard,
+    });
+  }, /no longer accepts patchKind/, 'PipelineState must reject stale patchKind input');
+  assert.throws(function() {
+    pipelineState.createPipelineState({
+      mode: 'fixture-new',
+      batchLabel: 'pipeline_state_internal_reject',
+      artifactKind: 'internal',
+      userRequest: 'create scene name=Game first=true',
+      internalDslText: 'create scene name=Game first=true',
+    });
+  }, /only accepts AI-first Intent state/, 'PipelineState must reject internal low-level artifact state');
+  assert.throws(function() {
+    pipelineState.createPipelineState({
+      mode: 'fixture-new',
+      batchLabel: 'pipeline_state_missing_patch_kind',
+      userRequest: 'make a game',
+    });
+  }, /only accepts AI-first Intent state/, 'PipelineState must reject untyped artifact state');
+  assert(state.statePartitions, 'PipelineState should expose auditable state partitions');
+  assert.strictEqual(state.statePartitions.requirement.artifact, 'designBrief', 'state partitions should separate RequirementModel design brief');
+  assert.strictEqual(state.statePartitions.llm2Intent.artifact, 'Intent DSL', 'state partitions should separate LLM2 Intent DSL');
+  assert.strictEqual(state.statePartitions.intentGraph.artifact, 'Intent Graph', 'state partitions should separate typed Intent Graph');
+  assert.strictEqual(state.statePartitions.resolver.artifact, 'Placement Plan', 'state partitions should separate Resolver placement plan');
+  assert.strictEqual(state.statePartitions.compilerModuleFacts.artifact, 'compiler-owned module facts', 'state partitions should separate compiler-owned module facts');
+  assert.strictEqual(state.statePartitions.runtimeExecutionPlan.artifact, 'runtime execution plan', 'state partitions should separate runtime execution plan');
+  assert.strictEqual(state.statePartitions.projectWorld.artifact, 'semantic world snapshot', 'state partitions should separate ProjectWorld from engine output');
+  assert.strictEqual(state.statePartitions.engineProjectFile.artifact, 'engine project file', 'state partitions should name the engine project file as output-only');
+  assert.strictEqual(state.statePartitions.engineProjectFile.evidence.storedInPipelineState, false, 'PipelineState must not store raw engine project file');
+  assert.strictEqual(state.statePartitions.llm2Intent.aiVisibleToLlm2, true, 'only LLM2 Intent partition should be AI-visible');
+  Object.keys(state.statePartitions).forEach(function(partitionName) {
+    if (partitionName !== 'llm2Intent') {
+      assert.strictEqual(state.statePartitions[partitionName].aiVisibleToLlm2, false, partitionName + ' partition should not be AI-visible to LLM2');
+    }
+  });
+  assert(state.statePartitions.compilerModuleFacts.evidence.installedModules >= 1, 'module facts partition should count installed compiler-owned modules');
+  assert(state.statePartitions.runtimeExecutionPlan.evidence.internalDslLineCount === compiled.bridgePlan.dslLines.length, 'runtime plan partition should count internal target lines');
+  assert(state.statePartitions.projectWorld.evidence.semanticHash === world.semanticHash, 'ProjectWorld partition should carry semantic world hash evidence');
   assert(state.nodeContracts && state.nodeContracts['llm2-intent'], 'PipelineState should carry node contracts for future graph execution');
   assert.deepStrictEqual(
     state.nodeContracts['llm2-intent'].reads,
@@ -253,7 +373,7 @@ async function main() {
   var missingState = pipelineState.createPipelineState({
     mode: 'fixture-new',
     batchLabel: 'pipeline_state_missing_fulfillment_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: 'make a mobile platformer',
     designBrief: { theme: 'mobile platformer', objects: [], rules: [], layout: { placements: [] } },
     diff: { isNew: true },
@@ -296,10 +416,28 @@ async function main() {
   assert.throws(function() {
     pipelineState.validatePipelineState(mutatedContractsState);
   }, /llm2-intent\.reads/, 'PipelineState validation should reject drifted node contracts');
+  var mutatedLlm2InputState = JSON.parse(JSON.stringify(state));
+  mutatedLlm2InputState.llm2.nodeInput.recommendedActions = [{
+    action: 'apply_semantic_repair',
+    experienceDimension: 'reward_pacing',
+    gameplayRole: 'reward',
+    repairVerb: 'increase_presence',
+    repairAction: 'increase-count',
+    safeIntentDsl: 'place coins near Player front as trail count 5',
+  }];
+  assert.throws(function() {
+    pipelineState.validatePipelineState(mutatedLlm2InputState);
+  }, /repairAction/, 'PipelineState validation should reject internal repair action ids in LLM2 input');
+  var mutatedProjectFileState = JSON.parse(JSON.stringify(state));
+  mutatedProjectFileState.llm2.nodeInput.worldContext.projectWorld.note = 'inspect output/project.json before writing an operation patch';
+  assert.throws(function() {
+    pipelineState.validatePipelineState(mutatedProjectFileState);
+  }, /project\.json|operation patch/, 'PipelineState validation should reject project file and operation patch wording in LLM2 input');
   var llm2View = pipelineState.makeNodeStateView(state, 'llm2-intent');
   assert.deepStrictEqual(llm2View.reads, ['llm2.nodeInput'], 'LLM2 node view should only declare sanitized input reads');
   assert(llm2View.state.llm2 && llm2View.state.llm2.nodeInput, 'LLM2 node view should include nodeInput');
   assert(!llm2View.state.requirement, 'LLM2 node view must not include raw requirement');
+  assert(!llm2View.state.statePartitions, 'LLM2 node view must not include internal state partition audit map');
   assert(!llm2View.state.projectWorld, 'LLM2 node view must not include raw ProjectWorld');
   assert(!llm2View.state.bridge, 'LLM2 node view must not include bridge state');
   assert(!llm2View.state.runtime, 'LLM2 node view must not include runtime state');
@@ -315,26 +453,26 @@ async function main() {
   ].forEach(function(token) {
     assert(llm2ViewJson.indexOf(token) < 0, 'LLM2 node view must not expose ' + token);
   });
-  var patchedByLlm2 = pipelineState.applyNodeStatePatch(state, 'llm2-intent', {
+  var updatedByLlm2 = pipelineState.applyNodeStateUpdate(state, 'llm2-intent', {
     'llm2.intentDslText': 'adjust Fox placement above slightly',
     'llm2.intentDslLineCount': 1,
   });
-  assert.strictEqual(patchedByLlm2.llm2.intentDslText, 'adjust Fox placement above slightly', 'LLM2 node patch should update allowed Intent DSL field');
-  assert.strictEqual(patchedByLlm2.llm2.intentDslLineCount, 1, 'LLM2 node patch should update allowed line count');
-  assert.notStrictEqual(patchedByLlm2.llm2.intentDslText, state.llm2.intentDslText, 'node patch should return a new updated state');
+  assert.strictEqual(updatedByLlm2.llm2.intentDslText, 'adjust Fox placement above slightly', 'LLM2 node update should update allowed Intent DSL field');
+  assert.strictEqual(updatedByLlm2.llm2.intentDslLineCount, 1, 'LLM2 node update should update allowed line count');
+  assert.notStrictEqual(updatedByLlm2.llm2.intentDslText, state.llm2.intentDslText, 'node update should return a new updated state');
   assert.throws(function() {
-    pipelineState.applyNodeStatePatch(state, 'llm2-intent', {
+    pipelineState.applyNodeStateUpdate(state, 'llm2-intent', {
       'bridge.bridgePlan': { target: 'gdjs-internal-dsl' },
     });
-  }, /may not write/, 'LLM2 node patch must not write bridge state');
+  }, /may not write/, 'LLM2 node update must not write bridge state');
   assert.throws(function() {
-    pipelineState.applyNodeStatePatch(state, 'llm2-intent', {
+    pipelineState.applyNodeStateUpdate(state, 'llm2-intent', {
       'requirement.designBrief': { theme: 'rewired' },
     });
-  }, /may not write/, 'LLM2 node patch must not write raw requirement state');
+  }, /may not write/, 'LLM2 node update must not write raw requirement state');
   assert.throws(function() {
-    pipelineState.applyNodeStatePatch(state, 'llm2-intent', null);
-  }, /node patch must be an object/, 'node patch must be path-object shaped');
+    pipelineState.applyNodeStateUpdate(state, 'llm2-intent', null);
+  }, /node update must be an object/, 'node update must be path-object shaped');
 
   var batchProject = pipeline.emptyProject('PipelineStateRuntimeCheck');
   var batch = await pipeline.executeDslBatch(batchProject, compiled.bridgePlan.dslText, 'pipeline_state_runtime_check', {
@@ -355,6 +493,12 @@ async function main() {
   );
   assert.strictEqual(batch.pipelineState.runtime.summary.nextAction, 'done', 'runtime PipelineState should include execution summary');
   assert.strictEqual(batch.pipelineState.runtime.summary.intentFulfillment.status, 'fulfilled', 'runtime PipelineState should include fulfillment summary');
+  assert(batch.report.completed.some(function(result) {
+    return result.command === 'create scene name=Game first=true';
+  }), 'runtime ExecutionReport should retain the original internal target DSL command line');
+  assert(batch.report.completed.every(function(result) {
+    return result.command && result.command.indexOf(' ') >= 0;
+  }), 'runtime ExecutionReport should not collapse command evidence to verb labels');
   assert.strictEqual(batch.pipelineState.projectWorld.world.semanticHash, batch.world.semanticHash, 'runtime PipelineState should include final ProjectWorld');
   assert.strictEqual(batch.pipelineState.bridge.internalDslLineCount, compiled.bridgePlan.dslLines.length, 'runtime PipelineState should include bridge target line count');
   var runtimeSafeJson = JSON.stringify(batch.pipelineState.llm2.sanitizedWorldContext);
@@ -384,11 +528,11 @@ async function main() {
   var persistedLlm2View = pipelineState.makeNodeStateView(persisted, 'llm2-intent');
   assert(persistedLlm2View.state.llm2.nodeInput, 'persisted PipelineState should produce an LLM2 node view');
   assert(!persistedLlm2View.state.projectWorld, 'persisted LLM2 node view must not include raw ProjectWorld');
-  var persistedPatched = pipelineState.applyNodeStatePatch(persisted, 'llm2-intent', {
+  var persistedUpdated = pipelineState.applyNodeStateUpdate(persisted, 'llm2-intent', {
     'llm2.intentDslText': persisted.llm2.intentDslText,
     'llm2.intentDslLineCount': persisted.llm2.intentDslLineCount,
   });
-  assert.strictEqual(persistedPatched.llm2.intentDslLineCount, persisted.llm2.intentDslLineCount, 'persisted PipelineState should accept legal LLM2 patch paths');
+  assert.strictEqual(persistedUpdated.llm2.intentDslLineCount, persisted.llm2.intentDslLineCount, 'persisted PipelineState should accept legal LLM2 update paths');
 
   console.log('[PipelineState] graph-ready Intent pipeline state contract passed');
 }

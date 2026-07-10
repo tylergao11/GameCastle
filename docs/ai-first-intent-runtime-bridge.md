@@ -39,8 +39,8 @@ Before the AI-first Intent migration, the partially AI-friendly path was:
 
 ```text
 LLM1 design brief
-  -> LLM2 Module DSL
-  -> ai/module-compiler.js
+  -> LLM2 Intent DSL
+  -> Intent Compiler / Bridge
   -> internal line DSL
   -> ai/pipeline.js executor
   -> output/project.json
@@ -51,12 +51,12 @@ LLM1 design brief
 Product modules such as `core.platformer`, `core.shooter`, and
 `shell.start_screen` remain coarse compiler truth and reusable skeletons. The
 live LLM2 path now selects them through AI-first Intent DSL instead of writing
-module ids or Module DSL lines directly.
+module ids or old text commands directly.
 
 This is a refactor, not a compatibility wrapper. The live LLM2 path must not
-keep a second Module DSL commander path as an equal product surface. Product
-modules remain as compiler truth and reusable skeletons, but LLM2 selects them
-through Intent DSL.
+keep a second old-command path as an equal product surface. Product modules
+remain as compiler truth and reusable skeletons, but LLM2 selects them through
+Intent DSL.
 
 The live target pipeline is:
 
@@ -147,7 +147,7 @@ resolved component placements compile to internal low-level DSL, while touch,
 joystick, and inventory runtime gaps become explicit runtime adapter
 requirements. `ai/intent-runtime-codegen.js` now turns those adapter
 requirements into `intent-runtime.js` for HTML export, and `pipeline.js` accepts
-`--intent-dsl-file` as a real fixture entry into the Intent -> Bridge -> GDJS
+`--intent-fixture-file` as a real fixture entry into the Intent -> Bridge -> GDJS
 internal DSL path.
 
 ### Intent AST
@@ -463,7 +463,7 @@ owner.
 | A component needs extra generated objects/events | component expansion / GDJS bridge | exposing GDJS events to LLM2 |
 | A GDJS instruction has awkward parameters | GDJS bridge target rewrite | adding instruction-shaped Intent DSL |
 | A runtime adapter needs internal config | Compiler Manifest | showing adapter names to LLM2 |
-| A module/component combination is invalid | requirement validation diagnostic | letting LLM2 patch low-level DSL |
+| A module/component combination is invalid | requirement validation diagnostic | letting LLM2 edit low-level DSL |
 | A genuinely new reusable game feature appears | new component or module | expanding generic DSL syntax |
 
 This is the pressure valve that keeps Intent DSL from becoming infinite.
@@ -620,7 +620,7 @@ prior safe Intent lines, thing names, relations, natural placements, object
 names, and run summaries; it drops coordinates, GDJS object types, bridge plans,
 runtime adapter ids, component ids, internal contract names, and low-level
 execution commands. Intent repair prompts must follow the same rule. When a
-previous Intent patch contains
+previous Intent DSL contains
 prohibited machine syntax, the repair prompt may say that such a line was
 omitted, but it must not repeat the component id, adapter id, coordinate, or
 target command that caused the failure.
@@ -1069,7 +1069,7 @@ Repair should happen at the highest owner that can fix the issue:
 | Unsupported GDJS object/behavior/instruction | GDJS bridge or GDevelop truth update |
 | Low-level command execution failure | bridge/runtime/executor owner; do not ask LLM2 for low-level DSL |
 
-The model should avoid teaching LLM2 to patch low-level GDJS symptoms. LLM2 may
+The model should avoid teaching LLM2 to edit low-level GDJS symptoms. LLM2 may
 repair natural Intent DSL when the diagnostic owner is `llm2-intent`; after
 Intent has compiled to target code, failures stay below the AI surface and are
 handled by the owning compiler, bridge, runtime adapter, or executor layer.
@@ -1081,8 +1081,8 @@ handled by the owning compiler, bridge, runtime adapter, or executor layer.
 - Add this architecture spec.
 - Add roadmap entry for AI-first Intent Layer and GDJS Bridge.
 - Declare Intent DSL as the next canonical LLM2 surface.
-- Declare Module DSL as compiler-internal module selection target after the
-  migration, not as a parallel LLM2 surface.
+- Remove old text module command inputs after the Intent migration, rather than
+  keeping them as a parallel LLM2 surface.
 
 ### Phase B: Parser and graph skeleton
 
@@ -1123,7 +1123,7 @@ handled by the owning compiler, bridge, runtime adapter, or executor layer.
   requirements into a Bridge Plan with internal DSL.
 - Done: generate `intent-runtime.js` from Bridge Plan runtime adapter
   requirements and attach it in the HTML export.
-- Done: add `--intent-dsl-file` fixture entry to the pipeline.
+- Done: add `--intent-fixture-file` fixture entry to the pipeline.
 - Reuse current `pipeline.js` executor as the temporary target backend only
   while splitting owners. The final owner boundary is Intent Compiler -> GDJS
   Bridge -> internal executor.
@@ -1134,7 +1134,7 @@ handled by the owning compiler, bridge, runtime adapter, or executor layer.
 ### Phase F: LLM2 surface migration
 
 - Done: update `dsl-agent.js` so the primary role is Intent DSL.
-- Done: replace the live Module DSL commander surface with Intent DSL.
+- Done: replace the live old-command commander surface with Intent DSL.
 - Let Intent Compiler select product modules internally when an intent requires
   `core.*`, `shell.*`, `meta.*`, or `network.*` skeletons.
 - Keep low-level DSL only as bridge/runtime target code, not as an Intent-path
@@ -1156,10 +1156,10 @@ handled by the owning compiler, bridge, runtime adapter, or executor layer.
 
 The refactor is not complete until these can be proven by code/tests:
 
-- LLM2 can produce an Intent DSL patch without concrete coordinates.
+- LLM2 can produce Intent DSL without concrete coordinates.
 - The live LLM2 path uses Intent DSL as its only product surface.
-- Module DSL is not accepted as a parallel live LLM2 compatibility mode after
-  migration.
+- Old text command inputs are not accepted as live or fixture compatibility
+  modes after migration.
 - Intent parser rejects GDJS instruction names and event indexes in normal
   intent commands.
 - Component catalog validates required/provided capabilities.
@@ -1168,14 +1168,13 @@ The refactor is not complete until these can be proven by code/tests:
 - Placement resolver converts semantic edits such as "up a little" into planned
   target positions without asking LLM2 for numeric deltas.
 - GDJS bridge compiles Intent Graph into existing internal DSL.
-- Existing Module DSL fixtures still pass.
-- New Intent DSL fixtures produce `project.json`, `code*.js`, and `game.html`.
+- Intent DSL fixtures produce `project.json`, `code*.js`, and `game.html`.
 - Approval gate includes Intent DSL, Intent Graph, Bridge Plan, compiled
   internal DSL, and dry-run execution report.
 - LLM2 repair uses owner-routed diagnostics instead of immediately dropping to
   low-level DSL.
-- Intent execution failures do not call LLM2 internal DSL repair; the pipeline
-  records the `ExecutionReport` and routes the issue to the lower-layer owner.
+- Intent execution failures record the `ExecutionReport` and route the issue to
+  the lower-layer owner; there is no LLM low-level repair fallback.
 
 ## Design Principle
 

@@ -5,7 +5,6 @@
   "description": "GameCastle multi-agent contract schemas. LLM agents translate intent; RuntimeAssetResolver owns asset reuse/generation routing/fallback; runtime Linker/Validator owns deterministic merge and verification.",
   "contractTypes": [
     "BuildContract",
-    "ModuleDslPatch",
     "AssetManifest",
     "AssetReview",
     "AssemblyReport",
@@ -955,53 +954,6 @@
       },
       "additionalProperties": false
     },
-    "ModuleDslPatch": {
-      "type": "object",
-      "x-contractOwner": "ModuleCompiler",
-      "required": [
-        "meta",
-        "buildContractId",
-        "patchKind",
-        "moduleDsl",
-        "declaredAssetSlots",
-        "expectedOutputs"
-      ],
-      "properties": {
-        "meta": {
-          "$ref": "#/$defs/ContractMeta"
-        },
-        "buildContractId": {
-          "type": "string"
-        },
-        "patchKind": {
-          "type": "string",
-          "enum": [
-            "module",
-            "internalRepair"
-          ]
-        },
-        "moduleDsl": {
-          "type": "string"
-        },
-        "declaredAssetSlots": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "expectedOutputs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "tickRuntimeManifestPatch": {
-          "type": "object",
-          "additionalProperties": true
-        }
-      },
-      "additionalProperties": false
-    },
     "AssetManifest": {
       "type": "object",
       "x-contractOwner": "RuntimeAssetResolver",
@@ -1430,12 +1382,12 @@
         "inputs": {
           "type": "object",
           "required": [
-            "moduleDslPatch",
+            "intentBuildPlan",
             "assetManifest",
             "assetReview"
           ],
           "properties": {
-            "moduleDslPatch": {
+            "intentBuildPlan": {
               "type": "string"
             },
             "assetManifest": {

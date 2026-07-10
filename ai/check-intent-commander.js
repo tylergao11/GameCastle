@@ -3,6 +3,7 @@ var fs = require('fs');
 var path = require('path');
 
 var dslAgent = require('./dsl-agent');
+var capabilities = require('./capabilities');
 var moduleCompiler = require('./module-compiler');
 var componentCatalog = require('./component-catalog');
 var intentCompiler = require('./intent-compiler');
@@ -14,6 +15,7 @@ async function main() {
   var productModules = moduleCompiler.loadProductModuleCatalog(PRODUCT_MODULES_DIR);
   var components = componentCatalog.loadComponentCatalog();
   var systemPrompt = dslAgent.buildIntentCommanderSystemPrompt(productModules, components);
+  var gameCapabilitySection = systemPrompt.split('Component cards, shown without compiler ids or adapter names:')[0];
 
   assert(systemPrompt.indexOf('GameCastle Intent Commander') >= 0, 'prompt should identify Intent Commander');
   assert(systemPrompt.indexOf('make a mobile platformer') >= 0, 'prompt should include natural make example');
@@ -27,6 +29,9 @@ async function main() {
   assert(systemPrompt.indexOf('Product module cards') < 0, 'prompt must describe capabilities, not product module cards');
   assert(systemPrompt.indexOf('module cards') < 0, 'prompt must not teach LLM2 a module-card surface');
   assert(systemPrompt.indexOf('product modules') < 0, 'prompt must not teach LLM2 product module selection');
+  assert(gameCapabilitySection.indexOf('"category"') < 0, 'game capability cards must not expose product module categories');
+  assert(gameCapabilitySection.indexOf('"presets"') < 0, 'game capability cards must not expose product module presets');
+  assert(gameCapabilitySection.indexOf('mobile-friendly') < 0, 'game capability cards must not expose sanitized preset names as a product choice');
   assert(systemPrompt.indexOf('Game capability cards') >= 0, 'prompt should expose natural game capability cards');
   assert(systemPrompt.indexOf('Semantic feedback mapping') >= 0, 'prompt should expose the shared semantic mapping view');
   assert(systemPrompt.indexOf('llm-safe-semantic-mapping') >= 0, 'prompt should identify the LLM-safe semantic mapping view');
@@ -119,7 +124,7 @@ async function main() {
   assert(maliciousSystemPrompt.indexOf('tap button') >= 0, 'Intent prompt builder should keep safe component aliases');
   assert(maliciousSystemPrompt.indexOf('add useful button near screen right') >= 0, 'Intent prompt builder should keep safe component examples');
 
-  var userPrompt = dslAgent.buildIntentPatchUserPrompt({
+  var userPrompt = dslAgent.buildIntentUserPrompt({
     userPrompt: '做一个手机平台跳跃游戏，加摇杆和跳跃按钮',
     worldContext: { projectWorld: null, lastExecutionReport: null },
     designBrief: {
@@ -133,7 +138,7 @@ async function main() {
     diff: { isNew: true },
     isNew: true
   });
-  assert(userPrompt.indexOf('Intent DSL patch') >= 0, 'user prompt should request Intent DSL');
+  assert(userPrompt.indexOf('Intent DSL for the first playable version') >= 0, 'user prompt should request Intent DSL');
   assert(userPrompt.indexOf('llm-safe-semantic-mapping') >= 0, 'user prompt world context should include shared semantic mapping view');
   assert(userPrompt.indexOf('place coins near Player front as trail count 5') >= 0, 'user prompt should include safe semantic mapping repair examples');
   assert(userPrompt.indexOf('module ids') >= 0, 'user prompt should forbid machine ids');
@@ -270,7 +275,7 @@ async function main() {
   assert(safeContext.lastExecutionReport.summary.nextAction === 'done', 'sanitized execution summary should preserve nextAction');
   assert(safeContext.lastExecutionReport.summary.completed === 1, 'sanitized execution summary should preserve completed count');
 
-  var dangerousPrompt = dslAgent.buildIntentPatchUserPrompt({
+  var dangerousPrompt = dslAgent.buildIntentUserPrompt({
     userPrompt: [
       'move the jump button a bit',
       'move the jump button up 10 pixels',
@@ -340,7 +345,7 @@ async function main() {
   assert(safeBrief.placements.some(function(placement) {
     return placement.object === 'JumpButton' && placement.anchor === 'screen' && placement.direction === 'bottom-right';
   }), 'brief sanitizer should convert x/y placement into semantic screen direction');
-  var safePrompt = dslAgent.buildIntentPatchUserPrompt({
+  var safePrompt = dslAgent.buildIntentUserPrompt({
     userPrompt: [
       'add coins and move the player left',
       'place at x=500 y=360'
@@ -369,7 +374,7 @@ async function main() {
   assert(safePrompt.indexOf('bottom-right') >= 0, 'Intent prompt should preserve semantic placement from design brief');
   assert(safePrompt.indexOf('Coin') >= 0, 'Intent prompt should preserve game-world object names from diff');
 
-  var compiled = await dslAgent.compileIntentPatchWithRepair({
+  var compiled = await dslAgent.compileIntentDslWithRepair({
     intentDslText: [
       'make a mobile platformer',
       'add joystick controls Player near screen bottom-left',
@@ -387,28 +392,58 @@ async function main() {
   assert(dslAgent.buildModuleCommanderSystemPrompt === undefined, 'dsl-agent must not export legacy Module Commander prompt');
   assert(dslAgent.buildModulePatchUserPrompt === undefined, 'dsl-agent must not export legacy Module patch prompt');
   assert(dslAgent.compileModulePatchWithRepair === undefined, 'dsl-agent must not export legacy Module DSL model repair');
+  assert(dslAgent.buildInternalExecutionRepairPrompt === undefined, 'dsl-agent must not export internal low-level execution repair prompt');
+  assert(dslAgent.buildInternalDslRepairSystemPrompt === undefined, 'dsl-agent must not export internal low-level repair system prompt');
 
   var pipelineSource = fs.readFileSync(path.join(__dirname, 'pipeline.js'), 'utf8');
   assert(pipelineSource.indexOf('[Stage2] Intent Commander translating...') >= 0, 'live Stage2 should use Intent Commander');
   assert(pipelineSource.indexOf('[Stage2] Module Patch Commander translating...') < 0, 'live Stage2 should not use Module Patch Commander');
-  assert(pipelineSource.indexOf('buildIntentPatchUserPrompt') >= 0, 'pipeline should build Intent user prompt');
-  assert(pipelineSource.indexOf('compileIntentPatchWithRepair') >= 0, 'pipeline should compile Intent patch with repair');
+  assert(pipelineSource.indexOf('buildIntentUserPrompt') >= 0, 'pipeline should build Intent user prompt');
+  assert(pipelineSource.indexOf('compileIntentDslWithRepair') >= 0, 'pipeline should compile Intent DSL with repair');
+  assert.strictEqual(dslAgent.buildIntentPatchUserPrompt, undefined, 'dsl-agent must not export legacy Intent patch prompt name');
+  assert.strictEqual(dslAgent.compileIntentPatchWithRepair, undefined, 'dsl-agent must not export legacy Intent patch compile name');
+  assert(pipelineSource.indexOf('buildIntentPatchUserPrompt') < 0, 'pipeline must not call legacy Intent patch prompt name');
+  assert(pipelineSource.indexOf('compileIntentPatchWithRepair') < 0, 'pipeline must not call legacy Intent patch compile name');
   assert(pipelineSource.indexOf('buildModulePatchUserPrompt') < 0, 'pipeline live path must not build Module DSL prompts');
   assert(pipelineSource.indexOf('buildModuleCommanderSystemPrompt') < 0, 'pipeline live path must not build Module Commander prompts');
   assert(pipelineSource.indexOf('compileModulePatchWithRepair') < 0, 'pipeline live path must not run LLM2 Module DSL repair');
-  assert(pipelineSource.indexOf("getArgValue('--module-dsl-file')") >= 0, 'Module DSL should remain only as explicit fixture input');
-  assert.strictEqual(pipeline.shouldUseLlmInternalExecutionRepair({
-    useMock: false,
-    designBrief: { theme: 'platformer' },
-    llm2SystemPrompt: 'Intent Commander',
-    compiledIntentPatch: { graph: {} }
-  }), false, 'Intent execution failures must not route to LLM2 low-level DSL repair');
-  assert.strictEqual(pipeline.shouldUseLlmInternalExecutionRepair({
-    useMock: false,
-    designBrief: { theme: 'platformer' },
-    llm2SystemPrompt: 'legacy internal repair',
-    compiledIntentPatch: null
-  }), true, 'legacy non-Intent repair policy should remain explicit');
+  assert(pipelineSource.indexOf("getArgValue('--module-dsl-file')") < 0, 'Module DSL fixture input must be removed');
+  assert(pipelineSource.indexOf("getArgValue('--dsl-file')") < 0, 'low-level DSL fixture input must be removed');
+  assert(pipelineSource.indexOf("getArgValue('--intent-dsl-file')") < 0, 'generic Intent DSL file input must be removed');
+  assert(pipelineSource.indexOf('assertLegacyFixtureGate') < 0, 'legacy DSL fixture gate must be removed with the fixture input');
+  assert(pipelineSource.indexOf('--internal-legacy-fixture') < 0, 'legacy fixture flag must be removed');
+  assert(pipelineSource.indexOf('--mock') < 0, 'mock low-level DSL CLI must be removed');
+  assert(pipelineSource.indexOf('useMock') < 0, 'pipeline must not retain mock low-level DSL mode');
+  assert(pipelineSource.indexOf('mock-new') < 0, 'pipeline must not retain mock-new project mode');
+  assert(pipelineSource.indexOf('no longer accepts patchKind') >= 0, 'pipeline must explicitly reject stale patchKind input');
+  assert(pipelineSource.indexOf('patchKind:') < 0, 'pipeline must not emit legacy patchKind fields');
+  assert(pipelineSource.indexOf('options.patchKind') < 0, 'pipeline must not read legacy patchKind as compatibility input');
+  assert(pipelineSource.indexOf('compiledIntentPatch') < 0, 'pipeline must not retain legacy compiled Intent patch naming');
+  assert(pipelineSource.indexOf('CAPABILITIES_DIR') < 0, 'pipeline must not retain the removed ai/capabilities directory path');
+  assert(pipelineSource.indexOf("artifactKind: compiledIntentArtifact ? 'intent' : 'internal'") < 0, 'approval gate must not preserve internal artifact compatibility');
+  assert(pipelineSource.indexOf('shouldUseLlmInternalExecutionRepair') < 0, 'pipeline must remove internal low-level LLM repair policy');
+  assert(pipelineSource.indexOf('buildInternalExecutionRepairPrompt') < 0, 'pipeline must not build internal low-level repair prompts');
+  assert(pipelineSource.indexOf('buildInternalDslRepairSystemPrompt') < 0, 'pipeline must not build internal low-level repair system prompts');
+  assert(pipelineSource.indexOf('dslInternalRepair') < 0, 'pipeline must not call an internal low-level repair role');
+  assert.strictEqual(pipeline.shouldUseLlmInternalExecutionRepair, undefined, 'pipeline must not export internal low-level LLM repair policy');
+  assert.strictEqual(
+    pipeline.resolveIntentArtifactFile(path.join(__dirname, 'fixtures', 'intent-mobile-platformer.dsl')),
+    path.join(__dirname, 'fixtures', 'intent-mobile-platformer.dsl'),
+    'pipeline should accept only named Intent fixtures'
+  );
+  [
+    path.join(__dirname, '..', 'package.json'),
+    path.join(__dirname, 'product-modules', 'core-platformer.json'),
+    path.join(__dirname, 'fixtures', 'mobile-platformer.dsl'),
+    path.join(__dirname, 'fixtures', 'intent-mobile-platformer.txt')
+  ].forEach(function(fileName) {
+    assert.throws(function() {
+      pipeline.resolveIntentArtifactFile(fileName);
+    }, /Intent fixture file/, 'pipeline should reject non-fixture Intent file input: ' + fileName);
+  });
+  assert.strictEqual(capabilities.buildCompilerPromptSection, undefined, 'capabilities must not export low-level compiler prompt sections');
+  assert.strictEqual(capabilities.buildCompilerCapabilityContext, undefined, 'capabilities must not export low-level compiler capability context');
+  assert.strictEqual(capabilities.buildDslReference, undefined, 'capabilities must not export low-level DSL references');
   console.log('[IntentCommander] prompt and compile helper passed');
 }
 

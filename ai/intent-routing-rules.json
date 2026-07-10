@@ -68,6 +68,7 @@
     "binding-compiler",
     "gdjs-bridge",
     "runtime-adapter",
+    "runtime-executor",
     "gdevelop-truth",
     "component-catalog"
   ],
@@ -183,6 +184,14 @@
       "routeMechanism": "action-to-network-input-binding",
       "prohibitedDslExpansions": ["send touch event over network"],
       "resultCardEvidence": ["bindings", "emitted", "ownerTrace"]
+    },
+    {
+      "id": "internal-target-execution",
+      "problem": "A compiled internal target command failed while mutating the engine project.",
+      "routeOwner": "runtime-executor",
+      "routeMechanism": "execution-report",
+      "prohibitedDslExpansions": ["ask LLM2 to repair internal target DSL"],
+      "resultCardEvidence": ["executionReport", "failedCommands", "ownerTrace"]
     },
     {
       "id": "missing-gdjs-runtime-include",

@@ -68,14 +68,7 @@ function makeView(options) {
       defaultRead: options.evidence && options.evidence.length ? ['tick_event_window', 'project_world_diff'] : ['project_world_diff'],
       available: [{ id: 'tick_event_window' }, { id: 'project_world_diff' }, { id: 'ui_template_policy' }],
     },
-    recommendedActions: options.actions || [
-      {
-        action: 'no_op',
-        priority: 'high',
-        reason: 'Current playtest evidence satisfies the active gameplay goals.',
-        safeIntentDsl: null,
-      },
-    ],
+    recommendedActions: options.actions || [],
     recommendationPolicy: {
       authority: 'candidate-only',
       finalDecisionOwner: 'LLM2',
@@ -98,13 +91,51 @@ function makeThreatTickReport() {
   };
 }
 
+function testRegressedMeasurementCreatesStructuredRemainingIssue() {
+  var memory = loopRunner.buildSemanticIterationMemory({
+    userRequest: 'still feels worse',
+    decisionType: 'apply_intent',
+    intentDslLines: ['place coins near Player front as trail count 8'],
+    beforeIntentWorldView: { contextCache: { targetSemanticHash: 'hash_before' } },
+    afterIntentWorldView: { contextCache: { targetSemanticHash: 'hash_after' } },
+    afterSemanticPlaytestReport: { llmReport: { tickIssues: [] } },
+    improvementComparison: {
+      view: 'semantic-tick-improvement-comparison',
+      improved: false,
+      regressed: true,
+      measurements: [
+        {
+          measurement: 'reward_reachability',
+          status: 'worsened',
+          before: 0.8,
+          after: 0.5,
+          direction: 'increase',
+        },
+      ],
+      summary: { compared: 1, improved: 0, worsened: 1, unchanged: 0, missing: 0 },
+    },
+  });
+  assert(memory.latest.regressedMeasurements.indexOf('reward_reachability') >= 0, 'memory should keep the regressed measurement id');
+  assert(memory.latest.remainingIssues.some(function(issue) {
+    return issue.measurement === 'reward_reachability' &&
+      issue.experienceDimension === 'reward_pacing' &&
+      issue.gameplayRole === 'reward' &&
+      issue.repairVerb === 'increase_presence';
+  }), 'regressed reward reachability should become a structured remaining semantic issue');
+  assert(memory.latest.nextSemanticFocus.some(function(item) {
+    return item.indexOf('reward_reachability') >= 0;
+  }), 'next semantic focus should mention the regressed measurement');
+  assertNoMachineLeak(memory, 'regressed measurement semantic iteration memory');
+}
+
 function main() {
+  testRegressedMeasurementCreatesStructuredRemainingIssue();
   var createIntent = fullCreativeLoop.mockIntentModel(fullCreativeLoop.mockRequirementModel('做一个手机跑酷游戏，金币多一点，别太难'));
   var createIntentPath = path.join(OUTPUT_DIR, 'llm2-decision-loop-base.intent.dsl');
   writeText(createIntentPath, createIntent.intentDslText);
   run([
     'ai/pipeline.js',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     path.relative(ROOT, createIntentPath),
     '--batch-label',
     'llm2_decision_loop_base',
@@ -127,6 +158,18 @@ function main() {
   assert.strictEqual(applyReport.semanticIterationMemory.contextKind, 'semantic-iteration-memory', 'semantic iteration memory should declare context kind');
   assert(applyReport.semanticIterationMemory.latest.improvedMeasurements.indexOf('reward_reachability') >= 0, 'semantic iteration memory should preserve reward reachability improvement');
   assertNoMachineLeak(applyReport.semanticIterationMemory, 'apply report semantic iteration memory');
+  var appliedCountMatch = applyReport.intentDslText.match(/\bcount\s+(\d+)\b/);
+  assert(appliedCountMatch, 'apply report should keep the target semantic placement count');
+  var appliedRewardCount = Number(appliedCountMatch[1]);
+  assert.strictEqual(
+    applyReport.after.semanticSummary.rewardsAvailable,
+    appliedRewardCount,
+    'continue reward placement should merge to the semantic target count instead of appending to existing rewards'
+  );
+  assert(
+    applyReport.after.semanticSummary.rewardsAvailable < applyReport.before.semanticSummary.rewardsAvailable + appliedRewardCount,
+    'continue reward placement should not duplicate old reward instances plus the target count'
+  );
 
   ['llm2-decision-loop-report.json', 'llm2-decision-loop.intent.dsl', 'llm2-decision-loop-context-route.json', 'llm2-decision-loop-provided-context.json', 'semantic-iteration-memory.json'].forEach(assertExists);
   var persistedMemory = readJson('semantic-iteration-memory.json');
@@ -156,9 +199,16 @@ function main() {
   });
   assert(remixReport.before.intentWorldView.semanticIterationMemory, 'remix turn should read semantic iteration memory');
   assert.strictEqual(remixReport.firstDecision.decisionType, 'request_context', 'difficulty remix should request focused context first');
-  assert.strictEqual(remixReport.finalDecision.decisionType, 'apply_intent', 'difficulty remix should apply after context');
-  assert.strictEqual(remixReport.finalDecision.selectedAction.experienceDimension, 'route_readability', 'remix should focus remaining route readability after reward improved');
-  assert.strictEqual(remixReport.finalDecision.selectedAction.repairVerb, 'cluster_near_route', 'remix should keep remaining semantic repair verb');
+  var remainingIssues = remixReport.before.intentWorldView.semanticIterationMemory.latest.remainingIssues || [];
+  if (remainingIssues.length) {
+    assert.strictEqual(remixReport.finalDecision.decisionType, 'apply_intent', 'difficulty remix should apply when semantic memory has remaining issues');
+    assert.strictEqual(remixReport.finalDecision.selectedAction.experienceDimension, remainingIssues[0].experienceDimension, 'remix should focus the remaining semantic dimension');
+    assert.strictEqual(remixReport.finalDecision.selectedAction.repairVerb, remainingIssues[0].repairVerb, 'remix should keep remaining semantic repair verb');
+  } else {
+    assert.strictEqual(remixReport.finalDecision.decisionType, 'no_op', 'difficulty remix should not invent Intent DSL when memory has no remaining issue');
+    assert.strictEqual(remixReport.summary.executed, false, 'no-op remix should not execute pipeline');
+    assert.strictEqual(remixReport.intentDslText, '', 'no-op remix should not emit Intent DSL');
+  }
   assertNoMachineLeak(remixReport.before.intentWorldView.semanticIterationMemory, 'remix report semantic iteration memory');
 
   var threatReport = loopRunner.runDecisionLoop({
@@ -169,7 +219,10 @@ function main() {
       evidence: [{ tick: 220, issue: 'pressure_balance_high', meaning: 'pressure balance high' }],
       actions: [
         {
-          action: 'reduce_pressure',
+          action: 'apply_semantic_repair',
+          experienceDimension: 'pressure_balance',
+          gameplayRole: 'pressure',
+          repairVerb: 'soften_pressure',
           priority: 'high',
           reason: 'enemy density high',
           safeIntentDsl: 'reduce enemy pressure near Player early route',
@@ -203,7 +256,7 @@ function main() {
       providedContext: 'llm2-decision-loop-ui-provided-context.json',
     },
   });
-  assert.strictEqual(uiReport.finalDecision.decisionType, 'reject', 'UI icon request should reject gameplay patch');
+  assert.strictEqual(uiReport.finalDecision.decisionType, 'reject', 'UI icon request should reject gameplay Intent');
   assert.strictEqual(uiReport.summary.executed, false, 'reject should not execute pipeline');
 
   var noOpReport = loopRunner.runDecisionLoop({

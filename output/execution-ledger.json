@@ -63171,6 +63171,1217 @@
         }
       ],
       "failed": []
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run_059",
+      "batchLabel": "pipeline_state_runtime_check",
+      "baseWorldVersion": 3,
+      "targetWorldVersion": 4,
+      "baseSemanticHash": "01ebc5c8",
+      "targetSemanticHash": "5ef7362f",
+      "summary": {
+        "total": 36,
+        "completed": 36,
+        "failed": 0,
+        "nextAction": "done",
+        "failedDiagnostics": 0,
+        "intentFulfillment": {
+          "status": "fulfilled",
+          "total": 16,
+          "fulfilled": 16,
+          "missing": 0,
+          "nextAction": "done"
+        }
+      },
+      "intent": {
+        "schemaVersion": 1,
+        "artifactKind": "intent",
+        "intentDslLines": [
+          "make a mobile platformer",
+          "add joystick controls Player near screen bottom-left",
+          "add jump button controls Player near screen bottom-right",
+          "add attack button controls Player near jump button left",
+          "add inventory owned by Player with 24 slots near screen right",
+          "place coins near Player front as trail count 3"
+        ],
+        "contracts": {
+          "schemaVersion": 1,
+          "intentCompile": "passed",
+          "resultCard": "passed",
+          "diagnostics": "passed",
+          "rewrites": "passed",
+          "edits": "passed",
+          "placement": "passed",
+          "bridgeEmission": "passed",
+          "runtimeAdapters": "passed",
+          "graph": {
+            "things": 6,
+            "components": 5,
+            "relations": 5,
+            "placements": 5,
+            "edits": 0,
+            "bindings": 3,
+            "diagnostics": 0
+          },
+          "placementPlan": {
+            "placements": 5,
+            "edits": 0,
+            "diagnostics": 0
+          },
+          "bridgePlan": {
+            "internalDslLines": 36,
+            "runtimeAdapterRequirements": 5,
+            "diagnostics": 0
+          }
+        },
+        "intentGraph": {
+          "counts": {
+            "modules": 1,
+            "things": 6,
+            "components": 5,
+            "relations": 5,
+            "placements": 5,
+            "edits": 0,
+            "bindings": 3,
+            "requirements": 2,
+            "diagnostics": 0
+          },
+          "modules": [
+            {
+              "id": "core.platformer",
+              "preset": "mobile",
+              "source": "make a mobile platformer"
+            }
+          ],
+          "things": [
+            {
+              "name": "Player",
+              "archetype": "player",
+              "role": "hero"
+            },
+            {
+              "name": "Joystick",
+              "archetype": "ui",
+              "role": "control"
+            },
+            {
+              "name": "JumpButton",
+              "archetype": "ui",
+              "role": "control"
+            },
+            {
+              "name": "AttackButton",
+              "archetype": "ui",
+              "role": "control"
+            },
+            {
+              "name": "Inventory",
+              "archetype": "inventory",
+              "role": "inventory"
+            },
+            {
+              "name": "CoinsGroup",
+              "archetype": "coin",
+              "role": "group"
+            }
+          ],
+          "components": [
+            {
+              "componentId": "movement.platformer",
+              "thing": null,
+              "owner": null,
+              "target": "Player",
+              "control": null,
+              "configKeys": []
+            },
+            {
+              "componentId": "input.virtual_joystick",
+              "thing": "Joystick",
+              "owner": null,
+              "target": "Player",
+              "control": null,
+              "configKeys": [
+                "action",
+                "axisSmoothing",
+                "color",
+                "deadZone",
+                "height",
+                "inputs",
+                "layer",
+                "radius",
+                "shape",
+                "width"
+              ]
+            },
+            {
+              "componentId": "input.jump_button",
+              "thing": "JumpButton",
+              "owner": null,
+              "target": "Player",
+              "control": null,
+              "configKeys": [
+                "action",
+                "color",
+                "controlLabel",
+                "cooldown",
+                "height",
+                "keyboardKey",
+                "layer",
+                "pressMode",
+                "shape",
+                "width"
+              ]
+            },
+            {
+              "componentId": "input.attack_button",
+              "thing": "AttackButton",
+              "owner": null,
+              "target": "Player",
+              "control": null,
+              "configKeys": [
+                "action",
+                "color",
+                "controlLabel",
+                "cooldown",
+                "height",
+                "keyboardKey",
+                "layer",
+                "pressMode",
+                "shape",
+                "width"
+              ]
+            },
+            {
+              "componentId": "system.inventory",
+              "thing": "Inventory",
+              "owner": "Player",
+              "target": null,
+              "control": null,
+              "configKeys": [
+                "color",
+                "height",
+                "layer",
+                "panelTitle",
+                "persistence",
+                "shape",
+                "slots",
+                "uiMode",
+                "width"
+              ]
+            }
+          ],
+          "relations": [
+            {
+              "type": "controls",
+              "from": "Joystick",
+              "to": "Player",
+              "params": {
+                "action": "move"
+              }
+            },
+            {
+              "type": "controls",
+              "from": "JumpButton",
+              "to": "Player",
+              "params": {
+                "action": "jump"
+              }
+            },
+            {
+              "type": "controls",
+              "from": "AttackButton",
+              "to": "Player",
+              "params": {
+                "action": "attack"
+              }
+            },
+            {
+              "type": "owns",
+              "from": "Player",
+              "to": "Inventory"
+            },
+            {
+              "type": "near",
+              "from": "CoinsGroup",
+              "to": "Player",
+              "params": {
+                "direction": "front",
+                "pattern": "trail",
+                "count": 3
+              }
+            }
+          ],
+          "placements": [
+            {
+              "subject": "Joystick",
+              "anchor": "screen",
+              "space": "ui",
+              "direction": "bottom-left",
+              "pattern": null
+            },
+            {
+              "subject": "JumpButton",
+              "anchor": "screen",
+              "space": "ui",
+              "direction": "bottom-right",
+              "pattern": null
+            },
+            {
+              "subject": "AttackButton",
+              "anchor": "JumpButton",
+              "space": "ui_relative",
+              "direction": "left",
+              "pattern": null
+            },
+            {
+              "subject": "Inventory",
+              "anchor": "screen",
+              "space": "ui",
+              "direction": "right",
+              "pattern": null
+            },
+            {
+              "subject": "CoinsGroup",
+              "anchor": "Player",
+              "space": "object_relative",
+              "direction": "front",
+              "pattern": "trail",
+              "count": 3
+            }
+          ],
+          "edits": [],
+          "bindings": [
+            {
+              "action": "move",
+              "source": "Joystick",
+              "target": "Player",
+              "inputKind": "joystick_axis"
+            },
+            {
+              "action": "jump",
+              "source": "JumpButton",
+              "target": "Player",
+              "inputKind": "touch_button"
+            },
+            {
+              "action": "attack",
+              "source": "AttackButton",
+              "target": "Player",
+              "inputKind": "touch_button"
+            }
+          ],
+          "diagnostics": []
+        },
+        "placementPlan": {
+          "context": {
+            "screenSize": {
+              "width": 800,
+              "height": 600
+            },
+            "safeArea": {
+              "left": 32,
+              "right": 32,
+              "top": 32,
+              "bottom": 32
+            },
+            "cameraMode": "side",
+            "movementDirection": "left_to_right",
+            "worldGravity": "down"
+          },
+          "placements": [
+            {
+              "subject": "Joystick",
+              "space": "ui",
+              "anchor": "screen.safeArea",
+              "layer": "UI",
+              "directionRewrite": null,
+              "routeEvidence": [
+                {
+                  "owner": "placement-resolver",
+                  "mechanism": "screen-safe-area-placement",
+                  "routeId": "responsive-ui",
+                  "routeMechanism": "placement-contract"
+                }
+              ],
+              "pattern": null,
+              "emission": null,
+              "resolved": {
+                "x": 128,
+                "y": 472
+              },
+              "points": []
+            },
+            {
+              "subject": "JumpButton",
+              "space": "ui",
+              "anchor": "screen.safeArea",
+              "layer": "UI",
+              "directionRewrite": null,
+              "routeEvidence": [
+                {
+                  "owner": "placement-resolver",
+                  "mechanism": "screen-safe-area-placement",
+                  "routeId": "responsive-ui",
+                  "routeMechanism": "placement-contract"
+                }
+              ],
+              "pattern": null,
+              "emission": null,
+              "resolved": {
+                "x": 672,
+                "y": 472
+              },
+              "points": []
+            },
+            {
+              "subject": "AttackButton",
+              "space": "ui",
+              "anchor": "JumpButton",
+              "layer": "UI",
+              "directionRewrite": "left -> left",
+              "routeEvidence": [
+                {
+                  "owner": "placement-resolver",
+                  "mechanism": "object-relative-placement",
+                  "routeId": "object-relative-placement",
+                  "routeMechanism": "placement-contract"
+                }
+              ],
+              "pattern": "single",
+              "count": 1,
+              "emission": null,
+              "resolved": {
+                "x": 576,
+                "y": 472
+              },
+              "points": [
+                {
+                  "x": 576,
+                  "y": 472
+                }
+              ]
+            },
+            {
+              "subject": "Inventory",
+              "space": "ui",
+              "anchor": "screen.safeArea",
+              "layer": "UI",
+              "directionRewrite": null,
+              "routeEvidence": [
+                {
+                  "owner": "placement-resolver",
+                  "mechanism": "screen-safe-area-placement",
+                  "routeId": "responsive-ui",
+                  "routeMechanism": "placement-contract"
+                }
+              ],
+              "pattern": null,
+              "emission": null,
+              "resolved": {
+                "x": 672,
+                "y": 300
+              },
+              "points": []
+            },
+            {
+              "subject": "CoinsGroup",
+              "space": "object_relative",
+              "anchor": "Player",
+              "layer": null,
+              "directionRewrite": "front -> right",
+              "routeEvidence": [
+                {
+                  "owner": "placement-resolver",
+                  "mechanism": "object-relative-placement",
+                  "routeId": "object-relative-placement",
+                  "routeMechanism": "placement-contract"
+                },
+                {
+                  "owner": "placement-resolver",
+                  "mechanism": "contextual-direction-rewrite",
+                  "routeId": "front-direction-context",
+                  "routeMechanism": "contextual-direction-rewrite"
+                },
+                {
+                  "owner": "placement-resolver",
+                  "mechanism": "pattern-placement",
+                  "routeId": "semantic-pattern-placement",
+                  "routeMechanism": "placement-contract"
+                }
+              ],
+              "pattern": "trail",
+              "count": 3,
+              "emission": {
+                "mechanism": "semantic-group-placement-rewrite",
+                "routeId": "semantic-pattern-placement",
+                "routeMechanism": "placement-contract"
+              },
+              "resolved": {
+                "x": 196,
+                "y": 424
+              },
+              "points": [
+                {
+                  "x": 196,
+                  "y": 424
+                },
+                {
+                  "x": 244,
+                  "y": 424
+                },
+                {
+                  "x": 292,
+                  "y": 424
+                }
+              ]
+            }
+          ],
+          "editPlan": {
+            "edits": []
+          },
+          "diagnostics": []
+        },
+        "bridgePlan": {
+          "target": "gdjs-internal-dsl",
+          "internalDslLines": 36,
+          "contracts": {
+            "emission": "passed",
+            "runtimeAdapters": "passed"
+          },
+          "emittedMechanisms": {
+            "product-module-expansion": 23,
+            "component-ui-layer": 1,
+            "component-object-expansion": 4,
+            "component-placement-rewrite": 4,
+            "component-config-expansion": 1,
+            "semantic-group-placement-rewrite": 3
+          },
+          "emittedRoutes": {
+            "responsive-ui": 1,
+            "collision-mask-setup": 4,
+            "awkward-gdjs-parameters": 4,
+            "inventory-expansion": 1,
+            "semantic-pattern-placement": 3
+          },
+          "installedModules": [
+            {
+              "id": "core.platformer",
+              "preset": "mobile",
+              "syncPolicy": {
+                "sync": "local",
+                "authority": "host",
+                "tickRate": 20,
+                "seed": "auto"
+              }
+            }
+          ],
+          "runtimeAdapterRequirements": 5,
+          "diagnostics": []
+        },
+        "resultCard": {
+          "resolved": 6,
+          "rewrites": [
+            {
+              "from": "mobile platformer",
+              "to": "core.platformer",
+              "owner": "intent-compiler",
+              "mechanism": "module-inference",
+              "stage": "Resolve Symbols"
+            },
+            {
+              "from": "joystick",
+              "to": "input.virtual_joystick",
+              "owner": "component-catalog",
+              "mechanism": "component-alias",
+              "stage": "Resolve Symbols"
+            },
+            {
+              "from": "jump button",
+              "to": "input.jump_button",
+              "owner": "component-catalog",
+              "mechanism": "component-alias",
+              "stage": "Resolve Symbols"
+            },
+            {
+              "from": "jump button",
+              "to": "JumpButton",
+              "owner": "intent-compiler",
+              "mechanism": "natural-anchor",
+              "stage": "Resolve Placement Intent"
+            },
+            {
+              "from": "attack button",
+              "to": "input.attack_button",
+              "owner": "component-catalog",
+              "mechanism": "component-alias",
+              "stage": "Resolve Symbols"
+            },
+            {
+              "from": "inventory",
+              "to": "system.inventory",
+              "owner": "component-catalog",
+              "mechanism": "component-alias",
+              "stage": "Resolve Symbols"
+            },
+            {
+              "from": "coins",
+              "to": "thing.coinsgroup",
+              "owner": "intent-compiler",
+              "mechanism": "semantic-group",
+              "stage": "Build Intent Graph"
+            }
+          ],
+          "overrides": [
+            {
+              "component": "system.inventory",
+              "key": "slots",
+              "value": 24,
+              "owner": "intent-compiler",
+              "source": "add inventory owned by Player with 24 slots near screen right"
+            }
+          ],
+          "editConstraints": [],
+          "autoAdded": [
+            {
+              "kind": "thing",
+              "id": "thing.player",
+              "reason": "module preset provides Player"
+            },
+            {
+              "kind": "component",
+              "id": "cmp.movement_platformer_player",
+              "reason": "module preset provides movement"
+            },
+            {
+              "kind": "thing",
+              "id": "thing.joystick",
+              "reason": "control thing from component"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.action",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.deadZone",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.radius",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.axisSmoothing",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.shape",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.color",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.width",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.height",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.layer",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.virtual_joystick.inputs",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "thing",
+              "id": "thing.jumpbutton",
+              "reason": "control thing from component"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.pressMode",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.shape",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.color",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.width",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.height",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.layer",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.action",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.cooldown",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.keyboardKey",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.jump_button.controlLabel",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "thing",
+              "id": "thing.attackbutton",
+              "reason": "control thing from component"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.pressMode",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.shape",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.color",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.width",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.height",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.layer",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.action",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.cooldown",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.keyboardKey",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "input.attack_button.controlLabel",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "thing",
+              "id": "thing.inventory",
+              "reason": "inventory component thing"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.slots",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.persistence",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.uiMode",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.shape",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.color",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.width",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.height",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.layer",
+              "reason": "inherited from component-manifest"
+            },
+            {
+              "kind": "config-default",
+              "id": "system.inventory.panelTitle",
+              "reason": "inherited from component-manifest"
+            }
+          ],
+          "diagnostics": [],
+          "warnings": [],
+          "ownerTrace": [
+            {
+              "stage": "Parse",
+              "owner": "intent-dsl"
+            },
+            {
+              "stage": "Resolve Symbols",
+              "owner": "intent-compiler"
+            },
+            {
+              "stage": "Build Intent Graph",
+              "owner": "intent-compiler"
+            },
+            {
+              "stage": "Build Edit Constraints",
+              "owner": "intent-compiler"
+            },
+            {
+              "stage": "Validate Requirements",
+              "owner": "intent-compiler"
+            },
+            {
+              "stage": "Fill Defaults",
+              "owner": "intent-compiler"
+            },
+            {
+              "stage": "Resolve Placement",
+              "owner": "placement-resolver"
+            },
+            {
+              "stage": "Compile Bindings",
+              "owner": "binding-compiler"
+            },
+            {
+              "stage": "Expand Components",
+              "owner": "component-expander"
+            },
+            {
+              "stage": "Emit Internal DSL",
+              "owner": "gdjs-bridge"
+            }
+          ],
+          "emitted": [
+            "intent graph things=6",
+            "intent graph components=5",
+            "intent graph relations=5",
+            "intent graph placements=5",
+            "intent graph edits=0",
+            "intent graph bindings=3",
+            "placement plan placements=5",
+            "bridge plan internalDslLines=36",
+            "bridge plan runtimeAdapters=5"
+          ]
+        },
+        "runtimeAdapterRequirements": [
+          {
+            "adapter": "virtual-joystick",
+            "componentId": "input.virtual_joystick",
+            "thing": "Joystick",
+            "target": "Player",
+            "owner": "runtime-adapter",
+            "source": "input.virtual_joystick",
+            "mechanism": "touch-axis-adapter",
+            "routeId": "touch-multitouch-state",
+            "routeOwner": "runtime-adapter",
+            "routeMechanism": "bridge-target-rewrite",
+            "action": null
+          },
+          {
+            "adapter": "touch-button",
+            "componentId": "input.jump_button",
+            "thing": "JumpButton",
+            "target": "Player",
+            "owner": "runtime-adapter",
+            "source": "input.jump_button",
+            "mechanism": "touch-button-adapter",
+            "routeId": "touch-multitouch-state",
+            "routeOwner": "runtime-adapter",
+            "routeMechanism": "bridge-target-rewrite",
+            "action": null
+          },
+          {
+            "adapter": "touch-button",
+            "componentId": "input.attack_button",
+            "thing": "AttackButton",
+            "target": "Player",
+            "owner": "runtime-adapter",
+            "source": "input.attack_button",
+            "mechanism": "touch-button-adapter",
+            "routeId": "touch-multitouch-state",
+            "routeOwner": "runtime-adapter",
+            "routeMechanism": "bridge-target-rewrite",
+            "action": null
+          },
+          {
+            "adapter": "inventory-storage",
+            "componentId": "system.inventory",
+            "thing": "Inventory",
+            "target": null,
+            "owner": "runtime-adapter",
+            "source": "system.inventory",
+            "mechanism": "inventory-storage-adapter",
+            "routeId": "inventory-persistence",
+            "routeOwner": "runtime-adapter",
+            "routeMechanism": "adapter-config",
+            "action": null
+          },
+          {
+            "adapter": "inventory-panel",
+            "componentId": "system.inventory",
+            "thing": "Inventory",
+            "target": null,
+            "owner": "runtime-adapter",
+            "source": "system.inventory",
+            "mechanism": "inventory-panel-adapter",
+            "routeId": "inventory-expansion",
+            "routeOwner": "component-expander",
+            "routeMechanism": "component-expansion",
+            "action": null
+          }
+        ]
+      },
+      "intentFulfillment": {
+        "status": "fulfilled",
+        "total": 16,
+        "fulfilled": 16,
+        "missing": 0,
+        "nextAction": "done",
+        "checks": [
+          {
+            "kind": "thing",
+            "subject": "Player",
+            "status": "fulfilled",
+            "reason": "world-thing-or-plan-present"
+          },
+          {
+            "kind": "thing",
+            "subject": "Joystick",
+            "status": "fulfilled",
+            "reason": "world-thing-or-plan-present"
+          },
+          {
+            "kind": "thing",
+            "subject": "JumpButton",
+            "status": "fulfilled",
+            "reason": "world-thing-or-plan-present"
+          },
+          {
+            "kind": "thing",
+            "subject": "AttackButton",
+            "status": "fulfilled",
+            "reason": "world-thing-or-plan-present"
+          },
+          {
+            "kind": "thing",
+            "subject": "Inventory",
+            "status": "fulfilled",
+            "reason": "world-thing-or-plan-present"
+          },
+          {
+            "kind": "thing",
+            "subject": "CoinsGroup",
+            "status": "fulfilled",
+            "reason": "world-thing-or-plan-present"
+          },
+          {
+            "kind": "component",
+            "subject": "Player",
+            "status": "fulfilled",
+            "reason": "component-world-subject-present"
+          },
+          {
+            "kind": "component",
+            "subject": "Joystick",
+            "status": "fulfilled",
+            "reason": "component-world-subject-present"
+          },
+          {
+            "kind": "component",
+            "subject": "JumpButton",
+            "status": "fulfilled",
+            "reason": "component-world-subject-present"
+          },
+          {
+            "kind": "component",
+            "subject": "AttackButton",
+            "status": "fulfilled",
+            "reason": "component-world-subject-present"
+          },
+          {
+            "kind": "component",
+            "subject": "Inventory",
+            "status": "fulfilled",
+            "reason": "component-world-subject-present"
+          },
+          {
+            "kind": "placement",
+            "subject": "Joystick",
+            "status": "fulfilled",
+            "reason": "placement-subject-or-plan-present"
+          },
+          {
+            "kind": "placement",
+            "subject": "JumpButton",
+            "status": "fulfilled",
+            "reason": "placement-subject-or-plan-present"
+          },
+          {
+            "kind": "placement",
+            "subject": "AttackButton",
+            "status": "fulfilled",
+            "reason": "placement-subject-or-plan-present"
+          },
+          {
+            "kind": "placement",
+            "subject": "Inventory",
+            "status": "fulfilled",
+            "reason": "placement-subject-or-plan-present"
+          },
+          {
+            "kind": "placement",
+            "subject": "CoinsGroup",
+            "status": "fulfilled",
+            "reason": "placement-subject-or-plan-present"
+          }
+        ]
+      },
+      "failedDiagnostics": [],
+      "completed": [
+        {
+          "commandId": "pipeline_state_runtime_check_line_001",
+          "command": "create scene name=Game first=true",
+          "message": "scene: Game"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_002",
+          "command": "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
+          "message": "object: Player (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_003",
+          "command": "create object name=Ground type=ShapePainter shape=rectangle color=#8B4513 width=800 height=20 scene=Game",
+          "message": "object: Ground (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_004",
+          "command": "create object name=Platform type=ShapePainter shape=rectangle color=#8B4513 width=100 height=16 scene=Game",
+          "message": "object: Platform (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_005",
+          "command": "create object name=Coin type=ShapePainter shape=circle color=#FFD700 width=16 height=16 scene=Game",
+          "message": "object: Coin (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_006",
+          "command": "create object name=Enemy type=ShapePainter shape=rectangle color=#DC3232 width=32 height=32 scene=Game",
+          "message": "object: Enemy (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_007",
+          "command": "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
+          "message": "behavior: PlatformerObject"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_008",
+          "command": "add behavior type=PlatformBehavior::PlatformBehavior to=Ground scene=Game",
+          "message": "behavior: Platform"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_009",
+          "command": "add behavior type=PlatformBehavior::PlatformBehavior to=Platform scene=Game",
+          "message": "behavior: Platform"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_010",
+          "command": "set variable name=Score value=0 type=Number scope=global",
+          "message": "var: Score=0"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_011",
+          "command": "place object=Player at=100,400 scene=Game",
+          "message": "placed Player x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_012",
+          "command": "place object=Ground at=400,590 scene=Game width=800 height=20",
+          "message": "placed Ground x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_013",
+          "command": "place object=Platform at=200,460 scene=Game width=100 height=16",
+          "message": "placed Platform x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_014",
+          "command": "place object=Platform at=400,380 scene=Game width=100 height=16",
+          "message": "placed Platform x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_015",
+          "command": "place object=Platform at=600,300 scene=Game width=100 height=16",
+          "message": "placed Platform x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_016",
+          "command": "place object=Coin at=240,430 scene=Game",
+          "message": "placed Coin x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_017",
+          "command": "place object=Coin at=440,350 scene=Game",
+          "message": "placed Coin x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_018",
+          "command": "place object=Coin at=640,270 scene=Game",
+          "message": "placed Coin x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_019",
+          "command": "place object=Enemy at=550,400 scene=Game",
+          "message": "placed Enemy x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_020",
+          "command": "on start -> Score=0 scene=Game",
+          "message": "event: on start -> Score=0"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_021",
+          "command": "on collision Player Coin -> destroy Coin, score+1 scene=Game",
+          "message": "event: on collision Player Coin -> destroy Coin, score+1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_022",
+          "command": "on collision Player Enemy -> restart scene=Game",
+          "message": "event: on collision Player Enemy -> restart"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_023",
+          "command": "on key Space -> jump Player 500 scene=Game",
+          "message": "event: on key Space -> jump Player 500"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_024",
+          "command": "add layer name=UI scene=Game visible=true",
+          "message": "layer: UI"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_025",
+          "command": "create object name=Joystick type=ShapePainter shape=circle color=#2D9CDB width=96 height=96 scene=Game",
+          "message": "object: Joystick (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_026",
+          "command": "place object=Joystick at=128,472 scene=Game width=96 height=96 layer=UI",
+          "message": "placed Joystick x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_027",
+          "command": "create object name=JumpButton type=ShapePainter shape=rectangle color=#27AE60 width=72 height=72 scene=Game",
+          "message": "object: JumpButton (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_028",
+          "command": "place object=JumpButton at=672,472 scene=Game width=72 height=72 layer=UI",
+          "message": "placed JumpButton x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_029",
+          "command": "create object name=AttackButton type=ShapePainter shape=rectangle color=#EB5757 width=72 height=72 scene=Game",
+          "message": "object: AttackButton (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_030",
+          "command": "place object=AttackButton at=576,472 scene=Game width=72 height=72 layer=UI",
+          "message": "placed AttackButton x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_031",
+          "command": "create object name=Inventory type=ShapePainter shape=rectangle color=#4F4F4F width=160 height=220 scene=Game",
+          "message": "object: Inventory (PrimitiveDrawing::Drawer)"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_032",
+          "command": "place object=Inventory at=672,300 scene=Game width=160 height=220 layer=UI",
+          "message": "placed Inventory x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_033",
+          "command": "set variable name=InventorySlots value=24 type=Number scope=global",
+          "message": "var: InventorySlots=24"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_034",
+          "command": "place object=Coin at=196,424 scene=Game",
+          "message": "placed Coin x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_035",
+          "command": "place object=Coin at=244,424 scene=Game",
+          "message": "placed Coin x1"
+        },
+        {
+          "commandId": "pipeline_state_runtime_check_line_036",
+          "command": "place object=Coin at=292,424 scene=Game",
+          "message": "placed Coin x1"
+        }
+      ],
+      "failed": []
     }
   ]
 }

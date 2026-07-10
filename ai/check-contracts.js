@@ -172,16 +172,7 @@ function main() {
   ]);
   requireRequiredFields(build.properties.repairPolicy, 'BuildContract.repairPolicy', ['maxRounds', 'routeByOwner', 'retryOwners']);
 
-  var modulePatch = requireObjectDef(schema, 'ModuleDslPatch');
-  requireRequiredFields(modulePatch, 'ModuleDslPatch', [
-    'meta',
-    'buildContractId',
-    'patchKind',
-    'moduleDsl',
-    'declaredAssetSlots',
-    'expectedOutputs',
-  ]);
-  assert(modulePatch['x-contractOwner'] === 'ModuleCompiler', 'ModuleDslPatch must be owned by ModuleCompiler, not the live DSLAgent surface');
+  assert(!schema.$defs.ModuleDslPatch, 'ModuleDslPatch contract must be removed with the legacy Module DSL input');
 
   var assetManifest = requireObjectDef(schema, 'AssetManifest');
   requireRequiredFields(assetManifest, 'AssetManifest', ['meta', 'buildContractId', 'assets', 'summary']);
@@ -240,6 +231,11 @@ function main() {
     'outputs',
     'conflicts',
     'nextAction',
+  ]);
+  requireRequiredFields(assembly.properties.inputs, 'AssemblyReport.inputs', [
+    'intentBuildPlan',
+    'assetManifest',
+    'assetReview',
   ]);
   assert(enumValues(schema, ['$defs', 'AssemblyReport', 'properties', 'nextAction']).indexOf('repair') >= 0,
     'AssemblyReport.nextAction must support repair routing');

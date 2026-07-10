@@ -18,10 +18,6 @@ function normalizeKey(value) {
   return normalizeText(value).toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-function normalizeRepairAction(value) {
-  return normalizeText(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-}
-
 function normalizeSubject(value) {
   var text = normalizeText(value);
   if (!text) return null;
@@ -43,27 +39,28 @@ function normalizeProbeIssue(issue) {
   var repair = issue.repair && typeof issue.repair === 'object'
     ? issue.repair
     : (issue.semanticRepair && typeof issue.semanticRepair === 'object' ? issue.semanticRepair : (profile && profile.repair));
-  if (repair && repair.action) {
+  var repairVerb = normalizeKey(issue.repairVerb || (repair && repair.repairVerb) || (profile && profile.repairVerb));
+  if (repair && repairVerb && mapping.repairVerbs[repairVerb]) {
     var subject = normalizeSubject(repair.subject || issue.subject || issue.target || issue.object);
     var defaults = subjectDefaults(subject);
+    var amount = repair.amount || issue.amount || defaults.amount;
     return {
-      kind: kind || normalizeKey(repair.action),
+      kind: kind || repairVerb,
       category: normalizeKey(issue.category || repair.category || (profile && profile.category) || 'semantic'),
       dimension: normalizeKey(issue.dimension || repair.dimension || (profile && profile.dimension) || 'content_density'),
       gameplayRole: normalizeKey(issue.gameplayRole || repair.gameplayRole || (profile && profile.gameplayRole) || 'content'),
-      repairVerb: normalizeKey(issue.repairVerb || repair.repairVerb || (profile && profile.repairVerb) || 'increase_presence'),
+      repairVerb: repairVerb,
       owner: 'semantic-feedback',
       status: 'actionable',
       subject: subject,
       anchor: normalizeSubject(repair.anchor || issue.anchor || defaults.anchor),
       direction: normalizeText(repair.direction || issue.direction || defaults.direction),
       pattern: normalizeKey(repair.pattern || issue.pattern || defaults.pattern),
-      amount: normalizeAmount(repair.amount || issue.amount || defaults.amount),
+      amount: amount ? normalizeAmount(amount) : null,
       delta: Number(repair.delta || issue.delta || 1),
       severity: normalizeText(issue.severity || 'medium'),
-      message: normalizeText(issue.message || issue.summary || kind || repair.action),
+      message: normalizeText(issue.message || issue.summary || kind || repairVerb),
       nextAction: 'repair-intent',
-      repair: normalizeRepairAction(repair.action),
       evidence: clone(issue.evidence || null),
     };
   }
@@ -115,7 +112,7 @@ function validateSemanticMapping(mapping) {
   assertObject(mapping.repairVerbs, 'Semantic mapping repairVerbs');
   assertObject(mapping.measurements, 'Semantic mapping measurements');
   assertObject(mapping.requestSemantics, 'Semantic mapping requestSemantics');
-  assertObject(mapping.repairActions, 'Semantic mapping repairActions');
+  assertObject(mapping.intentLineStrategies, 'Semantic mapping intentLineStrategies');
   assertObject(mapping.issueProfiles, 'Semantic mapping issueProfiles');
   assertObject(mapping.subjectDefaults, 'Semantic mapping subjectDefaults');
   assertObject(mapping.playGoals, 'Semantic mapping playGoals');
@@ -126,14 +123,14 @@ function validateSemanticMapping(mapping) {
     if (!mapping.subjectAliases[alias]) throw new Error('Semantic mapping empty alias target: ' + alias);
     intentSurfaceGuard.assertIntentSurfaceAllowed(alias + ' ' + mapping.subjectAliases[alias]);
   });
-  Object.keys(mapping.repairActions).forEach(function(actionId) {
-    var action = mapping.repairActions[actionId];
-    assertObject(action, 'Semantic mapping repair action ' + actionId);
-    if (['count', 'placement', 'template-route'].indexOf(action.kind) < 0) {
-      throw new Error('Semantic mapping repair action has unsupported kind: ' + actionId);
+  Object.keys(mapping.intentLineStrategies).forEach(function(strategyId) {
+    var strategy = mapping.intentLineStrategies[strategyId];
+    assertObject(strategy, 'Semantic mapping intent line strategy ' + strategyId);
+    if (['count', 'placement', 'template-route'].indexOf(strategy.kind) < 0) {
+      throw new Error('Semantic mapping intent line strategy has unsupported kind: ' + strategyId);
     }
-    assertSafeMappingText(action.summary, 'Semantic mapping repair action summary ' + actionId);
-    if (action.template) assertSafeTemplateText(action.template, 'Semantic mapping repair action template ' + actionId);
+    assertSafeMappingText(strategy.summary, 'Semantic mapping intent line strategy summary ' + strategyId);
+    if (strategy.template) assertSafeTemplateText(strategy.template, 'Semantic mapping intent line strategy template ' + strategyId);
   });
   Object.keys(mapping.gameplayRoles).forEach(function(roleId) {
     var role = mapping.gameplayRoles[roleId];
@@ -175,8 +172,8 @@ function validateSemanticMapping(mapping) {
     var verb = mapping.repairVerbs[verbId];
     assertSafeMappingText(verbId, 'Semantic mapping repair verb id ' + verbId);
     assertSafeMappingText(verb.meaning, 'Semantic mapping repair verb meaning ' + verbId);
-    if (!mapping.repairActions[normalizeRepairAction(verb.action)]) {
-      throw new Error('Semantic mapping repair verb references unknown action: ' + verbId + ' -> ' + verb.action);
+    if (!mapping.intentLineStrategies[normalizeKey(verb.intentStrategy)]) {
+      throw new Error('Semantic mapping repair verb references unknown intent strategy: ' + verbId + ' -> ' + verb.intentStrategy);
     }
   });
   Object.keys(mapping.experienceDimensions).forEach(function(dimensionId) {
@@ -247,10 +244,6 @@ function validateSemanticMapping(mapping) {
   Object.keys(mapping.issueProfiles).forEach(function(profileId) {
     var profile = mapping.issueProfiles[profileId];
     assertObject(profile.repair, 'Semantic mapping issue profile repair ' + profileId);
-    var action = normalizeRepairAction(profile.repair.action);
-    if (!mapping.repairActions[action]) {
-      throw new Error('Semantic mapping issue profile references unknown repair action: ' + profileId + ' -> ' + action);
-    }
     assertSafeMappingText(profile.category, 'Semantic mapping issue profile category ' + profileId);
     if (!mapping.experienceDimensions[profile.dimension]) {
       throw new Error('Semantic mapping issue profile references unknown dimension: ' + profileId + ' -> ' + profile.dimension);
@@ -347,13 +340,49 @@ function subjectsMatch(left, right) {
     normalizedLeft === normalizeSubjectGroup(right);
 }
 
+function singularizeSubject(value) {
+  var subject = normalizeSubjectGroup(value);
+  if (!subject) return subject;
+  if (subject.length > 3 && subject.slice(-3) === 'ies') return subject.slice(0, -3) + 'y';
+  if (subject.length > 1 && subject.slice(-1) === 's') return subject.slice(0, -1);
+  return subject;
+}
+
+function worldInstances(world) {
+  var scenes = (world || {}).scenes || [];
+  var instances = [];
+  scenes.forEach(function(scene) {
+    instances = instances.concat((scene || {}).instances || []);
+  });
+  return instances;
+}
+
+function countWorldInstances(world, subject) {
+  var normalizedSubject = normalizeSubjectGroup(subject);
+  var singularSubject = singularizeSubject(subject);
+  return worldInstances(world).filter(function(instance) {
+    var objectName = instance.object || instance.name;
+    var normalizedObject = normalizeSubjectGroup(objectName);
+    var singularObject = singularizeSubject(objectName);
+    return normalizedObject === normalizedSubject ||
+      normalizedObject === singularSubject ||
+      singularObject === normalizedSubject ||
+      singularObject === singularSubject;
+  }).length;
+}
+
 function findPlacementCount(world, subject) {
+  var instanceCount = countWorldInstances(world, subject);
   var placements = collectIntentPlacements(world);
+  var placementCount = null;
   for (var i = 0; i < placements.length; i++) {
     var placement = placements[i];
     if (subjectsMatch(placement.subject, subject) && typeof placement.count === 'number') {
-      return placement.count;
+      placementCount = Math.max(placementCount || 0, placement.count);
     }
+  }
+  if (instanceCount > 0 || placementCount !== null) {
+    return Math.max(instanceCount, placementCount || 0);
   }
   return null;
 }
@@ -369,32 +398,40 @@ function renderTemplate(template, values) {
   }).replace(/\s+/g, ' ').trim();
 }
 
-function exampleCountForRepair(repair, action, subject) {
+function exampleCountForRepair(repair, strategy, subject) {
   var defaults = subjectDefaults(subject);
   var base = typeof defaults.count === 'number' ? defaults.count : 3;
-  var delta = Math.max(1, Number(repair.delta || action.defaultDelta || 1));
-  if (action.direction === 'decrease') return Math.max(action.minCount || 1, base - delta);
+  var delta = Math.max(1, Number(repair.delta || strategy.defaultDelta || 1));
+  if (strategy.direction === 'decrease') return Math.max(strategy.minCount || 1, base - delta);
   return base + delta;
 }
 
-function renderExampleFromRepair(repair) {
+function strategyForRepair(repairVerb, repairLike) {
   var mapping = currentMapping();
-  var actionId = normalizeRepairAction(repair.action);
-  var action = mapping.repairActions[actionId];
-  if (!action) return null;
+  if (repairLike && repairLike.amount) {
+    return mapping.intentLineStrategies.placement_adjust || null;
+  }
+  var verb = mapping.repairVerbs[normalizeKey(repairVerb)];
+  if (!verb) return null;
+  return mapping.intentLineStrategies[normalizeKey(verb.intentStrategy)] || null;
+}
+
+function renderExampleFromRepair(repair, repairVerb) {
+  var strategy = strategyForRepair(repairVerb, repair);
+  if (!strategy) return null;
   var subject = normalizeSubject(repair.subject);
   var defaults = subjectDefaults(subject);
   var line = null;
-  if (action.kind === 'count') {
-    line = renderTemplate(action.template, {
+  if (strategy.kind === 'count') {
+    line = renderTemplate(strategy.template, {
       subject: subject,
       anchor: normalizeSubject(repair.anchor || defaults.anchor || 'Player'),
       direction: normalizeText(repair.direction || defaults.direction || 'front'),
       pattern: normalizeKey(repair.pattern || defaults.pattern || 'trail'),
-      count: exampleCountForRepair(repair, action, subject),
+      count: exampleCountForRepair(repair, strategy, subject),
     });
-  } else if (action.kind === 'placement') {
-    line = renderTemplate(action.template, {
+  } else if (strategy.kind === 'placement') {
+    line = renderTemplate(strategy.template, {
       subject: subject,
       direction: normalizeText(repair.direction || defaults.direction || 'above'),
       amount: normalizeAmount(repair.amount || defaults.amount),
@@ -510,8 +547,6 @@ function buildSemanticMappingLlmView(mapping) {
     feedbackIssues: Object.keys(mapping.issueProfiles).sort().map(function(profileId) {
       var profile = mapping.issueProfiles[profileId];
       var repair = profile.repair || {};
-      var actionId = normalizeRepairAction(repair.action);
-      var action = mapping.repairActions[actionId] || {};
       return {
         issue: assertSafeMappingText(profileId, 'Semantic mapping LLM issue ' + profileId),
         category: assertSafeMappingText(profile.category, 'Semantic mapping LLM category ' + profileId),
@@ -519,9 +554,7 @@ function buildSemanticMappingLlmView(mapping) {
         gameplayRole: assertSafeMappingText(profile.gameplayRole, 'Semantic mapping LLM gameplay role ' + profileId),
         repairVerb: assertSafeMappingText(profile.repairVerb, 'Semantic mapping LLM repair verb ' + profileId),
         meaning: assertSafeMappingText(profile.meaning, 'Semantic mapping LLM meaning ' + profileId),
-        repairAction: assertSafeMappingText(actionId, 'Semantic mapping LLM repair action ' + profileId),
-        repairSummary: assertSafeMappingText(action.summary, 'Semantic mapping LLM repair summary ' + profileId),
-        safeIntentExample: renderExampleFromRepair(repair),
+        safeIntentExample: renderExampleFromRepair(repair, profile.repairVerb),
       };
     }),
     subjectAliases: Object.keys(mapping.subjectAliases).sort().map(function(alias) {
@@ -533,15 +566,15 @@ function buildSemanticMappingLlmView(mapping) {
   };
 }
 
-function makeCountRepairLine(issue, world, action) {
+function makeCountRepairLine(issue, world, strategy) {
   var current = findPlacementCount(world, issue.subject);
   if (current === null) current = getDefaultCount(issue.subject);
-  var delta = Math.max(1, Number(issue.delta || action.defaultDelta || 1));
-  var minCount = typeof action.minCount === 'number' ? action.minCount : 1;
-  var next = action.direction === 'increase' ? current + delta : Math.max(minCount, current - delta);
+  var delta = Math.max(1, Number(issue.delta || strategy.defaultDelta || 1));
+  var minCount = typeof strategy.minCount === 'number' ? strategy.minCount : 1;
+  var next = strategy.direction === 'increase' ? current + delta : Math.max(minCount, current - delta);
   var subject = fallbackSubjectForIssue(issue, 'reward');
   var defaults = subjectDefaults(subject);
-  return renderTemplate(action.template, {
+  return renderTemplate(strategy.template, {
     subject: subject,
     anchor: issue.anchor || defaults.anchor || fallbackAnchorForIssue(issue),
     direction: issue.direction || defaults.direction || 'front',
@@ -550,10 +583,10 @@ function makeCountRepairLine(issue, world, action) {
   });
 }
 
-function makePlacementRepairLine(issue, action) {
+function makePlacementRepairLine(issue, strategy) {
   var subject = fallbackSubjectForIssue(issue, 'action_entry');
   var defaults = subjectDefaults(subject);
-  return renderTemplate(action.template, {
+  return renderTemplate(strategy.template, {
     subject: subject,
     direction: issue.direction || defaults.direction || 'above',
     amount: issue.amount || defaults.amount || 'slightly',
@@ -562,10 +595,10 @@ function makePlacementRepairLine(issue, action) {
 
 function issueToRepairLine(issue, world) {
   if (issue.status !== 'actionable') return null;
-  var action = currentMapping().repairActions[issue.repair];
-  if (!action) return null;
-  if (action.kind === 'placement') return makePlacementRepairLine(issue, action);
-  if (action.kind === 'count') return makeCountRepairLine(issue, world, action);
+  var strategy = strategyForRepair(issue.repairVerb, issue);
+  if (!strategy) return null;
+  if (strategy.kind === 'placement') return makePlacementRepairLine(issue, strategy);
+  if (strategy.kind === 'count') return makeCountRepairLine(issue, world, strategy);
   return null;
 }
 
@@ -720,17 +753,34 @@ function measurementIdsForIssues(mapping, issues) {
   return Object.keys(ids).sort();
 }
 
-function compareSemanticTickSummaries(options) {
-  options = options || {};
-  var mapping = validateSemanticMapping(options.semanticMapping || currentMapping());
-  var beforeSummary = options.beforeSummary || {};
-  var afterSummary = options.afterSummary || {};
+function uniqueSorted(values) {
+  var seen = {};
+  (values || []).forEach(function(value) {
+    var key = String(value || '').trim();
+    if (key) seen[key] = true;
+  });
+  return Object.keys(seen).sort();
+}
+
+function measurementIdsForComparison(mapping, options) {
   var relevantIds = options.measurements || measurementIdsForIssues(mapping, options.issues || options.tickIssues || []);
+  if (options.includeGuardMeasurements !== false) {
+    relevantIds = uniqueSorted(relevantIds.concat(mapping.semanticImprovementGuardMeasurements || []));
+  }
   if (!relevantIds.length) {
     relevantIds = Object.keys(mapping.measurements).filter(function(measurementId) {
       return mapping.measurements[measurementId].summaryField && mapping.measurements[measurementId].improvement !== 'contextual';
     }).sort();
   }
+  return relevantIds;
+}
+
+function compareSemanticTickSummaries(options) {
+  options = options || {};
+  var mapping = validateSemanticMapping(options.semanticMapping || currentMapping());
+  var beforeSummary = options.beforeSummary || {};
+  var afterSummary = options.afterSummary || {};
+  var relevantIds = measurementIdsForComparison(mapping, options);
   var comparisons = relevantIds.map(function(measurementId) {
     var measurement = mapping.measurements[measurementId];
     if (!measurement || !measurement.summaryField) return null;

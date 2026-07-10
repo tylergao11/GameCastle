@@ -101,6 +101,7 @@ function main() {
     'inventory-expansion',
     'inventory-persistence',
     'networked-touch-input',
+    'internal-target-execution',
     'missing-gdjs-runtime-include',
     'new-reusable-game-system'
   ], 'bridgeIssueRoutes');

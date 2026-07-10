@@ -40,7 +40,10 @@ function makeIntentWorldView() {
     },
     recommendedActions: [
       {
-        action: 'reduce_pressure',
+        action: 'apply_semantic_repair',
+        experienceDimension: 'pressure_balance',
+        gameplayRole: 'pressure',
+        repairVerb: 'soften_pressure',
         priority: 'high',
         reason: 'enemy density high',
         safeIntentDsl: 'reduce enemy pressure near Player early route',

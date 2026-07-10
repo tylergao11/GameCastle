@@ -29,7 +29,7 @@ function buildPartialState() {
   return pipelineState.createPipelineState({
     mode: 'fixture-new',
     batchLabel: 'official_langgraph_runtime_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: [
       'make a mobile platformer',
       'set placement object=Player x=100 y=400 scene=Game',

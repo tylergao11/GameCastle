@@ -5,7 +5,6 @@ var CONTRACT_SCHEMA_PATH = path.join(__dirname, 'contracts', 'schema.json');
 
 var CONTRACT_TYPES = [
   'BuildContract',
-  'ModuleDslPatch',
   'AssetManifest',
   'AssetReview',
   'AssemblyReport',
@@ -29,14 +28,12 @@ var WORKFLOW_ROLE_CONTRACT_OWNERS = {
   requirement: 'RequirementModel',
   dsl: 'DSLAgent',
   dslIntentRepair: 'DSLAgent',
-  dslInternalRepair: 'RuntimeExecutor',
   imageGeneration: 'ImageAgent',
   vision: 'VisionAgent',
 };
 
 var CONTRACT_TYPE_OWNERS = {
   BuildContract: 'RequirementModel',
-  ModuleDslPatch: 'ModuleCompiler',
   AssetManifest: 'RuntimeAssetResolver',
   AssetReview: 'VisionAgent',
   AssemblyReport: 'RuntimeLinker',

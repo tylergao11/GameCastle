@@ -32,7 +32,10 @@ function makeView() {
       available: [{ id: 'tick_event_window' }, { id: 'project_world_diff' }, { id: 'snapshot_summary' }, { id: 'ui_template_policy' }],
     },
     recommendedActions: [{
-      action: 'increase_collectibles',
+      action: 'apply_semantic_repair',
+      experienceDimension: 'reward_pacing',
+      gameplayRole: 'reward',
+      repairVerb: 'increase_presence',
       priority: 'high',
       reason: 'request slot asks for more collectibles',
       safeIntentDsl: 'place coins near Player front as trail count 5',

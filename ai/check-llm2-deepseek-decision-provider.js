@@ -59,7 +59,7 @@ async function main() {
       owner: 'IntentWorldView',
       evidence: [],
       recommendedActions: [{
-        action: 'increase_collectibles',
+        action: 'apply_semantic_repair',
         experienceDimension: 'reward_pacing',
         gameplayRole: 'reward',
         repairVerb: 'increase_presence',
@@ -103,10 +103,54 @@ async function main() {
   assert(calls[0].body.input[1].content.indexOf('金币多一点') >= 0, 'dynamic request should be in second message');
   assert(calls[0].body.input[1].content.indexOf('reward_pacing') >= 0, 'Chinese gameplay request should carry generic experience dimension');
   assert(calls[0].body.input[1].content.indexOf('increase_presence') >= 0, 'Chinese gameplay request should carry generic repair verb');
+  assert(calls[0].body.input[1].content.indexOf('apply_semantic_repair') >= 0, 'provider prompt should carry unified semantic repair action');
+  assert(calls[0].body.input[1].content.indexOf('action=no_op') < 0, 'provider prompt must not expose no_op as a candidate action');
   assert(calls[0].body.input[1].content.indexOf('slot:local_proof') >= 0, 'provider prompt should use proof slots');
   assert(calls[0].body.input[1].content.indexOf('candidate_matched') >= 0, 'provider prompt should expose candidate proof vocabulary');
   assert(calls[0].body.input[1].content.indexOf('slot:allowed_requested_context_ids') >= 0, 'provider prompt should constrain request_context ids by slot');
   assert.strictEqual(decision.decision.proof.applied, true, 'candidate proof should apply local safe Intent');
+
+  var promptLeakCalls = [];
+  await provider.runDeepSeekDecisionProvider({
+    endpoint: 'http://fake.local/v1',
+    apiKey: 'test-key',
+    model: 'deepseek-test',
+    threshold: 0.9,
+    intentWorldView: {
+      owner: 'IntentWorldView',
+      recommendedActions: [{
+        action: 'increase_reward_count',
+        repairAction: 'increase-count',
+        experienceDimension: 'reward_pacing',
+        gameplayRole: 'reward',
+        repairVerb: 'increase_presence',
+        priority: 'high',
+        reason: 'legacy action should not reach the provider prompt',
+        safeIntentDsl: 'place coins near Player front as trail count 5',
+      }],
+    },
+    contextRoute: {
+      contextMode: 'diff_hit',
+      providerCacheModel: { reusableAcrossModalities: false },
+      dynamicTail: {
+        candidateActions: [{
+          action: 'increase_reward_count',
+          repairAction: 'increase-count',
+          safeIntentDsl: 'place coins near Player front as trail count 5',
+        }],
+      },
+    },
+    userRequest: 'more coins',
+    fetchImpl: async function(url, init) {
+      promptLeakCalls.push({ url: url, body: JSON.parse(init.body) });
+      return cachedResponse({ decisionType: 'no_op', intentDslLines: [], requestedContext: [], reason: 'safe empty', confidence: 0.4 });
+    },
+  });
+  var leakPrompt = promptLeakCalls[0].body.input[1].content;
+  assert(leakPrompt.indexOf('increase_reward_count') < 0, 'provider prompt must not leak rogue action names through world/context slots');
+  assert(leakPrompt.indexOf('repairAction') < 0, 'provider prompt must not leak legacy repair action ids through world/context slots');
+  assert(leakPrompt.indexOf('candidateActionCount') >= 0, 'provider prompt should retain context-route candidate count without exposing candidate actions');
+  assert(leakPrompt.indexOf('recommendedActionCount') >= 0, 'provider prompt should retain world-view action count without exposing recommended actions');
 
   var unsafe = await provider.runDeepSeekDecisionProvider({
     endpoint: 'http://fake.local/v1',
@@ -116,7 +160,7 @@ async function main() {
     intentWorldView: {
       owner: 'IntentWorldView',
       recommendedActions: [{
-        action: 'increase_collectibles',
+        action: 'apply_semantic_repair',
         experienceDimension: 'reward_pacing',
         gameplayRole: 'reward',
         repairVerb: 'increase_presence',
@@ -160,7 +204,7 @@ async function main() {
     owner: 'IntentWorldView',
     contextRequests: { available: [{ id: 'tick_event_window' }, { id: 'project_world_diff' }] },
     recommendedActions: [{
-      action: 'reduce_pressure',
+      action: 'apply_semantic_repair',
       experienceDimension: 'pressure_balance',
       gameplayRole: 'pressure',
       repairVerb: 'soften_pressure',
@@ -213,7 +257,7 @@ async function main() {
       return cachedResponse({ decisionType: 'apply_intent', intentDslLines: ['place icon near button'], requestedContext: [], reason: 'raw weak answer', confidence: 0.1 });
     },
   });
-  assert.strictEqual(uiTemplate.decision.decisionType, 'reject', 'ui template slot should reject gameplay patch');
+  assert.strictEqual(uiTemplate.decision.decisionType, 'reject', 'ui template slot should reject gameplay Intent');
   assert.deepStrictEqual(uiTemplate.decision.requestedContext, ['ui_template_policy'], 'ui template slot should carry policy context id');
 
   var stableNoop = await provider.runDeepSeekDecisionProvider({
@@ -221,7 +265,7 @@ async function main() {
     apiKey: 'test-key',
     model: 'deepseek-test',
     threshold: 0.9,
-    intentWorldView: { owner: 'IntentWorldView', recommendedActions: [{ action: 'no_op', priority: 'high', reason: 'stable', safeIntentDsl: null }] },
+    intentWorldView: { owner: 'IntentWorldView', recommendedActions: [] },
     contextRoute: { contextMode: 'diff_hit', providerCacheModel: { reusableAcrossModalities: false } },
     userRequest: 'REQUEST_SLOT:stable_noop',
     fetchImpl: async function() {
@@ -239,7 +283,7 @@ async function main() {
       owner: 'IntentWorldView',
       contextRequests: { available: [{ id: 'tick_event_window' }, { id: 'project_world_diff' }] },
       recommendedActions: [{
-        action: 'make_early_route_safer',
+        action: 'apply_semantic_repair',
         experienceDimension: 'survival_window',
         gameplayRole: 'actor',
         repairVerb: 'add_recovery_window',

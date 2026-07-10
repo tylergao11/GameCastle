@@ -25,7 +25,7 @@ async function buildState() {
     assert(result.ok, 'bridge DSL should execute before graph runner check: ' + result.msg);
   }
   var intentArtifacts = {
-    patchKind: 'intent',
+    artifactKind: 'intent',
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -58,7 +58,7 @@ async function buildState() {
   return pipelineState.createPipelineState({
     mode: 'fixture-new',
     batchLabel: 'pipeline_graph_runner_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: 'make a mobile platformer',
     designBrief: { theme: 'mobile platformer', objects: [], rules: [], layout: { placements: [] } },
     diff: { isNew: true },
@@ -78,7 +78,7 @@ function buildPartialState() {
   return pipelineState.createPipelineState({
     mode: 'fixture-new',
     batchLabel: 'pipeline_graph_runner_partial_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: [
       'make a mobile platformer',
       'set placement object=Player x=100 y=400 scene=Game',
@@ -114,8 +114,8 @@ async function main() {
   }]);
   assert.strictEqual(result.trace.length, 1, 'runner should record one graph step');
   assert.deepStrictEqual(result.trace[0].reads, ['llm2.nodeInput'], 'runner trace should record contract reads');
-  assert.deepStrictEqual(result.trace[0].writes.sort(), ['llm2.intentDslLineCount', 'llm2.intentDslText'].sort(), 'runner trace should record patch writes');
-  assert.strictEqual(result.state.llm2.intentDslText, 'adjust Fox placement above slightly', 'runner should apply legal LLM2 patch');
+  assert.deepStrictEqual(result.trace[0].writes.sort(), ['llm2.intentDslLineCount', 'llm2.intentDslText'].sort(), 'runner trace should record state update writes');
+  assert.strictEqual(result.state.llm2.intentDslText, 'adjust Fox placement above slightly', 'runner should apply legal LLM2 update');
 
   assert.throws(function() {
     pipelineGraphRunner.runGraph(state, [{
@@ -124,14 +124,14 @@ async function main() {
         return { 'bridge.bridgePlan': { target: 'gdjs-internal-dsl' } };
       },
     }]);
-  }, /may not write/, 'runner should reject node patches outside the contract');
+  }, /may not write/, 'runner should reject node updates outside the contract');
 
   assert.throws(function() {
     pipelineGraphRunner.runGraph(state, [{
       node: 'llm2-intent',
       run: function() { return null; },
     }]);
-  }, /path-object patch/, 'runner should reject non-object node output');
+  }, /path-object state update/, 'runner should reject non-object node output');
 
   var partialState = buildPartialState();
   assert.throws(function() {
@@ -152,7 +152,7 @@ async function main() {
     },
   }], { allowPartial: true });
   assert.strictEqual(partialResult.trace[0].partial, true, 'runner trace should mark partial execution');
-  assert.strictEqual(partialResult.state.llm2.intentDslText, 'make a mobile platformer', 'partial runner should apply LLM2 patch');
+  assert.strictEqual(partialResult.state.llm2.intentDslText, 'make a mobile platformer', 'partial runner should apply LLM2 update');
   assert.throws(function() {
     pipelineGraphRunner.runGraph(partialState, [{
       node: 'llm2-intent',
@@ -238,7 +238,7 @@ async function main() {
   assert.strictEqual(chainResult.state.runtime.summary.nextAction, 'done', 'full graph runner should produce runtime summary');
   assert(chainResult.state.projectWorld.sanitizedForLlm2, 'full graph runner should produce sanitized ProjectWorld projection');
 
-  console.log('[PipelineGraphRunner] contract-bound view/patch runner passed');
+  console.log('[PipelineGraphRunner] contract-bound view/update runner passed');
 }
 
 main().catch(function(error) {

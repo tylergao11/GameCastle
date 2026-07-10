@@ -74,6 +74,15 @@ function pointOf(placement) {
   return null;
 }
 
+function baseWorldHasInstances(baseWorld, objectName) {
+  if (!baseWorld || !objectName) return false;
+  return ((baseWorld.scenes || [])).some(function(scene) {
+    return ((scene || {}).instances || []).some(function(instance) {
+      return (instance.object || instance.name) === objectName;
+    });
+  });
+}
+
 function sceneName(options) {
   return options.scene || 'Game';
 }
@@ -274,6 +283,19 @@ function emitPlacementGroups(plan, graph, placementPlan, options) {
     if (!placement || !placement.points || !placement.points.length) return;
     var objectName = thing.archetype === 'coin' ? 'Coin' : thing.name.replace(/Group$/, '');
     var emission = placement.emission || {};
+    if (baseWorldHasInstances(options.baseWorld, objectName)) {
+      addLine(
+        plan,
+        'remove placement object=' + objectName + ' scene=' + scene,
+        'gdjs-bridge',
+        thing.name,
+        {
+          mechanism: emission.mechanism,
+          routeId: emission.routeId,
+          routeMechanism: emission.routeMechanism
+        }
+      );
+    }
     placement.points.forEach(function(point) {
       addLine(
         plan,

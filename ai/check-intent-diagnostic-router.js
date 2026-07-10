@@ -63,10 +63,23 @@ function testBridgeUnknownComponentRoutesToCatalog() {
   assertRoute(plan.diagnostics[0], 'new-reusable-game-system', 'component-catalog', 'route-to-owner');
 }
 
+function testRuntimeExecutionFailureRoutesToRuntimeExecutor() {
+  var diagnostic = diagnosticRouter.routeDiagnostic('internal-target-execution', {
+    category: 'runtime-execution',
+    commandId: 'runtime_line_001',
+    command: 'on start -> unsupported_action Player scene=Game',
+    message: 'unsupported event action',
+  });
+  assertRoute(diagnostic, 'internal-target-execution', 'runtime-executor', 'route-to-owner');
+  assert.strictEqual(diagnostic.commandId, 'runtime_line_001', 'runtime diagnostic should retain command id');
+  assert.strictEqual(diagnostic.command, 'on start -> unsupported_action Player scene=Game', 'runtime diagnostic should retain failed command');
+}
+
 function main() {
   testCompilerUnknownComponentRoutesToCatalog();
   testPlacementMissingAnchorRoutesToPlacementResolver();
   testBridgeUnknownComponentRoutesToCatalog();
+  testRuntimeExecutionFailureRoutesToRuntimeExecutor();
   console.log('[IntentDiagnosticRouter] owner-routed diagnostics passed');
 }
 

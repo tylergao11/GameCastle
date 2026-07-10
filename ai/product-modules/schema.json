@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Product modules are AI-facing game-factory building blocks. They are the single source of truth for capabilities, DSL compilation, networking, and LLM prompts. Capabilities are declared inline and derived from here; there is no separate capabilities directory.",
+  "description": "Product modules are game-factory building blocks. They are the single source of truth for module compilation, networking, safe LLM1 capability summaries, and runtime ownership. Capabilities are declared inline and derived from here; there is no separate capabilities directory.",
   "requiredFields": [
     "schemaVersion",
     "id",
@@ -24,12 +24,12 @@
   ],
   "fieldNotes": {
     "llm1Card": "Short product-level card safe for LLM1. Do not include full low-level DSL.",
-    "capabilities": "Array of atomic capability cards embodied by this module. Each card has id, name, summary, llm1Hint, provides, requires, dsl (commands + examples), and constraints. These are the source for LLM1 creative summaries and legacy/internal compiler repair context, not the live LLM2 Intent product surface. Cards are deduplicated by id across all modules.",
+    "capabilities": "Array of atomic capability cards embodied by this module. Each card has id, name, summary, llm1Hint, provides, requires, constraints, and networking. These cards only feed safe LLM1 creative summaries and capability checks; they must not carry low-level DSL commands, examples, or LLM2 repair context. Cards are deduplicated by id across all modules.",
     "compiler.dsl": "Internal low-level DSL template lines consumed by ai/pipeline.js.",
-    "compiler.slots": "Internal module-link slots. Slots are patched by compiler.links and are not automatically LLM2-configurable.",
-    "compiler.slotPatches": "Internal patch templates used when a newly installed module links into an already installed base module.",
+    "compiler.slots": "Internal module-link slots. Slots are filled by compiler.links and are not automatically LLM2-configurable.",
+    "compiler.slotUpdateTemplates": "Internal update templates used when a newly installed module links into an already installed base module.",
     "compiler.links": "Module-level integration hooks that fill named slots in other modules.",
-    "compiler.configurePatches": "Per-parameter patches for configuring an already installed module from ProjectWorld state.",
+    "compiler.configureUpdateTemplates": "Per-parameter update templates for configuring an already installed module from ProjectWorld state.",
     "interaction": "AI-visible fixed runtime interaction contract. Use this for trigger/copy constraints without exposing internal DSL templates.",
     "repositoryPolicy": "Module repository strategy. Product modules are reused from the module repository; expensive generated module variants must be promoted back as cloud-module candidates instead of remaining one-off outputs.",
     "networking": "Declares what networking models this module supports. Used by compiler to match with network modules."

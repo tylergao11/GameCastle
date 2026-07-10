@@ -135,47 +135,47 @@
   "repairVerbs": {
     "increase_presence": {
       "meaning": "Add more of a role while preserving semantic placement.",
-      "action": "increase-count"
+      "intentStrategy": "count_more"
     },
     "decrease_presence": {
       "meaning": "Reduce repeated pressure or content while preserving the concept.",
-      "action": "decrease-count"
+      "intentStrategy": "count_less"
     },
     "spread_out": {
       "meaning": "Separate dense content across the route or time window.",
-      "action": "decrease-count"
+      "intentStrategy": "count_less"
     },
     "cluster_near_route": {
       "meaning": "Place useful content closer to the actor route.",
-      "action": "increase-count"
+      "intentStrategy": "count_more"
     },
     "soften_pressure": {
       "meaning": "Lower early pressure intensity around the actor route.",
-      "action": "decrease-count"
+      "intentStrategy": "count_less"
     },
     "delay_pressure": {
       "meaning": "Move pressure later in the sampled experience window.",
-      "action": "decrease-count"
+      "intentStrategy": "count_less"
     },
     "add_recovery_window": {
       "meaning": "Give the actor more time or space before failure pressure dominates.",
-      "action": "decrease-count"
+      "intentStrategy": "count_less"
     },
     "increase_feedback": {
       "meaning": "Make reward, progress, or action result feedback more explicit.",
-      "action": "increase-count"
+      "intentStrategy": "count_more"
     },
     "advance_phase": {
       "meaning": "Progress a phase, wave, or objective after its evidence condition.",
-      "action": "increase-count"
+      "intentStrategy": "count_more"
     },
     "smooth_phase_transition": {
       "meaning": "Make a phase transition less sudden by adding a readable bridge.",
-      "action": "decrease-count"
+      "intentStrategy": "count_less"
     },
     "route_to_template": {
       "meaning": "Send visual, icon, and style choices to template policy.",
-      "action": "route-to-template"
+      "intentStrategy": "template_owner_route"
     }
   },
   "measurements": {
@@ -235,6 +235,13 @@
       "improvement": "increase"
     }
   },
+  "semanticImprovementGuardMeasurements": [
+    "reward_reachability",
+    "pressure_count_window",
+    "first_damage_tick",
+    "first_failure_tick",
+    "survival_rate"
+  ],
   "requestSemantics": {
     "slots": {
       "more_collectibles": {
@@ -307,15 +314,15 @@
       }
     ]
   },
-  "repairActions": {
-    "increase-count": {
+  "intentLineStrategies": {
+    "count_more": {
       "kind": "count",
       "summary": "Increase repeated world things while keeping their semantic placement.",
       "direction": "increase",
       "defaultDelta": 1,
       "template": "place {subject} near {anchor} {direction} as {pattern} count {count}"
     },
-    "decrease-count": {
+    "count_less": {
       "kind": "count",
       "summary": "Decrease repeated world things without deleting the whole concept.",
       "direction": "decrease",
@@ -323,12 +330,12 @@
       "minCount": 1,
       "template": "place {subject} near {anchor} {direction} as {pattern} count {count}"
     },
-    "placement-adjust": {
+    "placement_adjust": {
       "kind": "placement",
       "summary": "Move an existing thing using semantic direction and amount language.",
       "template": "adjust {subject} placement {direction} {amount}"
     },
-    "route-to-template": {
+    "template_owner_route": {
       "kind": "template-route",
       "summary": "Route visual, icon, style, or broad layout requests to the template owner."
     }
@@ -341,7 +348,6 @@
       "repairVerb": "increase_presence",
       "meaning": "The tick run shows the player collecting too few reachable collectibles for the intended route.",
       "repair": {
-        "action": "increase-count",
         "subject": "coins",
         "anchor": "Player",
         "direction": "front",
@@ -356,7 +362,6 @@
       "repairVerb": "cluster_near_route",
       "meaning": "Collectibles exist, but the current route does not let the player reach enough of them.",
       "repair": {
-        "action": "increase-count",
         "subject": "coins",
         "anchor": "Player",
         "direction": "front",
@@ -371,7 +376,6 @@
       "repairVerb": "increase_presence",
       "meaning": "Collectibles are too rare for the intended route pacing.",
       "repair": {
-        "action": "increase-count",
         "subject": "coins",
         "anchor": "Player",
         "direction": "front",
@@ -386,7 +390,6 @@
       "repairVerb": "soften_pressure",
       "meaning": "Enemy or hazard pressure is too high for the current route.",
       "repair": {
-        "action": "decrease-count",
         "subject": "enemies",
         "anchor": "Player",
         "direction": "far-front",
@@ -401,7 +404,6 @@
       "repairVerb": "add_recovery_window",
       "meaning": "The player fails too quickly, so early difficulty needs to soften.",
       "repair": {
-        "action": "decrease-count",
         "subject": "enemies",
         "anchor": "Player",
         "direction": "far-front",
@@ -416,7 +418,6 @@
       "repairVerb": "increase_feedback",
       "meaning": "A control is placed too low or uncomfortable to reach.",
       "repair": {
-        "action": "placement-adjust",
         "subject": "JumpButton",
         "direction": "above",
         "amount": "slightly"
@@ -429,7 +430,6 @@
       "repairVerb": "increase_feedback",
       "meaning": "A control is placed too high or uncomfortable to reach.",
       "repair": {
-        "action": "placement-adjust",
         "subject": "JumpButton",
         "direction": "below",
         "amount": "slightly"
@@ -442,7 +442,6 @@
       "repairVerb": "cluster_near_route",
       "meaning": "The active route lacks readable reward or pressure guidance.",
       "repair": {
-        "action": "increase-count",
         "subject": "coins",
         "anchor": "Player",
         "direction": "front",
@@ -457,7 +456,6 @@
       "repairVerb": "increase_presence",
       "meaning": "The sampled window has too little meaningful content.",
       "repair": {
-        "action": "increase-count",
         "subject": "coins",
         "anchor": "Player",
         "direction": "front",
@@ -472,7 +470,6 @@
       "repairVerb": "increase_feedback",
       "meaning": "A phase or wave transition lacks reward or progress feedback.",
       "repair": {
-        "action": "increase-count",
         "subject": "coins",
         "anchor": "Player",
         "direction": "front",
@@ -487,7 +484,6 @@
       "repairVerb": "cluster_near_route",
       "meaning": "The creator requested a broad gameplay style shift before visual template work.",
       "repair": {
-        "action": "increase-count",
         "subject": "coins",
         "anchor": "Player",
         "direction": "front",

@@ -3,6 +3,7 @@ var fs = require('fs');
 var path = require('path');
 
 var intentCompiler = require('./intent-compiler');
+var diagnosticRouter = require('./intent-diagnostic-router');
 var pipeline = require('./pipeline');
 var projectWorld = require('./project-world');
 
@@ -18,7 +19,7 @@ async function executeBridgeIntoProject(compiled) {
 
 function makeIntent(compiled, intentDslText) {
   return {
-    patchKind: 'intent',
+    artifactKind: 'intent',
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -55,7 +56,7 @@ async function main() {
   assert(world.intent, 'ProjectWorld should include Intent summary');
   assert(world.intent.intentDslLines.some(function(line) {
     return line.indexOf('make a mobile platformer') >= 0;
-  }), 'ProjectWorld should retain the last human-facing Intent DSL patch');
+  }), 'ProjectWorld should retain the last human-facing Intent DSL');
   assert.strictEqual(world.intent.intentGraph.counts.components, compiled.graph.components.length, 'Intent graph count should be recorded');
   assert(world.intent.contracts && world.intent.contracts.intentCompile === 'passed', 'ProjectWorld should retain aggregate Intent contract status');
   assert.strictEqual(world.intent.bridgePlan.internalDslLines, compiled.bridgePlan.dslLines.length, 'bridge DSL line count should be recorded');
@@ -102,6 +103,24 @@ async function main() {
     return edit.subject === 'Fox' && edit.amount === 'slightly';
   }), 'ProjectWorld should retain ResultCard edit summary');
 
+  assert.throws(function() {
+    projectWorld.summarizeIntentArtifacts({
+      artifactKind: 'intent',
+      intentDslText: 'add dash button controls Player near screen bottom-right',
+      intentGraph: {
+        modules: [],
+        things: [],
+        components: [],
+        relations: [],
+        placements: [],
+        edits: [],
+        bindings: [],
+        requirements: [],
+        diagnostics: [{ category: 'unknown-component', message: 'dash button needs a component owner' }],
+      },
+    });
+  }, /Diagnostic missing routeId/, 'ProjectWorld must reject unrouted Intent diagnostics');
+
   var report = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: world,
@@ -111,6 +130,7 @@ async function main() {
         index: index,
         commandId: 'check_line_' + String(index + 1).padStart(3, '0'),
         ok: true,
+        command: line,
         label: line,
         message: 'ok',
       };
@@ -121,6 +141,9 @@ async function main() {
   });
 
   assert(report.intent, 'ExecutionReport should include Intent summary');
+  assert(report.completed.some(function(item) {
+    return item.command === 'create scene name=Game first=true';
+  }), 'ExecutionReport should retain original internal target DSL command lines');
   assert(report.intent.contracts && report.intent.contracts.intentCompile === 'passed', 'ExecutionReport should retain aggregate Intent contract status');
   assert(hasTrace(report.intent.resultCard, 'Emit Internal DSL', 'gdjs-bridge'), 'ExecutionReport should retain bridge owner trace');
   assert.strictEqual(report.intent.bridgePlan.runtimeAdapterRequirements, compiled.bridgePlan.runtimeAdapterRequirements.length, 'ExecutionReport should include adapter count');
@@ -156,6 +179,36 @@ async function main() {
   assert(missingReport.intentFulfillment.checks.some(function(check) {
     return check.subject === 'Fox' && check.status === 'missing';
   }), 'missing report should identify the missing semantic subject');
+
+  var failedExecutionReport = projectWorld.makeExecutionReport({
+    previousWorld: null,
+    world: world,
+    dslLines: ['create object name=Ghost type=Missing scene=Game'],
+    commandResults: [{
+      index: 0,
+      commandId: 'failed_line_001',
+      ok: false,
+      command: 'create object name=Ghost type=Missing scene=Game',
+      label: 'create object',
+      message: 'unsupported object type',
+    }],
+    runIndex: 3,
+    batchLabel: 'intent_failed_runtime_check',
+    intent: intent,
+  });
+  assert.strictEqual(failedExecutionReport.summary.nextAction, 'route-to-owner', 'failed runtime execution should route to owner');
+  assert.strictEqual(failedExecutionReport.summary.failedDiagnostics, 1, 'failed runtime execution should summarize failed diagnostics');
+  assert.strictEqual(failedExecutionReport.failed[0].commandId, 'failed_line_001', 'failed runtime execution should retain command id');
+  assert.strictEqual(failedExecutionReport.failed[0].command, 'create object name=Ghost type=Missing scene=Game', 'failed runtime execution should retain original command');
+  assert.strictEqual(failedExecutionReport.failedDiagnostics.length, 1, 'failed runtime execution should include routed diagnostic');
+  diagnosticRouter.assertRoutedDiagnostic(failedExecutionReport.failedDiagnostics[0]);
+  assert.strictEqual(failedExecutionReport.failedDiagnostics[0].routeId, 'internal-target-execution', 'failed runtime execution should use runtime execution route');
+  assert.strictEqual(failedExecutionReport.failedDiagnostics[0].owner, 'runtime-executor', 'failed runtime execution should route to runtime executor');
+  assert.strictEqual(failedExecutionReport.failedDiagnostics[0].commandId, 'failed_line_001', 'failed runtime diagnostic should retain command id');
+  var safeFailedReportJson = JSON.stringify(projectWorld.sanitizeExecutionReportForIntentPrompt(failedExecutionReport));
+  assert(safeFailedReportJson.indexOf('failedDiagnostics') < 0, 'LLM-safe failed report must not expose raw runtime diagnostics');
+  assert(safeFailedReportJson.indexOf('create object name=Ghost') < 0, 'LLM-safe failed report must not expose target DSL command text');
+  assert(safeFailedReportJson.indexOf('route-to-owner') >= 0, 'LLM-safe failed report should preserve owner-routing summary');
 
   var safeWorld = projectWorld.sanitizeProjectWorldForIntentPrompt(world);
   var safeReport = projectWorld.sanitizeExecutionReportForIntentPrompt(report);

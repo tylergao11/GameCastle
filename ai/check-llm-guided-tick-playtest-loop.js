@@ -96,7 +96,7 @@ function runTickLoopForCurrentWorld(policy, label) {
 function main() {
   run([
     'ai/pipeline.js',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     'ai/fixtures/intent-parkour-real.dsl',
     '--batch-label',
     'tick_playtest_create_real',
@@ -141,7 +141,7 @@ function main() {
   run([
     'ai/pipeline.js',
     '--continue',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     'output/tick-playtest-repair.intent.dsl',
     '--batch-label',
     'tick_playtest_repair_real',

@@ -10,7 +10,7 @@ var productModuleCatalog = moduleCompiler.loadProductModuleCatalog(path.join(__d
 async function testSystemOwnerDiagnosticDoesNotCallLlmRepair() {
   var calls = 0;
   try {
-    await dslAgent.compileIntentPatchWithRepair({
+    await dslAgent.compileIntentDslWithRepair({
       intentDslText: 'add dash button controls Player near screen bottom-right',
       intentCompiler: intentCompiler,
       productModuleCatalog: productModuleCatalog,
@@ -36,7 +36,7 @@ async function testSystemOwnerDiagnosticDoesNotCallLlmRepair() {
 async function testParserErrorCanUseLlmRepair() {
   var calls = 0;
   var repairPrompt = '';
-  var result = await dslAgent.compileIntentPatchWithRepair({
+  var result = await dslAgent.compileIntentDslWithRepair({
     intentDslText: [
       'add component id=input.jump_button target=Player near=screen direction=bottom-right',
       'set placement object=JumpButton x=640 y=500 scene=Game'

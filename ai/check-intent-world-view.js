@@ -41,7 +41,7 @@ function roleByName(view, roleName) {
 function main() {
   run([
     'ai/pipeline.js',
-    '--intent-dsl-file',
+    '--intent-fixture-file',
     'ai/fixtures/intent-parkour-real.dsl',
     '--batch-label',
     'intent_world_view_check',
@@ -90,17 +90,20 @@ function main() {
   assert.strictEqual(view.evidence[0].experienceDimension, 'reward_pacing', 'view evidence should carry experience dimension');
   assert.strictEqual(view.evidence[0].gameplayRole, 'reward', 'view evidence should carry gameplay role');
   assert.strictEqual(view.evidence[0].repairVerb, 'increase_presence', 'view evidence should carry repair verb');
-  assert(view.recommendedActions.some(function(action) {
-    return action.action === 'increase_reward_pacing' &&
+  var rewardRepairAction = view.recommendedActions.find(function(action) {
+    return action.action === 'apply_semantic_repair' &&
       action.experienceDimension === 'reward_pacing' &&
       action.gameplayRole === 'reward' &&
       action.repairVerb === 'increase_presence' &&
       action.priority === 'high' &&
-      action.safeIntentDsl === 'place coins near Player front as trail count 5';
-  }), 'view should recommend gameplay repair intent');
-  assert(view.recommendedActions.some(function(action) {
-    return action.action === 'no_op';
-  }), 'view should keep no-op as an explicit choice');
+      /^place coins near Player front as trail count \d+$/.test(action.safeIntentDsl || '');
+  });
+  assert(rewardRepairAction, 'view should recommend gameplay repair intent through the unified semantic action');
+  assert.strictEqual(rewardRepairAction.repairAction, undefined, 'view should not expose internal repair action ids');
+  assert(Number(rewardRepairAction.safeIntentDsl.match(/count (\d+)$/)[1]) >= 5, 'reward repair count should not regress below the fixture repair target');
+  assert(view.recommendedActions.every(function(action) {
+    return action.action === 'apply_semantic_repair';
+  }), 'view recommended actions should only use the unified semantic repair action');
   assertNoMachineLeak(view, 'IntentWorldView');
 
   var cachedView = intentWorldView.buildIntentWorldView({
@@ -125,6 +128,7 @@ function main() {
     },
   });
   assert.strictEqual(cachedView.contextCache.semanticCacheHit, true, 'matching semantic hashes should be cache hit');
+  assert.deepStrictEqual(cachedView.recommendedActions, [], 'no-op should be represented by DecisionRuntime, not as a candidate action type');
   assert.strictEqual(cachedView.contextCache.contextMode, 'diff-only', 'cache hit should move LLM2 to diff-only context');
 
   console.log('[IntentWorldView] gameplay-first LLM2 context, template UI policy, tick evidence, safe actions passed');

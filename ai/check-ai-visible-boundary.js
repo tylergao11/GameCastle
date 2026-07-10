@@ -6,6 +6,8 @@ var componentCatalog = require('./component-catalog');
 var dslAgent = require('./dsl-agent');
 var intentCompiler = require('./intent-compiler');
 var intentPipelineGraph = require('./intent-pipeline-graph');
+var llm2ContextCacheRouter = require('./llm2-context-cache-router');
+var llm2DeepSeekDecisionProvider = require('./llm2-deepseek-decision-provider');
 var moduleCompiler = require('./module-compiler');
 var pipeline = require('./pipeline');
 var pipelineState = require('./pipeline-state');
@@ -46,6 +48,10 @@ var PROHIBITED_AI_VISIBLE_TOKENS = [
   'place object=',
   'internalDsl',
   'dslLines',
+  'failedCommands',
+  'failedDiagnostics',
+  'commandId',
+  'repairAction',
   '"x"',
   '"y"',
   '"instances"',
@@ -61,6 +67,30 @@ function assertAiVisibleClean(label, value) {
   var json = typeof value === 'string' ? value : JSON.stringify(value);
   PROHIBITED_AI_VISIBLE_TOKENS.forEach(function(token) {
     assert(json.indexOf(token) < 0, label + ' must not expose ' + token);
+  });
+  assertUnifiedCandidateActions(label, value);
+}
+
+function walkValue(value, visit, pathParts) {
+  pathParts = pathParts || [];
+  if (value === null || value === undefined) return;
+  visit(value, pathParts);
+  if (typeof value !== 'object') return;
+  Object.keys(value).forEach(function(key) {
+    walkValue(value[key], visit, pathParts.concat([key]));
+  });
+}
+
+function assertUnifiedCandidateActions(label, value) {
+  walkValue(value, function(node, pathParts) {
+    var key = pathParts[pathParts.length - 1];
+    if ((key === 'recommendedActions' || key === 'candidateActions') && Array.isArray(node)) {
+      node.forEach(function(action, index) {
+        if (action && action.action !== 'apply_semantic_repair') {
+          throw new Error(label + '.' + pathParts.join('.') + '[' + index + '] must use apply_semantic_repair');
+        }
+      });
+    }
   });
 }
 
@@ -135,6 +165,66 @@ function makeDangerousDesignBrief() {
   };
 }
 
+function makeDangerousIntentWorldView() {
+  return {
+    owner: 'IntentWorldView',
+    gameplayFirst: true,
+    sceneIntent: {
+      gameplayFirst: true,
+      sceneMode: 'single-scene',
+      coreLoop: ['move', 'jump', 'collect', 'avoid'],
+      roles: [
+        { role: 'player_agent', subject: 'Player', primaryDesignObject: true },
+        { role: 'reward_pacing', subject: 'coins', primaryDesignObject: true },
+      ],
+      uiPolicy: {
+        role: 'supporting layer only',
+        templateStrategy: 'style and icons come from selectable templates',
+      },
+    },
+    contextCache: {
+      baseSemanticHash: 'same_hash',
+      targetSemanticHash: 'same_hash',
+      semanticCacheHit: true,
+      contextMode: 'diff-only',
+    },
+    evidence: [{ tick: 160, issue: 'reward_pacing_low', meaning: 'reward pacing low' }],
+    contextRequests: {
+      defaultRead: ['tick_event_window', 'project_world_diff'],
+      available: [
+        { id: 'project_world_diff', defaultMode: 'diff' },
+        { id: 'tick_event_window', defaultMode: 'focused-window' },
+        { id: 'ui_template_policy', defaultMode: 'template-choice' },
+      ],
+    },
+    recommendedActions: [
+      {
+        action: 'increase_reward_count',
+        repairAction: 'increase-count',
+        experienceDimension: 'reward_pacing',
+        gameplayRole: 'reward',
+        repairVerb: 'increase_presence',
+        priority: 'high',
+        reason: 'legacy action should be removed before LLM2',
+        safeIntentDsl: 'place coins near Player front as trail count 5',
+      },
+      {
+        action: 'apply_semantic_repair',
+        experienceDimension: 'reward_pacing',
+        gameplayRole: 'reward',
+        repairVerb: 'increase_presence',
+        priority: 'medium',
+        reason: 'safe unified action',
+        safeIntentDsl: 'place coins near Player front as trail count 4',
+      },
+    ],
+    recommendationPolicy: {
+      authority: 'candidate-only',
+      finalDecisionOwner: 'LLM2',
+    },
+  };
+}
+
 async function buildRuntimeSurfaces(productModules, components) {
   var intentDslText = fs.readFileSync(path.join(__dirname, 'fixtures', 'intent-mobile-platformer.dsl'), 'utf8');
   var compiled = intentCompiler.compileIntentDsl(intentDslText, {
@@ -161,7 +251,7 @@ async function buildRuntimeSurfaces(productModules, components) {
     });
   }
   var intent = {
-    patchKind: 'intent',
+    artifactKind: 'intent',
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -186,7 +276,7 @@ async function buildRuntimeSurfaces(productModules, components) {
   var state = await intentPipelineGraph.makePipelineStateFromArtifacts({
     mode: 'fixture-new',
     batchLabel: 'ai_visible_boundary_check',
-    patchKind: 'intent',
+    artifactKind: 'intent',
     userRequest: [
       'make a mobile platformer',
       'move Player up 10 pixels',
@@ -209,8 +299,8 @@ async function buildRuntimeSurfaces(productModules, components) {
     projectMode: 'fixture-new',
     batchLabel: 'ai_visible_approval_check',
     isNewProject: true,
-    requiresExistingProject: false,
-    patchKind: 'intent',
+    requiresIntentIterationState: false,
+    artifactKind: 'intent',
     project: pipeline.emptyProject('AiVisibleApprovalCheck'),
     baseWorld: null,
     intentDslText: intentDslText,
@@ -236,7 +326,7 @@ async function buildRuntimeSurfaces(productModules, components) {
 
 async function captureRepairPrompt(productModules) {
   var repairPrompt = '';
-  await dslAgent.compileIntentPatchWithRepair({
+  await dslAgent.compileIntentDslWithRepair({
     intentDslText: [
       'add component id=input.jump_button target=Player near=screen direction=bottom-right',
       'set placement object=JumpButton x=640 y=500 scene=Game'
@@ -264,6 +354,12 @@ async function main() {
   var productModules = moduleCompiler.loadProductModuleCatalog(PRODUCT_MODULES_DIR);
   var components = componentCatalog.loadComponentCatalog();
   var dangerousWorldContext = makeDangerousWorldContext();
+  var dangerousIntentWorldView = makeDangerousIntentWorldView();
+  var llm2ContextRoute = llm2ContextCacheRouter.routeLlm2Context({
+    intentWorldView: dangerousIntentWorldView,
+    userRequest: 'more coins',
+    projectMode: 'continue',
+  });
   var runtimeSurfaces = await buildRuntimeSurfaces(productModules, components);
 
   var surfaces = {
@@ -288,7 +384,7 @@ async function main() {
         }
       }]
     }),
-    userPrompt: dslAgent.buildIntentPatchUserPrompt({
+    userPrompt: dslAgent.buildIntentUserPrompt({
       userPrompt: [
         'move the jump button a bit',
         'move the jump button up 10 pixels',
@@ -307,7 +403,13 @@ async function main() {
     pipelineStateNodeInput: runtimeSurfaces.state.llm2.nodeInput,
     pipelineStateSanitizedWorld: runtimeSurfaces.state.projectWorld.sanitizedForLlm2,
     llm2GraphView: pipelineState.makeNodeStateView(runtimeSurfaces.state, 'llm2-intent'),
-    approvalAiVisibleForLlm2: runtimeSurfaces.approvalPacket.aiVisibleForLlm2
+    approvalAiVisibleForLlm2: runtimeSurfaces.approvalPacket.aiVisibleForLlm2,
+    llm2ContextRoute: llm2ContextRoute,
+    llm2DeepSeekDecisionPrompt: llm2DeepSeekDecisionProvider.dynamicPrompt({
+      intentWorldView: dangerousIntentWorldView,
+      contextRoute: llm2ContextRoute,
+      userRequest: 'more coins',
+    })
   };
 
   Object.keys(surfaces).forEach(function(label) {

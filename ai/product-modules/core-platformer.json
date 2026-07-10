@@ -29,7 +29,7 @@
     "slots": {
       "failAction": "restart"
     },
-    "slotPatches": {
+    "slotUpdateTemplates": {
       "failAction": {
         "findEvent": {
           "sceneParam": "scene",
@@ -153,19 +153,6 @@
           "jump_input"
         ]
       },
-      "dsl": {
-        "commands": [
-          "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=<PlayerObject> scene=<SceneName>",
-          "on key Space -> jump <PlayerObject> <Strength>",
-          "on is_jumping <PlayerObject> -> <Actions>",
-          "on is_falling <PlayerObject> -> <Actions>",
-          "on is_on_floor <PlayerObject> -> <Actions>"
-        ],
-        "examples": [
-          "add behavior type=PlatformBehavior::PlatformerObjectBehavior to=Player scene=Game",
-          "on key Space -> jump Player 500"
-        ]
-      },
       "constraints": {
         "playerPlacement": "Place the player near the lower-left area for platform games.",
         "jumpStrength": "Default jump strength is 500.",
@@ -212,19 +199,6 @@
           "collision_collectible"
         ]
       },
-      "dsl": {
-        "commands": [
-          "set variable name=Score value=<InitialValue> type=Number scope=global",
-          "on start -> Score=0",
-          "on collision <PlayerObject> <CollectibleObject> -> destroy <CollectibleObject>, score+<Amount>",
-          "on collision <PlayerObject> <CollectibleObject> -> destroy <CollectibleObject>, variable Score + <Amount>"
-        ],
-        "examples": [
-          "set variable name=Score value=0 type=Number scope=global",
-          "on start -> Score=0",
-          "on collision Player Coin -> destroy Coin, score+1"
-        ]
-      },
       "constraints": {
         "scoreVariable": "Use Score as the default global score variable.",
         "pickupAction": "A collectible collision should remove the collected object or otherwise mark it as consumed."
@@ -268,16 +242,6 @@
           "collision_hazard"
         ]
       },
-      "dsl": {
-        "commands": [
-          "on collision <PlayerObject> <EnemyObject> -> restart",
-          "on collision <PlayerObject> <EnemyObject> -> scene <SceneName>",
-          "delete object name=<EnemyObject> scene=<SceneName>"
-        ],
-        "examples": [
-          "on collision Player Enemy -> restart"
-        ]
-      },
       "constraints": {
         "feedback": "For the current runtime slice, restart is the safest default punishment.",
         "placement": "Place enemies away from the initial player spawn unless the user asks for high difficulty."
@@ -316,21 +280,6 @@
         "behaviors": [],
         "events": []
       },
-      "dsl": {
-        "commands": [
-          "create object name=<Name> type=ShapePainter shape=rectangle|circle color=#RRGGBB width=<Width> height=<Height> scene=<SceneName>",
-          "create object name=<Name> type=Text scene=<SceneName> size=<Size>",
-          "set object name=<Name> color=#RRGGBB width=<Width> height=<Height> shape=rectangle|circle scene=<SceneName>",
-          "place object=<Name> at=<X>,<Y> scene=<SceneName>",
-          "place object=<Name> at=<X>,<Y> scene=<SceneName> width=<Width> height=<Height>",
-          "set placement object=<Name> x=<X> y=<Y> scene=<SceneName>"
-        ],
-        "examples": [
-          "create object name=Player type=ShapePainter shape=rectangle color=#4488FF width=32 height=48 scene=Game",
-          "place object=Player at=100,400 scene=Game",
-          "create object name=ScoreText type=Text scene=Game size=24"
-        ]
-      },
       "constraints": {
         "objectNames": "Use stable English names. Do not rename objects unless explicitly requested.",
         "shapePainter": "ShapePainter objects must include shape, color, width, and height.",
@@ -368,14 +317,6 @@
         "variables": [],
         "behaviors": [],
         "events": []
-      },
-      "dsl": {
-        "commands": [
-          "create scene name=<SceneName> first=true"
-        ],
-        "examples": [
-          "create scene name=Game first=true"
-        ]
       },
       "constraints": {
         "sceneName": "Use Game unless the user explicitly asks for another scene.",
@@ -420,16 +361,6 @@
         "events": [
           "timer_spawn",
           "input_spawn"
-        ]
-      },
-      "dsl": {
-        "commands": [
-          "every <Seconds>s -> spawn <ObjectName> at <X>,<Y>",
-          "on key <Key> -> spawn <ObjectName> at <X>,<Y>"
-        ],
-        "examples": [
-          "every 2s -> spawn Enemy at 760,80",
-          "on key Space -> spawn Bullet at 420,500"
         ]
       },
       "constraints": {

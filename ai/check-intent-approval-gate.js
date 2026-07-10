@@ -4,6 +4,7 @@ var path = require('path');
 
 var intentCompiler = require('./intent-compiler');
 var intentPipelineGraph = require('./intent-pipeline-graph');
+var diagnosticRouter = require('./intent-diagnostic-router');
 var pipeline = require('./pipeline');
 
 async function main() {
@@ -22,8 +23,8 @@ async function main() {
     projectMode: 'fixture-new',
     batchLabel: 'intent_approval_check',
     isNewProject: true,
-    requiresExistingProject: false,
-    patchKind: 'intent',
+    requiresIntentIterationState: false,
+    artifactKind: 'intent',
     project: pipeline.emptyProject('IntentApprovalCheck'),
     baseWorld: null,
     intentDslText: intentDslText,
@@ -47,7 +48,9 @@ async function main() {
     diff: { isNew: true }
   });
 
-  assert.strictEqual(packet.patchKind, 'intent', 'approval packet should record intent patch kind');
+  assert.strictEqual(packet.artifactKind, 'intent', 'approval packet should record Intent artifact kind');
+  assert.strictEqual(packet.requiresIntentIterationState, false, 'approval packet should record Intent iteration-state requirement');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(packet, 'requiresExistingProject'), false, 'approval packet must not emit removed project-only requirement field');
   assert(packet.intentDslText.indexOf('make a mobile platformer') >= 0, 'approval packet should include Intent DSL');
   assert(packet.intentGraph && packet.intentGraph.components.length >= 4, 'approval packet should include typed Intent Graph');
   assert(packet.placementPlan && packet.placementPlan.placements.length >= 4, 'approval packet should include Placement Plan');
@@ -58,6 +61,12 @@ async function main() {
   assert(packet.runtimeAdapterRequirements.length >= 5, 'approval packet should include runtime adapter requirements');
   assert(packet.preview && packet.preview.nextAction === 'done', 'approval packet should include dry-run preview');
   assert(packet.preview.commandResults.length === packet.dslLines.length, 'dry-run preview should include command result for every internal DSL line');
+  assert(packet.preview.commandResults.every(function(result, index) {
+    return result.commandId === 'intent_approval_check_preview_line_' + String(index + 1).padStart(3, '0');
+  }), 'dry-run preview command results should have stable command ids');
+  assert(packet.preview.commandResults.some(function(result) {
+    return result.command === 'create scene name=Game first=true';
+  }), 'dry-run preview should retain original internal target DSL command lines');
   assert(packet.pipelineState && packet.pipelineState.stateKind === 'gamecastle-ai-first-intent-pipeline', 'approval packet should include graph-ready PipelineState');
   assert.deepStrictEqual(
     packet.pipelineState.graphTrace.map(function(item) { return item.node; }),
@@ -94,6 +103,9 @@ async function main() {
     '"y"',
     'dslLines',
     'internalDsl',
+    'failedCommands',
+    'failedDiagnostics',
+    'commandId',
     'runtimePreview',
   ].forEach(function(token) {
     assert(approvalAiJson.indexOf(token) < 0, 'approval AI projection must not expose ' + token);
@@ -109,6 +121,79 @@ async function main() {
   assert(packet.summary.compileResultCard.ownerTrace.some(function(item) {
     return item.stage === 'Emit Internal DSL' && item.owner === 'gdjs-bridge';
   }), 'summary should expose ResultCard owner trace');
+
+  var failedPreview = await pipeline.previewApprovalArtifact(
+    pipeline.emptyProject('IntentApprovalFailedPreviewCheck'),
+    [
+      'create scene name=Game first=true',
+      'on start -> unsupported_action Player scene=Game',
+    ].join('\n'),
+    { batchLabel: 'intent_failed_preview_check' }
+  );
+  assert.strictEqual(failedPreview.nextAction, 'route-to-owner', 'failed approval preview should route to owner');
+  assert.strictEqual(failedPreview.failedCommands.length, 1, 'failed preview should retain failed command evidence');
+  assert.strictEqual(failedPreview.failedCommands[0].commandId, 'intent_failed_preview_check_preview_line_002', 'failed preview should keep stable command id');
+  assert.strictEqual(failedPreview.failedCommands[0].command, 'on start -> unsupported_action Player scene=Game', 'failed preview should keep original target DSL line');
+  assert.strictEqual(failedPreview.failedDiagnostics.length, 1, 'failed preview should include routed runtime diagnostic');
+  diagnosticRouter.assertRoutedDiagnostic(failedPreview.failedDiagnostics[0]);
+  assert.strictEqual(failedPreview.failedDiagnostics[0].routeId, 'internal-target-execution', 'failed preview diagnostic should use runtime execution route');
+  assert.strictEqual(failedPreview.failedDiagnostics[0].owner, 'runtime-executor', 'failed preview diagnostic should route to runtime executor');
+  assert.strictEqual(failedPreview.failedDiagnostics[0].commandId, 'intent_failed_preview_check_preview_line_002', 'failed preview diagnostic should retain command id');
+
+  await assert.rejects(
+    function() {
+      return pipeline.makePendingApprovalPacket({
+        prompt: 'legacy patch kind approval',
+        projectMode: 'fixture-new',
+        batchLabel: 'legacy_patch_kind_approval',
+        isNewProject: true,
+        requiresIntentIterationState: false,
+        patchKind: 'intent',
+        project: pipeline.emptyProject('LegacyPatchKindApprovalCheck'),
+        dslText: compiled.bridgePlan.dslText,
+      });
+    },
+    /no longer accepts patchKind/,
+    'approval packet factory must reject stale patchKind input'
+  );
+
+  await assert.rejects(
+    function() {
+      return pipeline.makePendingApprovalPacket({
+        prompt: 'legacy project-only approval requirement',
+        projectMode: 'fixture-new',
+        batchLabel: 'legacy_project_requirement_approval',
+        isNewProject: true,
+        requiresExistingProject: false,
+        artifactKind: 'intent',
+        project: pipeline.emptyProject('LegacyProjectRequirementApprovalCheck'),
+        intentDslText: intentDslText,
+        intentGraph: compiled.graph,
+        placementPlan: compiled.placementPlan,
+        bridgePlan: compiled.bridgePlan,
+        dslText: compiled.bridgePlan.dslText,
+      });
+    },
+    /no longer accepts requiresExistingProject/,
+    'approval packet factory must reject removed project-only requirement field'
+  );
+
+  await assert.rejects(
+    function() {
+      return pipeline.makePendingApprovalPacket({
+        prompt: 'legacy internal approval',
+        projectMode: 'internal-reject',
+        batchLabel: 'legacy_internal_approval',
+        isNewProject: true,
+        requiresIntentIterationState: false,
+        artifactKind: 'internal',
+        project: pipeline.emptyProject('InternalApprovalCheck'),
+        dslText: 'create scene name=Game first=true',
+      });
+    },
+    /only accepts compiled Intent artifacts/,
+    'approval packet factory must reject internal low-level DSL approval'
+  );
 
   console.log('[IntentApprovalGate] pending approval packet includes Intent proof objects');
 }

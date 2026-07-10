@@ -500,6 +500,7 @@ function compileIntentAst(ast, options) {
     productModuleCatalog: options.productModuleCatalog,
     moduleCompileOptions: options.moduleCompileOptions,
     scene: options.scene,
+    baseWorld: options.baseWorld,
     resultCard: state.resultCard
   });
   emitGraphFacts(state, placementPlan, bridgePlan);

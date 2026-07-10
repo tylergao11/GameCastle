@@ -1,5 +1,8 @@
 var agentWorkflow = require('./agent-workflow');
 var agentContracts = require('./agent-contracts');
+var capabilities = require('./capabilities');
+var fs = require('fs');
+var path = require('path');
 var requirementAgent = require('./requirement-agent');
 var pipeline = require('./pipeline');
 
@@ -7,7 +10,31 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function assertLegacyFixtureCliIsRemoved() {
+  var source = fs.readFileSync(path.join(__dirname, 'pipeline.js'), 'utf8');
+  var packageJson = fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8');
+  [
+    '--module-dsl-file',
+    '--dsl-file',
+    '--intent-dsl-file',
+    '--internal-legacy-fixture',
+    '--mock',
+    'useMock',
+    'mock-new',
+    'assertLegacyFixtureGate',
+    'compileModuleDslText',
+    'shouldUseLlmInternalExecutionRepair',
+    'buildInternalExecutionRepairPrompt',
+    'buildInternalDslRepairSystemPrompt',
+    'dslInternalRepair',
+  ].forEach(function(token) {
+    assert(source.indexOf(token) < 0, 'legacy CLI/input path must be removed: ' + token);
+    assert(packageJson.indexOf(token) < 0, 'package scripts must not expose legacy CLI/input path: ' + token);
+  });
+}
+
 function main() {
+  assertLegacyFixtureCliIsRemoved();
   var emptyEnv = {};
   assert(
     agentWorkflow.resolveRoleModel('requirement', emptyEnv) === 'deepseek-v4-flash',
@@ -20,10 +47,6 @@ function main() {
   assert(
     agentWorkflow.resolveRoleModel('dslIntentRepair', emptyEnv) === 'deepseek-v4-flash',
     'intent repair should inherit dsl model by default'
-  );
-  assert(
-    agentWorkflow.resolveRoleModel('dslInternalRepair', emptyEnv) === 'deepseek-v4-flash',
-    'internal repair should inherit dsl model by default'
   );
 
   var customEnv = {
@@ -40,9 +63,10 @@ function main() {
 
   var summary = agentWorkflow.getWorkflowSummary(customEnv);
   var roles = summary.map(function(role) { return role.id; });
-  ['requirement', 'dsl', 'dslIntentRepair', 'dslInternalRepair', 'imageGeneration', 'vision'].forEach(function(role) {
+  ['requirement', 'dsl', 'dslIntentRepair', 'imageGeneration', 'vision'].forEach(function(role) {
     assert(roles.indexOf(role) >= 0, 'missing workflow role: ' + role);
   });
+  assert(roles.indexOf('dslInternalRepair') < 0, 'legacy internal low-level repair role must be removed');
   var dslRole = agentWorkflow.getRole('dsl');
   assert(dslRole.owner === 'LLM2', 'live dsl role should remain the LLM2 owner');
   assert(dslRole.purpose.indexOf('Intent DSL') >= 0, 'live dsl role should describe Intent DSL');
@@ -50,7 +74,7 @@ function main() {
   assert(agentWorkflow.getRole('dslIntentRepair').owner === 'LLM2', 'Intent repair should remain inside the LLM2 Intent owner boundary');
   assert(agentWorkflow.getRole('dslIntentRepair').purpose.indexOf('Intent DSL') >= 0, 'Intent repair should describe Intent DSL');
   assert(agentWorkflow.ROLE_DEFINITIONS.dslModuleRepair === undefined, 'legacy Module DSL model repair role must be removed');
-  assert(agentWorkflow.getRole('dslInternalRepair').owner !== 'LLM2', 'internal low-level DSL repair should not be owned by LLM2 product surface');
+  assert(agentWorkflow.ROLE_DEFINITIONS.dslInternalRepair === undefined, 'legacy internal low-level DSL repair role must be removed');
 
   console.log('[AgentWorkflow] ' + summary.length + ' roles OK');
 
@@ -63,7 +87,7 @@ function main() {
   assert(img.implemented === true, 'imageGeneration implemented');
   var vis = agentWorkflow.createAgent('vision');
   assert(vis.implemented === false, 'vision not implemented');
-  assert(agentWorkflow.getRegisteredRoles().length === 6, '6 registered roles');
+  assert(agentWorkflow.getRegisteredRoles().length === 5, '5 registered roles');
   console.log('[AgentWorkflow] createAgent factory OK');
 
   var requirementPrompt = requirementAgent.buildRequirementSystemPrompt('movement, collectibles');
@@ -77,6 +101,16 @@ function main() {
   assert(requirementPrompt.indexOf('"value"') < 0, 'RequirementModel prompt must not ask for variable values');
   assert(requirementPrompt.indexOf('"anchor"') >= 0, 'RequirementModel prompt should ask for natural placement anchors');
   assert(requirementPrompt.indexOf('"direction"') >= 0, 'RequirementModel prompt should ask for natural placement directions');
+
+  var liveCapabilityCatalog = capabilities.loadCapabilityCatalog(path.join(__dirname, 'product-modules'));
+  var liveCreativeSummary = capabilities.buildCreativeCapabilitySummary(liveCapabilityCatalog);
+  var liveRequirementPrompt = requirementAgent.buildRequirementSystemPrompt(liveCreativeSummary);
+  assert(liveRequirementPrompt.indexOf('Product modules:') < 0, 'RequirementModel live prompt must not expose product module cards');
+  assert(liveRequirementPrompt.indexOf('core.platformer') < 0, 'RequirementModel live prompt must not expose product module ids');
+  assert(liveRequirementPrompt.indexOf('shell.start_screen') < 0, 'RequirementModel live prompt must not expose shell module ids');
+  assert(liveRequirementPrompt.indexOf('Module DSL') < 0, 'RequirementModel live prompt must not name Module DSL');
+  assert(liveRequirementPrompt.indexOf('project.json') < 0, 'RequirementModel live prompt must not name project.json');
+  assert(liveRequirementPrompt.indexOf('platformer') >= 0, 'RequirementModel live prompt should retain natural capability hints');
 
   var validBrief = {
     theme: 'mobile platformer',

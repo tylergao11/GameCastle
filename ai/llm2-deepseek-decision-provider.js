@@ -42,7 +42,7 @@ function semanticInterpretation(userRequest) {
     return 'Resolved local meaning: UI/icon styling request. This belongs to template policy unless gameplay access is blocked.';
   }
   if (hints.indexOf('stable_current_state') >= 0) {
-    return 'Resolved local meaning: current Tick evidence is stable. No gameplay patch is required.';
+    return 'Resolved local meaning: current Tick evidence is stable. No gameplay Intent is required.';
   }
   if (hints.indexOf('survival_window') >= 0) {
     return 'Resolved local meaning: survival window is too short. Use Tick evidence before applying a recovery or pressure action.';
@@ -63,8 +63,26 @@ function candidateIntentLines(intentWorldView) {
       safeIntentDsl: action.safeIntentDsl || null,
     };
   }).filter(function(action) {
-    return action.safeIntentDsl || action.action === 'no_op';
+    return action.action === 'apply_semantic_repair' && action.safeIntentDsl;
   });
+}
+
+function promptSafeIntentWorldView(intentWorldView) {
+  var view = clone(intentWorldView || {});
+  if (Array.isArray(view.recommendedActions)) {
+    view.recommendedActionCount = view.recommendedActions.length;
+    delete view.recommendedActions;
+  }
+  return view;
+}
+
+function promptSafeContextRoute(contextRoute) {
+  var route = clone(contextRoute || {});
+  if (route.dynamicTail && Array.isArray(route.dynamicTail.candidateActions)) {
+    route.dynamicTail.candidateActionCount = route.dynamicTail.candidateActions.length;
+    delete route.dynamicTail.candidateActions;
+  }
+  return route;
 }
 
 function findMatchedCandidate(hints, candidates) {
@@ -154,6 +172,8 @@ function dynamicPrompt(options) {
   var candidates = candidateIntentLines(options.intentWorldView);
   var allowedContext = allowedRequestedContextIds(options.intentWorldView);
   var proofSlots = buildProofSlots(options);
+  var safeIntentWorldView = promptSafeIntentWorldView(options.intentWorldView);
+  var safeContextRoute = promptSafeContextRoute(options.contextRoute);
   return [
     'slot:user_request',
     options.userRequest || '',
@@ -180,10 +200,10 @@ function dynamicPrompt(options) {
     JSON.stringify(allowedContext, null, 2),
     '',
     'slot:context_route',
-    JSON.stringify(options.contextRoute || {}, null, 2),
+    JSON.stringify(safeContextRoute, null, 2),
     '',
     'slot:intent_world_view',
-    JSON.stringify(options.intentWorldView || {}, null, 2),
+    JSON.stringify(safeIntentWorldView, null, 2),
     '',
     'slot:resolved_context',
     JSON.stringify(options.resolvedContext || null, null, 2),

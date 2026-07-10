@@ -37,11 +37,7 @@ function buildIntentCapabilityReference(productModuleCatalog) {
     if (!name) return null;
     return {
       name: name,
-      category: sanitizeIntentTextField(manifest.category),
-      summary: sanitizeIntentTextField(manifest.summary),
-      presets: Object.keys(manifest.presets || {}).map(function(preset) {
-        return sanitizeIntentTextField(preset === 'mobile' ? 'mobile-friendly' : preset);
-      }).filter(Boolean)
+      summary: sanitizeIntentTextField(manifest.summary)
     };
   }).filter(Boolean);
 }
@@ -307,18 +303,7 @@ function buildIntentCommanderSystemPrompt(productModuleCatalog, componentCatalog
   ].join('\n');
 }
 
-function buildInternalDslRepairSystemPrompt(capabilityCatalog, capabilities) {
-  return [
-    'You are GameCastle internal DSL repair.',
-    'This is a runtime/compiler fallback, not the product module interface.',
-    'Read the ExecutionReport and output only the minimum low-level DSL diff needed to repair failed commands.',
-    'Do not repeat completed commands. Do not output Module DSL, JSON, Markdown, or explanations.',
-    '',
-    capabilities.buildCompilerPromptSection(capabilityCatalog),
-  ].join('\n');
-}
-
-function buildIntentPatchUserPrompt(options) {
+function buildIntentUserPrompt(options) {
   var safeWorldContext = sanitizeIntentWorldContext(options.worldContext);
   var safeDesignBrief = sanitizeDesignBriefForIntentPrompt(options.designBrief);
   var safeDiff = sanitizeDesignDiffForIntentPrompt(options.diff);
@@ -337,8 +322,8 @@ function buildIntentPatchUserPrompt(options) {
     JSON.stringify(safeDiff, null, 2),
     '',
     options.isNew
-      ? 'Task: output the Intent DSL patch for the first playable version.'
-      : 'Task: output only the Intent DSL patch needed for this iteration.',
+      ? 'Task: output the Intent DSL for the first playable version.'
+      : 'Task: output only the Intent DSL needed for this iteration.',
     '',
     'Remember: speak in game-world intent. Do not output module ids, component ids, backend implementation names, coordinates, event indexes, key=value fields, JSON, or explanations.',
   ].join('\n');
@@ -351,8 +336,8 @@ function buildIntentCompileRepairPrompt(options) {
   var safeUserPrompt = sanitizeUserPromptForIntentPrompt(options.userPrompt);
   var safeError = sanitizeErrorForIntentPrompt(options.error);
   return [
-    'The previous Intent DSL patch failed before engine lowering.',
-    'Repair only the Intent DSL patch. Do not output engine target code or backend commands.',
+    'The previous Intent DSL failed before engine lowering.',
+    'Repair only the Intent DSL. Do not output engine target code or backend commands.',
     '',
     'Original user prompt:',
     safeUserPrompt,
@@ -373,34 +358,6 @@ function buildIntentCompileRepairPrompt(options) {
     '- Output only corrected natural Intent DSL lines.',
     '- Do not add machine syntax to work around compiler errors.',
     '- If a concept is unsupported, rewrite it through an existing component, relation, placement, edit, value, role, or action.',
-  ].join('\n');
-}
-
-function buildInternalExecutionRepairPrompt(options) {
-  return [
-    'The previous internal low-level DSL batch executed with failures.',
-    'Output only the minimum low-level DSL diff required to repair failed commands.',
-    'Do not repeat completed commands.',
-    '',
-    'Original user prompt:',
-    options.userPrompt,
-    '',
-    'LLM1 creative design brief:',
-    JSON.stringify(options.designBrief, null, 2),
-    '',
-    'Current ProjectWorld:',
-    JSON.stringify(options.world, null, 2),
-    '',
-    'Previous ExecutionReport:',
-    JSON.stringify(options.report, null, 2),
-    '',
-    'Previous low-level DSL:',
-    options.dslText,
-    '',
-    'Repair rules:',
-    '- Only repair failed commands and missing prerequisites caused by those failures.',
-    '- Completed commands are already applied.',
-    '- Output only low-level DSL lines.',
   ].join('\n');
 }
 
@@ -426,7 +383,7 @@ function assertIntentCompileDiagnostics(compiled) {
   return compiled;
 }
 
-async function compileIntentPatchWithRepair(options) {
+async function compileIntentDslWithRepair(options) {
   var intentDslText = cleanDslOutput(options.intentDslText);
   for (var attempt = 0; attempt <= options.maxRepairRounds; attempt++) {
     try {
@@ -434,6 +391,7 @@ async function compileIntentPatchWithRepair(options) {
         placementContext: options.placementContext,
         componentCatalog: options.componentCatalog,
         productModuleCatalog: options.productModuleCatalog,
+        baseWorld: options.projectWorld,
         moduleCompileOptions: {
           baseModules: options.baseModules,
           projectWorld: options.projectWorld
@@ -470,8 +428,7 @@ async function compileIntentPatchWithRepair(options) {
 module.exports = {
   cleanDslOutput: cleanDslOutput,
   buildIntentCommanderSystemPrompt: buildIntentCommanderSystemPrompt,
-  buildInternalDslRepairSystemPrompt: buildInternalDslRepairSystemPrompt,
-  buildIntentPatchUserPrompt: buildIntentPatchUserPrompt,
+  buildIntentUserPrompt: buildIntentUserPrompt,
   sanitizeIntentWorldContext: sanitizeIntentWorldContext,
   sanitizeDesignBriefForIntentPrompt: sanitizeDesignBriefForIntentPrompt,
   sanitizeDesignDiffForIntentPrompt: sanitizeDesignDiffForIntentPrompt,
@@ -479,6 +436,5 @@ module.exports = {
   sanitizeUserPromptForIntentPrompt: sanitizeUserPromptForIntentPrompt,
   sanitizeErrorForIntentPrompt: sanitizeErrorForIntentPrompt,
   sanitizeExecutionSummaryForIntentPrompt: sanitizeExecutionSummaryForIntentPrompt,
-  buildInternalExecutionRepairPrompt: buildInternalExecutionRepairPrompt,
-  compileIntentPatchWithRepair: compileIntentPatchWithRepair,
+  compileIntentDslWithRepair: compileIntentDslWithRepair,
 };
