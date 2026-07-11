@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "dictionaryId": "gamecastle.asset-style-dictionary",
+  "defaultStyleId": "gamecastle.style-1",
+  "uiTemplates": [
+    { "id": "ui.hud.arcade", "name": "Arcade HUD", "styleId": "gamecastle.style-1", "slots": ["asset.ui.health", "asset.ui.pause", "asset.ui.custom"], "theme": { "accent": "red", "panel": "paper" } },
+    { "id": "ui.menu.paper", "name": "Paper Menu", "styleId": "gamecastle.style-1", "slots": ["asset.ui.logo", "asset.ui.play", "asset.ui.custom"], "theme": { "accent": "yellow", "panel": "paper" } }
+  ],
+  "styles": {
+    "gamecastle.style-1": {
+      "name": "GameCastle 意象派",
+      "purpose": "将用户已画出的轮廓稳定地重绘为低细节、粗描边、可玩且可模板复用的资产；不推断物体语义。",
+      "inputContract": {
+        "required": ["alpha silhouette"],
+        "optional": ["subject tag", "palette role", "anchor", "motion"],
+        "rejects": ["empty canvas", "opaque photographic background"]
+      },
+      "palette": {
+        "ink": "#141923",
+        "paper": "#fff7e5",
+        "red": "#ee493a",
+        "yellow": "#ffd82d",
+        "blue": "#63b6ff",
+        "deep": "#17253e",
+        "lime": "#c6f252"
+      },
+      "renderRecipe": {
+        "outline": { "color": "ink", "widthRatio": 0.022, "minimumPx": 3, "join": "round" },
+        "shadow": { "color": "ink", "opacity": 0.36, "offsetOutlineMultipler": 2 },
+        "highlight": { "color": "paper", "opacity": 0.32, "position": "upper-left" },
+        "face": { "preset": "two-dot-smile", "position": "center-lower" },
+        "output": { "format": "png", "transparent": true, "anchor": "bottom-center" }
+      },
+      "animationPolicy": {
+        "states": ["idle", "move", "hit", "death"],
+        "defaultFramesPerState": 1,
+        "runtimeTransformFirst": true,
+        "maxGeneratedKeyframesPerAction": 2
+      },
+      "templateRoles": {
+        "sprite.character": ["ink", "fill", "shadow", "highlight", "face"],
+        "sprite.prop": ["ink", "fill", "shadow", "highlight"],
+        "ui.panel": ["ink", "paper", "accent", "shadow"],
+        "ui.button": ["ink", "paper", "accent", "shadow"]
+      }
+    }
+  }
+}

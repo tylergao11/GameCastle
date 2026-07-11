@@ -10,9 +10,9 @@ var pipelineState = require("./pipeline-state");
 var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
 var htmlExporter = require("./html-exporter");
+var assetRuntimeOverlayCodegen = require('./asset-runtime-overlay-codegen');
 var tickRuntimeCodegen = require("./network-runtime/codegen");
 var intentRuntimeCodegen = require("./intent-runtime-codegen");
-var textureProvider = require("./texture-provider");
 var gdevelopTruth = require("./gdevelop-truth");
 var agentWorkflow = require("./agent-workflow");
 var creativeAgent = require("./creative-agent");
@@ -51,6 +51,22 @@ var PENDING_APPROVAL_PATH = path.join(STATE_DIR, "pending-approval.json");
 var PIPELINE_STATE_PATH = path.join(STATE_DIR, "pipeline-state.json");
 var MAX_LLM2_REPAIR_ROUNDS = 2;
 var MAX_LLM2_INTENT_COMPILE_REPAIR_ROUNDS = 2;
+
+function localAssetExportFiles() {
+  var manifestPath = path.join(STATE_DIR, 'asset-runtime-bindings.json');
+  if (!fs.existsSync(manifestPath)) return [];
+  var manifest = loadJsonFile(manifestPath, null);
+  if (!manifest || !Array.isArray(manifest.bindings)) return [];
+  var files = ['asset-runtime-bindings.json'];
+  manifest.bindings.forEach(function(binding) {
+    var relativePath = binding && binding.asset && binding.asset.path;
+    if (!/^assets\/(?:local|cloud|generated)\/[A-Za-z0-9._-]+\.png$/.test(String(relativePath || ''))) return;
+    if (fs.existsSync(path.join(STATE_DIR, relativePath))) files.push(relativePath);
+    var sheetPath = binding && binding.asset && binding.asset.sheet && binding.asset.sheet.path;
+    if (/^assets\/generated\/[A-Za-z0-9._-]+\.png$/.test(String(sheetPath || '')) && fs.existsSync(path.join(STATE_DIR, sheetPath))) files.push(sheetPath);
+  });
+  return Array.from(new Set(files));
+}
 
 function hasArg(name) {
   return args.indexOf(name) >= 0;
@@ -508,18 +524,6 @@ EXEC["create object"] = async function(p, ps) {
   if (!tgt) return {ok:false,msg:"scene not found: "+ps.scene};
   var sType = ps.shape || "rectangle";
 
-  // Resolve texture for Sprite objects before creating object data
-  if (ps.type === "Sprite") {
-    try {
-      var resolved = await textureProvider.resolveTexture(ps);
-      if (resolved.texturePath && !ps.texture) {
-        ps.texture = resolved.texturePath;
-      }
-    } catch (e) {
-      return {ok:false,msg:"texture resolution failed: " + e.message};
-    }
-  }
-
   var obj = gdevelopTruth.createObjectData(ps);
   tgt.push(obj);
   if (ps.type === "ShapePainter" && scene) {
@@ -965,10 +969,14 @@ function writeProjectOutputs(project, options) {
     }, null, 2));
     console.log('[IntentRuntime] ' + path.join(STATE_DIR, 'intent-runtime.js') + ' (' + intentRuntimeJs.length + ' bytes)');
   }
+  var localAssets = localAssetExportFiles();
+  if (localAssets.length) fs.writeFileSync(path.join(STATE_DIR, 'asset-runtime.js'), assetRuntimeOverlayCodegen.generate(loadJsonFile(path.join(STATE_DIR, 'asset-runtime-bindings.json'), { bindings: [] })), 'utf8');
   var htmlManifest = htmlExporter.buildHtmlExportManifest(project, {
     codeFiles: codeFiles,
     modules: options.modules,
     hasIntentRuntime: !!(intentRuntimeRequirements && intentRuntimeRequirements.length),
+    hasAssetRuntime: localAssets.length > 0,
+    assetFiles: localAssets,
   });
   fs.writeFileSync(HTML_EXPORT_MANIFEST_PATH, JSON.stringify(htmlManifest, null, 2));
   try {

@@ -98,9 +98,7 @@ function makePromotionCandidate(asset) {
 }
 
 function buildAssetWorld(assetManifest, previousWorld, options) {
-  // Note: cloud-library candidates are tracked separately by cloud-library-manager.
-  // The cloudPromotionQueue here tracks repo-eligible generated assets from the manifest.
-  // For a unified view, pass a cloudLibraryManager via options.cloudLibraryManager.
+  // The queue only records accepted generated or edited assets for later promotion.
   options = options || {};
   assetManifest = assetManifest || { assets: [], summary: {} };
   var assets = assetManifest.assets || [];

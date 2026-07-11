@@ -1,0 +1,3 @@
+var assert = require('assert'); var ports = require('./asset-model-ports');
+var model = ports.createAssetModelPorts({ generate: async function() { return { ok: true }; }, edit: async function() { return { ok: true }; }, review: async function() { return { pass: true }; } });
+(async function() { assert((await model.generate({})).ok); assert((await model.edit({ source: { parentRevisionId: 'rev-1' } })).ok); assert((await model.review({})).pass); await assert.rejects(function() { return ports.createAssetModelPorts({}).generate({}); }); console.log('[AssetModelPorts] fail-closed provider boundary passed'); })().catch(function(error) { console.error(error); process.exit(1); });

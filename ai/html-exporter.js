@@ -178,7 +178,9 @@ function buildHtmlExportManifest(project, options) {
   (options.codeFiles || []).forEach(function(file) { addUnique(scriptFiles, file.fileName || file); });
   addUnique(scriptFiles, 'data.js');
   if (options.hasIntentRuntime) addUnique(scriptFiles, 'intent-runtime.js');
+  if (options.hasAssetRuntime) addUnique(scriptFiles, 'asset-runtime.js');
   addUnique(scriptFiles, 'tick-runtime.js');
+  (options.assetFiles || []).forEach(function(file) { addUnique(assetFiles, file); });
 return {
     schemaVersion: 1,
     target: 'html',
@@ -216,7 +218,7 @@ function syncHtmlRuntime(runtimeDir, outputDir, manifest) {
   removeManagedRuntime(outputDir, runtimeDir);
   var copied = 0, skipped = 0, missing = [];
   manifest.scriptFiles.concat(manifest.assetFiles || []).forEach(function(file) {
-    if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'tick-runtime.js' || file === 'intent-runtime.js') return;
+    if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'tick-runtime.js' || file === 'intent-runtime.js' || file === 'asset-runtime.js' || file === 'asset-runtime-bindings.json' || file.indexOf('assets/local/') === 0 || file.indexOf('assets/cloud/') === 0 || file.indexOf('assets/generated/') === 0) return;
     if (copyRuntimeFile(runtimeDir, outputDir, file)) copied++; else { skipped++; missing.push(file); }
   });
   if (skipped > 0) {

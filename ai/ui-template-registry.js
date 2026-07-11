@@ -1,0 +1,5 @@
+var styleDictionary = require('./asset-style-dictionary');
+var TEMPLATES = styleDictionary.dictionary.uiTemplates.map(function(template) { var style = styleDictionary.getStyle(template.styleId || styleDictionary.dictionary.defaultStyleId); return { id: template.id, name: template.name, styleId: style.id, slots: template.slots.slice(), theme: { accent: style.palette[template.theme.accent], panel: style.palette[template.theme.panel] } }; });
+function getTemplate(id) { return TEMPLATES.find(function(template) { return template.id === id; }) || null; }
+function bindTemplateAsset(templateId, slotId, assetId) { var template = getTemplate(templateId); if (!template) throw new Error('Unknown UI template: ' + templateId); if (template.slots.indexOf(slotId) < 0) throw new Error('Slot is not owned by template: ' + slotId); return { templateId: templateId, slotId: slotId, assetId: assetId, owner: 'RuntimeLinker' }; }
+module.exports = { listTemplates: function() { return TEMPLATES.slice(); }, getTemplate: getTemplate, bindTemplateAsset: bindTemplateAsset };

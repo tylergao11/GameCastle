@@ -32,7 +32,6 @@ The important property is ownership. AI decides in natural game terms; determini
 | `ai/components/` | AI-safe component cards plus compiler manifests for bindings, placement policy, runtime requirements, and target metadata. |
 | `ai/product-modules/` | Product capability truth source. Modules are selected through natural intent, not by exposing module ids as the product language. |
 | `ai/gdevelop-truth/` | Extracted GDevelop/GDJS runtime truth from `C:\Ai\GDevelop-master`; project emission must validate against this snapshot. |
-| `ai/assets/` | Seed local/cloud asset repository manifests for runtime asset resolution. |
 | `engine/` | Cached official GDJS browser runtime used by HTML export. |
 | `platform/` | React/Vite product shell for creation, iteration, playtest, and future publishing/multiplayer surfaces. |
 | `server/local-runtime/` | Single-project boundary for real pipeline runs, status events, rollback, and playable artifacts. |
@@ -100,3 +99,7 @@ GameCastle does not hand-maintain GDevelop object types, behavior types, object 
 - [AI-first Intent Runtime Bridge](docs/ai-first-intent-runtime-bridge.md)
 - [Module Composition](docs/module-composition.md)
 - [Roadmap](docs/roadmap.md)
+- [Visual Asset Loop](docs/visual-asset-loop.md)
+- [Visual Asset Boundaries](docs/visual-asset-boundaries.md)
+- [Visual Asset Test Matrix](docs/visual-asset-test-matrix.md)
+- [Local Asset Studio](docs/local-asset-studio.md)

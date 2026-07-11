@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useLocalGameRuntime } from "../runtime/useLocalGameRuntime";
+import AssetStudio from './AssetStudio';
 
-type Phase = "world" | "building" | "play";
+type Phase = "world" | "building" | "play" | "assets";
 type Drawer = "mutate" | null;
 
 const chips = ["RACCOON", "BOSS FIGHT", "CO-OP", "BAD LUCK", "OFFICE", "GIANT CHICKEN"];
@@ -86,7 +87,7 @@ export default function GameCastleExperience() {
       const pathname = currentAppPath();
       if (pathname.startsWith("/play/")) setPhase("play");
       else if (pathname.startsWith("/build/")) setPhase("building");
-      else setPhase("world");
+      else if (pathname === '/assets') setPhase('assets'); else setPhase("world");
     };
     setFromPath();
     window.addEventListener("popstate", setFromPath);
@@ -190,6 +191,7 @@ export default function GameCastleExperience() {
   }
 
   function goHome() { setPhase("world"); setDrawer(null); setRunError(""); window.history.pushState({}, "", appPath("/")); }
+  function openAssets() { setPhase('assets'); window.history.pushState({}, '', appPath('/assets')); }
 
   const appStyle = {
     "--castle-keyart": `url("${castleKeyArtUrl}")`,
@@ -211,6 +213,7 @@ export default function GameCastleExperience() {
     </section>
   </main>;
 
+  if (phase === 'assets') return <AssetStudio onClose={goHome} />;
   return <main className={`gc-app gc-${phase}`} style={appStyle}>
     {phase === "world" && <section className="world-screen">
       <div className="key-art" aria-hidden="true" />
@@ -218,7 +221,7 @@ export default function GameCastleExperience() {
       <div className="world-weather" aria-hidden="true"><span className="cloud cloud-a" /><span className="cloud cloud-b" /><span className="cloud cloud-c" /></div>
       <div className="world-machinery" aria-hidden="true"><span className="ambient-gear gear-one">✳</span><span className="ambient-gear gear-two">✳</span></div>
       <header className="world-head">
-        <button className="gc-logo" type="button" onClick={() => setDrawer(null)}><span>▥</span> GameCastle</button>
+        <button className="gc-logo" type="button" onClick={() => setDrawer(null)}><span>▥</span> GameCastle</button><button className="asset-entry" type="button" onClick={openAssets}>资产工作台</button>
       </header>
 
       <div className="hero-copy">
@@ -254,7 +257,7 @@ export default function GameCastleExperience() {
       <div className="game-world real-game-world">
         {playableUrl ? <iframe key={runtime.snapshot?.artifact?.version} src={playableUrl} title={`Playable game: ${title}`} sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms" /> : <div className="play-unavailable"><strong>NO PLAYABLE RELEASE</strong><button type="button" onClick={goHome}>BUILD A GAME</button></div>}
       </div>
-      <nav className="play-dock"><button type="button" onClick={() => setDrawer("mutate")}>CHANGE THIS GAME</button></nav>
+      <nav className="play-dock"><button type="button" onClick={() => setDrawer("mutate")}>CHANGE THIS GAME</button><button type="button" onClick={openAssets}>资产工作台</button></nav>
       {drawerView}
     </section>}
   </main>;

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "owner": "LocalDerivationKernel",
+  "styleDictionaryId": "gamecastle.asset-style-dictionary",
+  "scopes": ["project-local", "private-local"],
+  "operations": [
+    "trim_alpha", "pad_canvas", "resize", "anchor_normalize", "align_canvas",
+    "sprite_sheet_split", "sprite_sheet_pack", "frame_reorder", "frame_anchor_normalize",
+    "palette_map", "recolor", "erase_connected", "remove_light_edge_background", "despill",
+    "outline", "shadow", "highlight", "quantize_palette", "solidify_closed_line_art",
+    "transform_frames", "ping_pong", "frame_timing", "state_sheet",
+    "decode_normalize_png", "inspect_raster", "validate_alpha", "validate_frame_grid"
+  ],
+  "receiptRequired": ["operationId", "op", "inputHash", "outputHash", "scriptVersion", "parentRevisionId", "scope", "dictionaryId", "styleId"]
+}

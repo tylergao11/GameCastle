@@ -11,17 +11,18 @@ function sendJson(res, status, value) {
 
 function errorStatus(code) {
   if (code === 'RUN_BUSY' || code === 'CONTINUE_STATE_MISSING' || code === 'RUN_NOT_CANCELLABLE') return 409;
-  if (code === 'INTENT_REQUIRED' || code === 'INTENT_TOO_LONG' || code === 'INVALID_JSON' || code === 'INVALID_MODE') return 400;
+  if (code === 'INTENT_REQUIRED' || code === 'INTENT_TOO_LONG' || code === 'INVALID_JSON' || code === 'INVALID_MODE' || code === 'ASSET_BINDING_INVALID' || code === 'ASSET_PNG_REQUIRED' || code === 'ASSET_SIZE_INVALID' || code === 'ASSET_SIGNATURE_INVALID' || code === 'ASSET_PNG_CONTRACT_INVALID' || code === 'ASSET_WEAVE_REJECTED' || code === 'ASSET_CLOUD_RESOLVE_INVALID' || code === 'ASSET_CLOUD_UNAVAILABLE' || code === 'ASSET_CLOUD_MATERIALIZE_FAILED' || code === 'ASSET_SIMULATED_GENERATE_INVALID' || code === 'ASSET_SIMULATED_GENERATE_REJECTED' || code === 'ASSET_SIMULATED_MATERIALIZE_FAILED') return 400;
   return 500;
 }
 
-function readJson(req) {
+function readJson(req, maxBytes) {
+  maxBytes = maxBytes || 16384;
   return new Promise(function(resolve, reject) {
     var chunks = [];
     var size = 0;
     req.on('data', function(chunk) {
       size += chunk.length;
-      if (size > 16384) {
+      if (size > maxBytes) {
         var error = new Error('Request body is too large.');
         error.code = 'INTENT_TOO_LONG';
         reject(error);
@@ -55,6 +56,8 @@ function decodeSegment(value, res) {
 function createLocalGameRuntimeServer(options) {
   var coordinator = options.coordinator;
   var artifactStore = options.artifactStore;
+  var localAssetStore = options.localAssetStore;
+  var cloudResourceManager = options.cloudResourceManager;
   var allowedUiOrigin = options.allowedUiOrigin || 'http://127.0.0.1:5173';
 
   var server = http.createServer(function(req, res) {
@@ -99,10 +102,57 @@ function createLocalGameRuntimeServer(options) {
       sendJson(res, 200, coordinator.snapshot());
       return;
     }
+    if (req.method === 'GET' && pathname === '/api/runtime/assets/cloud/search') {
+      var tags = String(requestUrl.searchParams.get('tags') || '').split(',').map(function(value) { return value.trim(); }).filter(function(value) { return /^[A-Za-z0-9._-]{1,128}$/.test(value); });
+      var matches = cloudResourceManager.search(tags).map(function(asset) { return { assetId: asset.assetId, sha256: asset.sha256, format: asset.format, width: asset.width || null, height: asset.height || null, styleId: asset.styleId || null, semanticTags: asset.semanticTags || [], styleTags: asset.styleTags || [], repositoryStatus: asset.status }; });
+      sendJson(res, 200, { matches: matches });
+      return;
+    }
     if (req.method === 'POST' && pathname === '/api/runtime/runs') {
       readJson(req).then(function(body) {
         var snapshot = coordinator.start({ intent: body.intent, mode: body.mode });
         sendJson(res, 202, snapshot);
+      }).catch(function(error) {
+        sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
+      });
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/runtime/fixtures/mobile-platformer') {
+      readJson(req).then(function() {
+        var snapshot = coordinator.start({ intent: 'Offline platformer fixture', mode: 'create', intentFixtureFile: 'ai/fixtures/intent-mobile-platformer.dsl' });
+        sendJson(res, 202, snapshot);
+      }).catch(function(error) {
+        sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
+      });
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/runtime/assets/bindings') {
+      readJson(req, 6 * 1024 * 1024).then(function(body) {
+        return localAssetStore.bind(body).then(function(binding) { sendJson(res, 201, { binding: binding }); });
+      }).catch(function(error) {
+        sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
+      });
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/runtime/assets/cloud/resolve') {
+      readJson(req).then(function(body) {
+        return localAssetStore.resolveCloud(body, cloudResourceManager).then(function(binding) { sendJson(res, 201, { binding: binding }); });
+      }).catch(function(error) {
+        sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
+      });
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/runtime/assets/simulated/generate') {
+      readJson(req).then(function(body) {
+        return localAssetStore.generate(body).then(function(binding) { sendJson(res, 201, { binding: binding, provider: 'simulated-local', simulated: true }); });
+      }).catch(function(error) {
+        sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
+      });
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/runtime/assets/simulated/sheet') {
+      readJson(req).then(function(body) {
+        return localAssetStore.generateSheet(body).then(function(result) { sendJson(res, 201, Object.assign({ provider: 'simulated-local', simulated: true }, result)); });
       }).catch(function(error) {
         sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
       });

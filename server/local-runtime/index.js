@@ -6,6 +6,10 @@ var httpServerModule = require('./http-server');
 var pipelineRunnerModule = require('./pipeline-runner');
 var stateStoreModule = require('./state-store');
 var transactionModule = require('./workspace-transaction');
+var localAssetStoreModule = require('./local-asset-store');
+var assetRepositoryModule = require('../../ai/asset-repository');
+var cloudResourceManagerModule = require('../../ai/cloud-resource-manager');
+var simulatedPortsModule = require('../../ai/simulated-local-asset-ports');
 
 function createRuntime(options) {
   options = options || {};
@@ -17,6 +21,10 @@ function createRuntime(options) {
     releasesDir: path.join(dataDir, 'releases'),
   });
   var stateStore = options.stateStore || stateStoreModule.createStateStore(path.join(dataDir, 'local-runtime-state.json'));
+  var simulatedPorts = options.simulatedPorts || simulatedPortsModule.createSimulatedLocalAssetPorts({ outputDir: outputDir });
+  var localAssetStore = options.localAssetStore || localAssetStoreModule.createLocalAssetStore({ outputDir: outputDir, ports: simulatedPorts });
+  var cloudRepository = options.cloudRepository || assetRepositoryModule.createAssetRepository(path.join(dataDir, 'cloud-assets'));
+  var cloudResourceManager = options.cloudResourceManager || cloudResourceManagerModule.createCloudResourceManager({ cloudRepository: cloudRepository, queuePath: path.join(dataDir, 'cloud-resource-queue.json') });
   var transaction = options.transaction || transactionModule.createWorkspaceTransaction({
     outputDir: outputDir,
     transactionDir: path.join(dataDir, 'active-transaction'),
@@ -36,9 +44,11 @@ function createRuntime(options) {
   var server = httpServerModule.createLocalGameRuntimeServer({
     coordinator: coordinator,
     artifactStore: artifactStore,
+    localAssetStore: localAssetStore,
+    cloudResourceManager: cloudResourceManager,
     allowedUiOrigin: options.allowedUiOrigin || process.env.GAMECASTLE_UI_ORIGIN || 'http://127.0.0.1:5173',
   });
-  return { server: server, coordinator: coordinator, artifactStore: artifactStore };
+  return { server: server, coordinator: coordinator, artifactStore: artifactStore, localAssetStore: localAssetStore, cloudResourceManager: cloudResourceManager, cloudRepository: cloudRepository, simulatedPorts: simulatedPorts };
 }
 
 module.exports = {

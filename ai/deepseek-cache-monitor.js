@@ -1,5 +1,6 @@
 var fs = require('fs');
 var path = require('path');
+var responsesClient = require('./responses-client');
 
 var LLM2_CONTEXT_CACHE_ROUTER_SCHEMA_VERSION = require('./llm2-context-cache-router').LLM2_CONTEXT_CACHE_ROUTER_SCHEMA_VERSION;
 
@@ -127,55 +128,10 @@ function buildInput(stablePrefix, turn) {
   ];
 }
 
-async function readSseResponse(response) {
-  var text = '';
-  var usage = null;
-  var events = [];
-  var reader = response.body.getReader();
-  var decoder = new TextDecoder();
-  var buffer = '';
-
-  while (true) {
-    var chunk = await reader.read();
-    if (chunk.done) break;
-    buffer += decoder.decode(chunk.value, { stream: true });
-    var lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].trim();
-      if (!line || line.indexOf('data: ') !== 0) continue;
-      var raw = line.substring(6);
-      if (raw === '[DONE]') continue;
-      var event;
-      try {
-        event = JSON.parse(raw);
-      } catch (e) {
-        continue;
-      }
-      events.push(event.type || 'unknown');
-      if (event.type === 'response.output_text.delta' || event.type === 'response.text.delta') {
-        text += (event.data && event.data.delta) || event.delta || '';
-      }
-      if (event.type === 'response.completed') {
-        usage = (event.data && event.data.response && event.data.response.usage) ||
-          (event.response && event.response.usage) ||
-          event.usage ||
-          usage;
-      }
-    }
-  }
-  return {
-    text: text,
-    usage: usage || {},
-    events: events,
-  };
-}
-
 async function callResponses(options, turn) {
-  var fetchImpl = options.fetchImpl || fetch;
   if (options.responseFixtures && options.responseFixtures.length) {
     var fixture = options.responseFixtures.shift();
-    return readSseResponse(fixture);
+    return responsesClient.readResponseStream(fixture);
   }
   var body = {
     model: options.model,
@@ -184,20 +140,12 @@ async function callResponses(options, turn) {
     reasoning_effort: options.reasoningEffort || 'low',
     stream: true,
   };
-  var response = await fetchImpl(options.endpoint.replace(/\/$/, '') + '/responses', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + (options.apiKey || ''),
-    },
-    body: JSON.stringify(body),
+  return responsesClient.requestResponses({
+    endpoint: options.endpoint,
+    apiKey: options.apiKey,
+    fetchImpl: options.fetchImpl,
+    body: body,
   });
-  if (!response.ok) {
-    var errText = '';
-    try { errText = await response.text(); } catch (e) {}
-    throw new Error('DeepSeek cache debug HTTP ' + response.status + ': ' + errText.slice(0, 300));
-  }
-  return readSseResponse(response);
 }
 
 function summarizeHotSteps(steps, threshold) {

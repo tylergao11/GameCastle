@@ -41,6 +41,42 @@ export async function cancelRuntimeRun(runId: string): Promise<RunSnapshot> {
   }))
 }
 
+export async function saveRuntimeAssetBinding(binding: unknown): Promise<void> {
+  const response = await fetch('/api/runtime/assets/bindings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(binding) })
+  if (!response.ok) {
+    const body = await response.json() as ErrorEnvelope
+    throw new LocalRuntimeError(body.error?.code ?? 'ASSET_BINDING_FAILED', body.error?.message ?? `Asset binding failed with ${response.status}`)
+  }
+}
+
+export type CloudAssetMatch = { assetId: string; sha256: string; format: string; width: number | null; height: number | null; styleId: string | null; semanticTags: string[]; styleTags: string[]; repositoryStatus: 'approved' }
+
+export async function searchRuntimeCloudAssets(tags: string[]): Promise<CloudAssetMatch[]> {
+  const response = await fetch(`/api/runtime/assets/cloud/search?tags=${encodeURIComponent(tags.join(','))}`, { cache: 'no-store' })
+  const body = await response.json() as { matches?: CloudAssetMatch[] } & ErrorEnvelope
+  if (!response.ok) throw new LocalRuntimeError(body.error?.code ?? 'CLOUD_SEARCH_FAILED', body.error?.message ?? `Cloud search failed with ${response.status}`)
+  return body.matches ?? []
+}
+
+export async function resolveRuntimeCloudAsset(binding: unknown): Promise<void> {
+  const response = await fetch('/api/runtime/assets/cloud/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(binding) })
+  if (!response.ok) { const body = await response.json() as ErrorEnvelope; throw new LocalRuntimeError(body.error?.code ?? 'CLOUD_RESOLVE_FAILED', body.error?.message ?? `Cloud resolve failed with ${response.status}`) }
+}
+
+export async function generateSimulatedRuntimeAsset(binding: unknown): Promise<{ binding: { asset?: { path?: string }; simulated?: boolean } }> {
+  const response = await fetch('/api/runtime/assets/simulated/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(binding) })
+  const body = await response.json() as { binding: { asset?: { path?: string }; simulated?: boolean } } & ErrorEnvelope
+  if (!response.ok) throw new LocalRuntimeError(body.error?.code ?? 'SIMULATED_ASSET_GENERATE_FAILED', body.error?.message ?? `Simulated asset generation failed with ${response.status}`)
+  return body
+}
+
+export async function generateSimulatedRuntimeSheet(request: unknown): Promise<{ sheet: { path: string; frames: number }; bindings: unknown[] }> {
+  const response = await fetch('/api/runtime/assets/simulated/sheet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) })
+  const body = await response.json() as { sheet: { path: string; frames: number }; bindings: unknown[] } & ErrorEnvelope
+  if (!response.ok) throw new LocalRuntimeError(body.error?.code ?? 'SIMULATED_ASSET_SHEET_FAILED', body.error?.message ?? `Simulated sheet generation failed with ${response.status}`)
+  return body
+}
+
 export function subscribeToRun(runId: string, onSnapshot: (snapshot: RunSnapshot) => void, onDisconnect: () => void) {
   const source = new EventSource(`/api/runtime/runs/${encodeURIComponent(runId)}/events`)
   source.addEventListener('snapshot', (event) => {

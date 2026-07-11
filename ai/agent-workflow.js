@@ -47,7 +47,7 @@ var ROLE_DEFINITIONS = {
     modality: 'image',
     envModel: 'GAMECASTLE_IMAGE_MODEL',
     fallbackModel: null,
-    implemented: true,
+    implemented: false,
   },
   vision: {
     id: 'vision',

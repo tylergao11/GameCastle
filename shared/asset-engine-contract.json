@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.asset-engine",
+  "owner": "AssetEngine",
+  "truthSources": {
+    "engine": "shared/asset-engine-contract.json",
+    "style": "shared/asset-style-dictionary.json",
+    "localDerivation": "shared/local-derivation-contract.json",
+    "buildContract": "ai/contracts/schema.json"
+  },
+  "principles": ["user-input-is-optional", "local-first", "cloud-reuse-before-generation", "deterministic-derivation-before-model", "project-local-is-runtime-truth", "every-mutation-creates-revision-and-receipt", "unimplemented-capabilities-fail-closed", "placeholder-is-explicit-debt", "cloud-promotion-is-never-automatic"],
+  "storageZones": {
+    "userInput": { "scope": "private-local", "cloudReadable": false, "cloudWritable": false },
+    "projectCache": { "scope": "project-local", "cloudReadable": false, "cloudWritable": false },
+    "cloudLibrary": { "scope": "cloud-shared", "cloudReadable": true, "cloudWritable": "accepted-promotion-only" },
+    "modelTransit": { "scope": "ephemeral", "cloudReadable": "explicit-policy-only", "cloudWritable": false }
+  },
+  "resolutionLadder": ["local-input", "project-cache", "cloud-exact", "cloud-near", "deterministic-variant", "image-edit", "image-generation", "placeholder-debt"],
+  "graphs": [
+    { "id": "AssetIntakeGraph", "owner": "AssetSpecCompiler", "entry": "asset-intake", "exit": "asset-spec-ready" },
+    { "id": "AssetResolveGraph", "owner": "AssetResolver", "entry": "asset-resolve", "exit": "resolution-decided" },
+    { "id": "AssetDeriveGraph", "owner": "AssetDerivationRouter", "entry": "asset-derive", "exit": "candidate-ready" },
+    { "id": "AssetReviewGraph", "owner": "AssetAcceptanceGate", "entry": "asset-review", "exit": "accepted-or-debt" },
+    { "id": "AssetFinalizeGraph", "owner": "AssetFinalizer", "entry": "asset-finalize", "exit": "asset-world-ready" },
+    { "id": "CloudPromotionGraph", "owner": "CloudResourceManager", "entry": "promotion-requested", "exit": "promoted-or-rejected" }
+  ],
+  "stages": [
+    { "id": "asset-intake", "owner": "AssetSpecCompiler", "input": "BuildContract.assetSlots", "output": "AssetSpec[]", "implementation": "implemented", "module": "ai/asset-engine-langgraph.js" },
+    { "id": "local-input-archive", "owner": "LocalInputArchive", "input": "AssetSpec[]", "output": "LocalInputRecord[]", "implementation": "implemented", "module": "ai/asset-engine-langgraph.js" },
+    { "id": "asset-resolve", "owner": "AssetResolver", "input": "AssetSpec", "output": "ResolutionDecision", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
+    { "id": "cloud-materialize", "owner": "AssetRepository", "input": "CloudAssetRecord", "output": "ProjectLocalRevision", "implementation": "implemented", "module": "ai/asset-repository.js" },
+    { "id": "deterministic-derive", "owner": "LocalDerivationKernel", "input": "DerivationPlan", "output": "AssetRevision+OperationReceipt", "implementation": "partial", "module": "ai/local-derivation-kernel.js" },
+    { "id": "model-authorize", "owner": "ModelPolicyGate", "input": "ModelRequest", "output": "AuthorizedModelRequest|DeniedModelRequest", "implementation": "implemented", "module": "ai/model-policy-gate.js" },
+    { "id": "image-edit", "owner": "ImageEditPort", "input": "AuthorizedModelRequest", "output": "AssetRevision+ModelReceipt", "implementation": "port", "module": "ai/asset-model-ports.js" },
+    { "id": "image-generation", "owner": "ImageGenerationPort", "input": "AuthorizedModelRequest", "output": "AssetRevision+ModelReceipt", "implementation": "port", "module": "ai/asset-model-ports.js" },
+    { "id": "vision-review", "owner": "VisionReviewPort", "input": "ReviewRequest", "output": "ReviewReceipt", "implementation": "port", "module": "ai/asset-model-ports.js" },
+    { "id": "repair-plan", "owner": "AssetRepairPlanner", "input": "ReviewReceipt", "output": "RepairPlan", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
+    { "id": "asset-acceptance", "owner": "AssetAcceptanceGate", "input": "AssetRevision+AssetSpec+ReviewReceipt", "output": "AcceptanceReceipt", "implementation": "implemented", "module": "ai/asset-contract-validator.js" },
+    { "id": "asset-finalize", "owner": "AssetFinalizer", "input": "AcceptanceReceipt", "output": "AssetRecord", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
+    { "id": "manifest-build", "owner": "AssetManifestBuilder", "input": "AssetRecord[]", "output": "AssetManifest", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
+    { "id": "runtime-bind", "owner": "RuntimeAssetBinder", "input": "AssetManifest+BindingSpec[]", "output": "RuntimeBindingManifest", "implementation": "implemented", "module": "ai/asset-runtime-overlay-codegen.js" },
+    { "id": "asset-world-project", "owner": "AssetWorldProjector", "input": "AssetManifest+RuntimeBindingManifest", "output": "AssetWorld", "implementation": "implemented", "module": "ai/asset-world.js" },
+    { "id": "cloud-promotion", "owner": "CloudResourceManager", "input": "PromotionRequest+AcceptanceReceipt", "output": "CloudAssetRecord|PromotionRejection", "implementation": "implemented", "module": "ai/cloud-resource-manager.js" },
+    { "id": "placeholder-debt", "owner": "AssetDebtManager", "input": "FailureContext", "output": "AssetDebt", "implementation": "implemented", "module": "ai/asset-weave-graph.js" }
+  ],
+  "artifacts": {
+    "AssetSpec": ["slotId", "kind", "semanticTags", "styleId", "constraints", "bindingTarget"],
+    "ResolutionDecision": ["route", "reason", "sourceScope", "candidateId", "nextStage"],
+    "AssetRevision": ["assetId", "revisionId", "parentRevisionId", "path", "sha256", "provenance", "scope"],
+    "OperationReceipt": ["operationId", "inputHash", "outputHash", "tool", "toolVersion", "policyId"],
+    "ReviewReceipt": ["decision", "scores", "issues", "repairable", "reviewer"],
+    "AcceptanceReceipt": ["accepted", "specId", "revisionId", "checks", "blocksExport"],
+    "AssetRecord": ["assetId", "slotId", "styleId", "activeRevisionId", "source", "publishability"],
+    "AssetManifest": ["contractId", "buildContractId", "assets", "summary"],
+    "RuntimeBindingManifest": ["buildContractId", "bindings", "targetRuntime", "manifestHash"],
+    "AssetWorld": ["worldVersion", "assetManifestId", "slots", "debts", "cloudPromotionQueue", "semanticHash"],
+    "AssetDebt": ["debtId", "slotId", "code", "owner", "blocksExport", "recoveryStage"]
+  },
+  "states": { "asset": ["declared", "resolving", "candidate", "reviewing", "repairing", "accepted", "bound", "debt", "retired"], "reviewDecision": ["pass", "repairable", "reject"], "implementation": ["skeleton", "port", "partial", "implemented"] },
+  "transitions": [["declared", "resolving"], ["resolving", "candidate"], ["resolving", "debt"], ["candidate", "reviewing"], ["reviewing", "repairing"], ["reviewing", "accepted"], ["reviewing", "debt"], ["repairing", "candidate"], ["repairing", "debt"], ["accepted", "bound"], ["accepted", "retired"], ["bound", "retired"]],
+  "ports": [
+    { "id": "LocalInputArchivePort", "direction": "outbound", "required": true }, { "id": "ProjectAssetCachePort", "direction": "outbound", "required": true },
+    { "id": "CloudAssetSearchPort", "direction": "outbound", "required": true }, { "id": "CloudAssetMaterializePort", "direction": "outbound", "required": true },
+    { "id": "LocalDerivationPort", "direction": "outbound", "required": true }, { "id": "ImageEditPort", "direction": "outbound", "required": false },
+    { "id": "ImageGenerationPort", "direction": "outbound", "required": false }, { "id": "VisionReviewPort", "direction": "outbound", "required": false },
+    { "id": "RuntimeBindingPort", "direction": "outbound", "required": true }, { "id": "CloudPromotionPort", "direction": "outbound", "required": false }
+  ],
+  "debtCodes": ["NO_CANDIDATE", "CAPABILITY_UNIMPLEMENTED", "MODEL_UNAVAILABLE", "MODEL_BUDGET_EXHAUSTED", "REVIEW_REJECTED", "REPAIR_EXHAUSTED", "CONTRACT_INVALID", "BINDING_FAILED", "LICENSE_UNKNOWN", "PROVENANCE_MISSING"],
+  "hardGates": ["no-cloud-write-without-acceptance-and-explicit-promotion", "no-model-call-without-policy-authorization", "no-finalize-without-revision-and-receipt", "no-runtime-binding-to-non-project-local-path", "no-export-blocking-debt-in-final-release", "no-simulated-provider-labeled-as-real-ai"]
+}

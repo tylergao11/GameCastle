@@ -119,12 +119,9 @@ The contract types are complete runtime-facing shapes, not placeholders:
 local `$ref`s, required fields, owner enums, repair/cache fields, and
 `agent-workflow.js` contract owner mappings.
 
-`ai/asset-resolver.js` is the first runtime implementation of that asset side.
-It currently resolves against manifest-backed local/cloud repositories, writes
-exact-cache entries for real reused assets, emits `AssetManifest`, and records
-placeholder debt when no repository candidate is acceptable. It deliberately
-does not cache placeholders as successful assets, so future cloud repo fills or
-ImageAgent output can replace them by slot signature.
+`ai/asset-weave-graph.js` is the sole asset runtime entry. It owns the
+conditional local/cloud/variant/model path and emits `AssetManifest` only after
+Validation and Acceptance; old manifest repository resolvers were removed.
 
 `ai/asset-world.js` is the stable asset-side context. It turns `AssetManifest`
 into `AssetWorld`, preserving slot state, placeholder debt, cache hit state, and
@@ -132,6 +129,12 @@ cloud promotion candidates. Expensive generated or edited assets that pass
 validation should not be wasted as one-off files: if they are repo eligible,
 AssetWorld places them into `cloudPromotionQueue` for cloud repository review,
 indexing, and future reuse.
+
+视觉资产的产品优先级、条件 LangGraph、模型循环和 owner 边界以
+[`visual-asset-loop.md`](visual-asset-loop.md) 与
+[`visual-asset-boundaries.md`](visual-asset-boundaries.md) 为准。它规定本地优先、
+云端复用第二、确定性变体第三、受控模型编辑第四、全新绘制最后；模型生成和编辑
+必须经过 Vision 审查与有界 repair loop。
 
 自动化验证由 `npm run test:ai` 覆盖。它不调用 LLM，而是用 Intent fixture 和结构化 runtime tests 验证 new/continue 状态边界、失败报告、repair batch、缓存命中和 15 秒子进程超时防护。
 
@@ -333,10 +336,19 @@ Plan, runtime report, or internal target plan. Resource and assembly details flo
 downstream through owned runtime nodes and only return to models through
 sanitized world summaries.
 
-Official LangGraph smoke coverage now exists for:
+Official LangGraph smoke coverage now exists for the following currently wired or smoke-wired paths:
 
-- `asset-library -> image-generation -> asset-review`
-- `asset-resolver -> asset-world`
+资产路径是条件子图，不是固定的 `asset-library -> image-generation -> asset-review`
+线性链。其完整状态、循环上限和读写边界见
+[`visual-asset-loop.md`](visual-asset-loop.md)。`project-pipeline-graph.js` 以单一
+`asset-weave` 节点表示该子图，并由图契约测试验证其边界。
+
+目标覆盖为：
+
+- `asset-intake -> asset-resolver -> conditional local/cloud/variant/model path -> asset-manifest -> asset-world`
+
+该条件图由 `check:visual-assets` 覆盖；旧的两份局部 asset smoke 已删除，不能恢复为
+独立执行路径。
 - `tick-runtime -> server-runtime`
 - `runtime-linker -> html-export -> runtime-validator -> project-world -> tick-playtest -> semantic-feedback`
 
@@ -736,6 +748,11 @@ stable prefix actually hits instead of trusting the local prompt assembly.
 The real DeepSeek decision provider uses slot prompts rather than free-form
 examples. Its stable prompt names the output slots, while the dynamic prompt
 passes local proof slots:
+
+All text-model owners use `ai/responses-client.js` for only the Responses HTTP
+transport and SSE decoding. It receives an already-built `input` array and does
+not retain, merge, cache, or inspect LLM1 CreativeVision history, LLM2 semantic
+context, or LangGraph state. Prompt construction remains owned by the caller.
 
 ```text
 slot:user_request

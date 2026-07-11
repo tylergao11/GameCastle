@@ -27,7 +27,7 @@ function createPipelineRunner(options) {
   function start(request) {
     var args = [scriptPath];
     if (request.mode === 'continue') args.push('--continue');
-    args.push(request.intent);
+    if (request.intentFixtureFile) args.push('--intent-fixture-file', request.intentFixtureFile); else args.push(request.intent);
     var child = spawn(nodePath, args, {
       cwd: cwd,
       env: Object.assign({}, process.env, options.env || {}, { FORCE_COLOR: '0' }),

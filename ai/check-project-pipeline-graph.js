@@ -20,11 +20,7 @@ function main() {
   );
 
   [
-    'asset-library',
-    'image-generation',
-    'asset-review',
-    'asset-resolver',
-    'asset-world',
+    'asset-weave',
     'runtime-linker',
     'tick-runtime',
     'server-runtime',
@@ -44,7 +40,7 @@ function main() {
 
   assert.deepStrictEqual(
     projectPipelineGraph.getLayerNodes('asset-weave'),
-    ['asset-library', 'image-generation', 'asset-review', 'asset-resolver', 'asset-world'],
+    ['asset-weave'],
     'asset-weave layer should own resource lineup nodes'
   );
   assert.deepStrictEqual(
@@ -66,11 +62,7 @@ function main() {
   assert.deepStrictEqual(
     projectPipelineGraph.getLangGraphSmokeNodes(),
     [
-      'asset-library',
-      'image-generation',
-      'asset-review',
-      'asset-resolver',
-      'asset-world',
+      'asset-weave',
       'runtime-linker',
       'tick-runtime',
       'server-runtime',
@@ -95,12 +87,12 @@ function main() {
     });
   });
   [
-    'ai/asset-resolver.js',
     'ai/asset-world.js',
-    'ai/cloud-library-manager.js',
-    'ai/image-agent.js',
-    'ai/distillation-agent.js',
-    'ai/asset-rag-client.js',
+    'ai/asset-weave-graph.js',
+    'ai/asset-model-ports.js',
+    'ai/cloud-resource-manager.js',
+    'ai/runtime-animation-recipes.js',
+    'ai/asset-animation-state-machine.js',
     'ai/html-exporter.js',
     'ai/semantic-playtest-agent.js',
     'ai/tick-playtest-runtime.js',

@@ -1,0 +1,13 @@
+var assert = require('assert');
+var styles = require('./asset-style-dictionary');
+var style = styles.getStyle();
+assert.equal(style.id, 'gamecastle.style-1');
+assert.equal(styles.paletteColor(style.id, 'ink'), '#141923');
+assert.equal(style.renderRecipe.output.transparent, true);
+assert.equal(style.animationPolicy.defaultFramesPerState, 1);
+assert.equal(style.animationPolicy.runtimeTransformFirst, true);
+assert(style.templateRoles['ui.button'].indexOf('accent') >= 0);
+assert(Array.isArray(styles.dictionary.uiTemplates) && styles.dictionary.uiTemplates.length >= 2);
+assert(styles.dictionary.uiTemplates.every(function(template) { return template.id && styles.dictionary.styles[template.styleId] && template.slots.indexOf('asset.ui.custom') >= 0; }));
+assert.throws(function() { styles.getStyle('missing'); }, /Unknown asset style/);
+console.log('[AssetStyleDictionary] fixed visual grammar and template tokens passed');

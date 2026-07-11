@@ -1,6 +1,7 @@
 var deepseekCacheMonitor = require('./deepseek-cache-monitor');
 var llm2DecisionRuntime = require('./llm2-decision-runtime');
 var semanticFeedback = require('./semantic-feedback');
+var responsesClient = require('./responses-client');
 
 var LLM2_DEEPSEEK_DECISION_PROVIDER_SCHEMA_VERSION = 1;
 
@@ -225,58 +226,12 @@ function extractJsonObject(text) {
   return JSON.parse(text);
 }
 
-async function readSse(response) {
-  var text = '';
-  var usage = {};
-  var events = [];
-  var reader = response.body.getReader();
-  var decoder = new TextDecoder();
-  var buffer = '';
-  while (true) {
-    var chunk = await reader.read();
-    if (chunk.done) break;
-    buffer += decoder.decode(chunk.value, { stream: true });
-    var lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].trim();
-      if (!line || line.indexOf('data: ') !== 0) continue;
-      var raw = line.substring(6);
-      if (raw === '[DONE]') continue;
-      var event;
-      try {
-        event = JSON.parse(raw);
-      } catch (e) {
-        continue;
-      }
-      events.push(event.type || 'unknown');
-      if (event.type === 'response.output_text.delta' || event.type === 'response.text.delta') {
-        text += (event.data && event.data.delta) || event.delta || '';
-      }
-      if (event.type === 'response.completed') {
-        usage = (event.data && event.data.response && event.data.response.usage) ||
-          (event.response && event.response.usage) ||
-          event.usage ||
-          usage;
-      }
-    }
-  }
-  return {
-    text: text,
-    usage: usage,
-    events: events,
-  };
-}
-
 async function callProvider(options) {
-  var fetchImpl = options.fetchImpl || fetch;
-  var response = await fetchImpl(String(options.endpoint || 'http://127.0.0.1:18081/v1').replace(/\/$/, '') + '/responses', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + (options.apiKey || ''),
-    },
-    body: JSON.stringify({
+  return responsesClient.requestResponses({
+    endpoint: options.endpoint,
+    apiKey: options.apiKey,
+    fetchImpl: options.fetchImpl,
+    body: {
       model: options.model || 'deepseek-v4-flash',
       input: [
         { role: 'system', content: stablePrefix() },
@@ -285,14 +240,8 @@ async function callProvider(options) {
       max_output_tokens: options.maxTokens || 512,
       reasoning_effort: options.reasoningEffort || 'low',
       stream: true,
-    }),
+    },
   });
-  if (!response.ok) {
-    var errText = '';
-    try { errText = await response.text(); } catch (e) {}
-    throw new Error('LLM2 DeepSeek decision HTTP ' + response.status + ': ' + errText.slice(0, 300));
-  }
-  return readSse(response);
 }
 
 function normalizeDecision(rawDecision, options) {

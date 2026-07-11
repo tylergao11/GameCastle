@@ -229,6 +229,7 @@ function createRunCoordinator(options) {
       activeExecution = runner.start({
         intent: intent,
         mode: mode,
+        intentFixtureFile: request.intentFixtureFile || null,
         onLine: function(line, channel) {
           if (channel === 'stderr' && state.runId === id && state.status === 'running') {
             state.stage.message = 'The engine reported a diagnostic while ' + state.stage.label.toLowerCase() + '.';
