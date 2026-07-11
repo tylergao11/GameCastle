@@ -4,6 +4,7 @@ dist/
 *.log
 .env
 .DS_Store
+.gamecastle/
 
 # Local official GDJS runtime cache. Rebuild with `npm run runtime:prepare`.
 engine/gdevelop-runtime/

@@ -22,7 +22,7 @@ function parsePlacement(text) {
   text = normalizeName(text);
   if (!text) return null;
 
-  var nearMatch = text.match(/\bnear\s+(.+?)\s+(top-left|top-right|bottom-left|bottom-right|far front|front|behind|left|right|above|below|top|bottom|center)(?:\s+(?:as|in)\s+([a-z_ -]+?))?(?:\s+count\s+(\d+))?$/i);
+  var nearMatch = text.match(/\bnear\s+(.+?)\s+(top-left|top-right|bottom-left|bottom-right|far[ -]front|front|behind|left|right|above|below|top|bottom|center)(?:\s+(?:as|in)\s+([a-z_ -]+?))?(?:\s+count\s+(\d+))?$/i);
   if (!nearMatch) return null;
 
   return {

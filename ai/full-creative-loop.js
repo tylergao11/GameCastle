@@ -6,6 +6,7 @@ var llm2ContextCacheRouter = require('./llm2-context-cache-router');
 var llm2DecisionRuntime = require('./llm2-decision-runtime');
 var llm2ContextProvider = require('./llm2-context-provider');
 var semanticFeedback = require('./semantic-feedback');
+var intentSlots = require('./intent-slots');
 
 var FULL_CREATIVE_LOOP_SCHEMA_VERSION = 1;
 var ROOT = path.join(__dirname, '..');
@@ -118,45 +119,37 @@ function firstMatchingRule(text, rules) {
   return rules[rules.length - 1];
 }
 
-function mockRequirementModel(userRequest) {
+function mockCreativeModel(userRequest) {
   var text = String(userRequest || '').trim();
   var themeRule = firstMatchingRule(text, MOCK_CREATIVE_RULES.themes);
   var pacingRule = firstMatchingRule(text, MOCK_CREATIVE_RULES.collectiblePacing);
-  var collectiblePlan = Object.assign({}, MOCK_CREATIVE_RULES.collectiblePlan, {
-    count: pacingRule.count,
-  });
-  return {
-    schemaVersion: FULL_CREATIVE_LOOP_SCHEMA_VERSION,
-    owner: 'DeterministicMockLLM',
-    role: 'requirement',
-    source: text,
-    designBrief: {
-      theme: themeRule.id,
-      themeIntentLine: themeRule.intentLine,
-      goals: ['survive', 'collect'],
-      feel: text.indexOf('别太难') >= 0 ? 'forgiving early route' : 'balanced route',
-      requestedChanges: pacingRule.requestedChanges,
-      collectiblePlan: collectiblePlan,
-    },
-  };
+  var feel = text.indexOf('别太难') >= 0 ? 'a forgiving early route' : 'a balanced route';
+  var pacing = pacingRule.requestedChanges.length ? 'a stronger collectible rhythm' : 'a steady collectible rhythm';
+  return 'Imagine ' + themeRule.id.replace(/-/g, ' ') + ' with ' + feel + ', survival momentum, playful movement, and ' + pacing + '.';
 }
 
-function mockIntentModel(requirementOutput) {
-  var brief = requirementOutput.designBrief || {};
-  var plan = brief.collectiblePlan || {};
-  var lines = [brief.themeIntentLine || MOCK_CREATIVE_RULES.themes[MOCK_CREATIVE_RULES.themes.length - 1].intentLine]
-    .concat(MOCK_CREATIVE_RULES.controls)
-    .concat([
-    'place ' + (plan.subject || 'coins') + ' near ' + (plan.anchor || 'Player') + ' ' + (plan.direction || 'front') + ' as ' + (plan.pattern || 'trail') + ' count ' + Number(plan.count || 3),
-  ]);
-  var text = lines.join('\n') + '\n';
-  assertSafeIntentText(text, 'Mock intent DSL');
+function mockIntentSlotModel(creativeVision, userRequest) {
+  var source = String(userRequest || '') + ' ' + String(creativeVision || '');
+  var themeRule = firstMatchingRule(source, MOCK_CREATIVE_RULES.themes);
+  var pacingRule = firstMatchingRule(source, MOCK_CREATIVE_RULES.collectiblePacing);
+  var packet = {
+    schemaVersion: 1,
+    commands: [
+      { kind: 'make_game', slots: { description: themeRule.intentLine.replace(/^make a /, '') } },
+      { kind: 'add_control', slots: { control: 'joystick', target: 'Player', anchor: 'screen', direction: 'bottom-left' } },
+      { kind: 'add_control', slots: { control: 'jump button', target: 'Player', anchor: 'screen', direction: 'bottom-right' } },
+      { kind: 'place_group', slots: { subject: 'coins', anchor: 'Player', direction: 'front', pattern: 'trail', count: pacingRule.count } },
+    ],
+  };
+  var rendered = intentSlots.renderSlotPacket(JSON.stringify(packet));
+  assertSafeIntentText(rendered.intentDslText, 'Mock rendered Intent DSL');
   return {
     schemaVersion: FULL_CREATIVE_LOOP_SCHEMA_VERSION,
     owner: 'DeterministicMockLLM',
-    role: 'intent',
-    intentDslText: text,
-    intentDslLines: lines,
+    role: 'intent-slot-mapper',
+    intentSlotPacket: rendered.packet,
+    intentDslText: rendered.intentDslText + '\n',
+    intentDslLines: rendered.intentDslText.split(/\r?\n/).filter(Boolean),
   };
 }
 
@@ -298,10 +291,10 @@ function runFullCreativeLoop(options) {
   options = options || {};
   ensureOutputDir();
   var userRequest = options.userRequest || '做一个手机跑酷游戏，金币多一点，别太难';
-  var requirement = mockRequirementModel(userRequest);
-  var initialIntent = mockIntentModel(requirement);
-  assertSafeJson(requirement, 'Mock requirement output');
-  assertSafeJson(initialIntent, 'Mock intent output');
+  var creativeVision = mockCreativeModel(userRequest);
+  var initialIntent = mockIntentSlotModel(creativeVision, userRequest);
+  assertSafeJson(creativeVision, 'Mock creative vision');
+  assertSafeJson(initialIntent, 'Mock Intent slot output');
 
   var createIntentPath = path.join(OUTPUT_DIR, 'full-creative-loop-create.intent.dsl');
   writeText(createIntentPath, initialIntent.intentDslText);
@@ -374,7 +367,7 @@ function runFullCreativeLoop(options) {
       userRequest: userRequest,
     },
     mockLlm: {
-      requirement: requirement,
+      creativeVision: creativeVision,
       initialIntent: initialIntent,
       repairDecision: repairDecision,
     },
@@ -422,8 +415,8 @@ if (require.main === module) {
 
 module.exports = {
   FULL_CREATIVE_LOOP_SCHEMA_VERSION: FULL_CREATIVE_LOOP_SCHEMA_VERSION,
-  mockRequirementModel: mockRequirementModel,
-  mockIntentModel: mockIntentModel,
+  mockCreativeModel: mockCreativeModel,
+  mockIntentSlotModel: mockIntentSlotModel,
   mockRepairModel: mockRepairModel,
   runFullCreativeLoop: runFullCreativeLoop,
 };

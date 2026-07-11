@@ -18,7 +18,7 @@
     "antialiasingMode": "MSAA",
     "antialisingEnabledOnMobile": false,
     "version": "1.0.0",
-    "name": "PipelineStateRuntimeCheck",
+    "name": "GameCastle",
     "author": "GameCastle",
     "authorIds": [],
     "authorUsernames": [],
@@ -96,11 +96,6 @@
       "name": "Score",
       "type": 3,
       "value": "0"
-    },
-    {
-      "name": "InventorySlots",
-      "type": 3,
-      "value": "24"
     }
   ],
   "layouts": [
@@ -215,54 +210,6 @@
           "width": 0,
           "layer": "",
           "locked": false,
-          "name": "Coin",
-          "x": 240,
-          "y": 430,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-a0808002f02aae40"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
-          "name": "Coin",
-          "x": 440,
-          "y": 350,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-8f8879a2dd154fba"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
-          "name": "Coin",
-          "x": 640,
-          "y": 270,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-6d4907fb1a9f261a"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 0,
-          "width": 0,
-          "layer": "",
-          "locked": false,
           "name": "Enemy",
           "x": 550,
           "y": 400,
@@ -307,34 +254,18 @@
         {
           "angle": 0,
           "customSize": false,
-          "height": 72,
-          "width": 72,
-          "layer": "UI",
+          "height": 0,
+          "width": 0,
+          "layer": "",
           "locked": false,
-          "name": "AttackButton",
-          "x": 576,
-          "y": 472,
+          "name": "Coin",
+          "x": 164,
+          "y": 400,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-dcffa4aa5a2a6030"
-        },
-        {
-          "angle": 0,
-          "customSize": false,
-          "height": 220,
-          "width": 160,
-          "layer": "UI",
-          "locked": false,
-          "name": "Inventory",
-          "x": 672,
-          "y": 300,
-          "zOrder": 1,
-          "numberProperties": [],
-          "stringProperties": [],
-          "initialVariables": [],
-          "persistentUuid": "gc-12860f75a0d8fa8b"
+          "persistentUuid": "gc-cdc2f3055e1798ca"
         },
         {
           "angle": 0,
@@ -344,13 +275,13 @@
           "layer": "",
           "locked": false,
           "name": "Coin",
-          "x": 196,
-          "y": 424,
+          "x": 212,
+          "y": 400,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-ce174edea933be2d"
+          "persistentUuid": "gc-fbdf6cc548575d6f"
         },
         {
           "angle": 0,
@@ -360,13 +291,13 @@
           "layer": "",
           "locked": false,
           "name": "Coin",
-          "x": 244,
-          "y": 424,
+          "x": 260,
+          "y": 400,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-eab5270c1731e57d"
+          "persistentUuid": "gc-8d1aa7d5da962ee5"
         },
         {
           "angle": 0,
@@ -376,13 +307,77 @@
           "layer": "",
           "locked": false,
           "name": "Coin",
-          "x": 292,
-          "y": 424,
+          "x": 308,
+          "y": 400,
           "zOrder": 1,
           "numberProperties": [],
           "stringProperties": [],
           "initialVariables": [],
-          "persistentUuid": "gc-56653ed7ac5e2154"
+          "persistentUuid": "gc-edc32eefb960b409"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "Coin",
+          "x": 356,
+          "y": 400,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-905aa0ef5c800d53"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "Coin",
+          "x": 404,
+          "y": 400,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-24c3233c7424e2ea"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "Coin",
+          "x": 452,
+          "y": 400,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-b3b42411c635553a"
+        },
+        {
+          "angle": 0,
+          "customSize": false,
+          "height": 0,
+          "width": 0,
+          "layer": "",
+          "locked": false,
+          "name": "Coin",
+          "x": 500,
+          "y": 400,
+          "zOrder": 1,
+          "numberProperties": [],
+          "stringProperties": [],
+          "initialVariables": [],
+          "persistentUuid": "gc-62f738604b2e644c"
         }
       ],
       "objects": [
@@ -582,54 +577,6 @@
             "r": 39,
             "g": 174,
             "b": 96
-          },
-          "fillOpacity": 255,
-          "outlineColor": {
-            "r": 0,
-            "g": 0,
-            "b": 0
-          },
-          "outlineOpacity": 255,
-          "outlineSize": 0
-        },
-        {
-          "name": "AttackButton",
-          "tags": "",
-          "type": "PrimitiveDrawing::Drawer",
-          "variables": [],
-          "behaviors": [],
-          "effects": [],
-          "absoluteCoordinates": false,
-          "clearBetweenFrames": false,
-          "antialiasing": "low",
-          "fillColor": {
-            "r": 235,
-            "g": 87,
-            "b": 87
-          },
-          "fillOpacity": 255,
-          "outlineColor": {
-            "r": 0,
-            "g": 0,
-            "b": 0
-          },
-          "outlineOpacity": 255,
-          "outlineSize": 0
-        },
-        {
-          "name": "Inventory",
-          "tags": "",
-          "type": "PrimitiveDrawing::Drawer",
-          "variables": [],
-          "behaviors": [],
-          "effects": [],
-          "absoluteCoordinates": false,
-          "clearBetweenFrames": false,
-          "antialiasing": "low",
-          "fillColor": {
-            "r": 79,
-            "g": 79,
-            "b": 79
           },
           "fillOpacity": 255,
           "outlineColor": {
@@ -1164,120 +1111,6 @@
                 "0",
                 "72",
                 "72"
-              ],
-              "subInstructions": []
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Drawer::ClearShapes"
-              },
-              "parameters": [
-                "AttackButton"
-              ],
-              "subInstructions": []
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Rectangle"
-              },
-              "parameters": [
-                "AttackButton",
-                "0",
-                "0",
-                "72",
-                "72"
-              ],
-              "subInstructions": []
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
-              },
-              "parameters": [
-                "AttackButton",
-                "0",
-                "0",
-                "72",
-                "72"
-              ],
-              "subInstructions": []
-            }
-          ],
-          "events": []
-        },
-        {
-          "disabled": false,
-          "folded": false,
-          "type": "BuiltinCommonInstructions::Standard",
-          "conditions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "DepartScene"
-              },
-              "parameters": [
-                ""
-              ]
-            }
-          ],
-          "actions": [
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Drawer::ClearShapes"
-              },
-              "parameters": [
-                "Inventory"
-              ],
-              "subInstructions": []
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::Rectangle"
-              },
-              "parameters": [
-                "Inventory",
-                "0",
-                "0",
-                "160",
-                "220"
-              ],
-              "subInstructions": []
-            },
-            {
-              "type": {
-                "inverted": false,
-                "value": "PrimitiveDrawing::SetRectangularCollisionMask"
-              },
-              "parameters": [
-                "Inventory",
-                "0",
-                "0",
-                "160",
-                "220"
               ],
               "subInstructions": []
             }

@@ -35,16 +35,8 @@ function buildPartialState() {
       'set placement object=Player x=100 y=400 scene=Game',
       'move Player up 10 pixels',
     ].join('\n'),
-    designBrief: {
-      theme: 'mobile platformer',
-      objects: [{ name: 'Player', kind: 'player', width: 32, height: 48 }],
-      rules: ['on key ArrowLeft held -> move Player x=-4 scene=Game'],
-      layout: { placements: [{ object: 'Player', x: 100, y: 400 }] },
-    },
-    diff: {
-      isNew: true,
-      added: { placements: [{ object: 'Player', x: 100, y: 400 }] },
-    },
+    creativeVision: 'A mobile platformer with a bold climbing rhythm.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with a bold climbing rhythm.' },
     projectWorld: null,
   });
 }
@@ -58,14 +50,16 @@ function makeHandlers(intentDslText, compiled) {
       assert(safeJson.indexOf('10 pixels') < 0, 'official LangGraph LLM2 node must not see numeric edit deltas');
       assert(!view.state.bridge, 'official LangGraph LLM2 node must not see bridge state');
       return {
-        'llm2.intentDslText': intentDslText,
-        'llm2.intentDslLineCount': intentDslText.split(/\r?\n/).filter(Boolean).length,
+        'llm2.intentSlotPacket': { schemaVersion: 1, commands: [{ kind: 'make_game', slots: { description: 'mobile platformer' } }] },
+        'llm2.intentSlotCommandCount': 1,
       };
     },
     'intent-compiler': function(view) {
-      assert(view.state.llm2.intentDslText, 'official LangGraph compiler node should receive Intent DSL');
+      assert(view.state.llm2.intentSlotPacket, 'official LangGraph compiler node should receive Intent slots');
       assert(!view.state.runtime, 'official LangGraph compiler node must not see runtime state');
       return {
+        'compiler.intentDslText': intentDslText,
+        'compiler.intentDslLineCount': intentDslText.split(/\r?\n/).filter(Boolean).length,
         'intentGraph.graph': compiled.graph,
         'intentGraph.summary': {
           things: lengthOf(compiled.graph.things),
@@ -121,11 +115,13 @@ function makeHandlers(intentDslText, compiled) {
     runtime: function(view) {
       assert(view.state.bridge.targetPlanText, 'official LangGraph runtime node should receive target plan');
       assert(!view.state.requirement, 'official LangGraph runtime node must not see raw requirement state');
+      var targetCount = lengthOf(compiled.bridgePlan.targetPlanLines);
+      var world = { schemaVersion: 1, worldVersion: 1, semanticHash: 'langgraph-runtime-check', scenes: [] };
       return {
-        'runtime.executionReport': { summary: { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.targetPlanLines), failed: 0 } },
-        'runtime.summary': { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.targetPlanLines), failed: 0 },
-        'projectWorld.world': null,
-        'projectWorld.sanitizedForLlm2': null,
+        'runtime.executionReport': { summary: { nextAction: 'done', total: targetCount, completed: targetCount, failed: 0 } },
+        'runtime.summary': { nextAction: 'done', total: targetCount, completed: targetCount, failed: 0 },
+        'projectWorld.world': world,
+        'projectWorld.sanitizedForLlm2': { worldVersion: world.worldVersion, semanticHash: world.semanticHash },
       };
     },
   };

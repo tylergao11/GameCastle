@@ -281,7 +281,10 @@ function emitPlacementGroups(plan, graph, placementPlan, options) {
   }).forEach(function(thing) {
     var placement = findPlacement(placementPlan, thing.name);
     if (!placement || !placement.points || !placement.points.length) return;
-    var objectName = thing.archetype === 'coin' ? 'Coin' : thing.name.replace(/Group$/, '');
+    var objectName = thing.memberObject;
+    if (!objectName) {
+      throw new Error('Placement group is missing its canonical member object: ' + thing.name);
+    }
     var emission = placement.emission || {};
     if (baseWorldHasInstances(options.baseWorld, objectName)) {
       addLine(

@@ -4,6 +4,7 @@ var os = require('os');
 var path = require('path');
 
 var intentCompiler = require('./intent-compiler');
+var intentSlots = require('./intent-slots');
 var pipeline = require('./pipeline');
 var pipelineState = require('./pipeline-state');
 var intentPipelineGraph = require('./intent-pipeline-graph');
@@ -37,6 +38,8 @@ function sampleUpdateValue(pathName, state) {
   if (pathName === 'intentGraph.graph') return state.intentGraph.graph;
   if (pathName === 'intentGraph.summary') return state.intentGraph.summary;
   if (pathName === 'compiler.contracts') return state.compiler.contracts;
+  if (pathName === 'compiler.intentDslText') return state.compiler.intentDslText;
+  if (pathName === 'compiler.intentDslLineCount') return state.compiler.intentDslLineCount;
   if (pathName === 'compiler.resultCard') return state.compiler.resultCard;
   if (pathName === 'compiler.resultCardSummary') return state.compiler.resultCardSummary;
   if (pathName === 'resolver.placementPlan') return state.resolver.placementPlan;
@@ -132,6 +135,7 @@ function testContinueRequiresIntentIterationState() {
         },
       ],
     });
+    fs.writeFileSync(path.join(tempDir, 'creative-vision.txt'), 'A complete creative vision for the current game.', 'utf8');
     var complete = pipeline.loadExistingIntentIterationState(tempDir);
     assert.strictEqual(complete.ok, true, 'complete Intent iteration state should be accepted');
     assert(complete.project, 'complete state should include the engine project output');
@@ -156,8 +160,17 @@ async function main() {
     },
   });
   var project = await executeBridgeIntoProject(compiled);
+  var intentSlotPacket = intentSlots.parseSlotPacket(JSON.stringify({ schemaVersion: 1, commands: [
+    { kind: 'make_game', slots: { description: 'mobile platformer' } },
+    { kind: 'add_control', slots: { control: 'joystick', target: 'Player', anchor: 'screen', direction: 'bottom-left' } },
+    { kind: 'add_control', slots: { control: 'jump button', target: 'Player', anchor: 'screen', direction: 'bottom-right' } },
+    { kind: 'add_control', slots: { control: 'attack button', target: 'Player', anchor: 'jump button', direction: 'left' } },
+    { kind: 'add_inventory', slots: { owner: 'Player', slots: 24, anchor: 'screen', direction: 'right' } },
+    { kind: 'place_group', slots: { subject: 'coins', anchor: 'Player', direction: 'front', pattern: 'trail', count: 3 } },
+  ] }));
   var intentArtifacts = {
     artifactKind: 'intent',
+    intentSlotPacket: intentSlotPacket,
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -197,40 +210,9 @@ async function main() {
       'move Player up 10 pixels',
       'set placement object=Player x=100 y=400 scene=Game',
     ].join('\n'),
-    designBrief: {
-      theme: 'mobile platformer',
-      objects: [
-        { name: 'Player', kind: 'player', width: 32, height: 48, note: 'hero' },
-        { name: 'gdjs.BadObject', kind: 'ui', note: 'componentId=input.jump_button' },
-      ],
-      rules: [
-        'Player collects coins',
-        'on key ArrowLeft held -> move Player x=-4 scene=Game',
-      ],
-      layout: {
-        placements: [
-          { object: 'Player', x: 100, y: 400 },
-          { object: 'JumpButton', anchor: 'screen', direction: 'bottom-right' },
-        ],
-      },
-      variables: [{ name: 'Score', value: 0 }],
-    },
-    diff: {
-      isNew: false,
-      added: {
-        objects: [{ name: 'Coin', kind: 'coin', width: 16, height: 16 }],
-        placements: [{ object: 'Coin', x: 500, y: 360 }],
-        variables: [{ name: 'Score', value: 0 }],
-        rules: ['set placement object=Coin x=500 y=360 scene=Game'],
-      },
-      removed: { objects: [], placements: [], variables: [], rules: [] },
-      modified: {
-        objects: [],
-        placements: [{ object: 'Player', old: { object: 'Player', x: 100, y: 400 }, new: { object: 'Player', x: 120, y: 380 } }],
-        variables: [],
-        rules: [],
-      },
-    },
+    creativeVision: 'A mobile platformer where each jump changes the weather and coins ring like bells.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer where each jump changes the weather and coins ring like bells.' },
+    intentSlotPacket: intentSlotPacket,
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -282,8 +264,8 @@ async function main() {
     });
   }, /only accepts AI-first Intent state/, 'PipelineState must reject untyped artifact state');
   assert(state.statePartitions, 'PipelineState should expose auditable state partitions');
-  assert.strictEqual(state.statePartitions.requirement.artifact, 'designBrief', 'state partitions should separate RequirementModel design brief');
-  assert.strictEqual(state.statePartitions.llm2Intent.artifact, 'Intent DSL', 'state partitions should separate LLM2 Intent DSL');
+  assert.strictEqual(state.statePartitions.creative.artifact, 'CreativeVision', 'state partitions should separate unrestricted LLM1 vision');
+  assert.strictEqual(state.statePartitions.llm2Intent.artifact, 'Intent Slot Packet', 'state partitions should separate LLM2 slot output');
   assert.strictEqual(state.statePartitions.intentGraph.artifact, 'Intent Graph', 'state partitions should separate typed Intent Graph');
   assert.strictEqual(state.statePartitions.resolver.artifact, 'Placement Plan', 'state partitions should separate Resolver placement plan');
   assert.strictEqual(state.statePartitions.compilerModuleFacts.artifact, 'compiler-owned module facts', 'state partitions should separate compiler-owned module facts');
@@ -298,6 +280,7 @@ async function main() {
     }
   });
   assert(state.statePartitions.compilerModuleFacts.evidence.installedModules >= 1, 'module facts partition should count installed compiler-owned modules');
+  assert.strictEqual(state.statePartitions.llm2Intent.evidence.intentSlotCommandCount, state.llm2.intentSlotPacket.commands.length, 'slot partition evidence should match the packet');
   assert(state.statePartitions.runtimeExecutionPlan.evidence.targetPlanLineCount === compiled.bridgePlan.targetPlanLines.length, 'runtime plan partition should count internal target lines');
   assert(state.statePartitions.projectWorld.evidence.semanticHash === world.semanticHash, 'ProjectWorld partition should carry semantic world hash evidence');
   assert(state.nodeContracts && state.nodeContracts['llm2-intent'], 'PipelineState should carry node contracts for future graph execution');
@@ -313,7 +296,7 @@ async function main() {
   assert(state.runtime.summary.nextAction === 'done', 'state should carry execution summary');
   assert(state.runtime.summary.intentFulfillment.status === 'fulfilled', 'state should carry safe Intent fulfillment summary');
   assert(state.bridge.bridgePlan.runtimeAdapterRequirements.length >= 5, 'internal state may retain runtime adapter requirements');
-  assert(JSON.stringify(state.requirement.designBrief).indexOf('"x"') >= 0, 'internal state may retain raw requirement details for audit');
+  assert(state.creative.vision.indexOf('changes the weather') >= 0, 'internal state should retain the unrestricted creative vision for audit');
   ['intent-compiler', 'resolver', 'bridge', 'runtime'].forEach(function(nodeName) {
     assertNodeContractRoundTrip(state, nodeName);
   });
@@ -349,8 +332,10 @@ async function main() {
   var missingReport = projectWorld.makeExecutionReport({
     previousWorld: null,
     world: missingWorld,
-    targetPlanLines: [],
-    commandResults: [],
+    targetPlanLines: compiled.bridgePlan.targetPlanLines,
+    commandResults: compiled.bridgePlan.targetPlanLines.map(function(line, index) {
+      return { index: index, commandId: 'missing_world_' + index, ok: true, label: line, message: 'executed in fixture' };
+    }),
     runIndex: 2,
     batchLabel: 'pipeline_state_missing_fulfillment_check',
     intent: intentArtifacts,
@@ -360,8 +345,9 @@ async function main() {
     batchLabel: 'pipeline_state_missing_fulfillment_check',
     artifactKind: 'intent',
     userRequest: 'make a mobile platformer',
-    designBrief: { theme: 'mobile platformer', objects: [], rules: [], layout: { placements: [] } },
-    diff: { isNew: true },
+    creativeVision: 'A mobile platformer with a readable route.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with a readable route.' },
+    intentSlotPacket: intentSlotPacket,
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -378,12 +364,12 @@ async function main() {
 
   assert(pipelineState.assertAllowedNodeAccess('llm2-intent', {
     reads: ['llm2.nodeInput'],
-    writes: ['llm2.intentDslText', 'llm2.intentDslLineCount'],
-  }), 'LLM2 node should be allowed to read only its sanitized node input');
+    writes: ['llm2.intentSlotPacket', 'llm2.intentSlotCommandCount'],
+  }), 'LLM2 node should be allowed to write only its slot contract');
   [
     'userRequest.text',
-    'requirement.designBrief',
-    'requirement.diff',
+    'creative.vision',
+    'creative.change',
     'projectWorld.world',
     'bridge.bridgePlan',
     'bridge.targetPlanText',
@@ -404,7 +390,7 @@ async function main() {
   var llm2View = pipelineState.makeNodeStateView(state, 'llm2-intent');
   assert.deepStrictEqual(llm2View.reads, ['llm2.nodeInput'], 'LLM2 node view should only declare sanitized input reads');
   assert(llm2View.state.llm2 && llm2View.state.llm2.nodeInput, 'LLM2 node view should include nodeInput');
-  assert(!llm2View.state.requirement, 'LLM2 node view must not include raw requirement');
+  assert(!llm2View.state.creative, 'LLM2 node view must expose creative content only through its sanitized node input');
   assert(!llm2View.state.statePartitions, 'LLM2 node view must not include internal state partition audit map');
   assert(!llm2View.state.projectWorld, 'LLM2 node view must not include raw ProjectWorld');
   assert(!llm2View.state.bridge, 'LLM2 node view must not include bridge state');
@@ -422,12 +408,10 @@ async function main() {
     assert(llm2ViewJson.indexOf(token) < 0, 'LLM2 node view must not expose ' + token);
   });
   var updatedByLlm2 = pipelineState.applyNodeStateUpdate(state, 'llm2-intent', {
-    'llm2.intentDslText': 'adjust Fox placement above slightly',
-    'llm2.intentDslLineCount': 1,
+    'llm2.intentSlotPacket': state.llm2.intentSlotPacket,
+    'llm2.intentSlotCommandCount': state.llm2.intentSlotCommandCount,
   });
-  assert.strictEqual(updatedByLlm2.llm2.intentDslText, 'adjust Fox placement above slightly', 'LLM2 node update should update allowed Intent DSL field');
-  assert.strictEqual(updatedByLlm2.llm2.intentDslLineCount, 1, 'LLM2 node update should update allowed line count');
-  assert.notStrictEqual(updatedByLlm2.llm2.intentDslText, state.llm2.intentDslText, 'node update should return a new updated state');
+  assert.deepStrictEqual(updatedByLlm2.llm2.intentSlotPacket, state.llm2.intentSlotPacket, 'LLM2 node update should preserve the slot packet contract');
   assert.throws(function() {
     pipelineState.applyNodeStateUpdate(state, 'llm2-intent', {
       'bridge.bridgePlan': { target: 'gdjs-target-plan' },
@@ -435,7 +419,7 @@ async function main() {
   }, /may not write/, 'LLM2 node update must not write bridge state');
   assert.throws(function() {
     pipelineState.applyNodeStateUpdate(state, 'llm2-intent', {
-      'requirement.designBrief': { theme: 'rewired' },
+      'creative.vision': 'rewired',
     });
   }, /may not write/, 'LLM2 node update must not write raw requirement state');
   assert.throws(function() {
@@ -446,8 +430,8 @@ async function main() {
   var batch = await pipeline.executeTargetPlanBatch(batchProject, compiled.bridgePlan.targetPlanText, 'pipeline_state_runtime_check', {
     projectMode: 'intentFixtureNew',
     userRequest: 'make a mobile platformer',
-    designBrief: { theme: 'mobile platformer', objects: [], rules: [], layout: { placements: [] } },
-    diff: { isNew: true },
+    creativeVision: 'A mobile platformer with expressive weather.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with expressive weather.' },
     modules: compiled.bridgePlan.installedModules,
     runtimeAdapterRequirements: compiled.bridgePlan.runtimeAdapterRequirements,
     intent: intentArtifacts,
@@ -497,10 +481,10 @@ async function main() {
   assert(persistedLlm2View.state.llm2.nodeInput, 'persisted PipelineState should produce an LLM2 node view');
   assert(!persistedLlm2View.state.projectWorld, 'persisted LLM2 node view must not include raw ProjectWorld');
   var persistedUpdated = pipelineState.applyNodeStateUpdate(persisted, 'llm2-intent', {
-    'llm2.intentDslText': persisted.llm2.intentDslText,
-    'llm2.intentDslLineCount': persisted.llm2.intentDslLineCount,
+    'llm2.intentSlotPacket': persisted.llm2.intentSlotPacket,
+    'llm2.intentSlotCommandCount': persisted.llm2.intentSlotCommandCount,
   });
-  assert.strictEqual(persistedUpdated.llm2.intentDslLineCount, persisted.llm2.intentDslLineCount, 'persisted PipelineState should accept legal LLM2 update paths');
+  assert.strictEqual(persistedUpdated.llm2.intentSlotCommandCount, persisted.llm2.intentSlotCommandCount, 'persisted PipelineState should accept legal LLM2 slot update paths');
 
   console.log('[PipelineState] graph-ready Intent pipeline state contract passed');
 }

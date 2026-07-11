@@ -137,7 +137,8 @@ function testRegressedMeasurementCreatesStructuredRemainingIssue() {
 function main() {
   assertDecisionLoopSourceBoundary();
   testRegressedMeasurementCreatesStructuredRemainingIssue();
-  var createIntent = fullCreativeLoop.mockIntentModel(fullCreativeLoop.mockRequirementModel('做一个手机跑酷游戏，金币多一点，别太难'));
+  var createRequest = '做一个手机跑酷游戏，金币多一点，别太难';
+  var createIntent = fullCreativeLoop.mockIntentSlotModel(fullCreativeLoop.mockCreativeModel(createRequest), createRequest);
   var createIntentPath = path.join(OUTPUT_DIR, 'llm2-decision-loop-base.intent.dsl');
   writeText(createIntentPath, createIntent.intentDslText);
   run([

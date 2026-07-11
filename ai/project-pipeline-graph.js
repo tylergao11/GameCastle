@@ -2,8 +2,18 @@ var intentPipelineGraph = require('./intent-pipeline-graph');
 
 var PROJECT_GRAPH_NAME = 'Project Weave Graph';
 
+var PROJECT_PRE_GRAPH_STAGES = [
+  {
+    id: 'creative-imagination',
+    owner: 'CreativeImagination',
+    execution: 'ai/creative-agent.js',
+    reads: ['userRequest', 'creativeHistory', 'previousCreativeVision'],
+    writes: ['creativeVision', 'creativeChange'],
+    handoff: 'llm2.nodeInput',
+  },
+];
+
 var PROJECT_GRAPH_NODE_SEQUENCE = [
-  'requirement',
   'llm2-intent',
   'intent-compiler',
   'resolver',
@@ -25,20 +35,12 @@ var PROJECT_GRAPH_NODE_SEQUENCE = [
 ];
 
 var PROJECT_GRAPH_NODE_DEFINITIONS = {
-  requirement: {
-    layer: 'briefing',
-    owner: 'RequirementModel',
-    status: 'existing',
-    reads: ['userRequest.text', 'projectWorld.sanitizedForLlm1'],
-    writes: ['requirement.designBrief', 'requirement.diff'],
-    aiVisible: true,
-  },
   'llm2-intent': {
     layer: 'world-intent',
     owner: 'IntentAgent',
     status: 'wired-langgraph',
     reads: ['llm2.nodeInput'],
-    writes: ['llm2.intentDslText', 'llm2.intentDslLineCount'],
+    writes: ['llm2.intentSlotPacket', 'llm2.intentSlotCommandCount'],
     aiVisible: true,
     prohibitedReads: [
       'projectWorld.world',
@@ -53,8 +55,8 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     layer: 'world-intent',
     owner: 'IntentCompiler',
     status: 'wired-langgraph',
-    reads: ['llm2.intentDslText', 'projectWorld.world'],
-    writes: ['intentGraph.graph', 'intentGraph.summary', 'compiler.contracts', 'compiler.resultCard'],
+    reads: ['llm2.intentSlotPacket', 'projectWorld.world'],
+    writes: ['compiler.intentDslText', 'compiler.intentDslLineCount', 'intentGraph.graph', 'intentGraph.summary', 'compiler.contracts', 'compiler.resultCard'],
   },
   resolver: {
     layer: 'world-intent',
@@ -67,7 +69,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     layer: 'asset-weave',
     owner: 'CloudLibraryManager',
     status: 'wired-langgraph-smoke',
-    reads: ['requirement.designBrief', 'intentGraph.graph', 'assetWorld.world'],
+    reads: ['creative.vision', 'intentGraph.graph', 'assetWorld.world'],
     writes: ['assetLibrary.matches', 'assetLibrary.summary'],
     modules: ['ai/cloud-library-manager.js', 'ai/texture-provider.js'],
   },
@@ -91,7 +93,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     layer: 'asset-weave',
     owner: 'RuntimeAssetResolver',
     status: 'wired-langgraph-smoke',
-    reads: ['requirement.designBrief', 'intentGraph.graph', 'projectWorld.world', 'assetWorld.world', 'assetLibrary.matches', 'assetReview.approvedCandidates'],
+    reads: ['creative.vision', 'intentGraph.graph', 'projectWorld.world', 'assetWorld.world', 'assetLibrary.matches', 'assetReview.approvedCandidates'],
     writes: ['assetResolver.manifest', 'assetResolver.summary', 'assetResolver.missingSlots'],
     modules: ['ai/asset-resolver.js'],
   },
@@ -183,11 +185,6 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
 
 var PROJECT_GRAPH_LAYERS = [
   {
-    id: 'briefing',
-    name: 'Briefing Layer',
-    summary: 'Turn user request and current summaries into a creative design brief.',
-  },
-  {
     id: 'world-intent',
     name: 'World Intent Layer',
     summary: 'Convert creative intent into structured world intent and target-code plans.',
@@ -226,6 +223,7 @@ function clone(value) {
 function getProjectGraphSpec() {
   return {
     name: PROJECT_GRAPH_NAME,
+    preGraphStages: clone(PROJECT_PRE_GRAPH_STAGES),
     nodeSequence: clone(PROJECT_GRAPH_NODE_SEQUENCE),
     layers: clone(PROJECT_GRAPH_LAYERS),
     nodes: clone(PROJECT_GRAPH_NODE_DEFINITIONS),

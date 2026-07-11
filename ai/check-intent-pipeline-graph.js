@@ -26,16 +26,8 @@ function buildPartialState() {
       'set placement object=Player x=100 y=400 scene=Game',
       'move Player up 10 pixels',
     ].join('\n'),
-    designBrief: {
-      theme: 'mobile platformer',
-      objects: [{ name: 'Player', kind: 'player', width: 32, height: 48 }],
-      rules: ['on key ArrowLeft held -> move Player x=-4 scene=Game'],
-      layout: { placements: [{ object: 'Player', x: 100, y: 400 }] },
-    },
-    diff: {
-      isNew: true,
-      added: { placements: [{ object: 'Player', x: 100, y: 400 }] },
-    },
+    creativeVision: 'A mobile platformer with a bold climbing rhythm.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with a bold climbing rhythm.' },
     projectWorld: null,
   });
 }
@@ -93,14 +85,16 @@ function makeHandlers(intentDslText, compiled, runtimeArtifacts) {
       assert(safeJson.indexOf('10 pixels') < 0, 'canonical graph LLM2 view must not expose numeric deltas');
       assert(!view.state.bridge, 'canonical graph LLM2 view must not receive bridge state');
       return {
-        'llm2.intentDslText': intentDslText,
-        'llm2.intentDslLineCount': intentDslText.split(/\r?\n/).filter(Boolean).length,
+        'llm2.intentSlotPacket': { schemaVersion: 1, commands: [{ kind: 'make_game', slots: { description: 'mobile platformer' } }] },
+        'llm2.intentSlotCommandCount': 1,
       };
     },
     'intent-compiler': function(view) {
-      assert(view.state.llm2.intentDslText, 'canonical graph compiler should receive Intent DSL');
+      assert(view.state.llm2.intentSlotPacket, 'canonical graph compiler should receive Intent slots');
       assert(!view.state.bridge, 'canonical graph compiler must not receive bridge state');
       return {
+        'compiler.intentDslText': intentDslText,
+        'compiler.intentDslLineCount': intentDslText.split(/\r?\n/).filter(Boolean).length,
         'intentGraph.graph': compiled.graph,
         'intentGraph.summary': {
           things: lengthOf(compiled.graph.things),
@@ -193,7 +187,7 @@ async function main() {
   var result = await intentPipelineGraph.runIntentPipelineGraph(buildPartialState(), handlers);
   assert.strictEqual(result.trace.length, 5, 'canonical graph should execute five owner nodes');
   assert.deepStrictEqual(result.trace[0].reads, ['llm2.nodeInput'], 'canonical graph should trace LLM2 sanitized read');
-  assert(result.trace[0].writes.indexOf('llm2.intentDslText') >= 0, 'canonical graph should trace LLM2 Intent write');
+  assert(result.trace[0].writes.indexOf('llm2.intentSlotPacket') >= 0, 'canonical graph should trace LLM2 slot write');
   assert.strictEqual(result.state.runtime.summary.nextAction, 'done', 'canonical graph should produce runtime summary');
   assert(result.state.projectWorld.sanitizedForLlm2, 'canonical graph should produce LLM2-safe ProjectWorld');
   pipelineState.validatePipelineState(result.state);
@@ -203,13 +197,9 @@ async function main() {
     batchLabel: 'intent_pipeline_graph_artifact_check',
     artifactKind: 'intent',
     userRequest: 'make a mobile platformer\nset placement object=Player x=100 y=400 scene=Game',
-    designBrief: {
-      theme: 'mobile platformer',
-      objects: [{ name: 'Player', kind: 'player', width: 32, height: 48 }],
-      rules: [],
-      layout: { placements: [{ object: 'Player', x: 100, y: 400 }] },
-    },
-    diff: { isNew: true },
+    creativeVision: 'A mobile platformer with a bold climbing rhythm.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with a bold climbing rhythm.' },
+    intentSlotPacket: { schemaVersion: 1, commands: [{ kind: 'make_game', slots: { description: 'mobile platformer' } }] },
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -227,6 +217,9 @@ async function main() {
   );
   assert.strictEqual(artifactState.runtime.summary.nextAction, 'done', 'artifact replay should preserve runtime summary');
   assert.strictEqual(artifactState.projectWorld.world.semanticHash, runtimeArtifacts.world.semanticHash, 'artifact replay should preserve ProjectWorld');
+  assert.strictEqual(artifactState.statePartitions.llm2Intent.evidence.intentSlotCommandCount, artifactState.llm2.intentSlotPacket.commands.length, 'artifact replay slot evidence should match the packet');
+  assert.strictEqual(artifactState.statePartitions.runtimeExecutionPlan.evidence.targetPlanLineCount, artifactState.bridge.targetPlanLineCount, 'artifact replay runtime-plan evidence should match bridge output');
+  assert.strictEqual(artifactState.runtime.summary.total, artifactState.bridge.targetPlanLineCount, 'artifact replay runtime total should match bridge output');
 
   var safeJson = JSON.stringify({
     runner: result.state.llm2.nodeInput,

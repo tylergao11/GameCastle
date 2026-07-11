@@ -179,12 +179,42 @@ function testMachineFormRejectedBeforeCompile() {
   throw new Error('machine form should have failed');
 }
 
+function testPlacementGroupsEmitCanonicalMemberObjects() {
+  var compiled = intentCompiler.compileIntentDsl([
+    'make a mobile platformer',
+    'place coins near Player front as trail count 5',
+    'place enemies near Player front as guard count 2',
+    'place platforms near Player bottom as line count 3'
+  ].join('\n'));
+  var lines = compiled.bridgePlan.targetPlanLines;
+  assert(lines.some(function(line) { return line.indexOf('place object=Enemy ') === 0; }), 'enemy group must emit the canonical Enemy object');
+  assert(lines.some(function(line) { return line.indexOf('place object=Platform ') === 0; }), 'platform group must emit the canonical Platform object');
+  assert(lines.some(function(line) { return line.indexOf('place object=Coin ') === 0; }), 'coin group must emit the canonical Coin object');
+  assert(!lines.some(function(line) { return /^place object=(Enemies|Platforms|Coins)\b/.test(line); }), 'group labels must never leak into target object names');
+}
+
+function testScreenEdgeRelativePlacement() {
+  var compiled = intentCompiler.compileIntentDsl([
+    'make a mobile platformer',
+    'place coins near screen bottom above as line count 5'
+  ].join('\n'));
+  var placement = compiled.graph.placements[0];
+  var resolved = compiled.placementPlan.placements[0];
+  assert(placement.anchor === 'screen.bottom', 'natural screen edge anchor must canonicalize in the compiler');
+  assert(!resolved.unresolved && resolved.points.length === 5, 'placement owner must resolve screen-edge-relative groups');
+  assert(compiled.resultCard.rewrites.some(function(item) {
+    return item.from === 'screen bottom' && item.to === 'screen.bottom' && item.mechanism === 'screen-edge-anchor';
+  }), 'screen edge normalization must stay visible in ResultCard');
+}
+
 function main() {
   testCompileGraphAndResultCard();
   testAutoMovementForControlOnlyIntent();
   testNaturalActionOverride();
   testSemanticPlacementEdit();
   testMachineFormRejectedBeforeCompile();
+  testPlacementGroupsEmitCanonicalMemberObjects();
+  testScreenEdgeRelativePlacement();
   console.log('[IntentCompiler] graph, inheritance, rewrites, and ResultCard passed');
 }
 

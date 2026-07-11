@@ -34,16 +34,8 @@ function buildPartialState() {
       'set placement object=Player x=100 y=400 scene=Game',
       'move Player up 10 pixels',
     ].join('\n'),
-    designBrief: {
-      theme: 'mobile platformer',
-      objects: [{ name: 'Player', kind: 'player', width: 32, height: 48 }],
-      rules: ['on key ArrowLeft held -> move Player x=-4 scene=Game'],
-      layout: { placements: [{ object: 'Player', x: 100, y: 400 }] },
-    },
-    diff: {
-      isNew: true,
-      added: { placements: [{ object: 'Player', x: 100, y: 400 }] },
-    },
+    creativeVision: 'A mobile platformer with a bold climbing rhythm.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with a bold climbing rhythm.' },
     projectWorld: null,
   });
 }
@@ -60,15 +52,17 @@ async function main() {
     assert(safeJson.indexOf('10 pixels') < 0, 'LangGraph LLM2 view must not expose numeric edit deltas');
     assert(!view.state.bridge, 'LangGraph LLM2 view must not include bridge state');
     return {
-      'llm2.intentDslText': intentDslText,
-      'llm2.intentDslLineCount': intentDslText.split(/\r?\n/).filter(Boolean).length,
+      'llm2.intentSlotPacket': { schemaVersion: 1, commands: [{ kind: 'make_game', slots: { description: 'mobile platformer' } }] },
+      'llm2.intentSlotCommandCount': 1,
     };
   }, { allowPartial: true });
 
   var compilerNode = langGraphAdapter.makeLangGraphNode('intent-compiler', function(view) {
-    assert(view.state.llm2.intentDslText, 'LangGraph compiler view should receive Intent DSL');
+    assert(view.state.llm2.intentSlotPacket, 'LangGraph compiler view should receive Intent slots');
     assert(!view.state.runtime, 'LangGraph compiler view must not include runtime state');
     return {
+      'compiler.intentDslText': intentDslText,
+      'compiler.intentDslLineCount': intentDslText.split(/\r?\n/).filter(Boolean).length,
       'intentGraph.graph': compiled.graph,
       'intentGraph.summary': {
         things: lengthOf(compiled.graph.things),
@@ -127,11 +121,13 @@ async function main() {
   var runtimeNode = langGraphAdapter.makeLangGraphNode('runtime', function(view) {
     assert(view.state.bridge.targetPlanText, 'LangGraph runtime view should receive target plan');
     assert(!view.state.requirement, 'LangGraph runtime view must not include raw requirement');
+    var targetCount = lengthOf(compiled.bridgePlan.targetPlanLines);
+    var world = { schemaVersion: 1, worldVersion: 1, semanticHash: 'adapter-check', scenes: [] };
     return {
-      'runtime.executionReport': { summary: { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.targetPlanLines), failed: 0 } },
-      'runtime.summary': { nextAction: 'done', succeeded: lengthOf(compiled.bridgePlan.targetPlanLines), failed: 0 },
-      'projectWorld.world': null,
-      'projectWorld.sanitizedForLlm2': null,
+      'runtime.executionReport': { summary: { nextAction: 'done', total: targetCount, completed: targetCount, failed: 0 } },
+      'runtime.summary': { nextAction: 'done', total: targetCount, completed: targetCount, failed: 0 },
+      'projectWorld.world': world,
+      'projectWorld.sanitizedForLlm2': { worldVersion: world.worldVersion, semanticHash: world.semanticHash },
     };
   }, { allowPartial: true });
 
@@ -143,7 +139,7 @@ async function main() {
 
   assert.strictEqual(graphState.graphTrace.length, 5, 'LangGraph adapter should record each node trace');
   assert.deepStrictEqual(graphState.graphTrace[0].reads, ['llm2.nodeInput'], 'LangGraph adapter should trace sanitized LLM2 read');
-  assert(graphState.graphTrace[0].writes.indexOf('llm2.intentDslText') >= 0, 'LangGraph adapter should trace LLM2 state update writes');
+  assert(graphState.graphTrace[0].writes.indexOf('llm2.intentSlotPacket') >= 0, 'LangGraph adapter should trace LLM2 slot writes');
   pipelineState.validatePipelineState(graphState.pipelineState);
 
   var illegalNode = langGraphAdapter.makeLangGraphNode('llm2-intent', function() {

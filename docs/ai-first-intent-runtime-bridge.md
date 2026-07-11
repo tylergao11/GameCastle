@@ -603,13 +603,11 @@ previous Intent DSL contains
 prohibited machine syntax, the repair prompt may say that such a line was
 omitted, but it must not repeat the component id, adapter id, coordinate, or
 target command that caused the failure.
-LLM1 design briefs are natural at their own contract boundary too. Their
-creative object names, roles, rules, controls, and rough placements may guide
-LLM2, but numeric `x/y`, object `width/height`, variable values, and
-implementation-like visual defaults are rejected by the DesignBrief validator.
-Older saved briefs are sanitized into coarse natural placement such as
-`screen bottom-right` before they enter RequirementModel history or Intent
-Commander prompts.
+LLM1 CreativeVision stays unrestricted natural text at its own boundary. Its
+creative object names, roles, rules, controls, and spatial ideas guide LLM2.
+The LLM2 prompt projection converts engine-shaped material into natural world
+semantics, then LLM2 fills the declared command slots. The deterministic renderer
+and placement owner resolve those slots into executable facts.
 
 ### AI Manifest
 

@@ -9,6 +9,10 @@ function main() {
   projectPipelineGraph.assertProjectGraphSpec(spec);
 
   assert.strictEqual(spec.name, 'Project Weave Graph', 'project graph should have a stable discussion name');
+  assert.deepStrictEqual(spec.preGraphStages[0].reads, ['userRequest', 'creativeHistory', 'previousCreativeVision'], 'CreativeImagination pre-graph stage should declare its real inputs');
+  assert.strictEqual(spec.preGraphStages[0].execution, 'ai/creative-agent.js', 'CreativeImagination should name its real execution owner');
+  assert.strictEqual(spec.nodeSequence[0], 'llm2-intent', 'canonical graph should start at the closed semantic handoff');
+  assert.strictEqual(projectPipelineGraph.getNodeDefinition('creative'), null, 'Project Graph should not declare an unexecuted creative node');
   assert.deepStrictEqual(
     spec.embeddedGraphs.worldIntent.nodeSequence,
     intentPipelineGraph.INTENT_PIPELINE_NODE_SEQUENCE,

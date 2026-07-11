@@ -83,15 +83,12 @@ function assertSemanticRepairOnly(label, value) {
   });
 }
 
-function designBrief() {
-  return {
-    theme: 'mobile platformer',
-    objects: [
-      { name: 'Player', kind: 'player', color: '#4488FF', width: 32, height: 48 },
-      { name: 'Coin', kind: 'collectible', color: '#FFD54A', width: 24, height: 24 },
-    ],
-    rules: ['collect coins and avoid pressure'],
-  };
+function creativeVision() {
+  return 'A mobile platformer with bright collectible rhythms and readable pressure.';
+}
+
+function intentSlotPacket() {
+  return { schemaVersion: 1, commands: [{ kind: 'make_game', slots: { description: 'mobile platformer' } }] };
 }
 
 function semanticReport() {
@@ -144,6 +141,7 @@ async function buildRuntimeSurfaces(productModules, components) {
   }
   var intent = {
     artifactKind: 'intent',
+    intentSlotPacket: intentSlotPacket(),
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -170,8 +168,9 @@ async function buildRuntimeSurfaces(productModules, components) {
     batchLabel: 'ai_visible_boundary_check',
     artifactKind: 'intent',
     userRequest: 'make a mobile platformer',
-    designBrief: designBrief(),
-    diff: { isNew: true },
+    creativeVision: creativeVision(),
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: creativeVision() },
+    intentSlotPacket: intentSlotPacket(),
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -191,6 +190,7 @@ async function buildRuntimeSurfaces(productModules, components) {
     artifactKind: 'intent',
     project: pipeline.emptyProject('AiVisibleApprovalCheck'),
     baseWorld: null,
+    intentSlotPacket: intentSlotPacket(),
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -201,8 +201,8 @@ async function buildRuntimeSurfaces(productModules, components) {
     modules: compiled.bridgePlan.installedModules,
     tickRuntimeManifest: compiled.bridgePlan.tickRuntimeManifest,
     runtimeAdapterRequirements: compiled.bridgePlan.runtimeAdapterRequirements,
-    designBrief: designBrief(),
-    diff: { isNew: true },
+    creativeVision: creativeVision(),
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: creativeVision() },
   });
   return {
     world: world,
@@ -235,8 +235,8 @@ async function main() {
     userPrompt: intentAgent.buildIntentUserPrompt({
       userPrompt: '金币多一点',
       worldContext: safeWorld,
-      designBrief: designBrief(),
-      diff: { isNew: false },
+      creativeVision: creativeVision(),
+      creativeChange: { isNew: false, changed: true, previousVision: 'A sparse platformer.', currentVision: creativeVision() },
       isNew: false,
     }),
     sanitizedProjectWorld: safeWorld,

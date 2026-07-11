@@ -79,7 +79,7 @@ function makeBuildContract(slots) {
       schemaVersion: 1,
       contractId: 'asset-resolver-test',
       createdAt: '2026-07-08T00:00:00.000Z',
-      owner: 'RequirementModel',
+      owner: 'CreativeImagination',
       status: 'ready',
     },
     assetContract: {

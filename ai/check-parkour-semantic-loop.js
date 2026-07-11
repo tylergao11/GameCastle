@@ -98,7 +98,7 @@ async function main() {
 
   assert.strictEqual(createReport.summary.nextAction, 'done', 'create should finish before probe feedback');
   assert.strictEqual(countInstances(project, 'Coin'), 6, 'create should include module coins plus semantic coin trail');
-  assert.strictEqual(countInstances(project, 'Enemy'), 1, 'platformer module should create base enemy');
+  assert.strictEqual(countInstances(project, 'Enemy'), 4, 'create should include the base enemy and the requested guard group');
 
   var feedback = semanticFeedback.analyzeSemanticFeedback({
     projectWorld: createWorld,

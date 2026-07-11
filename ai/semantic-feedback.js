@@ -107,6 +107,28 @@ function validateSemanticMapping(mapping) {
   assertObject(mapping, 'Semantic mapping');
   if (mapping.schemaVersion !== 1) throw new Error('Semantic mapping schemaVersion mismatch');
   assertObject(mapping.subjectAliases, 'Semantic mapping subjectAliases');
+  ['capability_semantic_policy', 'semantic_concepts', 'canonical_write_values', 'display_terms', 'command_shapes', 'template_defaults', 'template_writable_surface', 'implementation_bindings', 'semantic_routes', 'validation_rules'].forEach(function(section) {
+    assertObject(mapping[section], 'Semantic mapping ' + section);
+  });
+  var capabilityPolicy = mapping.capability_semantic_policy;
+  if (capabilityPolicy.schemaVersion !== 1) throw new Error('Semantic mapping capability semantic policy schemaVersion mismatch');
+  assertObject(capabilityPolicy.reviewed_universe, 'Semantic mapping capability semantic policy reviewed universe');
+  if (!Number.isInteger(capabilityPolicy.reviewed_universe.capability_count) || capabilityPolicy.reviewed_universe.capability_count < 1) {
+    throw new Error('Semantic mapping capability semantic policy capability count is required');
+  }
+  if (!/^[a-f0-9]{40}$/.test(capabilityPolicy.reviewed_universe.capability_id_sha1 || '')) {
+    throw new Error('Semantic mapping capability semantic policy capability fingerprint is required');
+  }
+  if (!/^[a-f0-9]{40}$/.test(capabilityPolicy.reviewed_universe.capability_contract_sha1 || '')) {
+    throw new Error('Semantic mapping capability semantic policy capability contract fingerprint is required');
+  }
+  if (capabilityPolicy.default_exposure !== 'internal') throw new Error('Semantic mapping capability semantic policy default exposure must be internal');
+  assertObject(capabilityPolicy.derivation, 'Semantic mapping capability semantic policy derivation');
+  ['concrete_semantic', 'kind_parent', 'extension_parent', 'owner_parent'].forEach(function(key) {
+    if (typeof capabilityPolicy.derivation[key] !== 'string' || capabilityPolicy.derivation[key].indexOf('{') < 0) {
+      throw new Error('Semantic mapping capability semantic policy derivation template is required: ' + key);
+    }
+  });
   assertObject(mapping.experienceDimensions, 'Semantic mapping experienceDimensions');
   assertObject(mapping.gameplayRoles, 'Semantic mapping gameplayRoles');
   assertObject(mapping.repairVerbs, 'Semantic mapping repairVerbs');

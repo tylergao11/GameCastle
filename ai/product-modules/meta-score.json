@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "meta.score",
   "name": "Score Meta",
-  "summary": "Score state and score display support for game cores that do not already include scoring.",
+  "summary": "Score state and score display support that complements game cores needing scoring.",
   "llm1Card": "Track and display a score.",
   "category": "meta",
   "incompatibleWith": [

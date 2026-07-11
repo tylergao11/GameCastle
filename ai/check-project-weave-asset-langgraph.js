@@ -66,7 +66,7 @@ function makeBuildContract() {
     meta: {
       schemaVersion: 1,
       contractId: 'project-weave-asset-langgraph',
-      owner: 'RequirementModel',
+      owner: 'CreativeImagination',
       status: 'ready',
     },
     assetContract: {

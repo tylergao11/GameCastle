@@ -25,16 +25,15 @@ GameCastle 是模块化游戏工厂，不是一次性小游戏模板生成器。
 
 ### LLM1: 创意与体验设计
 
-LLM1 面向用户意图，温度可以保持 0.7。它不应该记忆模板结构，也不应该被强 schema 约束成可执行修改生成器。
+LLM1 面向用户意图，温度可以保持 0.7，并保持自由创意表达。
 
 它应该看到的是轻量上下文：
 
-- 用户原始意图和当前迭代请求。
-- 当前游戏的体验摘要，例如主题、核心循环、玩家目标、已有问题。
-- 从 ai/product-modules/ 中 capability 卡片派生的轻量能力提示，例如“支持平台跳跃/射击/收集/敌人/Boss/联机雏形”，但不是完整模板或 DSL schema。
-- 少量设计边界，例如画布大小、目标是可玩、后续可迭代、未来会有同步约束。
+- 用户原始意图或当前迭代请求。
+- 当前 CreativeVision。
+- 当前创意对话历史。
 
-LLM1 输出的是高层设计意图：想要什么体验、加入什么玩法、哪里变难、哪里要保留。它可以是自然语言加少量 JSON 摘要，但不承担精确执行修改、对象 ID、DSL 行或 `project.json`。
+LLM1 输出自由自然语言 CreativeVision，完整发展体验、玩法、世界、角色、节奏、惊喜、情绪与感官身份。语义契约从 LLM2 开始。
 
 ### LLM2: AI-first Intent 决策闭环
 
@@ -45,9 +44,9 @@ LLM2 面向可执行意图落地，但仍停留在自然游戏世界模型。它
 - 从组件、模块和语义映射派生的自然能力摘要，包括对象、角色、关系、动作、布局意图和体验问题。
 - owner-routed diagnostics 暴露的自然修复建议，而不是桥接层、runtime adapter、GDJS、坐标或组件 id。
 
-LLM2 输出应是 AI-first Intent DSL。初次生成也应视为“从空项目表达自然意图到第一个可玩版本”。这样连续迭代不会退化为全量重生成，也不会要求 LLM2 维护低层命令表。
+LLM2 输出闭合的 Intent 槽位包。确定性 renderer 将槽位包转换为自然 Intent DSL。初次生成也视为“从空项目表达自然意图到第一个可玩版本”，连续迭代只映射本轮语义变化。
 
-LLM2 具备受限自循环：首轮输出作为 `apply_intent`；如果 parser/surface 层失败，LLM2 可以重写自然 Intent。若 Intent 已经编译到 Resolver/Bridge/Runtime，失败必须回到对应 owner 层修复，不能回退让 LLM2 写内部目标指令。已完成意图不能重复输出。当前限制最多 2 轮修复，仍失败则保留产物并返回失败码。
+LLM2 具备受限自循环：首轮输出作为 `apply_intent`；槽位验证失败时，LLM2 根据槽位名称、内容含义和允许值修正槽位包。Intent 编译进入 Resolver/Bridge/Runtime 后，诊断回到对应 owner 层。当前限制最多 2 轮槽位修复，完整保留失败产物与退出状态。
 
 项目模式必须先判定：
 
@@ -56,22 +55,19 @@ LLM2 具备受限自循环：首轮输出作为 `apply_intent`；如果 parser/s
 
 因此 repair loop 的“当前已应用项目”只在同一局游戏内延续；开新项目时不得继承上一局缓存。
 
-Current AI-first override: LLM2 output is AI-first Intent DSL. LLM2 may repair
-parser/surface errors by rewriting natural Intent DSL, but it must not repair
-Bridge/Runtime execution failures by emitting internal target instructions. Once Intent has
-compiled to target code, failures route to the owning compiler, placement
-resolver, bridge, runtime adapter, or executor layer.
+Current AI-first override: LLM1 owns unrestricted CreativeVision and LLM2 fills the closed Intent slot packet.
+The deterministic renderer owns natural Intent DSL. Slot validation returns declared slot meanings to LLM2; compiled failures route to the owning compiler, placement resolver, bridge, runtime adapter, or executor layer.
 
 ### Agent Model Registry
 
 `ai/agent-workflow.js` owns model routing. Pipeline code should call roles, not
 hard-code model names:
 
-- `requirement`: LLM1 creative/requirement model, default `deepseek-v4-flash`.
-- `intent`: LLM2 product-editing model for AI-first Intent DSL, default
+- `creative`: LLM1 unrestricted creative imagination model, default `deepseek-v4-flash`.
+- `intent`: LLM2 semantic recognition and closed slot mapping model, default
   `deepseek-v4-flash`.
 - `intentRepair`: LLM2 repair role for AI-first Intent DSL compiler
-  diagnostics. It rewrites natural Intent DSL only and does not see engine
+  diagnostics. It repairs declared Intent slots only and does not see engine
   target code.
 - `imageGeneration`: reserved asset generation role, configured by `GAMECASTLE_IMAGE_MODEL`.
 - `vision`: reserved visual inspection role, configured by `GAMECASTLE_VISION_MODEL`.
@@ -86,9 +82,11 @@ adding more prompt branches inside `pipeline.js`.
 The flow is contract-first:
 
 ```text
-RequirementModel
-  -> BuildContract (frozen)
-  -> IntentAgent writes Intent DSL; RuntimeAssetResolver resolves assets behind its own contract
+CreativeImagination
+  -> unrestricted CreativeVision
+  -> IntentSlotDirector fills declared slots
+  -> deterministic renderer writes Intent DSL
+  -> IntentCompiler owns BuildContract and compiler facts
   -> ImageAgent only fills repo/cache/variant misses when allowed
   -> ModuleCompiler/Bridge lower Intent into target facts and structured runtime plans
   -> RuntimeLinker binds compiler output + AssetManifest + optional AssetReview
@@ -96,14 +94,10 @@ RequirementModel
   -> owner-routed diagnostics / repair artifact
 ```
 
-This boundary keeps AI context small and stable. RequirementModel sees product
-module cards and creative capability hints, not full template internals or
-engine/runtime fields. Its DesignBrief contract uses natural object roles and
-`layout.placements` with `anchor/direction/pattern`; it rejects coordinates,
-object sizes, implementation colors, and variable initial values.
+This boundary keeps AI context small and stable. CreativeImagination receives the user request, prior CreativeVision, and creative conversation, and returns unrestricted natural text.
 IntentAgent should see AI-first Intent capability plus sanitized planning context,
 not raw `project.json`, bridge/runtime audit internals, or coordinate-shaped
-creative brief fields. Compiler-owned module expansion uses structured runtime
+engine fields. Compiler-owned module expansion uses structured runtime
 facts behind the Intent path.
 RuntimeAssetResolver resolves asset slots declared by the BuildContract by
 checking exact cache, cloud repository, semantic/style repository matches,
@@ -186,7 +180,7 @@ updates, and network-manifest updates.
 Fixed player interactions are product-module truth, not free-form prompt
 knowledge. A configurable label may describe the exposed runtime trigger, but it
 must not claim another trigger. LLM2 should see this contract while translating
-creative intent into Intent DSL; the compiler enforces the same contract before
+creative intent into declared slots; the compiler enforces the same contract before
 approval, so bad translations fail at the module/component boundary instead of
 becoming misleading generated projects.
 
@@ -228,31 +222,31 @@ LLM2 Intent DSL
   -> GDJS Runtime
 ```
 
-The chain is now represented by a graph-ready state contract in
+CreativeImagination executes as a pre-graph stage in `ai/creative-agent.js`; its real reads are user request, creative history, and previous CreativeVision. The canonical graph begins at the closed LLM2 handoff. The downstream chain is represented by a graph-ready state contract in
 `ai/pipeline-state.js` and an official LangGraph runtime adapter in
 `ai/langgraph-runtime.js`. The contract names the orchestration slots:
-`userRequest`, `requirement`, `llm2`, `intentGraph`, `resolver`, `compiler`,
+`userRequest`, `creative`, `llm2`, `intentGraph`, `resolver`, `compiler`,
 `bridge`, `runtime`, `projectWorld`, `diagnostics`, and `ownerRoute`.
 Internal slots may keep Bridge Plan, runtime adapter requirements, and execution
 reports for audit. The LLM2 slot only receives the ProjectWorld-owned sanitized
-node input: sanitized user request, sanitized design brief, sanitized diff, and
+node input: sanitized user request, sanitized CreativeVision, sanitized creative change, and
 the sanitized world context. Future LangGraph nodes should read
-`pipelineState.llm2.nodeInput`, not raw `requirement.designBrief` or
+`pipelineState.llm2.nodeInput`, not raw creative history or
 `projectWorld.world`. This prevents coordinates, component ids, adapter ids,
 Bridge Plan details, and target-plan instructions from flowing back into Intent generation.
 `ai/pipeline-state.js` also exports machine-checkable node contracts. The
 `llm2-intent` contract only allows reads from `llm2.nodeInput` and writes to the
-Intent DSL fields; tests fail if it tries to read raw requirement, raw
+Intent slot packet fields; tests fail if it tries to read raw creative history, raw
 ProjectWorld, Bridge Plan, runtime report, or internal target-plan fields.
 Each saved `PipelineState` also carries a `nodeContracts` snapshot so external
 or LangGraph runners can audit the same read/write boundary from the
 state file itself instead of relying on prose. Runners should build node inputs
 through `makeNodeStateView(state, nodeName)`, which validates the state and
 returns only the paths allowed by the node contract; the `llm2-intent` view
-contains `llm2.nodeInput` and excludes raw requirement, raw ProjectWorld,
+contains `llm2.nodeInput` and excludes raw creative history, raw ProjectWorld,
 Bridge, Runtime, and target-plan state. Node outputs should be merged through
 `applyNodeStateUpdate(state, nodeName, update)`, which accepts only contract-owned
-write paths and rejects LLM2 attempts to write raw requirement, bridge, runtime,
+write paths and rejects LLM2 attempts to write raw creative state, bridge, runtime,
 or ProjectWorld fields. The same view/update mechanism is used for the compiler,
 resolver, bridge, and runtime contracts.
 `PipelineState` is Intent-only: it rejects untyped, internal, or operation-artifact
@@ -301,8 +295,10 @@ or widening LLM2 access.
 `ai/project-pipeline-graph.js` owns the total graph specification:
 
 ```text
-requirement
-  -> llm2-intent
+CreativeImagination pre-graph: user request + creative history + previous CreativeVision -> CreativeVision
+
+Project Weave Graph:
+llm2-intent
   -> intent-compiler
   -> resolver
   -> asset-library
@@ -324,8 +320,7 @@ requirement
 
 Layer names:
 
-- `Briefing Layer`: user request and creative design brief.
-- `World Intent Layer`: natural Intent DSL, Intent Graph, resolver, bridge plan.
+- `World Intent Layer`: closed Intent slot packet, deterministic Intent DSL, Intent Graph, resolver, bridge plan.
 - `Asset Weave Layer`: asset library lookup, image generation, asset review, slot resolution, reuse/generation debt, AssetWorld.
 - `Runtime Assembly Layer`: asset/bridge binding, tick runtime codegen, runtime files, HTML export, execution.
 - `Server Weave Layer`: signaling server, rooms, ordered input, game loop, and state store.
@@ -781,8 +776,8 @@ be audited step by step.
 Agent/model 内容不应继续堆在这里：
 
 - `ai/llm-provider.js` owns Responses/SSE text model calls.
-- `ai/requirement-agent.js` owns LLM1 design brief generation.
-- `ai/intent-agent.js` owns LLM2 Intent Commander prompts and Intent compile
+- `ai/creative-agent.js` owns unrestricted LLM1 CreativeVision generation.
+- `ai/intent-agent.js` owns LLM2 slot prompts and slot compile
   repair.
 - `ai/agent-workflow.js` owns role/model routing.
 
@@ -811,12 +806,9 @@ lines while dropping coordinates, bridge plans, runtime adapter ids, GDJS object
 types, target execution commands, and internal contract names. Intent repair
 prompts use the same boundary: if the previous Intent DSL contained prohibited
 machine syntax, the exact line is omitted and LLM2 repairs from the user
-request, design brief, sanitized world card, and natural rules instead of
+request, sanitized CreativeVision, sanitized world card, and natural rules instead of
 copying the bad machine shape.
-LLM1 design briefs and design diffs are natural at the contract boundary. If a
-saved brief contains numeric layout sketches, RequirementModel history and Intent
-Commander prompts sanitize them into coarse `screen` directions such as
-`bottom-right`. LLM2 receives game-world changes, not numeric planning sketches.
+CreativeVision and creative changes remain natural text at the contract boundary. Intent prompts project that text into a safe semantic view before LLM2 fills declared slots. LLM2 receives game-world changes and slot meanings; deterministic owners supply engine facts.
 
 ### `ai/product-modules/` and `ai/capabilities.js`
 
@@ -824,7 +816,7 @@ Commander prompts sanitize them into coarse `screen` directions such as
 capability cards derive LLM-safe ability summaries:
 
 - LLM1 只读取 `llm1Hint` 派生出的轻量摘要。
-- LLM2 读取 Intent Commander 派生出的自然能力摘要、角色/动作/关系和安全 repair intent 候选。
+- LLM2 读取 Slot Director 派生出的自然能力摘要、角色/动作/关系和安全 repair 候选，只填写已声明槽位。
 - Capability cards must not carry target examples or internal compiler prompt context.
 - 内部目标模板留在 product module `compiler` manifest 内部，不作为 live LLM2 产品面。
 - prompt 不再维护另一份硬编码能力表。
@@ -833,7 +825,7 @@ capability cards derive LLM-safe ability summaries:
 
 ### `ai/gdevelop-truth/`
 
-`runtime-truth.json` is extracted from `D:\GDevelop-master` and is the canonical
+`runtime-truth.json` is extracted from `C:\Ai\GDevelop-master` and is the canonical
 GDevelop/GDJS runtime truth snapshot for the supported surface. It owns official
 object types, behavior types, include files, runtime registration sources,
 instruction function mappings, and object/behavior data fields.
@@ -848,14 +840,9 @@ GDJS 浏览器运行时。它只负责执行 `project.json`，不应该理解用
 
 ### `platform/`
 
-React/Vite 前端。当前是产品壳和模拟生成流程，尚未真正接入 `ai/pipeline.js`。未来应承载：
+React/Vite 前端只消费 Local Game Runtime 的 HTTP/SSE 契约。当前产品主链已经接入真实 `ai/pipeline.js`，负责创建与继续迭代输入、权威运行状态、失败展示和不可变 release 的 iframe 试玩。它不读取 `output/`、不启动子进程、不解析日志，也不拥有引擎成功判定。
 
-- 创建与迭代输入
-- 生成进度与 LLM 可见思考摘要
-- iframe/运行时试玩
-- 版本历史
-- 发布与分享
-- 联机房间入口
+`server/local-runtime/` 是唯一运行边界：单 active project、忙时拒绝、工作区事务、完整进程树生命周期、HTML manifest allowlist、不可变 release 提交和独立试玩 origin。详细契约见 `docs/local-game-runtime.md`。
 
 ### `templates/`
 

@@ -8,6 +8,10 @@ var pipelineGraphRunner = require('./pipeline-graph-runner');
 var pipelineState = require('./pipeline-state');
 var projectWorld = require('./project-world');
 
+function slotPacket() {
+  return { schemaVersion: 1, commands: [{ kind: 'make_game', slots: { description: 'mobile platformer' } }] };
+}
+
 async function buildState() {
   var fixturePath = path.join(__dirname, 'fixtures', 'intent-mobile-platformer.dsl');
   var intentDslText = fs.readFileSync(fixturePath, 'utf8');
@@ -26,6 +30,7 @@ async function buildState() {
   }
   var intentArtifacts = {
     artifactKind: 'intent',
+    intentSlotPacket: slotPacket(),
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -60,8 +65,9 @@ async function buildState() {
     batchLabel: 'pipeline_graph_runner_check',
     artifactKind: 'intent',
     userRequest: 'make a mobile platformer',
-    designBrief: { theme: 'mobile platformer', objects: [], rules: [], layout: { placements: [] } },
-    diff: { isNew: true },
+    creativeVision: 'A mobile platformer with expressive climbing.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with expressive climbing.' },
+    intentSlotPacket: slotPacket(),
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -83,13 +89,8 @@ function buildPartialState() {
       'make a mobile platformer',
       'set placement object=Player x=100 y=400 scene=Game',
     ].join('\n'),
-    designBrief: {
-      theme: 'mobile platformer',
-      objects: [{ name: 'Player', kind: 'player', width: 32, height: 48 }],
-      rules: [],
-      layout: { placements: [{ object: 'Player', x: 100, y: 400 }] },
-    },
-    diff: { isNew: true },
+    creativeVision: 'A mobile platformer with expressive climbing.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with expressive climbing.' },
     projectWorld: null,
   });
 }
@@ -107,15 +108,15 @@ async function main() {
       assert(view.state.llm2.nodeInput, 'runner should pass sanitized LLM2 node input');
       assert(!view.state.bridge, 'runner should not pass bridge state to LLM2');
       return {
-        'llm2.intentDslText': 'adjust Fox placement above slightly',
-        'llm2.intentDslLineCount': 1,
+        'llm2.intentSlotPacket': slotPacket(),
+        'llm2.intentSlotCommandCount': 1,
       };
     },
   }]);
   assert.strictEqual(result.trace.length, 1, 'runner should record one graph step');
   assert.deepStrictEqual(result.trace[0].reads, ['llm2.nodeInput'], 'runner trace should record contract reads');
-  assert.deepStrictEqual(result.trace[0].writes.sort(), ['llm2.intentDslLineCount', 'llm2.intentDslText'].sort(), 'runner trace should record state update writes');
-  assert.strictEqual(result.state.llm2.intentDslText, 'adjust Fox placement above slightly', 'runner should apply legal LLM2 update');
+  assert.deepStrictEqual(result.trace[0].writes.sort(), ['llm2.intentSlotCommandCount', 'llm2.intentSlotPacket'].sort(), 'runner trace should record slot update writes');
+  assert.deepStrictEqual(result.state.llm2.intentSlotPacket, slotPacket(), 'runner should apply legal LLM2 slot update');
 
   assert.throws(function() {
     pipelineGraphRunner.runGraph(state, [{
@@ -136,7 +137,7 @@ async function main() {
   var partialState = buildPartialState();
   assert.throws(function() {
     pipelineState.validatePipelineState(partialState);
-  }, /requires llm2\.intentDslText/, 'strict validation should reject incomplete graph state');
+  }, /requires llm2\.intentSlotPacket/, 'strict validation should reject incomplete graph state');
   pipelineState.validatePipelineState(partialState, { allowPartial: true });
   var partialResult = pipelineGraphRunner.runGraph(partialState, [{
     node: 'llm2-intent',
@@ -146,13 +147,13 @@ async function main() {
       assert(inputJson.indexOf('"x"') < 0, 'partial LLM2 view should not expose raw coordinates');
       assert(inputJson.indexOf('make a mobile platformer') >= 0, 'partial LLM2 view should preserve safe request');
       return {
-        'llm2.intentDslText': 'make a mobile platformer',
-        'llm2.intentDslLineCount': 1,
+        'llm2.intentSlotPacket': slotPacket(),
+        'llm2.intentSlotCommandCount': 1,
       };
     },
   }], { allowPartial: true });
   assert.strictEqual(partialResult.trace[0].partial, true, 'runner trace should mark partial execution');
-  assert.strictEqual(partialResult.state.llm2.intentDslText, 'make a mobile platformer', 'partial runner should apply LLM2 update');
+  assert.deepStrictEqual(partialResult.state.llm2.intentSlotPacket, slotPacket(), 'partial runner should apply LLM2 slot update');
   assert.throws(function() {
     pipelineGraphRunner.runGraph(partialState, [{
       node: 'llm2-intent',
@@ -176,16 +177,18 @@ async function main() {
     run: function(view) {
       assert(view.state.llm2.nodeInput, 'full graph LLM2 step should receive sanitized node input');
       return {
-        'llm2.intentDslText': fixtureIntentDsl,
-        'llm2.intentDslLineCount': fixtureIntentDsl.split(/\r?\n/).filter(Boolean).length,
+        'llm2.intentSlotPacket': slotPacket(),
+        'llm2.intentSlotCommandCount': 1,
       };
     },
   }, {
     node: 'intent-compiler',
     run: function(view) {
-      assert(view.state.llm2.intentDslText, 'compiler step should read Intent DSL');
+      assert(view.state.llm2.intentSlotPacket, 'compiler step should read Intent slots');
       assert(!view.state.bridge, 'compiler step should not receive bridge state');
       return {
+        'compiler.intentDslText': fixtureIntentDsl,
+        'compiler.intentDslLineCount': fixtureIntentDsl.split(/\r?\n/).filter(Boolean).length,
         'intentGraph.graph': compiled.graph,
         'intentGraph.summary': completeState.intentGraph.summary,
         'compiler.contracts': compiled.contracts,

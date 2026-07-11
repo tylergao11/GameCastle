@@ -13,7 +13,7 @@ var CONTRACT_TYPES = [
 ];
 
 var CONTRACT_OWNERS = [
-  'RequirementModel',
+  'CreativeImagination',
   'IntentAgent',
   'ModuleCompiler',
   'RuntimeAssetResolver',
@@ -25,7 +25,7 @@ var CONTRACT_OWNERS = [
 ];
 
 var WORKFLOW_ROLE_CONTRACT_OWNERS = {
-  requirement: 'RequirementModel',
+  creative: 'CreativeImagination',
   intent: 'IntentAgent',
   intentRepair: 'IntentAgent',
   imageGeneration: 'ImageAgent',
@@ -33,7 +33,7 @@ var WORKFLOW_ROLE_CONTRACT_OWNERS = {
 };
 
 var CONTRACT_TYPE_OWNERS = {
-  BuildContract: 'RequirementModel',
+  BuildContract: 'IntentAgent',
   AssetManifest: 'RuntimeAssetResolver',
   AssetReview: 'VisionAgent',
   AssemblyReport: 'RuntimeLinker',

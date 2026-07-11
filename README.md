@@ -2,7 +2,7 @@
 
 GameCastle is an AI-first game creation runtime. Its product path is not "generate a disposable mini game from one prompt"; it is "keep shaping a playable game project through natural intent, semantic evidence, and owner-routed execution."
 
-Current AI-first boundary: LLM2 writes natural Intent DSL only. Engine facts such as coordinates, component ids, GDJS objects, runtime adapters, internal target commands, and GDevelop `project.json` mutations belong to compiler, bridge, runtime, and validation owners.
+Current AI-first boundary: LLM2 fills a closed Intent slot packet only. A deterministic slot renderer owns natural Intent DSL generation. Engine facts such as coordinates, component ids, GDJS objects, runtime adapters, internal target commands, and GDevelop `project.json` mutations belong to compiler, bridge, runtime, and validation owners.
 
 ## Goal
 
@@ -10,9 +10,10 @@ GameCastle is building a closed loop:
 
 ```text
 user intent / iteration request
-  -> LLM1 creative brief
+  -> LLM1 unrestricted CreativeVision
   -> safe IntentWorldView + semantic playtest evidence
-  -> LLM2 natural Intent DSL
+  -> LLM2 command kinds + declared slots
+  -> deterministic natural Intent DSL renderer
   -> typed Intent Graph
   -> Resolver / Bridge / Runtime execution
   -> ProjectWorld + ExecutionReport
@@ -30,19 +31,22 @@ The important property is ownership. AI decides in natural game terms; determini
 | `ai/` | Intent engine, pipeline CLI, graph runners, LLM boundaries, semantic playtest, decision loop, contracts, and checks. |
 | `ai/components/` | AI-safe component cards plus compiler manifests for bindings, placement policy, runtime requirements, and target metadata. |
 | `ai/product-modules/` | Product capability truth source. Modules are selected through natural intent, not by exposing module ids as the product language. |
-| `ai/gdevelop-truth/` | Extracted GDevelop/GDJS runtime truth from `D:\GDevelop-master`; project emission must validate against this snapshot. |
+| `ai/gdevelop-truth/` | Extracted GDevelop/GDJS runtime truth from `C:\Ai\GDevelop-master`; project emission must validate against this snapshot. |
 | `ai/assets/` | Seed local/cloud asset repository manifests for runtime asset resolution. |
 | `engine/` | Cached official GDJS browser runtime used by HTML export. |
 | `platform/` | React/Vite product shell for creation, iteration, playtest, and future publishing/multiplayer surfaces. |
+| `server/local-runtime/` | Single-project boundary for real pipeline runs, status events, rollback, and playable artifacts. |
 | `docs/` | Longer architecture notes, roadmap, and bridge/runtime design records. |
 | `output/` | Generated artifacts: `project.json`, `game.html`, `project-world.json`, `execution-ledger.json`, semantic reports, and intent artifacts. |
 
 ## Engine Boundaries
 
-- The live product language is natural Intent DSL.
+- LLM1 owns unrestricted creative imagination in natural text.
+- LLM2 owns semantic recognition and fills the closed Intent slot packet.
+- The deterministic renderer owns natural Intent DSL.
 - `project.json` is a GDevelop/GDJS runtime artifact, not the AI continuation interface.
 - Continue mode requires complete Intent iteration state: generated project output, `ProjectWorld`, and `ExecutionLedger`.
-- Parser and surface errors may ask LLM2 to rewrite natural Intent DSL.
+- Slot validation errors return to LLM2 with the declared slot meanings for a corrected packet.
 - Resolver, bridge, runtime, GDevelop truth, semantic playtest, and cache failures route to their owning system layer.
 - Action candidates are consolidated as semantic repair intent, not allowed to grow into a large list of internal target action types.
 - The Intent Engine keeps one live owner path for each product surface.
@@ -50,8 +54,11 @@ The important property is ownership. AI decides in natural game terms; determini
 ## Main Commands
 
 ```bash
+# Start the Local Game Runtime and the frontend together.
+npm run dev
+
 # Full AI gate. Use the local GDevelop checkout as runtime truth source.
-set GAMECASTLE_GDEVELOP_SOURCE_DIR=D:\GDevelop-master
+set GAMECASTLE_GDEVELOP_SOURCE_DIR=C:\Ai\GDevelop-master
 npm run check:ai
 
 # Generate an offline Intent fixture into output/.
@@ -77,18 +84,19 @@ Frontend dependencies live under `platform/`:
 
 ```bash
 npm --prefix platform install
-npm --prefix platform run dev
+npm --prefix platform run build
 ```
 
 ## Runtime Truth
 
-GameCastle does not hand-maintain GDevelop object types, behavior types, object data fields, or extension includes. `scripts/extract-gdevelop-truth.js` extracts the supported runtime surface from `D:\GDevelop-master` into `ai/gdevelop-truth/runtime-truth.json`.
+GameCastle does not hand-maintain GDevelop object types, behavior types, object data fields, or extension includes. `scripts/extract-gdevelop-truth.js` extracts the supported runtime surface from `C:\Ai\GDevelop-master` into `ai/gdevelop-truth/runtime-truth.json`.
 
 `ai/gdevelop-truth.js` is the single in-repo entry for those facts. HTML export reads from the same truth snapshot and fails fast on unsupported runtime types.
 
 ## Useful Docs
 
 - [Architecture](docs/architecture.md)
+- [Local Game Runtime Boundary](docs/local-game-runtime.md)
 - [AI-first Intent Runtime Bridge](docs/ai-first-intent-runtime-bridge.md)
 - [Module Composition](docs/module-composition.md)
 - [Roadmap](docs/roadmap.md)

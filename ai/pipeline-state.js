@@ -1,6 +1,7 @@
 var projectWorld = require('./project-world');
 var intentSurfaceGuard = require('./intent-surface-guard');
 var intentAgent = require('./intent-agent');
+var intentSlots = require('./intent-slots');
 var semanticFeedback = require('./semantic-feedback');
 
 var PIPELINE_STATE_SCHEMA_VERSION = 1;
@@ -26,17 +27,13 @@ var PROHIBITED_AI_VISIBLE_TEXT = [
 ];
 
 var NODE_CONTRACTS = {
-  requirement: {
-    reads: ['userRequest.text'],
-    writes: ['requirement.designBrief', 'requirement.diff'],
-  },
   'llm2-intent': {
     reads: ['llm2.nodeInput'],
-    writes: ['llm2.intentDslText', 'llm2.intentDslLineCount'],
+    writes: ['llm2.intentSlotPacket', 'llm2.intentSlotCommandCount'],
     prohibitedReads: [
       'userRequest.text',
-      'requirement.designBrief',
-      'requirement.diff',
+      'creative.vision',
+      'creative.change',
       'projectWorld.world',
       'bridge.bridgePlan',
       'bridge.targetPlanText',
@@ -44,8 +41,8 @@ var NODE_CONTRACTS = {
     ],
   },
   'intent-compiler': {
-    reads: ['llm2.intentDslText', 'projectWorld.world'],
-    writes: ['intentGraph.graph', 'intentGraph.summary', 'compiler.contracts', 'compiler.resultCard', 'compiler.resultCardSummary'],
+    reads: ['llm2.intentSlotPacket', 'projectWorld.world'],
+    writes: ['compiler.intentDslText', 'compiler.intentDslLineCount', 'intentGraph.graph', 'intentGraph.summary', 'compiler.contracts', 'compiler.resultCard', 'compiler.resultCardSummary'],
   },
   resolver: {
     reads: ['intentGraph.graph', 'projectWorld.world'],
@@ -173,6 +170,29 @@ function applyNodeStateUpdate(state, nodeName, update, options) {
   writes.forEach(function(pathName) {
     setPathValue(next, pathName, update[pathName]);
   });
+  if (writes.indexOf('llm2.intentSlotPacket') >= 0 || writes.indexOf('llm2.intentSlotCommandCount') >= 0) {
+    var commandCount = next.llm2 && next.llm2.intentSlotPacket && Array.isArray(next.llm2.intentSlotPacket.commands)
+      ? next.llm2.intentSlotPacket.commands.length
+      : 0;
+    next.llm2.intentSlotCommandCount = commandCount;
+    next.statePartitions.llm2Intent.evidence.intentSlotCommandCount = commandCount;
+  }
+  if (writes.indexOf('compiler.intentDslText') >= 0 || writes.indexOf('compiler.intentDslLineCount') >= 0) {
+    next.compiler.intentDslLineCount = normalizeTextLines(next.compiler.intentDslText).length;
+  }
+  if (writes.some(function(pathName) { return pathName.indexOf('bridge.') === 0; })) {
+    var targetLineCount = normalizeTextLines(next.bridge.targetPlanText).length;
+    var bridgePlan = next.bridge.bridgePlan || {};
+    next.bridge.targetPlanLineCount = targetLineCount;
+    next.statePartitions.runtimeExecutionPlan.evidence.targetPlanLineCount = targetLineCount;
+    next.statePartitions.runtimeExecutionPlan.evidence.runtimeAdapterRequirements = (bridgePlan.runtimeAdapterRequirements || []).length;
+    next.statePartitions.compilerModuleFacts.evidence.installedModules = (bridgePlan.installedModules || []).length;
+    next.statePartitions.compilerModuleFacts.evidence.tickRuntimeModules = ((((bridgePlan.tickRuntimeManifest || {}).modules) || [])).length;
+  }
+  if (writes.indexOf('projectWorld.world') >= 0 && next.projectWorld.world) {
+    next.statePartitions.projectWorld.evidence.worldVersion = next.projectWorld.world.worldVersion;
+    next.statePartitions.projectWorld.evidence.semanticHash = next.projectWorld.world.semanticHash;
+  }
   validatePipelineState(next, options);
   return next;
 }
@@ -237,21 +257,21 @@ function makeStatePartitions(options, summaries) {
   options = options || {};
   summaries = summaries || {};
   return {
-    requirement: {
-      owner: 'RequirementModel',
-      artifact: 'designBrief',
+    creative: {
+      owner: 'CreativeImagination',
+      artifact: 'CreativeVision',
       aiVisibleToLlm2: false,
       evidence: {
-        hasDesignBrief: !!options.designBrief,
-        hasDiff: !!options.diff,
+        hasCreativeVision: !!options.creativeVision,
+        hasCreativeChange: !!options.creativeChange,
       },
     },
     llm2Intent: {
-      owner: 'IntentAgent',
-      artifact: 'Intent DSL',
+      owner: 'IntentSlotDirector',
+      artifact: 'Intent Slot Packet',
       aiVisibleToLlm2: true,
       evidence: {
-        intentDslLineCount: summaries.intentDslLineCount || 0,
+        intentSlotCommandCount: summaries.intentSlotCommandCount || 0,
         reads: ['llm2.nodeInput'],
       },
     },
@@ -364,8 +384,8 @@ function makeSanitizedWorldContext(options) {
 function makeLlm2NodeInput(options) {
   return {
     userRequest: intentAgent.sanitizeUserPromptForIntentPrompt(options.userRequest || options.prompt),
-    designBrief: intentAgent.sanitizeDesignBriefForIntentPrompt(options.designBrief),
-    diff: intentAgent.sanitizeDesignDiffForIntentPrompt(options.diff),
+    creativeVision: intentAgent.sanitizeCreativeVisionForIntentPrompt(options.creativeVision),
+    creativeChange: intentAgent.sanitizeCreativeChangeForIntentPrompt(options.creativeChange),
     worldContext: makeSanitizedWorldContext(options),
   };
 }
@@ -378,6 +398,8 @@ function createPipelineState(options) {
   }
   var diagnostics = collectDiagnostics(options);
   var intentDslLines = normalizeTextLines(options.intentDslText);
+  var intentSlotPacket = clone(options.intentSlotPacket || null);
+  var intentSlotCommandCount = intentSlotPacket && Array.isArray(intentSlotPacket.commands) ? intentSlotPacket.commands.length : 0;
   var targetPlanLines = normalizeTextLines(options.targetPlanText || (options.bridgePlan && options.bridgePlan.targetPlanText));
   var llm2NodeInput = makeLlm2NodeInput(options);
   var intentGraphSummary = summarizeIntentGraph(options.intentGraph);
@@ -385,7 +407,7 @@ function createPipelineState(options) {
   var bridgeSummary = summarizeBridgePlan(options.bridgePlan);
   var resultCardSummary = summarizeResultCard(options.compileResultCard);
   var statePartitions = makeStatePartitions(options, {
-    intentDslLineCount: intentDslLines.length,
+    intentSlotCommandCount: intentSlotCommandCount,
     targetPlanLineCount: targetPlanLines.length,
     intentGraphSummary: intentGraphSummary,
     placementSummary: placementSummary,
@@ -402,13 +424,13 @@ function createPipelineState(options) {
     userRequest: {
       text: options.userRequest || options.prompt || null,
     },
-    requirement: {
-      designBrief: clone(options.designBrief || null),
-      diff: clone(options.diff || null),
+    creative: {
+      vision: clone(options.creativeVision || null),
+      change: clone(options.creativeChange || null),
     },
     llm2: {
-      intentDslText: options.intentDslText || null,
-      intentDslLineCount: intentDslLines.length,
+      intentSlotPacket: intentSlotPacket,
+      intentSlotCommandCount: intentSlotCommandCount,
       nodeInput: llm2NodeInput,
       sanitizedWorldContext: llm2NodeInput.worldContext,
     },
@@ -421,6 +443,8 @@ function createPipelineState(options) {
       summary: placementSummary,
     },
     compiler: {
+      intentDslText: options.intentDslText || null,
+      intentDslLineCount: intentDslLines.length,
       contracts: clone(options.intentContracts || null),
       resultCard: clone(options.compileResultCard || null),
       resultCardSummary: resultCardSummary,
@@ -489,12 +513,37 @@ function validatePipelineState(state, options) {
   }
   validateNodeContractsSnapshot(state.nodeContracts);
   if (state.artifactKind === 'intent' && !options.allowPartial) {
-    if (!state.llm2 || !state.llm2.intentDslText) throw new Error('Intent PipelineState requires llm2.intentDslText');
+    if (!state.llm2 || !state.llm2.intentSlotPacket) throw new Error('Intent PipelineState requires llm2.intentSlotPacket');
+    intentSlots.parseSlotPacket(JSON.stringify(state.llm2.intentSlotPacket));
+    var slotCount = state.llm2.intentSlotPacket.commands.length;
+    if (state.llm2.intentSlotCommandCount !== slotCount) throw new Error('Intent PipelineState slot command count mismatch');
+    if (!state.statePartitions || !state.statePartitions.llm2Intent || state.statePartitions.llm2Intent.evidence.intentSlotCommandCount !== slotCount) {
+      throw new Error('Intent PipelineState slot partition evidence mismatch');
+    }
+    if (!state.compiler || !state.compiler.intentDslText) throw new Error('Intent PipelineState requires compiler.intentDslText');
     if (!state.intentGraph || !state.intentGraph.graph) throw new Error('Intent PipelineState requires intentGraph.graph');
     if (!state.resolver || !state.resolver.placementPlan) throw new Error('Intent PipelineState requires resolver.placementPlan');
     if (!state.bridge || !state.bridge.bridgePlan) throw new Error('Intent PipelineState requires bridge.bridgePlan');
     if (!state.compiler || !state.compiler.contracts || state.compiler.contracts.intentCompile !== 'passed') {
       throw new Error('Intent PipelineState requires passed compiler contracts');
+    }
+    var intentDslLineCount = normalizeTextLines(state.compiler.intentDslText).length;
+    if (state.compiler.intentDslLineCount !== intentDslLineCount) throw new Error('Intent PipelineState DSL line count mismatch');
+    var targetPlanLineCount = normalizeTextLines(state.bridge.targetPlanText).length;
+    if (state.bridge.targetPlanLineCount !== targetPlanLineCount) throw new Error('Intent PipelineState target plan line count mismatch');
+    if (!state.bridge.summary || state.bridge.summary.targetPlanLines !== targetPlanLineCount) throw new Error('Intent PipelineState bridge summary count mismatch');
+    if (!state.statePartitions.runtimeExecutionPlan || state.statePartitions.runtimeExecutionPlan.evidence.targetPlanLineCount !== targetPlanLineCount) {
+      throw new Error('Intent PipelineState runtime plan partition count mismatch');
+    }
+    var bridgePlan = state.bridge.bridgePlan;
+    var adapterCount = (bridgePlan.runtimeAdapterRequirements || []).length;
+    if (state.statePartitions.runtimeExecutionPlan.evidence.runtimeAdapterRequirements !== adapterCount) throw new Error('Intent PipelineState runtime adapter evidence mismatch');
+    if (state.statePartitions.compilerModuleFacts.evidence.installedModules !== (bridgePlan.installedModules || []).length) throw new Error('Intent PipelineState installed module evidence mismatch');
+    if (state.statePartitions.compilerModuleFacts.evidence.tickRuntimeModules !== (((bridgePlan.tickRuntimeManifest || {}).modules) || []).length) throw new Error('Intent PipelineState tick runtime module evidence mismatch');
+    if (!state.runtime.summary || state.runtime.summary.total !== targetPlanLineCount) throw new Error('Intent PipelineState runtime total count mismatch');
+    if (state.runtime.summary.completed + state.runtime.summary.failed !== state.runtime.summary.total) throw new Error('Intent PipelineState runtime completion count mismatch');
+    if (!state.projectWorld.world || state.statePartitions.projectWorld.evidence.worldVersion !== state.projectWorld.world.worldVersion || state.statePartitions.projectWorld.evidence.semanticHash !== state.projectWorld.world.semanticHash) {
+      throw new Error('Intent PipelineState ProjectWorld partition evidence mismatch');
     }
   }
   assertNoProhibitedAiVisibleSurface(state.llm2 && state.llm2.sanitizedWorldContext, 'llm2.sanitizedWorldContext');

@@ -66,7 +66,10 @@ function main() {
   assert.strictEqual(report.owner, 'FullCreativeLoop', 'report should declare owner');
   assert.strictEqual(report.mode, 'deterministic-mock-llm-single-player', 'loop should use deterministic Mock LLM mode');
   assert.strictEqual(report.summary.nextAction, 'done', 'full creative loop should finish after repair');
-  assert(report.mockLlm.initialIntent.intentDslText.indexOf('make a mobile parkour platformer') >= 0, 'Mock LLM should generate initial Intent DSL');
+  assert.strictEqual(typeof report.mockLlm.creativeVision, 'string', 'Mock creative model should return free creative text');
+  assert(report.mockLlm.creativeVision.indexOf('{') < 0, 'Mock creative model should stay outside the contract packet');
+  assert(report.mockLlm.initialIntent.intentSlotPacket.commands.length >= 4, 'Mock LLM2 should generate the initial Intent slot packet');
+  assert(report.mockLlm.initialIntent.intentDslText.indexOf('make a mobile parkour platformer') >= 0, 'Deterministic renderer should generate initial Intent DSL');
   assert.strictEqual(report.mockLlm.repairDecision.decisionSource, 'llm2-context-cache-router.dynamicTail.semanticRepairCandidates', 'Mock LLM repair should read routed semantic repair candidates');
   assert.strictEqual(report.mockLlm.repairDecision.decision.owner, 'LLM2DecisionRuntime', 'Mock LLM repair should run through Decision Runtime');
   assert.strictEqual(report.mockLlm.repairDecision.decision.decisionType, 'apply_intent', 'repair decision should apply Intent DSL');

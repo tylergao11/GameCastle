@@ -53,6 +53,8 @@ function testNaturalIntentParses() {
   assert(ast.commands[7].placement.pattern === 'trail', 'coins pattern should be trail');
   assert(ast.commands[7].placement.count === 8, 'coins count should parse');
   assert(ast.commands[8].placement.direction === 'far-front', 'far front should normalize to far-front');
+  var canonicalFarFront = intentDsl.parseIntentDsl('place enemies near Player far-front as guard count 2');
+  assert(canonicalFarFront.commands[0].placement.direction === 'far-front', 'canonical far-front from semantic guidance must parse directly');
 }
 
 function testMachineFormsRejected() {

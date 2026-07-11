@@ -1,159 +1,91 @@
+var assert = require('assert');
+
 var agentWorkflow = require('./agent-workflow');
-var agentContracts = require('./agent-contracts');
-var capabilities = require('./capabilities');
-var path = require('path');
-var requirementAgent = require('./requirement-agent');
+var creativeAgent = require('./creative-agent');
 var pipeline = require('./pipeline');
 
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
-}
-
-function main() {
-  var emptyEnv = {};
-  assert(
-    agentWorkflow.resolveRoleModel('requirement', emptyEnv) === 'deepseek-v4-flash',
-    'requirement model should default to deepseek-v4-flash'
-  );
-  assert(
-    agentWorkflow.resolveRoleModel('intent', emptyEnv) === 'deepseek-v4-flash',
-    'intent model should default to deepseek-v4-flash'
-  );
-  assert(
-    agentWorkflow.resolveRoleModel('intentRepair', emptyEnv) === 'deepseek-v4-flash',
-    'intent repair should inherit intent model by default'
-  );
+async function main() {
+  var emptyEnv = { LLM_MODEL: '' };
+  assert.strictEqual(agentWorkflow.resolveRoleModel('creative', emptyEnv), 'deepseek-v4-flash');
+  assert.strictEqual(agentWorkflow.resolveRoleModel('intent', emptyEnv), 'deepseek-v4-flash');
 
   var customEnv = {
-    GAMECASTLE_REQUIREMENT_MODEL: 'req-model',
+    GAMECASTLE_CREATIVE_MODEL: 'creative-model',
     GAMECASTLE_INTENT_MODEL: 'intent-model',
-    GAMECASTLE_IMAGE_MODEL: 'image-model',
-    GAMECASTLE_VISION_MODEL: 'vision-model',
+    GAMECASTLE_INTENT_REPAIR_MODEL: 'repair-model',
   };
-  assert(agentWorkflow.resolveRoleModel('requirement', customEnv) === 'req-model', 'requirement env override failed');
-  assert(agentWorkflow.resolveRoleModel('intent', customEnv) === 'intent-model', 'intent env override failed');
-  assert(agentWorkflow.resolveRoleModel('intentRepair', customEnv) === 'intent-model', 'intent repair should inherit intent env override');
-  assert(agentWorkflow.resolveRoleModel('imageGeneration', customEnv) === 'image-model', 'image model env override failed');
-  assert(agentWorkflow.resolveRoleModel('vision', customEnv) === 'vision-model', 'vision model env override failed');
+  assert.strictEqual(agentWorkflow.resolveRoleModel('creative', customEnv), 'creative-model');
+  assert.strictEqual(agentWorkflow.resolveRoleModel('intent', customEnv), 'intent-model');
+  assert.strictEqual(agentWorkflow.resolveRoleModel('intentRepair', customEnv), 'repair-model');
 
-  var summary = agentWorkflow.getWorkflowSummary(customEnv);
-  var roles = summary.map(function(role) { return role.id; });
-  ['requirement', 'intent', 'intentRepair', 'imageGeneration', 'vision'].forEach(function(role) {
-    assert(roles.indexOf(role) >= 0, 'missing workflow role: ' + role);
+  ['creative', 'intent', 'intentRepair', 'imageGeneration', 'vision'].forEach(function(role) {
+    assert(agentWorkflow.getRole(role), 'role must be registered: ' + role);
   });
-  var intentRole = agentWorkflow.getRole('intent');
-  assert(intentRole.owner === 'LLM2', 'live intent role should remain the LLM2 owner');
-  assert(intentRole.purpose.indexOf('Intent DSL') >= 0, 'live intent role should describe Intent DSL');
-  assert(agentWorkflow.getRole('intentRepair').owner === 'LLM2', 'Intent repair should remain inside the LLM2 Intent owner boundary');
-  assert(agentWorkflow.getRole('intentRepair').purpose.indexOf('Intent DSL') >= 0, 'Intent repair should describe Intent DSL');
+  assert.strictEqual(agentWorkflow.getRegisteredRoles().length, 5);
+  assert.strictEqual(agentWorkflow.createAgent('creative').owner, 'LLM1');
+  assert.strictEqual(agentWorkflow.createAgent('intent').owner, 'LLM2');
+  assert.strictEqual(agentWorkflow.getRole('creative').reasoningEffort, 'medium', 'LLM1 director order should use medium reasoning');
+  assert.strictEqual(agentWorkflow.getRole('intent').reasoningEffort, 'medium', 'LLM2 slot mapping should use medium reasoning');
+  assert.strictEqual(agentWorkflow.getRole('intentRepair').reasoningEffort, 'medium', 'LLM2 slot repair should use medium reasoning');
 
-  console.log('[AgentWorkflow] ' + summary.length + ' roles OK');
-
-  var req = agentWorkflow.createAgent('requirement');
-  assert(req.roleId === 'requirement', 'createAgent roleId');
-  assert(req.owner === 'LLM1', 'createAgent owner');
-  assert(typeof req.resolveModel === 'function', 'createAgent resolveModel');
-  assert(req.buildCallOptions().agentRole === 'requirement', 'buildCallOptions agentRole');
-  var img = agentWorkflow.createAgent('imageGeneration');
-  assert(img.implemented === true, 'imageGeneration implemented');
-  var vis = agentWorkflow.createAgent('vision');
-  assert(vis.implemented === false, 'vision not implemented');
-  assert(agentWorkflow.getRegisteredRoles().length === 5, '5 registered roles');
-  console.log('[AgentWorkflow] createAgent factory OK');
-
-  var requirementPrompt = requirementAgent.buildRequirementSystemPrompt('movement, collectibles');
-  assert(requirementPrompt.indexOf('project.json') < 0, 'RequirementModel prompt must not name project.json');
-  assert(requirementPrompt.indexOf('"x"') < 0, 'RequirementModel prompt must not ask for x coordinates');
-  assert(requirementPrompt.indexOf('"y"') < 0, 'RequirementModel prompt must not ask for y coordinates');
-  assert(requirementPrompt.indexOf('"width"') < 0, 'RequirementModel prompt must not ask for object width');
-  assert(requirementPrompt.indexOf('"height"') < 0, 'RequirementModel prompt must not ask for object height');
-  assert(requirementPrompt.indexOf('"value"') < 0, 'RequirementModel prompt must not ask for variable values');
-  assert(requirementPrompt.indexOf('"anchor"') >= 0, 'RequirementModel prompt should ask for natural placement anchors');
-  assert(requirementPrompt.indexOf('"direction"') >= 0, 'RequirementModel prompt should ask for natural placement directions');
-
-  var liveCapabilityCatalog = capabilities.loadCapabilityCatalog(path.join(__dirname, 'product-modules'));
-  var liveCreativeSummary = capabilities.buildCreativeCapabilitySummary(liveCapabilityCatalog);
-  var liveRequirementPrompt = requirementAgent.buildRequirementSystemPrompt(liveCreativeSummary);
-  assert(liveRequirementPrompt.indexOf('Product modules:') < 0, 'RequirementModel live prompt must not expose product module cards');
-  assert(liveRequirementPrompt.indexOf('core.platformer') < 0, 'RequirementModel live prompt must not expose product module ids');
-  assert(liveRequirementPrompt.indexOf('shell.start_screen') < 0, 'RequirementModel live prompt must not expose shell module ids');
-  assert(liveRequirementPrompt.indexOf('project.json') < 0, 'RequirementModel live prompt must not name project.json');
-  assert(liveRequirementPrompt.indexOf('platformer') >= 0, 'RequirementModel live prompt should retain natural capability hints');
-
-  var validBrief = {
-    theme: 'mobile platformer',
-    objects: [{ name: 'Player', kind: 'player', note: 'hero' }],
-    rules: ['Player collects Coin -> score increases'],
-    layout: { placements: [{ object: 'Player', anchor: 'screen', direction: 'center' }] },
-    behaviors: [{ object: 'Player', behavior: 'platformer' }],
-    variables: [{ name: 'Score' }],
-    difficulty: 'easy',
-    controls: 'joystick and jump'
-  };
-  assert(agentContracts.validateDesignBrief(validBrief).valid, 'natural DesignBrief should validate');
-
-  var coordinateBrief = JSON.parse(JSON.stringify(validBrief));
-  coordinateBrief.layout.placements = [{ object: 'Player', x: 100, y: 400 }];
-  assert(!agentContracts.validateDesignBrief(coordinateBrief).valid, 'DesignBrief validator must reject x/y placement');
-
-  var defaultBrief = JSON.parse(JSON.stringify(validBrief));
-  defaultBrief.objects[0].width = 32;
-  assert(!agentContracts.validateDesignBrief(defaultBrief).valid, 'DesignBrief validator must reject runtime size defaults');
-
-  var variableValueBrief = JSON.parse(JSON.stringify(validBrief));
-  variableValueBrief.variables[0].value = 0;
-  assert(!agentContracts.validateDesignBrief(variableValueBrief).valid, 'DesignBrief validator must reject runtime variable values');
-
-  var rawPriorBrief = {
-    theme: 'mobile platformer',
-    objects: [
-      { name: 'Player', kind: 'player', width: 32, height: 48, color: '#4488FF', note: 'hero' },
-      { name: 'gdjs.BadObject', kind: 'ui', note: 'componentId=input.jump_button' }
+  var templates = {
+    modules: [
+      { id: 'core.platformer', category: 'core', llm1Card: 'A complete platformer game core.' },
+      { id: 'core.shooter', category: 'core', llm1Card: 'A complete shooter game core.' },
     ],
-    rules: [
-      'Player collects Coin -> score increases',
-      'on key ArrowLeft held -> move Player x=-4 scene=Game'
-    ],
-    layout: { placements: [{ object: 'Player', x: 100, y: 520 }] },
-    variables: [{ name: 'Score', value: 0 }],
-    difficulty: 'easy',
-    controls: 'keyboard'
   };
-  var previousPrompt = requirementAgent.buildRequirementUserPrompt([
-    'make it mobile',
-    'move the hero slightly forward',
-    'set placement object=Fox x=1 y=2 scene=Game'
-  ].join('\n'), rawPriorBrief);
-  assert(previousPrompt.indexOf('"x"') < 0, 'RequirementModel previous brief prompt must sanitize x');
-  assert(previousPrompt.indexOf('"width"') < 0, 'RequirementModel previous brief prompt must sanitize width');
-  assert(previousPrompt.indexOf('"value"') < 0, 'RequirementModel previous brief prompt must sanitize variable value');
-  assert(previousPrompt.indexOf('gdjs.BadObject') < 0, 'RequirementModel previous brief prompt must sanitize GDJS-like object names');
-  assert(previousPrompt.indexOf('componentId=input.jump_button') < 0, 'RequirementModel previous brief prompt must sanitize component ids in notes');
-  assert(previousPrompt.indexOf('move Player x=-4') < 0, 'RequirementModel previous brief prompt must sanitize internal target rules');
-    'move the hero slightly forward',
-  assert(previousPrompt.indexOf('set placement object=Fox') < 0, 'RequirementModel user prompt must sanitize target-plan instructions');
-  assert(previousPrompt.indexOf('make it mobile') >= 0, 'RequirementModel user prompt should preserve safe natural wording');
-  assert(previousPrompt.indexOf('move the hero slightly forward') >= 0, 'RequirementModel user prompt should preserve safe natural edits');
-  assert(previousPrompt.indexOf('bottom-left') >= 0, 'RequirementModel previous brief prompt should preserve semantic placement');
+  var systemPrompt = creativeAgent.buildCreativeSystemPrompt(templates);
+  assert(systemPrompt.indexOf('Creative Imagination') >= 0, 'LLM1 prompt must identify creative ownership');
+  ['template_selection carries', 'game_definition carries', 'play_plan carries', 'placement_plan carries', 'control_plan carries', 'win_condition carries'].forEach(function(token) {
+    assert(systemPrompt.indexOf(token) >= 0, 'LLM1 prompt must explain director order slot content: ' + token);
+  });
+  ['DSL', 'example', 'never', 'do not', "don't"].forEach(function(token) {
+    assert(systemPrompt.toLowerCase().indexOf(token.toLowerCase()) < 0, 'LLM1 prompt must keep director language affirmative and non-executable: ' + token);
+  });
 
-  var safeHistory = requirementAgent.sanitizeRequirementHistory([
-    { role: 'user', content: 'make platformer\nmove the hero slightly forward\nset placement object=Fox x=1 y=2 scene=Game' },
-    { role: 'assistant', content: JSON.stringify(rawPriorBrief) }
-  ]);
-  var safeHistoryText = JSON.stringify(safeHistory);
-  assert(safeHistoryText.indexOf('"x"') < 0, 'RequirementModel history must sanitize x');
-  assert(safeHistoryText.indexOf('"height"') < 0, 'RequirementModel history must sanitize height');
-  assert(safeHistoryText.indexOf('#4488FF') < 0, 'RequirementModel history must sanitize implementation colors');
-  assert(safeHistoryText.indexOf('set placement object=Fox') < 0, 'RequirementModel history must sanitize target-plan instructions');
-  assert(safeHistoryText.indexOf('make platformer') >= 0, 'RequirementModel history should preserve safe user wording');
-  assert(safeHistoryText.indexOf('move the hero slightly forward') >= 0, 'RequirementModel history should preserve safe natural edits');
+  var previousVision = JSON.stringify({
+    template_selection: 'mobile_platformer',
+    game_definition: 'A moonlit courier crosses a rearranging city.',
+    play_plan: 'Read streets and deliver before the next bell.',
+    placement_plan: 'Routes climb through city blocks with rewards on alternate paths.',
+    control_plan: 'Run and jump between changing routes.',
+    win_condition: 'Complete the final delivery before dawn.',
+  });
+  var userPrompt = creativeAgent.buildCreativeUserPrompt('Make the city feel more alive.', previousVision);
+  assert(userPrompt.indexOf(previousVision) >= 0, 'iteration prompt must retain the previous creative vision');
+  assert(userPrompt.indexOf('Make the city feel more alive.') >= 0, 'iteration prompt must retain the user request');
 
-  var movedBrief = JSON.parse(JSON.stringify(validBrief));
-  movedBrief.layout.placements = [{ object: 'Player', anchor: 'screen', direction: 'bottom-left' }];
-  var briefDiff = pipeline.diffDesignBriefs(validBrief, movedBrief);
-  assert(briefDiff.modified.placements.length === 1, 'natural placement direction changes should be detected');
-  assert(briefDiff.modified.placements[0].object === 'Player', 'natural placement diff should preserve object name');
-  console.log('[RequirementAgent] natural DesignBrief boundary OK');
+  var generated = await creativeAgent.generateDirectorOrder({
+    userPrompt: 'Imagine a strange platformer.',
+    previousVision: null,
+    history: [],
+    productModuleCatalog: templates,
+    callModel: async function(_prompt, prompt, options) {
+      assert.strictEqual(prompt, systemPrompt);
+      assert.strictEqual(options.agentRole, 'creative');
+      return JSON.stringify({
+        template_selection: 'mobile_platformer',
+        game_definition: 'A castle of changing staircases.',
+        play_plan: 'Climb and reshape routes with each landing.',
+        placement_plan: 'Stairs rise through rooms with weather memories on high routes.',
+        control_plan: 'Jump and choose stair routes.',
+        win_condition: 'Reach the highest room.',
+      });
+    },
+  });
+  var generatedOrder = creativeAgent.parseDirectorOrder(generated, templates);
+  assert.strictEqual(generatedOrder.game_definition, 'A castle of changing staircases.');
+
+  var change = pipeline.makeCreativeVisionChange(previousVision, generated);
+  assert.strictEqual(change.isNew, false);
+  assert.strictEqual(change.changed, true);
+  assert.strictEqual(change.previousVision, previousVision);
+  assert.strictEqual(change.currentVision, generated);
+
+  console.log('[CreativeWorkflow] concise LLM1 director order and separate LLM2 ownership passed');
 }
 
-main();
+main().catch(function(error) {
+  console.error(error);
+  process.exit(1);
+});

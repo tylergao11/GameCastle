@@ -1,43 +1,37 @@
 # Platform — GameCastle 前端
 
-`platform/` 是 GameCastle 的 React/Vite 前端壳，负责发现、创建、生成进度、试玩、迭代和未来发布/联机入口。
+`platform/` 是 GameCastle 的 React/Vite 前端壳，只负责创建、生成进度、取消、试玩和继续迭代。
 
-当前实现仍是本地 mock 数据和模拟生成流程，尚未真正调用 `ai/pipeline.js`。
+当前创建主链通过 Local Game Runtime API 调用真实 `ai/pipeline.js`。前端只消费稳定的运行状态和试玩 URL，不读取本地文件，也不解析管线日志。
 
 ## 技术栈
 
 - React
 - TypeScript
 - Vite
-- Tailwind CSS v4
-- React Router
-- lucide-react
+- 手写 CSS
+- Browser History API
 
 ## 入口
 
 | 文件 | 职责 |
 |------|------|
 | `src/main.tsx` | React 挂载入口 |
-| `src/App.tsx` | 路由和整体壳 |
-| `src/context/GameContext.tsx` | 游戏列表、分类、收藏和模拟生成状态 |
-| `src/pages/DiscoverPage.tsx` | 发现页 |
-| `src/pages/CreatePage.tsx` | 创建/迭代页 |
-| `src/components/` | 页面组件 |
+| `src/App.tsx` | 单一产品入口 |
+| `src/pages/GameCastleExperience.tsx` | 创建、真实进度、试玩和继续迭代 |
+| `src/runtime/` | Local Game Runtime HTTP/SSE 客户端 |
 
 ## 命令
 
 ```bash
-npm install
+# 从仓库根目录启动完整产品
 npm run dev
-npm run build
-npm run lint
+
+# 单独验证前端
+npm --prefix platform run build
+npm --prefix platform run lint
 ```
 
-## 待接入
+## Local Runtime
 
-- 调用生成管线，而不是本地 `setTimeout` 模拟。
-- 展示 LLM1 的创意摘要和 LLM2 的 Intent DSL 与语义执行进度。
-- iframe 加载可玩版本。
-- postMessage 接收运行时事件、分数、错误和完成状态。
-- 版本历史、发布、分享。
-- 联机房间和同步状态入口。
+从仓库根目录运行 `npm run dev`，会同时启动 `127.0.0.1:4183` 的 Local Game Runtime 和 Vite。创建、继续迭代、状态流、失败展示与 iframe 试玩都走 `/api/runtime` 契约。

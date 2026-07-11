@@ -16,6 +16,7 @@ async function main() {
       }
     }
   });
+  var intentSlotPacket = { schemaVersion: 1, commands: [{ kind: 'make_game', slots: { description: 'mobile platformer' } }] };
 
   var packet = await pipeline.makePendingApprovalPacket({
     prompt: 'make a mobile platformer',
@@ -26,6 +27,7 @@ async function main() {
     artifactKind: 'intent',
     project: pipeline.emptyProject('IntentApprovalCheck'),
     baseWorld: null,
+    intentSlotPacket: intentSlotPacket,
     intentDslText: intentDslText,
     intentGraph: compiled.graph,
     placementPlan: compiled.placementPlan,
@@ -36,20 +38,14 @@ async function main() {
     modules: compiled.bridgePlan.installedModules,
     tickRuntimeManifest: compiled.bridgePlan.tickRuntimeManifest,
     runtimeAdapterRequirements: compiled.bridgePlan.runtimeAdapterRequirements,
-    designBrief: {
-      theme: 'mobile platformer',
-      objects: [],
-      rules: [],
-      layout: { placements: [] },
-      difficulty: 'easy',
-      controls: 'joystick and buttons'
-    },
-    diff: { isNew: true }
+    creativeVision: 'A mobile platformer with expressive jumps and bright collectible rhythm.',
+    creativeChange: { isNew: true, changed: true, previousVision: null, currentVision: 'A mobile platformer with expressive jumps and bright collectible rhythm.' }
   });
 
   assert.strictEqual(packet.artifactKind, 'intent', 'approval packet should record Intent artifact kind');
   assert.strictEqual(packet.requiresIntentIterationState, false, 'approval packet should record Intent iteration-state requirement');
   assert(packet.intentDslText.indexOf('make a mobile platformer') >= 0, 'approval packet should include Intent DSL');
+  assert.deepStrictEqual(packet.intentSlotPacket, intentSlotPacket, 'approval packet should include the LLM2 slot contract');
   assert(packet.intentGraph && packet.intentGraph.components.length >= 4, 'approval packet should include typed Intent Graph');
   assert(packet.placementPlan && packet.placementPlan.placements.length >= 4, 'approval packet should include Placement Plan');
   assert(packet.bridgePlan && packet.bridgePlan.targetPlanLines.length > 0, 'approval packet should include Bridge Plan');

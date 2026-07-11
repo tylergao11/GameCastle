@@ -2,15 +2,16 @@
 
 `ai/` owns the AI-first intent engine. It converts natural game intent into runnable GDevelop/GDJS output through typed intermediate contracts, deterministic runtime owners, semantic playtest evidence, and owner-routed repair.
 
-The live LLM2 product surface is Intent DSL. Internal target instructions are compiler/runtime-owned only. LLM2 must not see or produce coordinates, component ids, GDJS event details, runtime adapter ids, internal command fields, or `project.json` edits as its normal product language.
+The live LLM1 product surface is unrestricted CreativeVision text. The live LLM2 product surface is a closed Intent slot packet. A deterministic renderer turns that packet into natural Intent DSL, and compiler/runtime owners handle engine facts.
 
 ## Closed Loop
 
 ```text
 user request
-  -> RequirementModel / LLM1 creative brief
+  -> CreativeImagination / LLM1 unrestricted CreativeVision
   -> IntentWorldView + safe capability summaries + semantic evidence
-  -> IntentAgent / LLM2 natural Intent DSL
+  -> IntentAgent / LLM2 closed Intent slots
+  -> deterministic natural Intent DSL renderer
   -> Intent parser and typed Intent Graph
   -> placement resolver, component compiler, GDJS bridge
   -> runtime executor and HTML export
@@ -19,15 +20,16 @@ user request
   -> Decision Runtime / Context Provider / Repair Intent
 ```
 
-The loop is intentionally AI-first but not AI-owned end to end. AI proposes natural intent; engine owners lower, validate, execute, and diagnose. When a failure is past the parser/surface boundary, the corresponding owner fixes or rejects it instead of asking LLM2 to write target commands.
+The loop is intentionally AI-first with explicit ownership. LLM1 imagines freely, LLM2 recognizes semantics into declared slots, and engine owners lower, validate, execute, and diagnose.
 
 ## Key Owners
 
 | File / Area | Responsibility |
 |-------------|----------------|
 | `pipeline.js` | CLI and orchestration for create, continue, approval, execution, output writes, and semantic post-processing. |
-| `agent-workflow.js` | Model/role registry for requirement, Intent DSL, Intent repair, image, and vision roles. |
-| `intent-agent.js` | Intent Commander prompt, natural Intent DSL generation, and surface-level Intent repair. |
+| `agent-workflow.js` | Model/role registry for creative imagination, Intent slot mapping, slot repair, image, and vision roles. |
+| `intent-agent.js` | Slot Director prompt, slot repair, and deterministic handoff to the Intent renderer. |
+| `intent-slots.js` | Closed command/slot validation, platformer default filling, and the sole natural Intent DSL renderer. |
 | `intent-dsl.js` | Natural Intent DSL parser and surface validation. |
 | `intent-compiler.js` | Typed Intent Graph creation and aggregate compile contract production. |
 | `placement-resolver.js` | Semantic placement resolution without exposing coordinates to LLM2. |
@@ -73,7 +75,7 @@ The AI continuation interface is complete Intent iteration state, not a standalo
 Run the full gate with the local GDevelop checkout:
 
 ```bash
-set GAMECASTLE_GDEVELOP_SOURCE_DIR=D:\GDevelop-master
+set GAMECASTLE_GDEVELOP_SOURCE_DIR=C:\Ai\GDevelop-master
 npm run check:ai
 ```
 

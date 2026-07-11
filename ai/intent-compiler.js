@@ -2,6 +2,7 @@ var intentDsl = require('./intent-dsl');
 var placementResolver = require('./placement-resolver');
 var placementContext = require('./placement-context');
 var componentCatalog = require('./component-catalog');
+var writeContract = require('./intent-write-contract');
 var gdjsBridge = require('./gdjs-bridge');
 var diagnosticRouter = require('./intent-diagnostic-router');
 var compileContract = require('./intent-compile-contract');
@@ -285,8 +286,15 @@ function addPlacement(state, subject, placement, source) {
   var anchor = placement.anchor;
   var anchorLower = anchor.toLowerCase();
   var anchorThing = null;
+  var screenEdge = anchorLower.match(/^screen[ .](top-left|top-right|bottom-left|bottom-right|left|right|top|bottom|center)$/);
+  if (screenEdge) {
+    var canonicalScreenAnchor = 'screen.' + screenEdge[1];
+    addRewrite(state, anchor, canonicalScreenAnchor, 'intent-compiler', 'screen-edge-anchor', 'Resolve Placement Intent');
+    anchor = canonicalScreenAnchor;
+    anchorLower = anchor.toLowerCase();
+  }
   if (anchorLower !== 'screen' && anchorLower !== 'screen.safearea') {
-    anchorThing = findThingByNaturalName(state, anchor);
+    anchorThing = anchorLower.indexOf('screen.') === 0 ? null : findThingByNaturalName(state, anchor);
     if (anchorThing) {
       if (anchorThing.name !== anchor) addRewrite(state, anchor, anchorThing.name, 'intent-compiler', 'natural-anchor', 'Resolve Placement Intent');
       anchor = anchorThing.name;
@@ -295,7 +303,7 @@ function addPlacement(state, subject, placement, source) {
   var placementIntent = {
     subject: subject,
     anchor: anchor,
-    space: anchor.toLowerCase() === 'screen' ? 'ui' : (anchorThing && anchorThing.archetype === 'ui' ? 'ui_relative' : 'object_relative'),
+    space: anchor.toLowerCase() === 'screen' ? 'ui' : (anchor.toLowerCase().indexOf('screen.') === 0 ? 'ui_relative' : (anchorThing && anchorThing.archetype === 'ui' ? 'ui_relative' : 'object_relative')),
     direction: placement.direction
   };
   if (placement.pattern) placementIntent.pattern = placement.pattern;
@@ -321,7 +329,8 @@ function processMakeGame(state, command) {
 
 function processGiveAbility(state, command) {
   var thing = addThing(state, command.target, inferThingArchetype(command.target), undefined, command.raw);
-  var manifest = componentCatalog.findAbilityComponent(state.componentCatalog, command.ability);
+  var abilityContract = writeContract.ability(command.ability);
+  var manifest = abilityContract && componentCatalog.getComponent(state.componentCatalog, abilityContract.componentId);
   if (!manifest) {
     addDiagnostic(state, 'Resolve Symbols', 'unknown-component', 'new-reusable-game-system', 'Could not resolve ability component: ' + command.ability, command.target);
     return;
@@ -335,7 +344,8 @@ function processGiveAbility(state, command) {
 
 function processAddControl(state, command) {
   var targetThing = addThing(state, command.target, inferThingArchetype(command.target), undefined, command.raw, 'control target referenced');
-  var manifest = componentCatalog.findControlComponent(state.componentCatalog, command.control, command.action);
+  var controlContract = writeContract.control(command.control);
+  var manifest = controlContract && componentCatalog.getComponent(state.componentCatalog, controlContract.componentId);
   if (!manifest) {
     addDiagnostic(state, 'Resolve Symbols', 'unknown-component', 'new-reusable-game-system', 'Could not resolve control component: ' + command.control, targetThing.name);
     return;
@@ -393,6 +403,7 @@ function processPlaceGroup(state, command) {
   var groupName = titleName(command.subject);
   if (!/group$/i.test(groupName)) groupName += 'Group';
   var thing = addThing(state, groupName, inferThingArchetype(command.archetype), 'group', command.raw);
+  thing.memberObject = titleName(command.archetype);
   var placementIntent = addPlacement(state, thing.name, command.placement, command.raw);
   state.graph.relations.push({
     type: 'near',

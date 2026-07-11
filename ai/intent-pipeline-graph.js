@@ -111,12 +111,14 @@ function makeArtifactReplayHandlers(completeState) {
         throw new Error('Intent graph LLM2 view leaked internal bridge/runtime state');
       }
       return {
-        'llm2.intentDslText': completeState.llm2.intentDslText,
-        'llm2.intentDslLineCount': completeState.llm2.intentDslLineCount,
+        'llm2.intentSlotPacket': completeState.llm2.intentSlotPacket,
+        'llm2.intentSlotCommandCount': completeState.llm2.intentSlotCommandCount,
       };
     },
     'intent-compiler': function() {
       return {
+        'compiler.intentDslText': completeState.compiler.intentDslText,
+        'compiler.intentDslLineCount': completeState.compiler.intentDslLineCount,
         'intentGraph.graph': completeState.intentGraph.graph,
         'intentGraph.summary': completeState.intentGraph.summary,
         'compiler.contracts': completeState.compiler.contracts,
@@ -158,8 +160,8 @@ async function makePipelineStateFromArtifacts(options) {
     batchLabel: options.batchLabel,
     artifactKind: options.artifactKind || 'intent',
     userRequest: options.userRequest,
-    designBrief: options.designBrief,
-    diff: options.diff,
+    creativeVision: options.creativeVision,
+    creativeChange: options.creativeChange,
     projectWorld: options.projectWorld,
     lastExecutionReport: options.executionReport,
   });

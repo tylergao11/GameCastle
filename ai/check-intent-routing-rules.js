@@ -135,6 +135,7 @@ function main() {
     'module-inference',
     'component-alias',
     'natural-anchor',
+    'screen-edge-anchor',
     'semantic-group'
   ], 'rewriteContract.allowedMechanisms');
 

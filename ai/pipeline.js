@@ -4,7 +4,6 @@
 var fs = require("fs");
 var path = require("path");
 var crypto = require("crypto");
-var capabilities = require("./capabilities");
 var projectWorld = require("./project-world");
 var placementContext = require("./placement-context");
 var pipelineState = require("./pipeline-state");
@@ -16,9 +15,9 @@ var intentRuntimeCodegen = require("./intent-runtime-codegen");
 var textureProvider = require("./texture-provider");
 var gdevelopTruth = require("./gdevelop-truth");
 var agentWorkflow = require("./agent-workflow");
-var agentContracts = require("./agent-contracts");
-var requirementAgent = require("./requirement-agent");
+var creativeAgent = require("./creative-agent");
 var intentAgent = require("./intent-agent");
+var intentSlots = require("./intent-slots");
 var llmProvider = require("./llm-provider");
 var intentCompiler = require("./intent-compiler");
 var intentPipelineGraph = require("./intent-pipeline-graph");
@@ -33,8 +32,8 @@ function gc_log(msg) {
 function callModel(prompt, systemPrompt, opts) {
   return llmProvider.callTextModel(prompt, systemPrompt, opts, gc_log);
 }
-var BRIEF_PATH = path.join(STATE_DIR, "design-brief.json");
-var HISTORY_PATH = path.join(STATE_DIR, "conversation.json");
+var CREATIVE_VISION_PATH = path.join(STATE_DIR, "creative-vision.txt");
+var CREATIVE_HISTORY_PATH = path.join(STATE_DIR, "creative-conversation.json");
 var PRODUCT_MODULES_DIR = path.join(__dirname, "product-modules");
 var INTENT_FIXTURES_DIR = path.join(__dirname, "fixtures");
 var GDEVELOP_RUNTIME_DIR = process.env.GAMECASTLE_GDJS_RUNTIME_DIR || path.join(__dirname, '..', 'engine', 'gdevelop-runtime');
@@ -790,101 +789,25 @@ function emptyProject(name) {
 }
 
 
-function diffDesignBriefs(oldBrief, newBrief) {
-  var diff = {
-    added:   { objects: [], placements: [], behaviors: [], variables: [], rules: [] },
-    removed: { objects: [], placements: [], behaviors: [], variables: [], rules: [] },
-    modified:{ objects: [], placements: [], behaviors: [], variables: [], rules: [] }
+function makeCreativeVisionChange(previousVision, currentVision) {
+  var previous = previousVision === undefined || previousVision === null ? null : String(previousVision).trim();
+  var current = currentVision === undefined || currentVision === null ? '' : String(currentVision).trim();
+  return {
+    isNew: !previous,
+    changed: previous !== current,
+    previousVision: previous,
+    currentVision: current,
   };
-  if (!oldBrief) return { added: newBrief, removed: {}, modified: {}, isNew: true };
-
-  var oldNames = (oldBrief.objects||[]).map(function(o){return o.name;});
-  var newNames = (newBrief.objects||[]).map(function(o){return o.name;});
-  (newBrief.objects||[]).forEach(function(o){ if (oldNames.indexOf(o.name)<0) diff.added.objects.push(o); });
-  (oldBrief.objects||[]).forEach(function(o){ if (newNames.indexOf(o.name)<0) diff.removed.objects.push(o); });
-  (newBrief.objects||[]).forEach(function(newObj){
-    var oldObj = (oldBrief.objects||[]).find(function(o){return o.name===newObj.name;});
-    if (oldObj && JSON.stringify(oldObj)!==JSON.stringify(newObj))
-      diff.modified.objects.push({name:newObj.name, old:oldObj, new:newObj});
-  });
-
-  var isStrRules = (oldBrief.rules||[]).length>0 && typeof (oldBrief.rules||[])[0]==='string';
-  if (isStrRules || ((newBrief.rules||[]).length>0 && typeof (newBrief.rules||[])[0]==='string')) {
-    var oldRuleStrs = (oldBrief.rules||[]).slice();
-    var newRuleStrs = (newBrief.rules||[]).slice();
-    (newBrief.rules||[]).forEach(function(r){ if (oldRuleStrs.indexOf(r)<0) diff.added.rules.push(r); });
-    (oldBrief.rules||[]).forEach(function(r){ if (newRuleStrs.indexOf(r)<0) diff.removed.rules.push(r); });
-  } else {
-    var oldRuleKeys = (oldBrief.rules||[]).map(function(r){return JSON.stringify({t:r.trigger,A:r.A,B:r.B,key:r.key,seconds:r.seconds});});
-    var newRuleKeys = (newBrief.rules||[]).map(function(r){return JSON.stringify({t:r.trigger,A:r.A,B:r.B,key:r.key,seconds:r.seconds});});
-    (newBrief.rules||[]).forEach(function(r,i){ if (oldRuleKeys.indexOf(newRuleKeys[i])<0) diff.added.rules.push(r); });
-    (oldBrief.rules||[]).forEach(function(r,i){ if (newRuleKeys.indexOf(oldRuleKeys[i])<0) diff.removed.rules.push(r); });
-    (newBrief.rules||[]).forEach(function(newR,i){
-      if (newRuleKeys[i] && oldRuleKeys.indexOf(newRuleKeys[i])>=0){
-        var oldR = (oldBrief.rules||[]).find(function(r){return JSON.stringify({t:r.trigger,A:r.A,B:r.B,key:r.key,seconds:r.seconds})===newRuleKeys[i];});
-        if (oldR && JSON.stringify(oldR.actions)!==JSON.stringify(newR.actions))
-          diff.modified.rules.push({trigger:newR.trigger, old:oldR, new:newR});
-      }
-    });
-  }
-
-  function placementKey(p) {
-    if (!p) return '';
-    return [
-      p.object || '',
-      p.anchor || p.near || '',
-      p.direction || '',
-      p.pattern || '',
-      p.count || '',
-      p.x !== undefined ? 'rawX:' + p.x : '',
-      p.y !== undefined ? 'rawY:' + p.y : ''
-    ].join('|');
-  }
-  var oldPlaced = (oldBrief.layout&&oldBrief.layout.placements||[]).map(function(p){return p.object;});
-  var newPlaced = (newBrief.layout&&newBrief.layout.placements||[]).map(function(p){return p.object;});
-  (newBrief.layout&&newBrief.layout.placements||[]).forEach(function(p){ if (oldPlaced.indexOf(p.object)<0) diff.added.placements.push(p); });
-  (oldBrief.layout&&oldBrief.layout.placements||[]).forEach(function(p){ if (newPlaced.indexOf(p.object)<0) diff.removed.placements.push(p); });
-  (newBrief.layout&&newBrief.layout.placements||[]).forEach(function(newP){
-    var oldP = (oldBrief.layout&&oldBrief.layout.placements||[]).find(function(p){return p.object===newP.object;});
-    if (oldP && placementKey(oldP) !== placementKey(newP))
-      diff.modified.placements.push({object:newP.object, old:oldP, new:newP});
-  });
-
-  function behaviorKey(b) { return b.object + (b.type || b.behavior || ''); }
-  var oldBeh = (oldBrief.behaviors||[]).map(behaviorKey);
-  var newBeh = (newBrief.behaviors||[]).map(behaviorKey);
-  (newBrief.behaviors||[]).forEach(function(b,i){ if (oldBeh.indexOf(newBeh[i])<0) diff.added.behaviors.push(b); });
-  (oldBrief.behaviors||[]).forEach(function(b,i){ if (newBeh.indexOf(oldBeh[i])<0) diff.removed.behaviors.push(b); });
-  (newBrief.behaviors||[]).forEach(function(newB){
-    var key = behaviorKey(newB);
-    if (oldBeh.indexOf(key)>=0) {
-      var oldB = (oldBrief.behaviors||[]).find(function(b){return behaviorKey(b)===key;});
-      if (oldB && JSON.stringify(oldB)!==JSON.stringify(newB))
-        diff.modified.behaviors.push({object:newB.object, behavior:newB.behavior||newB.type, old:oldB, new:newB});
-    }
-  });
-
-  var oldVar = (oldBrief.variables||[]).map(function(v){return v.name;});
-  var newVar = (newBrief.variables||[]).map(function(v){return v.name;});
-  (newBrief.variables||[]).forEach(function(v){ if (oldVar.indexOf(v.name)<0) diff.added.variables.push(v); });
-  (oldBrief.variables||[]).forEach(function(v){ if (newVar.indexOf(v.name)<0) diff.removed.variables.push(v); });
-  (newBrief.variables||[]).forEach(function(newV){
-    var oldV = (oldBrief.variables||[]).find(function(v){return v.name===newV.name;});
-    if (oldV && JSON.stringify(oldV)!==JSON.stringify(newV))
-      diff.modified.variables.push({name:newV.name, old:oldV, new:newV});
-  });
-
-  return diff;
 }
 
 function loadState() {
-  try { return { brief: JSON.parse(fs.readFileSync(BRIEF_PATH,'utf8')), history: JSON.parse(fs.readFileSync(HISTORY_PATH,'utf8')) }; }
-  catch(e) { return { brief: null, history: [] }; }
+  try { return { vision: fs.readFileSync(CREATIVE_VISION_PATH, 'utf8'), history: JSON.parse(fs.readFileSync(CREATIVE_HISTORY_PATH,'utf8')) }; }
+  catch(e) { return { vision: null, history: [] }; }
 }
-function saveState(brief, history) {
+function saveState(vision, history) {
   fs.mkdirSync(STATE_DIR, {recursive:true});
-  fs.writeFileSync(BRIEF_PATH, JSON.stringify(brief,null,2));
-  fs.writeFileSync(HISTORY_PATH, JSON.stringify(history,null,2));
+  fs.writeFileSync(CREATIVE_VISION_PATH, String(vision || ''), 'utf8');
+  fs.writeFileSync(CREATIVE_HISTORY_PATH, JSON.stringify(history,null,2), 'utf8');
 }
 
 function loadOutputProject(stateDir) {
@@ -896,11 +819,13 @@ function loadOutputProject(stateDir) {
   }
 }
 
-function loadExistingIntentIterationState(stateDir) {
+function loadExistingIntentIterationState(stateDir, options) {
+  options = options || {};
   var dir = stateDir || STATE_DIR;
   var projectPath = path.join(dir, 'project.json');
   var worldPath = projectWorld.getWorldPath(dir);
   var ledgerPath = projectWorld.getLedgerPath(dir);
+  var creativeVisionPath = path.join(dir, 'creative-vision.txt');
   var project = loadOutputProject(dir);
   var world = projectWorld.loadProjectWorld(dir);
   var ledgerExists = fs.existsSync(ledgerPath);
@@ -910,6 +835,9 @@ function loadExistingIntentIterationState(stateDir) {
   if (!world) errors.push('ProjectWorld: ' + worldPath);
   if (!ledgerExists || !ledger || !Array.isArray(ledger.runs) || ledger.runs.length === 0) {
     errors.push('ExecutionLedger with at least one run: ' + ledgerPath);
+  }
+  if (options.requireCreativeVision !== false && (!fs.existsSync(creativeVisionPath) || !fs.readFileSync(creativeVisionPath, 'utf8').trim())) {
+    errors.push('CreativeVision: ' + creativeVisionPath);
   }
   return {
     ok: errors.length === 0,
@@ -921,6 +849,7 @@ function loadExistingIntentIterationState(stateDir) {
       project: projectPath,
       world: worldPath,
       ledger: ledgerPath,
+      creativeVision: creativeVisionPath,
     },
   };
 }
@@ -944,6 +873,10 @@ function resetGeneratedStateForNewProject(options) {
     PENDING_APPROVAL_PATH,
     projectWorld.getWorldPath(STATE_DIR),
     projectWorld.getLedgerPath(STATE_DIR),
+    CREATIVE_VISION_PATH,
+    CREATIVE_HISTORY_PATH,
+    path.join(STATE_DIR, 'design-brief.json'),
+    path.join(STATE_DIR, 'conversation.json'),
   ].forEach(function(filePath) {
     if (options.keepPendingApproval && filePath === PENDING_APPROVAL_PATH) return;
     safeUnlinkGeneratedFile(filePath, 'reset generated state');
@@ -1123,8 +1056,9 @@ async function executeTargetPlanBatch(project, targetPlanText, batchLabel, optio
       batchLabel: batchLabel,
       artifactKind: options.intent.artifactKind || 'intent',
       userRequest: options.userRequest,
-      designBrief: options.designBrief,
-      diff: options.diff,
+      creativeVision: options.creativeVision,
+      creativeChange: options.creativeChange,
+      intentSlotPacket: options.intent.intentSlotPacket,
       intentDslText: options.intent.intentDslText,
       intentGraph: options.intent.intentGraph,
       placementPlan: options.intent.placementPlan,
@@ -1314,8 +1248,8 @@ async function makePendingApprovalPacket(options) {
   if (!options || options.artifactKind !== 'intent') {
     throw new Error('Pending approval only accepts compiled Intent artifacts');
   }
-  if (!options.intentDslText || !options.intentGraph || !options.placementPlan || !options.bridgePlan) {
-    throw new Error('Pending approval requires Intent DSL, Intent Graph, Placement Plan, and Bridge Plan');
+  if (!options.intentSlotPacket || !options.intentDslText || !options.intentGraph || !options.placementPlan || !options.bridgePlan) {
+    throw new Error('Pending approval requires Intent slots, rendered Intent DSL, Intent Graph, Placement Plan, and Bridge Plan');
   }
   var preview = await previewApprovalArtifact(options.project, options.targetPlanText || '', {
     batchLabel: options.batchLabel,
@@ -1338,8 +1272,9 @@ async function makePendingApprovalPacket(options) {
     batchLabel: options.batchLabel,
     artifactKind: options.artifactKind,
     userRequest: options.prompt,
-    designBrief: options.designBrief,
-    diff: options.diff,
+    creativeVision: options.creativeVision,
+    creativeChange: options.creativeChange,
+    intentSlotPacket: options.intentSlotPacket,
     intentDslText: options.intentDslText,
     intentGraph: options.intentGraph,
     placementPlan: options.placementPlan,
@@ -1348,6 +1283,17 @@ async function makePendingApprovalPacket(options) {
     compileResultCard: options.compileResultCard,
     targetPlanText: options.targetPlanText,
     projectWorld: preview.projectWorld,
+    executionReport: {
+      mode: 'approval-preview',
+      summary: {
+        total: preview.total,
+        completed: preview.completed,
+        failed: preview.failed,
+        nextAction: preview.nextAction,
+        routedDiagnostics: preview.routedDiagnostics.length,
+      },
+      failed: preview.runtimeFailureSummary,
+    },
   };
   var state = await makeIntentPipelineStateFromGraph(stateOptions);
   var aiVisibleForLlm2 = makeApprovalAiVisibleProjection(state, Object.assign({}, options, { preview: preview }));
@@ -1363,6 +1309,7 @@ async function makePendingApprovalPacket(options) {
     baseWorldVersion: options.baseWorld ? options.baseWorld.worldVersion : null,
     baseSemanticHash: options.baseWorld ? options.baseWorld.semanticHash : null,
     intentDslText: options.intentDslText || null,
+    intentSlotPacket: options.intentSlotPacket || null,
     intentGraph: options.intentGraph || null,
     placementPlan: options.placementPlan || null,
     bridgePlan: options.bridgePlan || null,
@@ -1375,8 +1322,8 @@ async function makePendingApprovalPacket(options) {
     modules: options.modules || null,
     tickRuntimeManifest: options.tickRuntimeManifest || null,
     runtimeAdapterRequirements: options.runtimeAdapterRequirements || null,
-    designBrief: options.designBrief || null,
-    diff: options.diff || null,
+    creativeVision: options.creativeVision || null,
+    creativeChange: options.creativeChange || null,
     preview: preview,
     pipelineState: state,
     aiVisibleForLlm2: aiVisibleForLlm2,
@@ -1425,14 +1372,15 @@ async function approvePendingArtifact() {
   var batch = await executeTargetPlanBatch(project, pending.targetPlanText || '', pending.batchLabel || 'apply', {
     projectMode: pending.projectMode,
     userRequest: pending.prompt,
-    designBrief: pending.designBrief,
-    diff: pending.diff,
+    creativeVision: pending.creativeVision,
+    creativeChange: pending.creativeChange,
     modules: pending.modules,
     tickRuntimeManifest: pending.tickRuntimeManifest,
     runtimeAdapterRequirements: pending.runtimeAdapterRequirements,
     allowEmpty: true,
     intent: {
       artifactKind: pending.artifactKind,
+      intentSlotPacket: pending.intentSlotPacket,
       intentDslText: pending.intentDslText,
       intentGraph: pending.intentGraph,
       placementPlan: pending.placementPlan,
@@ -1457,9 +1405,12 @@ async function run(prompt) {
     await approvePendingArtifact();
     return;
   }
-  var capabilityCatalog = capabilities.loadCapabilityCatalog(PRODUCT_MODULES_DIR);
   var productModuleCatalog = moduleCompiler.loadProductModuleCatalog(PRODUCT_MODULES_DIR);
-  var creativeCapabilitySummary = capabilities.buildCreativeCapabilitySummary(capabilityCatalog);
+  var skipCreativeLlm = process.env.GAMECASTLE_SKIP_LLM1 === '1' || hasArg('--skip-llm1');
+  var directorOrderOverride = skipCreativeLlm && fs.existsSync(CREATIVE_VISION_PATH)
+    ? fs.readFileSync(CREATIVE_VISION_PATH, 'utf8').trim()
+    : null;
+  if (skipCreativeLlm && !directorOrderOverride) throw new Error('LLM1 bypass requested but output/creative-vision.txt is empty.');
   var isContinue = hasArg('--continue');
   var intentFixtureFile = getArgValue('--intent-fixture-file');
   var batchLabel = getArgValue('--batch-label') || 'apply';
@@ -1475,7 +1426,7 @@ async function run(prompt) {
     console.log('[State] Approval gate new project mode: ' + projectMode + ' (no output reset before approval)');
   }
   var existingIterationState = (projectMode === 'continue' || projectMode === 'intentFixtureContinue')
-    ? loadExistingIntentIterationState(STATE_DIR)
+    ? loadExistingIntentIterationState(STATE_DIR, { requireCreativeVision: !intentFixtureFile })
     : null;
   if (existingIterationState && !existingIterationState.ok) {
     console.error('[State] --continue requires an existing Intent iteration state: ' + existingIterationState.errors.join('; '));
@@ -1489,14 +1440,17 @@ async function run(prompt) {
   var compileBaseModules = (compileBaseWorld && compileBaseWorld.modules) || [];
   var targetPlanText;
   var intentDslText = null;
+  var intentSlotText = null;
+  var intentSlotPacket = null;
   var compiledIntentArtifact = null;
-  var diff = { isNew: false };  // initialized for scope; real value set in iteration path
-  var designBrief = null;
+  var creativeChange = { isNew: false, changed: false, previousVision: null, currentVision: null };
+  var creativeVision = null;
   var llm2SystemPrompt = null;
 
   if (intentFixtureFile) {
     var resolvedIntentFixtureFile = resolveIntentArtifactFile(intentFixtureFile);
     intentDslText = fs.readFileSync(resolvedIntentFixtureFile, 'utf8');
+    intentSlotPacket = intentSlots.packetFromIntentDsl(intentDslText);
     compiledIntentArtifact = intentCompiler.compileIntentDsl(intentDslText, {
       productModuleCatalog: productModuleCatalog,
       placementContext: placementContext.contextFromProjectWorld(compileBaseWorld),
@@ -1506,35 +1460,34 @@ async function run(prompt) {
     console.log('[IntentFixture] ' + resolvedIntentFixtureFile + ' (' + intentDslText.split(/\r?\n/).filter(Boolean).length + ' lines)');
     console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.targetPlanLines.length + ' internal target line(s), ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
   } else {
-    var prev = isContinue ? loadState() : { brief: null, history: [] };
-    var previousBrief = prev.brief;
+    var prev = isContinue ? loadState() : { vision: null, history: [] };
+    var previousVision = prev.vision;
     var history = prev.history;
 
-    // Stage 1: Creative LLM (context-aware: history + previous brief)
+    // Stage 1: unrestricted creative LLM (context-aware: history + previous vision)
     console.log('[Stage1] Creative LLM ' + (isContinue ? 'iterating...' : 'designing...'));
-    if (isContinue && previousBrief) {
-      console.log('[Stage1] Previous brief loaded, ' + history.length + ' history entries');
+    if (isContinue && previousVision) {
+      console.log('[Stage1] Previous creative vision loaded, ' + history.length + ' history entries');
     }
-    designBrief = await requirementAgent.generateDesignBrief({
+    creativeVision = directorOrderOverride || await creativeAgent.generateDirectorOrder({
       userPrompt: prompt,
       history: history,
-      previousBrief: previousBrief,
-      creativeCapabilitySummary: creativeCapabilitySummary,
+      previousVision: previousVision,
+      productModuleCatalog: productModuleCatalog,
       callModel: callModel,
     });
-    if (!designBrief) { console.error('Failed to generate design brief'); process.exit(1); }
-    console.log('[Stage1] Keys: ' + Object.keys(designBrief).join(', '));
-    console.log('[Stage1] Brief: ' + JSON.stringify(designBrief).substring(0, 300));
+    if (!creativeVision) { console.error('Failed to generate creative vision'); process.exit(1); }
+    console.log('[Stage1] ' + (directorOrderOverride ? 'LLM1 bypass: loaded saved director order' : 'Creative vision: ' + creativeVision.substring(0, 300)));
 
     // 保存状态（为下次迭代）
     history.push({ role: 'user', content: prompt });
-    history.push({ role: 'assistant', content: JSON.stringify(designBrief) });
-    saveState(designBrief, history);
+    history.push({ role: 'assistant', content: creativeVision });
+    saveState(creativeVision, history);
 
-    // Stage 2: only send the change boundary to LLM2 as natural Intent DSL.
-    console.log('[Stage2] Intent Commander translating...');
+    // Stage 2: semantic recognition and closed contract mapping belong to LLM2.
+    console.log('[Stage2] Slot Director mapping semantics...');
     llm2SystemPrompt = intentAgent.buildIntentCommanderSystemPrompt(productModuleCatalog);
-    var diff = diffDesignBriefs(previousBrief, designBrief);
+    creativeChange = makeCreativeVisionChange(previousVision, creativeVision);
     var currentWorld = compileBaseWorld;
     var currentLedger = existingIterationState ? existingIterationState.ledger : { runs: [] };
     var lastReport = currentLedger.runs.length ? currentLedger.runs[currentLedger.runs.length - 1] : null;
@@ -1542,9 +1495,8 @@ async function run(prompt) {
       projectWorld: currentWorld,
       lastExecutionReport: lastReport,
     };
-    if (!diff.isNew && previousBrief) {
-      var hasChanges = diff.added.objects.length + diff.added.rules.length + diff.added.placements.length + diff.added.behaviors.length + diff.added.variables.length + diff.removed.objects.length + diff.removed.rules.length + diff.removed.placements.length + diff.removed.behaviors.length + diff.removed.variables.length + diff.modified.objects.length + diff.modified.rules.length + diff.modified.placements.length + diff.modified.behaviors.length + diff.modified.variables.length;
-      if (hasChanges === 0) {
+    if (!creativeChange.isNew && previousVision) {
+      if (!creativeChange.changed) {
         console.log('[Stage2] No changes detected, skipping LLM2');
         targetPlanText = '';
       }
@@ -1554,20 +1506,19 @@ async function run(prompt) {
       var um = intentAgent.buildIntentUserPrompt({
         userPrompt: prompt,
         worldContext: worldContext,
-        designBrief: designBrief,
-        diff: diff,
-        isNew: diff.isNew || !previousBrief,
+        creativeVision: creativeVision,
+        creativeChange: creativeChange,
+        isNew: creativeChange.isNew || !previousVision,
       });
-      intentDslText = await callModel(
+      intentSlotText = await callModel(
         um,
         llm2SystemPrompt,
         agentWorkflow.buildTextCallOptions('intent', { label: 'LLM2-Intent' })
       );
-      if (!intentDslText) { console.error('Intent DSL generation failed'); process.exit(1); }
-      console.log('[Stage2] Intent DSL (' + intentDslText.split('\n').length + ' lines):');
-      console.log(intentDslText);
-      var intentCompileResult = await intentAgent.compileIntentDslWithRepair({
-        intentDslText: intentDslText,
+      if (!intentSlotText) { console.error('Intent slot generation failed'); process.exit(1); }
+      console.log('[Stage2] Intent slot packet received');
+      var intentCompileResult = await intentAgent.compileIntentSlotsWithRepair({
+        intentSlotText: intentSlotText,
         intentCompiler: intentCompiler,
         productModuleCatalog: productModuleCatalog,
         baseModules: compileBaseModules,
@@ -1577,11 +1528,19 @@ async function run(prompt) {
         allowLlmRepair: true,
         llm2SystemPrompt: llm2SystemPrompt,
         userPrompt: prompt,
-        designBrief: designBrief,
+        creativeVision: creativeVision,
         worldContext: worldContext,
         callModel: callModel,
+        onAttempt: function(event) {
+          var detail = { attempt: event.attempt, status: event.status };
+          if (event.intentSlotText) detail.intentSlotText = event.intentSlotText;
+          if (event.intentDslText) detail.intentDslText = event.intentDslText;
+          if (event.error) detail.error = event.error.message || String(event.error);
+          gc_log('[IntentCompileTrace] ' + JSON.stringify(detail));
+        },
       });
       intentDslText = intentCompileResult.intentDslText;
+      intentSlotPacket = intentCompileResult.intentSlotPacket;
       compiledIntentArtifact = intentCompileResult.compiled;
       targetPlanText = compiledIntentArtifact.bridgePlan.targetPlanText;
       console.log('[IntentCompiler] ' + compiledIntentArtifact.graph.components.length + ' components -> ' + compiledIntentArtifact.bridgePlan.targetPlanLines.length + ' internal target line(s), ' + compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements.length + ' runtime adapter requirement(s)');
@@ -1608,6 +1567,7 @@ async function run(prompt) {
       project: project,
       baseWorld: compileBaseWorld,
       intentDslText: intentDslText,
+      intentSlotPacket: intentSlotPacket,
       intentGraph: compiledIntentArtifact && compiledIntentArtifact.graph,
       placementPlan: compiledIntentArtifact && compiledIntentArtifact.placementPlan,
       bridgePlan: compiledIntentArtifact && compiledIntentArtifact.bridgePlan,
@@ -1617,8 +1577,8 @@ async function run(prompt) {
       modules: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.installedModules : null,
       tickRuntimeManifest: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.tickRuntimeManifest : null,
       runtimeAdapterRequirements: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements : null,
-      designBrief: designBrief,
-      diff: diff,
+      creativeVision: creativeVision,
+      creativeChange: creativeChange,
     });
     return;
   }
@@ -1626,13 +1586,14 @@ async function run(prompt) {
   var batch = await executeTargetPlanBatch(project, targetPlanText, batchLabel, {
     projectMode: projectMode,
     userRequest: prompt,
-    designBrief: designBrief,
-    diff: diff,
+    creativeVision: creativeVision,
+    creativeChange: creativeChange,
     modules: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.installedModules : null,
     tickRuntimeManifest: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.tickRuntimeManifest : null,
     runtimeAdapterRequirements: compiledIntentArtifact ? compiledIntentArtifact.bridgePlan.runtimeAdapterRequirements : null,
     intent: compiledIntentArtifact ? {
       artifactKind: 'intent',
+      intentSlotPacket: intentSlotPacket,
       intentDslText: intentDslText,
       intentGraph: compiledIntentArtifact.graph,
       placementPlan: compiledIntentArtifact.placementPlan,
@@ -1675,7 +1636,7 @@ module.exports = {
   previewApprovalArtifact: previewApprovalArtifact,
   makeApprovalSummary: makeApprovalSummary,
   makePendingApprovalPacket: makePendingApprovalPacket,
-  diffDesignBriefs: diffDesignBriefs,
+  makeCreativeVisionChange: makeCreativeVisionChange,
   safeUnlinkGeneratedFile: safeUnlinkGeneratedFile,
   resolveIntentArtifactFile: resolveIntentArtifactFile
 };

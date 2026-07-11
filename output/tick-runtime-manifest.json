@@ -5,7 +5,7 @@
       "id": "core.platformer",
       "category": "core",
       "syncPolicy": {
-        "sync": "lockstep",
+        "sync": "local",
         "authority": "host",
         "tickRate": 20,
         "seed": "auto"
@@ -22,84 +22,16 @@
         "Coin",
         "Enemy"
       ]
-    },
-    {
-      "id": "shell.start_screen",
-      "category": "shell",
-      "syncPolicy": {
-        "sync": "local",
-        "authority": "client",
-        "tickRate": 0,
-        "seed": "auto"
-      },
-      "deterministic": true,
-      "inputs": [
-        "start"
-      ],
-      "state": []
-    },
-    {
-      "id": "shell.game_over_screen",
-      "category": "shell",
-      "syncPolicy": {
-        "sync": "event",
-        "authority": "host",
-        "tickRate": 0,
-        "seed": "auto"
-      },
-      "deterministic": true,
-      "inputs": [
-        "restart"
-      ],
-      "state": []
     }
   ],
   "plan": {
     "schemaVersion": 1,
-    "realtime": {
-      "sync": "lockstep",
-      "authority": "host",
-      "tickRate": 20,
-      "seed": "auto",
-      "deterministic": true,
-      "inputs": [
-        "move_left",
-        "move_right",
-        "jump",
-        "start",
-        "restart"
-      ],
-      "state": [
-        "Score",
-        "Player",
-        "Coin",
-        "Enemy"
-      ],
-      "moduleIds": [
-        "core.platformer"
-      ]
-    },
-    "channels": [
-      {
-        "id": "shell.game_over_screen",
-        "sync": "event",
-        "category": "shell",
-        "authority": "host",
-        "tickRate": 0,
-        "seed": "auto",
-        "deterministic": true,
-        "inputs": [
-          "restart"
-        ],
-        "state": []
-      }
-    ],
+    "realtime": null,
+    "channels": [],
     "allInputs": [
       "move_left",
       "move_right",
-      "jump",
-      "start",
-      "restart"
+      "jump"
     ],
     "allState": [
       "Score",

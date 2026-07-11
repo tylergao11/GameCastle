@@ -352,6 +352,41 @@ function resolveSingle(placement, graph, context, resolvedBounds) {
     };
   }
 
+  var screenAnchorMatch = String(anchor).toLowerCase().match(/^screen\.(top-left|top-right|bottom-left|bottom-right|left|right|top|bottom|center)$/);
+  if (screenAnchorMatch) {
+    var edgePoint = screenPoint(screenAnchorMatch[1], context, 'touching');
+    var edgeBase = objectPoint({ x: edgePoint.x, y: edgePoint.y, width: 0, height: 0 }, direction, context, placement.distance);
+    var edgeCount = placement.count || 1;
+    var edgePattern = placement.pattern || 'single';
+    var edgePoints = [];
+    for (var edgeIndex = 0; edgeIndex < edgeCount; edgeIndex++) {
+      var edgeNext = { x: edgeBase.x, y: edgeBase.y };
+      if (edgePattern === 'trail' || edgePattern === 'line') edgeNext.x += edgeIndex * 48;
+      else if (edgePattern === 'guard') edgeNext.y += (edgeIndex % 2 === 0 ? -1 : 1) * Math.ceil(edgeIndex / 2) * 48;
+      edgePoints.push(edgeNext);
+    }
+    var edgeEvidence = [route('placement-resolver', 'screen-safe-area-placement', 'responsive-ui', 'placement-contract')];
+    if (edgePattern !== 'single' || edgeCount > 1) {
+      edgeEvidence.push(route('placement-resolver', 'pattern-placement', 'semantic-pattern-placement', 'placement-contract'));
+    }
+    return {
+      subject: placement.subject,
+      space: space,
+      anchor: anchor,
+      x: edgePoints[0].x,
+      y: edgePoints[0].y,
+      points: edgePoints,
+      layer: 'UI',
+      constraints: ['screenEdgeRelative'],
+      routeEvidence: edgeEvidence,
+      emission: (edgePattern !== 'single' || edgeCount > 1) ? { mechanism: 'semantic-group-placement-rewrite', routeId: 'semantic-pattern-placement', routeMechanism: 'placement-contract' } : undefined,
+      pattern: edgePattern,
+      count: edgeCount,
+      source: source,
+      resolved: { x: edgePoints[0].x, y: edgePoints[0].y }
+    };
+  }
+
   var anchorBounds = context.objectBounds[anchor] || resolvedBounds[anchor];
   if (!anchorBounds) {
     var unresolved = {

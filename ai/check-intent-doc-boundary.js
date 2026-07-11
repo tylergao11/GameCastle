@@ -5,17 +5,17 @@ var ROOT = path.join(__dirname, '..');
 
 var REQUIRED_DOC_PHRASES = {
   'README.md': [
-    'Current AI-first boundary: LLM2 writes natural Intent DSL only.',
+    'Current AI-first boundary: LLM2 fills a closed Intent slot packet only.',
     'semantic evidence',
     'owner-routed repair',
   ],
   'ai/README.md': [
-    'The live LLM2 product surface is Intent DSL.',
+    'The live LLM2 product surface is a closed Intent slot packet.',
     'semantic playtest evidence',
     'owner-routed repair',
   ],
   'docs/architecture.md': [
-    'Current AI-first override: LLM2 output is AI-first Intent DSL.',
+    'Current AI-first override: LLM1 owns unrestricted CreativeVision and LLM2 fills the closed Intent slot packet.',
     'semantic repair candidates',
   ],
   'docs/ai-first-intent-runtime-bridge.md': [

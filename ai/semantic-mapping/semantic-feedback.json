@@ -1,5 +1,77 @@
 {
   "schemaVersion": 1,
+  "capability_semantic_policy": {
+    "schemaVersion": 1,
+    "reviewed_universe": {
+      "capability_count": 2481,
+      "capability_id_sha1": "fe9c366cf4bf8de98f50896bd454339a9e623619",
+      "capability_contract_sha1": "8092e0d8320590ee2da033179b1c45d757b34e88"
+    },
+    "default_exposure": "internal",
+    "derivation": {
+      "concrete_semantic": "gdjs.{extension}.{owner_kind}.{owner}.{kind}.{local}",
+      "kind_parent": "gdjs_kind.{kind}",
+      "extension_parent": "gdjs_extension.{extension}",
+      "owner_parent": "gdjs_owner.{owner_kind}"
+    }
+  },
+  "semantic_concepts": {
+    "experience_subject": { "abstract": true, "meaning": "A semantic participant in the player experience." },
+    "action_entry": { "abstract": true, "extends": "experience_subject", "meaning": "A player-facing action surface." },
+    "reward": { "abstract": true, "extends": "experience_subject", "meaning": "Content that rewards or advances the player." },
+    "pressure": { "abstract": true, "extends": "experience_subject", "meaning": "Content that creates failure or time pressure." },
+    "route": { "abstract": true, "extends": "experience_subject", "meaning": "A structure that organizes player progression." },
+    "movement": { "extends": "route", "meaning": "Player movement and jumping through a platform route." },
+    "mobile_movement_control": { "extends": "action_entry", "meaning": "A touch surface that moves the player." },
+    "mobile_jump_control": { "extends": "action_entry", "meaning": "A touch surface that triggers jumping." },
+    "collectible_route": { "extends": "reward", "meaning": "Collectible content arranged along the active route." },
+    "chase_pressure": { "extends": "pressure", "meaning": "A threat that follows or rises against player progress." },
+    "inventory": { "extends": "action_entry", "meaning": "A player-facing capacity and collection surface." }
+  },
+  "canonical_write_values": {
+    "controls": { "joystick": "mobile_movement_control", "jump button": "mobile_jump_control", "attack button": "action_entry", "fire button": "action_entry" },
+    "abilities": { "platformer movement": "movement" },
+    "subjects": { "coins": "collectible_route", "enemies": "chase_pressure", "platforms": "route", "ground": "route" },
+    "systems": { "inventory": "inventory" },
+    "actions": { "placement_adjustment": "placement_adjustment" }
+  },
+  "display_terms": {
+    "Virtual Joystick": "joystick", "movement joystick": "joystick", "thumbstick": "joystick",
+    "Jump Button": "jump button", "jump control": "jump button", "Platformer Movement": "platformer movement",
+    "collectible": "coins", "collectibles": "coins", "enemy": "enemies", "hazard": "enemies"
+  },
+  "command_shapes": {
+    "make_game": { "required": ["description"], "limits": { "descriptionMaxCharacters": 160 } },
+    "give_ability": { "required": ["target", "ability"], "values": { "ability": ["platformer movement"] } },
+    "add_control": { "required": ["control", "target", "action", "anchor", "direction"], "values": { "control": ["joystick", "jump button", "attack button", "fire button"] } },
+    "place_group": { "required": ["subject", "anchor", "direction"], "optional": ["pattern", "count"], "values": { "subject": ["coins", "enemies", "platforms", "ground"], "anchor": ["screen", "ground", "platforms"], "direction": ["top-left", "top-right", "bottom-left", "bottom-right", "far-front", "front", "behind", "left", "right", "above", "below", "top", "bottom", "center"], "pattern": ["single", "trail", "line", "guard", "stairs"] }, "limits": { "count": { "min": 1, "max": 100 } } },
+    "add_inventory": { "required": ["owner", "anchor", "direction"], "optional": ["slots"], "limits": { "slots": { "min": 1, "max": 999 } } },
+    "adjust_placement": { "required": ["subject", "direction", "amount"], "values": { "direction": ["above", "below", "left", "right", "front", "behind"], "amount": ["slightly", "small", "normal", "far"] } }
+  },
+  "template_defaults": { "mobile platformer": { "extends": "platformer", "actor": "Player", "abilities": ["platformer movement"], "world_families": ["ground", "platforms", "coins", "enemies"] } },
+  "template_writable_surface": { "platformer": ["make_game", "add_control", "place_group", "add_inventory"] },
+  "implementation_bindings": {
+    "joystick": { "component_id": "input.virtual_joystick", "compiler_action": "add_control", "action": "move", "gdjs_capability_ids": ["BuiltinMouse::global::extension::number-expression::TouchX", "BuiltinMouse::global::extension::number-expression::TouchY", "PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::action::SimulateControl"] },
+    "jump button": { "component_id": "input.jump_button", "compiler_action": "add_control", "action": "jump", "gdjs_capability_ids": ["PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::action::SimulateJumpKey"] },
+    "attack button": { "component_id": "input.attack_button", "compiler_action": "add_control", "action": "attack", "gdjs_capability_ids": ["PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::action::SimulateControl"] },
+    "fire button": { "component_id": "input.attack_button", "compiler_action": "add_control", "action": "fire", "gdjs_capability_ids": ["PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::action::SimulateControl"] },
+    "platformer movement": { "component_id": "movement.platformer", "compiler_action": "give_ability", "gdjs_capability_ids": ["PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::action::SimulateControl", "PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::action::SimulateJumpKey", "PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::condition::IsMoving", "PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::condition::IsOnFloor"] },
+    "coins": { "module_id": "core.platformer", "compiler_action": "place_group", "binding": "collectible", "gdjs_capability_ids": ["BuiltinObject::global::extension::action::Create", "BuiltinObject::object::BuiltinObject::__object_metadata__::action::Delete", "Sprite::global::extension::condition::Collision"] },
+    "enemies": { "module_id": "core.platformer", "compiler_action": "place_group", "binding": "hazard", "gdjs_capability_ids": ["BuiltinObject::global::extension::action::Create", "Sprite::global::extension::condition::Collision"] },
+    "platforms": { "module_id": "core.platformer", "compiler_action": "place_group", "binding": "platform_route", "gdjs_capability_ids": ["BuiltinObject::global::extension::action::Create", "PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::condition::IsOnFloor"] },
+    "ground": { "module_id": "core.platformer", "compiler_action": "place_group", "binding": "ground_route", "gdjs_capability_ids": ["BuiltinObject::global::extension::action::Create", "PlatformBehavior::behavior::PlatformBehavior::PlatformerObjectBehavior::condition::IsOnFloor"] },
+    "inventory": { "component_id": "system.inventory", "compiler_action": "add_inventory", "gdjs_capability_ids": ["Inventory::global::extension::action::Add", "Inventory::global::extension::condition::Has", "Inventory::global::extension::number-expression::Count"] },
+    "placement_adjustment": { "compiler_action": "adjust_placement", "owner": "placement-resolver", "gdjs_capability_ids": ["BuiltinObject::object::BuiltinObject::__object_metadata__::action::SetX", "BuiltinObject::object::BuiltinObject::__object_metadata__::action::SetY"] }
+  },
+  "semantic_routes": {
+    "movement": { "status": "implemented", "owner": "component-catalog", "binding": "platformer movement" },
+    "mobile_movement_control": { "status": "implemented", "owner": "component-catalog" },
+    "mobile_jump_control": { "status": "implemented", "owner": "component-catalog" },
+    "collectible_route": { "status": "implemented", "owner": "core.platformer" },
+    "chase_pressure": { "status": "candidate", "owner": "component-catalog", "route_id": "new-reusable-game-system" },
+    "inventory": { "status": "implemented", "owner": "component-catalog" }
+  },
+  "validation_rules": { "abstract_nodes_require_extends": true, "canonical_values_are_unique": true, "writable_values_require_bindings": true, "template_defaults_are_not_writable": true, "route_owner_required_for_candidates": true },
   "subjectAliases": {
     "coin": "coins",
     "coins": "coins",
