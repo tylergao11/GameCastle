@@ -10,6 +10,7 @@
 
 - `shared/asset-style-dictionary.json`：风格、色板、模板角色和动画策略。
 - `shared/local-derivation-contract.json`：本地确定性操作、作用域和操作回执。
+- `shared/ai-provider-governance.json`：语义与资产共同使用的 provider、环境变量、授权和预算配置。
 
 ## 2. 唯一主链
 

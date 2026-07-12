@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "dictionaryId": "gamecastle.asset-template-dictionary",
+  "owner": "AssetTemplateDictionary",
+  "principles": [
+    "template-and-slot-ids-are-stable",
+    "templates-reference-style-ids-without-copying-style-tokens",
+    "cloud-indexes-template-projections-but-does-not-invent-templates",
+    "slot-constraints-are-deterministic"
+  ],
+  "templates": [
+    {
+      "id": "ui.hud.arcade",
+      "name": "Arcade HUD",
+      "templateKind": "ui-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-1",
+      "slots": [
+        { "id": "asset.ui.health", "kind": "ui", "constraints": { "transparent": true } },
+        { "id": "asset.ui.pause", "kind": "ui", "constraints": { "transparent": true } },
+        { "id": "asset.ui.custom", "kind": "ui", "constraints": { "transparent": true } }
+      ],
+      "uiTheme": { "accentRole": "red", "panelRole": "paper" }
+    },
+    {
+      "id": "ui.menu.paper",
+      "name": "Paper Menu",
+      "templateKind": "ui-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-1",
+      "slots": [
+        { "id": "asset.ui.logo", "kind": "ui", "constraints": { "transparent": true } },
+        { "id": "asset.ui.play", "kind": "ui", "constraints": { "transparent": true } },
+        { "id": "asset.ui.custom", "kind": "ui", "constraints": { "transparent": true } }
+      ],
+      "uiTheme": { "accentRole": "yellow", "panelRole": "paper" }
+    },
+    {
+      "id": "game.runner.v1",
+      "name": "Lightweight Runner",
+      "templateKind": "game-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-1",
+      "slots": [
+        { "id": "hero", "kind": "sprite", "constraints": { "transparent": true, "anchor": "bottom-center" } },
+        { "id": "enemy", "kind": "sprite", "constraints": { "transparent": true, "anchor": "bottom-center" } },
+        { "id": "background", "kind": "raster", "constraints": { "transparent": false } },
+        { "id": "hud", "kind": "ui", "constraints": { "transparent": true } }
+      ]
+    }
+  ],
+  "governance": {
+    "newTemplateRequiresDictionaryRevision": true,
+    "slotRemovalRequiresNewTemplateVersion": true,
+    "runtimeAliasesForbidden": true,
+    "cloudDefinedTemplatesForbidden": true
+  }
+}

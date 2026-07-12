@@ -1,0 +1,157 @@
+var crypto = require('crypto');
+var fs = require('fs');
+var path = require('path');
+var contract = require('../shared/cloud-asset-engine-contract.json');
+var registryModule = require('./cloud-asset-registry');
+
+function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_error) { return fallback; } }
+function writeJson(file, value) { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(value, null, 2), 'utf8'); }
+function hash(value) { return crypto.createHash('sha256').update(Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex'); }
+function hashFile(file) { return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); }
+function unique(values) { return Array.from(new Set((values || []).filter(Boolean))).sort(); }
+function cloudError(code, message) { var error = new Error(message); error.code = code; return error; }
+function nowIso(options) { return (options && options.now ? new Date(options.now) : new Date()).toISOString(); }
+function safeId(value, prefix) { return new RegExp('^' + prefix.replace('.', '\\.') + '[a-z0-9][a-z0-9._-]{0,127}$').test(String(value || '')); }
+
+function createFileSystemCloudPorts(rootDir) {
+  var graphPath = path.join(rootDir, 'cloud-asset-graph.json');
+  var queuePath = path.join(rootDir, 'promotion-queue.json');
+  var projectionPath = path.join(rootDir, 'cloud-asset-projection.json');
+  var blobDir = path.join(rootDir, 'blobs');
+  return {
+    blobStore: {
+      put: function(bytes, metadata) { var extension = String((metadata || {}).extension || '.png').replace(/[^.A-Za-z0-9_-]/g, ''); if (!extension || extension[0] !== '.') extension = '.png'; var storageKey = path.join(blobDir, String(metadata.sha256) + extension); fs.mkdirSync(blobDir, { recursive: true }); if (!fs.existsSync(storageKey)) fs.writeFileSync(storageKey, bytes); return { storageKey: storageKey, sha256: metadata.sha256 }; },
+      get: function(ref) { return fs.readFileSync(ref.storageKey); }
+    },
+    relationIndex: { load: function() { return readJson(graphPath, null); }, save: function(value) { writeJson(graphPath, value); } },
+    promotionQueue: { load: function() { return readJson(queuePath, null); }, save: function(value) { writeJson(queuePath, value); } },
+    projectionIndex: {
+      rebuild: function(value) {
+        var revisions = value.revisions.filter(function(revision) { return revision.status === 'approved' && revision.scope === 'cloud-shared'; }).sort(function(left, right) { return (right.qualityRank || 0) - (left.qualityRank || 0) || (right.usageCount || 0) - (left.usageCount || 0) || left.revisionId.localeCompare(right.revisionId); });
+        var projection = { schemaVersion: 2, graphHash: hash(value), dictionaryFingerprint: value.dictionaryFingerprint, approvedRevisionIds: revisions.map(function(revision) { return revision.revisionId; }) };
+        writeJson(projectionPath, projection); return projection;
+      }
+    }
+  };
+}
+function requirePort(port, methods, name) { if (!port || methods.some(function(method) { return typeof port[method] !== 'function'; })) throw cloudError('CLOUD_PORT_INVALID', name + ' does not implement: ' + methods.join(', ')); return port; }
+
+function createCloudAssetEngine(options) {
+  options = options || {};
+  var registry = options.registry || registryModule.createCloudAssetRegistry();
+  var rootDir = path.resolve(options.rootDir || path.join(process.cwd(), '.gamecastle', 'cloud-asset-engine'));
+  var defaults = createFileSystemCloudPorts(rootDir), configured = options.ports || {};
+  var ports = {
+    blobStore: requirePort(configured.blobStore || defaults.blobStore, ['put', 'get'], 'CloudBlobStorePort'),
+    relationIndex: requirePort(configured.relationIndex || defaults.relationIndex, ['load', 'save'], 'CloudRelationIndexPort'),
+    promotionQueue: requirePort(configured.promotionQueue || defaults.promotionQueue, ['load', 'save'], 'CloudPromotionQueuePort'),
+    projectionIndex: requirePort(configured.projectionIndex || defaults.projectionIndex, ['rebuild'], 'CloudProjectionPort'),
+    accessPolicy: requirePort(configured.accessPolicy || options.accessPolicy || { authorizeQuery: function() { return true; }, authorizeMaterialize: function(request, revision) { return request.targetScope === 'project-local' && revision.scope === 'cloud-shared'; }, authorizePromotion: function() { return true; } }, ['authorizeQuery', 'authorizeMaterialize', 'authorizePromotion'], 'CloudAccessPolicyPort')
+  };
+  var maxRetries = Number.isInteger(options.maxRetries) ? options.maxRetries : 2;
+  var retryDelayMs = Number.isFinite(options.retryDelayMs) ? options.retryDelayMs : 0;
+
+  function templateProjection() {
+    var templateNodes = registry.projectionTemplates().map(function(template) { return { templateId: template.id, templateKind: template.templateKind, version: template.version, styleId: template.styleId, status: template.status }; });
+    var slots = [], relations = [];
+    registry.projectionTemplates().forEach(function(template) { template.slots.forEach(function(slot) { var slotId = template.id + '::' + slot.id; slots.push({ slotId: slotId, assetSlotId: slot.id, templateId: template.id, kind: slot.kind, constraints: slot.constraints || {} }); relations.push({ relationId: 'rel.' + hash({ kind: 'belongsTo', from: slotId, to: template.id }).slice(0, 16), kind: 'belongsTo', from: slotId, to: template.id, source: 'dictionary' }); }); });
+    return { templates: templateNodes, slots: slots, relations: relations };
+  }
+  function stateDefault() { var projection = templateProjection(); return { schemaVersion: 2, contractId: contract.contractId, dictionaryFingerprint: registry.fingerprint, families: [], revisions: [], styles: Object.keys(registry.styles.styles).map(function(styleId) { return { styleId: styleId }; }), templates: projection.templates, slots: projection.slots, bundles: [], relations: projection.relations, auditReceipts: [] }; }
+  function queueDefault() { return { schemaVersion: 2, entries: [] }; }
+  function nodeKind(value, id) { if (value.families.some(function(item) { return item.familyId === id; })) return 'AssetFamily'; if (value.revisions.some(function(item) { return item.revisionId === id; })) return 'AssetRevision'; if ((value.styles || []).some(function(item) { return 'style:' + item.styleId === id; })) return 'StyleProfile'; if (value.templates.some(function(item) { return item.templateId === id; })) return 'Template'; if (value.slots.some(function(item) { return item.slotId === id; })) return 'TemplateSlot'; if (value.bundles.some(function(item) { return item.bundleId === id; })) return 'AssetBundle'; return null; }
+  function revisionById(value, id) { return value.revisions.find(function(item) { return item.revisionId === id; }) || null; }
+  function reconcileGraph(value) {
+    if (value.schemaVersion !== 2 || value.contractId !== contract.contractId) throw cloudError('CLOUD_GRAPH_SCHEMA_UNSUPPORTED', 'Cloud graph does not match the current v2 contract.');
+    var projection = templateProjection(), valid = {}, changed = value.dictionaryFingerprint !== registry.fingerprint;
+    projection.templates.forEach(function(item) { valid[item.templateId] = true; }); projection.slots.forEach(function(item) { valid[item.slotId] = true; }); value.families.forEach(function(item) { valid[item.familyId] = true; }); value.revisions.forEach(function(item) { valid[item.revisionId] = true; }); value.bundles.forEach(function(item) { valid[item.bundleId] = true; }); Object.keys(registry.styles.styles).forEach(function(styleId) { valid['style:' + styleId] = true; });
+    var retained = (value.relations || []).filter(function(relation) { return relation.kind !== 'belongsTo' && valid[relation.from] && valid[relation.to]; });
+    var nextRelations = projection.relations.concat(retained), nextStyles = Object.keys(registry.styles.styles).map(function(styleId) { return { styleId: styleId }; });
+    if (JSON.stringify(value.templates) !== JSON.stringify(projection.templates) || JSON.stringify(value.slots) !== JSON.stringify(projection.slots) || JSON.stringify(value.styles) !== JSON.stringify(nextStyles) || JSON.stringify(value.relations) !== JSON.stringify(nextRelations)) changed = true;
+    value.dictionaryFingerprint = registry.fingerprint; value.templates = projection.templates; value.slots = projection.slots; value.styles = nextStyles; value.relations = nextRelations; value.auditReceipts = value.auditReceipts || [];
+    return changed;
+  }
+  function graph() { var value = ports.relationIndex.load(); if (!value) return stateDefault(); var changed = reconcileGraph(value); if (changed) { ports.relationIndex.save(value); ports.projectionIndex.rebuild(value); } return value; }
+  function saveGraph(value) { value.dictionaryFingerprint = registry.fingerprint; ports.relationIndex.save(value); return ports.projectionIndex.rebuild(value); }
+  function queue() { var value = ports.promotionQueue.load(); if (!value) return queueDefault(); if (value.schemaVersion !== 2) throw cloudError('CLOUD_QUEUE_SCHEMA_UNSUPPORTED', 'Cloud promotion queue does not match the current v2 contract.'); return value; }
+  function saveQueue(value) { ports.promotionQueue.save(value); }
+  function relationAllowed(kind, fromKind, toKind) { return contract.relationKinds.some(function(relation) { return relation.id === kind && relation.from.indexOf(fromKind) >= 0 && relation.to.indexOf(toKind) >= 0; }); }
+  function addRelation(value, relation) { if (!value.relations.some(function(item) { return item.kind === relation.kind && item.from === relation.from && item.to === relation.to; })) value.relations.push(Object.assign({ relationId: 'rel.' + hash(relation).slice(0, 16) }, relation)); }
+  function eligibleRevision(revision) { return revision && revision.status === 'approved' && revision.scope === 'cloud-shared' && registry.publicAllowed(revision); }
+  function publicRevisions(value) { var projection = ports.projectionIndex.rebuild(value); return (projection.approvedRevisionIds || []).map(function(id) { return revisionById(value, id); }).filter(eligibleRevision); }
+  function fillsRequestedSlot(value, revision, spec) { if (!spec.templateId) return true; var expected = spec.bindingTarget || spec.slotId, slots = value.slots.filter(function(slot) { return slot.templateId === spec.templateId && (slot.assetSlotId === expected || slot.slotId === expected); }); return slots.some(function(slot) { return value.relations.some(function(relation) { return relation.kind === 'fillsSlot' && relation.from === revision.revisionId && relation.to === slot.slotId; }); }); }
+  function toAsset(revision) { return { assetId: revision.revisionId, revisionId: revision.revisionId, familyId: revision.familyId, sha256: revision.blobHash, blobRef: revision.blobRef, format: revision.format, width: revision.width, height: revision.height, transparent: revision.transparent === true, styleId: revision.styleId, semanticTags: revision.semanticTags.slice(), provenanceTypeId: revision.provenanceTypeId, licensePolicyId: revision.licensePolicyId, qualityTierId: revision.qualityTierId, qualityFlags: revision.qualityFlags.slice(), repositoryStatus: 'approved', status: 'approved', localPlan: revision.localPlan, usageCount: revision.usageCount || 0 }; }
+  function candidateRecord(asset) { return { familyId: asset.familyId, revisionId: asset.revisionId, matchKind: asset.matchKind, score: asset.score, styleId: asset.styleId, rights: registry.rights(asset), qualityTierId: asset.qualityTierId, qualityFlags: asset.qualityFlags.slice(), localPlan: asset.localPlan, asset: asset }; }
+  function validateTemplateSlots(slots) { return (slots || []).map(function(item) { if (!item || typeof item !== 'object' || !item.templateId || !item.slotId) throw cloudError('CLOUD_TEMPLATE_SLOT_INVALID', 'Template slots must declare templateId and slotId.'); registry.templateSlot(item.templateId, item.slotId); return { templateId: item.templateId, slotId: String(item.slotId).replace(item.templateId + '::', '') }; }); }
+  function validatePromotion(entry) {
+    var asset = entry.asset || {}, receipt = entry.receipt || {};
+    if (!ports.accessPolicy.authorizePromotion(entry)) throw cloudError('CLOUD_PROMOTION_FORBIDDEN', 'Cloud promotion is not authorized.');
+    if (entry.shareConsent !== true) throw cloudError('CLOUD_SHARE_CONSENT_REQUIRED', 'Cloud promotion requires explicit share consent.');
+    if (!receipt.accepted || !entry.runtimeBindingReceipt || entry.runtimeBindingReceipt.status !== 'bound') throw cloudError('CLOUD_ACCEPTANCE_REQUIRED', 'Cloud promotion requires acceptance and bound runtime receipts.');
+    if (!asset.path || !fs.existsSync(asset.path)) throw cloudError('CLOUD_LOCAL_FILE_REQUIRED', 'Cloud promotion requires a local final revision.');
+    if (asset.simulated === true || asset.scope === 'private-local' || entry.rawUserInput === true || (asset.publishability || {}).blocksFinalExport === true) throw cloudError('CLOUD_PRIVATE_OR_SIMULATED_FORBIDDEN', 'Private, simulated, or export-debt assets cannot enter cloud staging.');
+    var normalized = registry.normalizePromotionAsset(asset); normalized.templateSlots = validateTemplateSlots(asset.templateSlots); return normalized;
+  }
+  function familyFor(value, asset) { var existing = value.families.find(function(family) { return family.kind === asset.kind && family.styleId === asset.styleId && JSON.stringify(family.semanticTags) === JSON.stringify(asset.semanticTags); }); if (existing) return existing; var family = { familyId: 'family.' + hash({ kind: asset.kind, styleId: asset.styleId, semanticTags: asset.semanticTags }).slice(0, 16), kind: asset.kind, styleId: asset.styleId, semanticTags: asset.semanticTags.slice(), status: 'approved' }; value.families.push(family); return family; }
+  function transition(entry, state, details) { entry.state = state; entry.receipts = entry.receipts || []; entry.receipts.push(Object.assign({ state: state, at: nowIso(details) }, details || {})); }
+  function enrichRelations(value, revision, asset) { addRelation(value, { kind: 'variantOf', from: revision.revisionId, to: revision.familyId, source: 'promotion' }); addRelation(value, { kind: 'usesStyle', from: revision.revisionId, to: 'style:' + revision.styleId, source: 'promotion' }); (asset.templateSlots || []).forEach(function(ref) { addRelation(value, { kind: 'fillsSlot', from: revision.revisionId, to: ref.templateId + '::' + ref.slotId, source: 'promotion' }); }); }
+  function enqueuePromotion(input) {
+    if (!input || !Array.isArray(input.cloudPromotionQueue)) throw cloudError('CLOUD_PROMOTION_INVALID', 'CloudAssetEngine requires an explicit promotion queue.');
+    var value = queue(); input.cloudPromotionQueue.forEach(function(raw, index) {
+      var source = raw || {}, requestId = source.requestId || 'promotion.' + hash({ assetId: (source.asset || {}).assetId, path: (source.asset || {}).path, index: index }).slice(0, 16), key = requestId + ':' + ((source.asset || {}).sha256 || ((source.asset || {}).path && fs.existsSync(source.asset.path) ? hashFile(source.asset.path) : 'missing'));
+      if (value.entries.some(function(entry) { return entry.key === key; })) return;
+      var entry = { key: key, requestId: requestId, stagingId: 'staging.' + hash(key).slice(0, 16), state: 'requested', requestedAt: nowIso(), attempts: 0, retryCount: 0, receipts: [], asset: source.asset || {}, receipt: source.receipt || {}, runtimeBindingReceipt: source.runtimeBindingReceipt || null, shareConsent: source.shareConsent === true, rawUserInput: source.rawUserInput === true };
+      try { entry.asset = validatePromotion(entry); transition(entry, 'requested', { decision: 'accepted-for-validation' }); } catch (error) { entry.reasons = [error.code || 'CLOUD_PROMOTION_REJECTED']; transition(entry, 'rejected', { decision: 'rejected', reasons: entry.reasons }); }
+      value.entries.push(entry);
+    }); saveQueue(value); return value.entries.slice();
+  }
+  function retryable(error, phase) { return phase === 'storage' && error && error.retryable === true; }
+  function sync(options) {
+    options = options || {}; var pending = queue(), value = graph(), current = new Date(options.now || Date.now()).getTime();
+    pending.entries.forEach(function(entry) {
+      if (entry.state !== 'requested' || (entry.nextRetryAt && new Date(entry.nextRetryAt).getTime() > current)) return;
+      var phase = 'validation'; entry.attempts += 1;
+      try {
+        var asset = validatePromotion(entry); entry.asset = asset; transition(entry, 'validating', { attempt: entry.attempts }); transition(entry, 'staged', { stagingId: entry.stagingId }); transition(entry, 'enriching', {});
+        var blobHash = hashFile(asset.path), existing = value.revisions.find(function(revision) { return revision.blobHash === blobHash; });
+        if (existing && eligibleRevision(existing)) { enrichRelations(value, existing, asset); entry.familyId = existing.familyId; entry.revisionId = existing.revisionId; entry.deduplicated = true; transition(entry, 'approved', { deduplicated: true }); transition(entry, 'published', { decision: 'published', revisionId: existing.revisionId }); return; }
+        phase = 'storage'; var bytes = fs.readFileSync(asset.path), blobRef = ports.blobStore.put(bytes, { sha256: blobHash, extension: path.extname(asset.path || '.png').toLowerCase(), contentType: asset.format || 'png' }); if (!blobRef || blobRef.sha256 !== blobHash) throw cloudError('CLOUD_BLOBSTORE_INVALID', 'BlobStore must return the verified sha256 it persisted.');
+        var family = familyFor(value, asset), revision = { revisionId: 'revision.' + blobHash.slice(0, 16), familyId: family.familyId, blobHash: blobHash, blobRef: blobRef, kind: asset.kind, format: asset.format || 'png', width: asset.width || null, height: asset.height || null, transparent: asset.transparent === true, styleId: asset.styleId, semanticTags: asset.semanticTags.slice(), provenanceTypeId: asset.provenanceTypeId, licensePolicyId: asset.licensePolicyId, qualityTierId: asset.qualityTierId, qualityFlags: asset.qualityFlags.slice(), qualityRank: registry.cloud.qualityTiers[asset.qualityTierId].rank, localPlan: asset.localPlan || { operations: [], requiresNewPixels: false, estimatedCost: 'local-only' }, scope: 'cloud-shared', status: 'approved', usageCount: 0, publishedAt: nowIso(options) };
+        value.revisions.push(revision); enrichRelations(value, revision, asset); entry.familyId = family.familyId; entry.revisionId = revision.revisionId; transition(entry, 'approved', {}); transition(entry, 'published', { decision: 'published', revisionId: revision.revisionId });
+      } catch (error) {
+        entry.reasons = [error.code || 'CLOUD_PROMOTION_REJECTED'];
+        if (retryable(error, phase) && entry.retryCount < maxRetries) { entry.retryCount += 1; entry.nextRetryAt = new Date(current + retryDelayMs).toISOString(); transition(entry, 'requested', { decision: 'retry-scheduled', retryCount: entry.retryCount, reasons: entry.reasons }); } else transition(entry, 'rejected', { decision: 'rejected', reasons: entry.reasons });
+      }
+    }); saveGraph(value); saveQueue(pending); return pending.entries.slice();
+  }
+  function findExactForSpec(rawSpec) { var spec = registry.normalizeQuerySpec(rawSpec), value = graph(), candidates = publicRevisions(value).filter(function(revision) { return fillsRequestedSlot(value, revision, spec) && revision.styleId === spec.styleId && spec.semanticTags.every(function(tag) { return revision.semanticTags.indexOf(tag) >= 0; }); }); return candidates.length ? toAsset(candidates[0]) : null; }
+  function findNearForSpec(rawSpec) { var spec = registry.normalizeQuerySpec(rawSpec), tags = spec.semanticTags, value = graph(); if (!tags.length) return null; var candidates = publicRevisions(value).filter(function(revision) { return fillsRequestedSlot(value, revision, spec) && revision.styleId === spec.styleId; }).map(function(revision) { var shared = tags.filter(function(tag) { return revision.semanticTags.indexOf(tag) >= 0; }).length; return { revision: revision, score: shared / tags.length }; }).filter(function(item) { return item.score >= 0.5 && item.score < 1; }).sort(function(left, right) { return right.score - left.score || (right.revision.qualityRank || 0) - (left.revision.qualityRank || 0) || (right.revision.usageCount || 0) - (left.revision.usageCount || 0); }); if (!candidates.length) return null; var asset = toAsset(candidates[0].revision); asset.matchScore = candidates[0].score; return asset; }
+  function findByTags(tags) { var compiled = registry.compileSemanticTags(tags); return publicRevisions(graph()).filter(function(revision) { return compiled.every(function(tag) { return revision.semanticTags.indexOf(tag) >= 0; }); }).map(toAsset); }
+  function search(tags) { return findByTags(tags); }
+  function findTemplateKit(request) { var context = (request || {}).templateContext || {}, value = graph(), templateId = context.templateId; if (!templateId) return null; var template = registry.template(templateId), requested = unique(context.requiredSlots && context.requiredSlots.length ? context.requiredSlots : template.slots.map(function(slot) { return slot.id; })); if (!requested.length) return null; var slots = requested.map(function(slotId) { registry.templateSlot(template.id, slotId); var slotSpec = Object.assign({}, request.assetSpec || {}, (context.slotSpecs || {})[slotId] || {}, { templateId: template.id, bindingTarget: slotId }); var exact = findExactForSpec(slotSpec), near = exact ? null : findNearForSpec(slotSpec), asset = exact || near; return { slotId: slotId, candidates: asset ? [Object.assign({ matchKind: exact ? 'exact' : 'near-local-derivation', score: exact ? 1 : near.matchScore }, asset)] : [] }; }); if (!slots.every(function(slot) { return slot.candidates.length; })) return null; return { templateId: template.id, templateKind: template.templateKind, styleId: template.styleId, slots: slots.map(function(slot) { return { slotId: slot.slotId, candidates: slot.candidates.map(candidateRecord) }; }) }; }
+  function query(request) { if (!request || !request.requestId || !request.assetSpec) throw cloudError('CLOUD_QUERY_INVALID', 'Cloud query requires requestId and AssetSpec.'); if (!ports.accessPolicy.authorizeQuery(request)) throw cloudError('CLOUD_QUERY_FORBIDDEN', 'Cloud query is not authorized.'); var exact = findExactForSpec(request.assetSpec), candidates = exact ? [Object.assign({ matchKind: 'exact', score: 1 }, exact)] : []; if (!candidates.length) { var near = findNearForSpec(request.assetSpec); if (near) candidates.push(Object.assign({ matchKind: 'near-local-derivation', score: near.matchScore }, near)); } var templateKit = candidates.length ? null : findTemplateKit(request); return { requestId: request.requestId, candidates: candidates.map(candidateRecord), templateKit: templateKit, summary: { count: candidates.length + (templateKit ? templateKit.slots.reduce(function(total, slot) { return total + slot.candidates.length; }, 0) : 0), modelRequired: candidates.length === 0 && !templateKit } }; }
+  function materialize(request) {
+    if (!request || !request.requestId || !request.revisionId || !request.projectId || request.targetScope !== 'project-local' || !request.projectAssetDir) throw cloudError('CLOUD_MATERIALIZATION_REQUEST_INVALID', 'Materialization requires requestId, revisionId, projectId, project-local scope, and projectAssetDir.');
+    var value = graph(), revision = publicRevisions(value).find(function(item) { return item.revisionId === request.revisionId; }); if (!revision) throw cloudError('CLOUD_REVISION_NOT_FOUND', 'Unknown approved cloud revision: ' + request.revisionId); if (!ports.accessPolicy.authorizeMaterialize(request, revision)) throw cloudError('CLOUD_MATERIALIZE_FORBIDDEN', 'Materialization request is not authorized.');
+    var bytes = ports.blobStore.get(revision.blobRef), verified = hash(bytes); if (verified !== revision.blobHash) throw cloudError('CLOUD_HASH_MISMATCH', 'Cloud blob hash does not match revision.'); fs.mkdirSync(request.projectAssetDir, { recursive: true }); var target = path.join(request.projectAssetDir, revision.blobHash + '.' + String(revision.format || 'png').replace(/[^A-Za-z0-9]/g, '')); fs.writeFileSync(target, bytes); revision.usageCount = (revision.usageCount || 0) + 1; saveGraph(value); var createdRevisionId = 'project-revision.' + verified.slice(0, 16); return Object.assign(toAsset(revision), { path: target, materialized: true, materializationReceipt: { requestId: request.requestId, revisionId: revision.revisionId, projectLocalPath: target, verifiedHash: verified, createdRevisionId: createdRevisionId } });
+  }
+  function validate(command) { if (!command || command.actor !== contract.agent.id || !command.commandId || !command.operation || !Array.isArray(command.targetIds) || !command.reason) throw cloudError('CLOUD_COMMAND_INVALID', 'Cloud graph command is malformed or unauthorized.'); if (['addRelation', 'setClassification', 'markQuality', 'createBundle', 'withdrawRevision'].indexOf(command.operation) < 0) throw cloudError('CLOUD_COMMAND_FORBIDDEN', 'Cloud graph command operation is not allowed.'); return true; }
+  function writeAudit(value, receipt) { value.auditReceipts = value.auditReceipts || []; value.auditReceipts.push(receipt); if (value.auditReceipts.length > 256) value.auditReceipts.splice(0, value.auditReceipts.length - 256); }
+  function apply(command) {
+    var value = graph(), beforeHash = hash(value), receipt;
+    try {
+      validate(command);
+      if (command.operation === 'addRelation') { var relation = command.payload || {}, fromKind = nodeKind(value, relation.from), toKind = nodeKind(value, relation.to); if (!fromKind || !toKind || relation.fromKind !== fromKind || relation.toKind !== toKind || !relationAllowed(relation.kind, fromKind, toKind)) throw cloudError('CLOUD_RELATION_INVALID', 'Cloud relation is not declared or references an unknown graph node.'); addRelation(value, { kind: relation.kind, from: relation.from, to: relation.to, source: 'agent' }); }
+      else if (command.operation === 'setClassification') { var classified = revisionById(value, command.targetIds[0]); if (!classified) throw cloudError('CLOUD_REVISION_NOT_FOUND', 'Classification target is missing.'); classified.semanticTags = registry.requireSemanticTags((command.payload || {}).semanticTags); }
+      else if (command.operation === 'markQuality') { var rated = revisionById(value, command.targetIds[0]), payload = command.payload || {}; if (!rated) throw cloudError('CLOUD_REVISION_NOT_FOUND', 'Quality target is missing.'); if (Object.keys(payload).some(function(key) { return ['qualityTierId', 'qualityFlags'].indexOf(key) < 0; })) throw cloudError('CLOUD_QUALITY_PAYLOAD_INVALID', 'Quality command only accepts dictionary-owned fields.'); rated.qualityTierId = registry.requireQualityTier(payload.qualityTierId); rated.qualityFlags = registry.requireQualityFlags(payload.qualityFlags || []); rated.qualityRank = registry.cloud.qualityTiers[rated.qualityTierId].rank; if (!registry.publicAllowed(rated)) rated.status = 'withdrawn'; }
+      else if (command.operation === 'createBundle') { var bundle = command.payload || {}; if (!safeId(bundle.bundleId, 'bundle.')) throw cloudError('CLOUD_BUNDLE_INVALID', 'Bundle id is invalid.'); registry.requireBundleKind(bundle.bundleKindId); if (!Array.isArray(bundle.contains) || !bundle.contains.length || value.bundles.some(function(item) { return item.bundleId === bundle.bundleId; })) throw cloudError('CLOUD_BUNDLE_INVALID', 'Bundle members are invalid or already exist.'); value.bundles.push({ bundleId: bundle.bundleId, bundleKindId: bundle.bundleKindId, status: 'approved' }); bundle.contains.forEach(function(target) { var targetKind = nodeKind(value, target); if (!targetKind || !relationAllowed('contains', 'AssetBundle', targetKind)) throw cloudError('CLOUD_BUNDLE_MEMBER_INVALID', 'Bundle member is invalid.'); addRelation(value, { kind: 'contains', from: bundle.bundleId, to: target, source: 'agent' }); }); }
+      else { var withdrawn = revisionById(value, command.targetIds[0]); if (!withdrawn) throw cloudError('CLOUD_REVISION_NOT_FOUND', 'Withdrawal target is missing.'); withdrawn.status = 'withdrawn'; }
+      receipt = { commandId: command.commandId, applied: true, beforeHash: beforeHash, afterHash: hash(value), issues: [] };
+    } catch (error) { receipt = { commandId: (command || {}).commandId || null, applied: false, beforeHash: beforeHash, afterHash: beforeHash, issues: [error.code || 'CLOUD_COMMAND_REJECTED'] }; }
+    writeAudit(value, Object.assign({ type: 'CloudGraphReceipt', at: nowIso(), actor: (command || {}).actor || null, reason: (command || {}).reason || null }, receipt)); saveGraph(value); return receipt;
+  }
+  function withdrawPromotion(stagingId) { var value = queue(), entry = value.entries.find(function(item) { return item.stagingId === stagingId; }); if (!entry) throw cloudError('CLOUD_STAGING_NOT_FOUND', 'Unknown promotion staging id.'); if (entry.state === 'published') throw cloudError('CLOUD_PROMOTION_WITHDRAW_FORBIDDEN', 'Published revision must be withdrawn through a graph command.'); transition(entry, 'withdrawn', { decision: 'withdrawn' }); saveQueue(value); return entry; }
+  return { contract: contract, registry: registry, ports: ports, enqueuePromotion: enqueuePromotion, sync: sync, query: query, search: search, findByTags: findByTags, findExactForSpec: findExactForSpec, findNearForSpec: findNearForSpec, findTemplateKit: findTemplateKit, materialize: materialize, getPromotionStatus: function() { return queue().entries.slice(); }, withdrawPromotion: withdrawPromotion, validate: validate, apply: apply, health: function() { var value = graph(); return { contractId: contract.contractId, dictionaryFingerprint: value.dictionaryFingerprint, revisions: value.revisions.length, queueDepth: queue().entries.filter(function(entry) { return entry.state === 'requested'; }).length }; }, rootDir: rootDir };
+}
+
+module.exports = { createCloudAssetEngine: createCloudAssetEngine, createFileSystemCloudPorts: createFileSystemCloudPorts };

@@ -12,7 +12,7 @@ LangGraph 路由、owner 实现”三项，缺一项即视为未实现。
 | LocalDerivationKernel | 项目本地输入、OperationSpec、受限参数 | 本地派生 PNG、OperationReceipt、子 revision | 读云 URL、覆盖父 revision、调用模型、晋升云库 |
 | Template Registry | `TemplateSpec`、主题和槽位约束 | 模板版本、布局 token | 修改 Intent DSL、玩法规则、运行时内部计划 |
 | RuntimeAssetResolver | `AssetSpec`、本地索引、云库索引、预算 | `ResolutionDecision`、缺失/debt 路由 | 直接改像素、直接审批候选、绕过优先级调用模型 |
-| CloudResourceManager | Acceptance 后的晋升队列、批准云资源 | 持久化队列、同步、批准资源检索与本地化 | 直接接收未批准资产、模型候选或用户上传 |
+| CloudAssetEngine | Acceptance 后的 staging、公共关系图、批准资源查询与本地物化 | 不可变 Blob、关系主源、投影、队列与回执 | 直接接收未批准资产、模型候选或用户上传 |
 | ImageAgent | 受限 `AssetSpec`、参考 revision、mask、修复约束 | 模型候选 revision、成本/provenance | 选资产、写 `AssetBinding`、发布、修改玩法 |
 | VisionAgent | 候选图片和预期 `AssetSpec` | `AssetReview` | 修改像素、调用 ImageAgent、批准云库、修改 manifest |
 | AssetAcceptanceGate | revision、确定性检查、`AssetReview`、预算 | 接受/拒绝/repair 路由、`acceptanceDecision` | 越过 attempt/budget 限制、伪造审查结果 |

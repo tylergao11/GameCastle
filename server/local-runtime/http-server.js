@@ -57,7 +57,7 @@ function createLocalGameRuntimeServer(options) {
   var coordinator = options.coordinator;
   var artifactStore = options.artifactStore;
   var localAssetStore = options.localAssetStore;
-  var cloudResourceManager = options.cloudResourceManager;
+  var cloudAssetEngine = options.cloudAssetEngine;
   var allowedUiOrigin = options.allowedUiOrigin || 'http://127.0.0.1:5173';
 
   var server = http.createServer(function(req, res) {
@@ -104,7 +104,7 @@ function createLocalGameRuntimeServer(options) {
     }
     if (req.method === 'GET' && pathname === '/api/runtime/assets/cloud/search') {
       var tags = String(requestUrl.searchParams.get('tags') || '').split(',').map(function(value) { return value.trim(); }).filter(function(value) { return /^[A-Za-z0-9._-]{1,128}$/.test(value); });
-      var matches = cloudResourceManager.search(tags).map(function(asset) { return { assetId: asset.assetId, sha256: asset.sha256, format: asset.format, width: asset.width || null, height: asset.height || null, styleId: asset.styleId || null, semanticTags: asset.semanticTags || [], styleTags: asset.styleTags || [], repositoryStatus: asset.status }; });
+      var matches = cloudAssetEngine.search(tags).map(function(asset) { return { assetId: asset.assetId, sha256: asset.sha256, format: asset.format, width: asset.width || null, height: asset.height || null, styleId: asset.styleId || null, semanticTags: asset.semanticTags || [], repositoryStatus: asset.status }; });
       sendJson(res, 200, { matches: matches });
       return;
     }
@@ -136,7 +136,7 @@ function createLocalGameRuntimeServer(options) {
     }
     if (req.method === 'POST' && pathname === '/api/runtime/assets/cloud/resolve') {
       readJson(req).then(function(body) {
-        return localAssetStore.resolveCloud(body, cloudResourceManager).then(function(binding) { sendJson(res, 201, { binding: binding }); });
+        return localAssetStore.resolveCloud(body, cloudAssetEngine).then(function(binding) { sendJson(res, 201, { binding: binding }); });
       }).catch(function(error) {
         sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
       });

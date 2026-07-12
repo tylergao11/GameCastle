@@ -5,6 +5,7 @@ var assetEngine = require('../../ai/asset-engine-langgraph');
 var assetWorld = require('../../ai/asset-world');
 var simulatedPortsModule = require('../../ai/simulated-local-asset-ports');
 var styleDictionary = require('../../ai/asset-style-dictionary');
+var cloudLocalPlanRunnerModule = require('../../ai/cloud-local-plan-runner');
 
 function readJson(filePath, fallback) { try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (_error) { return fallback; } }
 function safeSlot(value) { return /^[A-Za-z0-9._-]{1,128}$/.test(String(value || '')); }
@@ -115,13 +116,14 @@ function createLocalAssetStore(options) {
     var record = { binding: input.binding, revisionId: String(input.revisionId || ''), asset: { assetId: localAsset.assetId, sha256: sha256, path: relativePath, source: 'localExplicit', provenance: 'sketch-pad', license: 'owned', repositoryStatus: 'local', styleId: assetSpec.styleId }, assetSpec: assetSpec, visualIntent: input.visualIntent, assetBinding: weave.assetBindings[0], updatedAt: new Date().toISOString() };
     return persistBinding(record);
   }
-  async function resolveCloud(input, cloudRepository) {
-    if (!input || !safeSlot(input.binding) || !input.assetSpec || !input.visualIntent || !cloudRepository) throw Object.assign(new Error('Cloud asset resolve request is malformed.'), { code: 'ASSET_CLOUD_RESOLVE_INVALID' });
+  async function resolveCloud(input, cloudAssetEngine) {
+    if (!input || !safeSlot(input.binding) || !input.assetSpec || !input.visualIntent || !cloudAssetEngine) throw Object.assign(new Error('Cloud asset resolve request is malformed.'), { code: 'ASSET_CLOUD_RESOLVE_INVALID' });
     var assetSpec = input.assetSpec;
     assetSpec = Object.assign({}, assetSpec, { styleId: styleIdFor(assetSpec), styleTags: assetSpec.styleTags || [styleIdFor(assetSpec)] });
     var slot = { slotId: assetSpec.slotId || input.binding, kind: assetSpec.kind || 'sprite', semanticTags: assetSpec.semanticTags || [], styleId: assetSpec.styleId, styleTags: assetSpec.styleTags, constraints: Object.assign({}, assetSpec.constraints || {}, { transparent: true }) };
     var projectAssetDir = path.join(outputDir, 'assets', 'cloud');
-    var weave = await runEngine({ runId: 'cloud-resolve:' + input.binding + ':' + JSON.stringify(slot), buildContract: { assetContract: { slots: [slot] } }, cloudRepository: cloudRepository, projectAssetDir: projectAssetDir, visualIntents: (function() { var intents = {}; intents[slot.slotId] = input.visualIntent; return intents; })(), ports: ports });
+    var cloudPlanRunner = cloudLocalPlanRunnerModule.createCloudLocalPlanRunner({ outputDir: projectAssetDir });
+    var weave = await runEngine({ runId: 'cloud-resolve:' + input.binding + ':' + JSON.stringify(slot), buildContract: { assetContract: { slots: [slot] } }, cloudAssetEngine: cloudAssetEngine, projectAssetDir: projectAssetDir, visualIntents: (function() { var intents = {}; intents[slot.slotId] = input.visualIntent; return intents; })(), ports: Object.assign({}, ports, { localPlan: cloudPlanRunner }) });
     var resolved = weave.slots[0];
     if (!resolved.accepted || resolved.candidate.status === 'placeholder') throw Object.assign(new Error('No approved cloud asset can satisfy this slot: ' + (resolved.debt || 'missing')), { code: 'ASSET_CLOUD_UNAVAILABLE' });
     var candidate = resolved.candidate, relativePath = path.relative(outputDir, candidate.path).replace(/\\/g, '/');

@@ -1,5 +1,11 @@
 # GameCastle Roadmap
 
+The authoritative whole-product completion program is now
+`shared/project-completion-contract.json`, with implementation order in
+`docs/project-completion-terra-roadmap.md`. This document remains the Intent Engine
+roadmap and must not be used to mark Project Weave, publishing, project cloud,
+multiplayer, or operations complete.
+
 This roadmap tracks the live AI-first Intent Engine.
 
 ## Current Intent Loop

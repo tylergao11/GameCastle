@@ -62,7 +62,7 @@ CloudApprovedStore     明确授权且通过 Acceptance 的可复用记录；只
   `deterministicVariant` candidate 交给 AssetWeave；不得绕过 AssetSpec、验收或 Runtime binding。
 - AssetRevision：持久化 revision 链与 hash。
 - RuntimeAssetResolver：决定是否先派生；不能直接改像素。
-- CloudResourceManager：只在明确晋升后读取 Acceptance，不执行 OperationSpec。
+- CloudAssetEngine：只在明确晋升后读取 Acceptance，不执行 OperationSpec。
 - 模型端口：只接收 resolver 证明“本地操作无法表达”的最小输入副本。
 
 ## 实现门

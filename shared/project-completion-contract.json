@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.project-completion",
+  "owner": "ProjectCompletionArchitecture",
+  "purpose": "Turn the completed semantic, asset, and shared cloud engines into one fast, playable, iteratable, publishable, and operable GameCastle product without duplicating domain truth.",
+  "truthSources": {
+    "completion": "shared/project-completion-contract.json",
+    "projectGraph": "ai/project-pipeline-graph.js",
+    "pipelineState": "ai/pipeline-state.js",
+    "runtimeContracts": "ai/contracts/schema.json",
+    "assetEngine": "shared/asset-engine-contract.json",
+    "cloudAssetEngine": "shared/cloud-asset-engine-contract.json",
+    "styleDictionary": "shared/asset-style-dictionary.json",
+    "templateDictionary": "shared/asset-template-dictionary.json",
+    "cloudAssetDictionary": "shared/cloud-asset-dictionary.json",
+    "providerGovernance": "shared/ai-provider-governance.json",
+    "productModules": "ai/product-modules/schema.json",
+    "gdevelopRuntimeTruth": "ai/gdevelop-truth/runtime-truth.json"
+  },
+  "completedFoundations": [
+    { "id": "semantic-engine", "contract": "ai/contracts/schema.json", "status": "implemented" },
+    { "id": "asset-engine", "contract": "shared/asset-engine-contract.json", "status": "implemented" },
+    { "id": "cloud-asset-engine", "contract": "shared/cloud-asset-engine-contract.json", "status": "implemented-local-adapter" }
+  ],
+  "principles": [
+    "one-idea-to-first-playable",
+    "user-expression-is-free-system-metadata-is-closed",
+    "optional-sketch-never-blocks-creation",
+    "local-first-and-deterministic-before-model",
+    "playable-progress-before-perfect-assets",
+    "one-owner-one-truth-one-live-path",
+    "project-weave-orchestrates-but-does-not-own-domain-logic",
+    "every-success-produces-replayable-state-and-immutable-evidence",
+    "smoke-coverage-is-not-product-completion",
+    "no-legacy-schema-alias-or-dual-runtime"
+  ],
+  "productPromise": {
+    "input": "One natural player idea, optionally with local uploads or sketches.",
+    "firstOutcome": "A playable lightweight game appears without forcing the user through an engine-style setup flow.",
+    "continuation": "The user can keep changing the same project in natural language with visible versions and rollback.",
+    "finalOutcome": "A validated immutable release can be shared or published under explicit policy."
+  },
+  "milestones": [
+    { "id": "local-creator-complete", "requires": ["WP0", "WP1", "WP2", "WP3", "WP4"], "meaning": "Natural idea to local playable iteration is product-complete." },
+    { "id": "shareable-product-complete", "requires": ["local-creator-complete", "WP5", "WP6"], "meaning": "Projects can be safely persisted, published, shared, and rolled back." },
+    { "id": "multiplayer-product-complete", "requires": ["shareable-product-complete", "WP7"], "meaning": "Selected multiplayer templates work under production room and reconnect boundaries." },
+    { "id": "operable-product-complete", "requires": ["multiplayer-product-complete", "WP8"], "meaning": "The service is observable, secure, cost-governed, and migration-safe." }
+  ],
+  "projectLifecycle": {
+    "states": ["empty", "understanding", "planning", "compiling", "resolving-assets", "assembling", "validating", "playable", "repairing", "iterating", "publishable", "published", "debt", "archived"],
+    "terminalSuccess": ["playable", "publishable", "published"],
+    "terminalRecovery": ["debt"],
+    "transitions": [
+      ["empty", "understanding"], ["understanding", "planning"], ["planning", "compiling"], ["compiling", "resolving-assets"],
+      ["resolving-assets", "assembling"], ["assembling", "validating"], ["validating", "playable"], ["validating", "repairing"],
+      ["repairing", "compiling"], ["repairing", "debt"], ["playable", "iterating"], ["iterating", "understanding"],
+      ["playable", "publishable"], ["publishable", "published"], ["published", "iterating"], ["debt", "iterating"],
+      ["playable", "archived"], ["published", "archived"]
+    ]
+  },
+  "artifacts": {
+    "ProjectRequest": { "owner": "PlatformIntentEntry", "required": ["requestId", "projectId", "mode", "naturalIntent"] },
+    "ProjectRun": { "owner": "ProjectWeaveRuntime", "required": ["runId", "projectId", "state", "graphTrace", "startedAt"] },
+    "BuildContract": { "owner": "IntentCompiler", "source": "ai/contracts/schema.json" },
+    "AssetWorld": { "owner": "AssetEngine", "source": "shared/asset-engine-contract.json" },
+    "ProjectWorld": { "owner": "ProjectWorld", "required": ["worldVersion", "semanticHash", "modules", "scenes", "debts"] },
+    "ValidationReport": { "owner": "RuntimeValidator", "required": ["checks", "pass", "ownerRoute", "blocksPublish"] },
+    "PlaytestReport": { "owner": "SemanticPlaytestAgent", "required": ["measurements", "issues", "repairIntent", "pass"] },
+    "ProjectVersion": { "owner": "ProjectStore", "required": ["versionId", "projectId", "parentVersionId", "semanticHash", "releaseCandidateId", "createdAt"] },
+    "ReleaseCandidate": { "owner": "ReleaseAssembler", "required": ["candidateId", "projectVersionId", "manifest", "validationReport", "assetManifest", "runtimeManifest"] },
+    "PublishReceipt": { "owner": "Publisher", "required": ["releaseId", "projectId", "versionId", "decision", "publishedUrl", "contentHash"] },
+    "OperationalEvent": { "owner": "TelemetryBoundary", "required": ["eventId", "projectId", "runId", "owner", "code", "timestamp"] }
+  },
+  "workPackages": [
+    {
+      "id": "WP0", "name": "Project Weave Live Orchestration", "priority": "P0", "owner": "ProjectWeaveRuntime", "status": "designed",
+      "dependsOn": ["semantic-engine", "asset-engine", "cloud-asset-engine"],
+      "scope": ["one official LangGraph for every project owner", "checkpoint and resume", "owner-routed failure", "one create and continue path", "aggregate completion gate"],
+      "inputs": ["ProjectRequest", "previous ProjectWorld", "previous AssetWorld"],
+      "outputs": ["ProjectRun", "ProjectWorld", "AssetWorld", "ValidationReport", "PlaytestReport"],
+      "forbidden": ["parallel shadow pipeline", "smoke-only node declared live", "UI parsing logs", "LLM reading raw target facts"],
+      "completionEvidence": ["all Project Weave nodes use wired-langgraph status", "create and continue run through the same graph", "checkpoint resume test", "owner failure matrix", "npm run check:project"]
+    },
+    {
+      "id": "WP1", "name": "Real Provider Runtime", "priority": "P0", "owner": "ProviderRuntime", "status": "designed",
+      "dependsOn": ["WP0"],
+      "scope": ["creative and intent text providers", "image generation", "image edit", "vision review", "budget and privacy policy", "provider receipts"],
+      "inputs": ["role request", "provider governance", "budget", "approved model transit data"],
+      "outputs": ["typed provider result", "cost receipt", "provenance", "provider debt"],
+      "forbidden": ["API key in project artifact", "silent simulated-to-real substitution", "model before local/cloud resolution", "unbounded retry"],
+      "completionEvidence": ["provider contract tests", "authorized live smoke per role", "timeout and budget tests", "simulated result cannot publish"]
+    },
+    {
+      "id": "WP2", "name": "Gameplay Module and Template Coverage", "priority": "P0", "owner": "ProductModuleCompiler", "status": "designed",
+      "dependsOn": ["WP0"],
+      "scope": ["stable lightweight game archetypes", "UI/game template slots", "deterministic module composition", "template acceptance fixtures", "module capability dictionary"],
+      "minimumArchetypes": ["runner-platformer", "top-down-collector", "lightweight-shooter", "interaction-puzzle", "idle-clicker"],
+      "inputs": ["BuildContract module intents", "template dictionary", "product module manifests"],
+      "outputs": ["compiled module plan", "template slot contract", "playable archetype fixture"],
+      "forbidden": ["LLM emitting module implementation", "template copying style tokens", "one-off project patch outside module compiler"],
+      "completionEvidence": ["five archetype create tests", "cross-module conflict tests", "template slot fulfillment", "continue-mode configuration tests"]
+    },
+    {
+      "id": "WP3", "name": "Project Workspace and Version Lifecycle", "priority": "P0", "owner": "ProjectStore", "status": "designed",
+      "dependsOn": ["WP0"],
+      "scope": ["multi-project local workspace", "autosave", "immutable versions", "rollback", "continue context", "optional Asset Studio"],
+      "inputs": ["ProjectRun", "ProjectWorld", "AssetWorld", "release candidate"],
+      "outputs": ["ProjectVersion", "project index", "rollback receipt", "active workspace"],
+      "forbidden": ["single global output as multi-project truth", "project version without semantic hash", "forced sketch or setup wizard", "browser owning project files"],
+      "completionEvidence": ["two-project isolation test", "crash recovery", "version rollback", "continue after restart", "UI project switch E2E"]
+    },
+    {
+      "id": "WP4", "name": "Playable Iteration and Repair UX", "priority": "P0", "owner": "CreatorExperience", "status": "designed",
+      "dependsOn": ["WP0", "WP2", "WP3"],
+      "scope": ["one-screen idea entry", "visible project stages", "embedded playable preview", "natural iteration", "bounded automatic repair", "actionable debt"],
+      "inputs": ["RunSnapshot", "playable release", "PlaytestReport", "owner route"],
+      "outputs": ["user-visible result", "iteration request", "repair decision", "accepted playable version"],
+      "forbidden": ["engine-form workflow", "raw owner diagnostics", "blocking optional asset step", "automatic destructive repair"],
+      "completionEvidence": ["new user first-playable E2E", "continue iteration E2E", "cancel and rollback E2E", "repair budget exhaustion UX", "no-log-parsing UI test"]
+    },
+    {
+      "id": "WP5", "name": "Release and Publishing", "priority": "P1", "owner": "Publisher", "status": "designed",
+      "dependsOn": ["WP3", "WP4"],
+      "scope": ["publishability gate", "immutable release", "release manifest", "share page", "withdraw and rollback", "asset and license verification"],
+      "inputs": ["ProjectVersion", "ReleaseCandidate", "ValidationReport", "AssetManifest"],
+      "outputs": ["PublishReceipt", "hosted release", "withdraw receipt"],
+      "forbidden": ["publish with blocking debt", "serve mutable workspace", "remote asset URL in runtime", "publish without explicit user decision"],
+      "completionEvidence": ["publish/withdraw/rollback integration", "content hash verification", "license rejection", "isolated hosted origin security test"]
+    },
+    {
+      "id": "WP6", "name": "Identity and Project Cloud", "priority": "P1", "owner": "ProjectCloudService", "status": "designed",
+      "dependsOn": ["WP3", "WP5"],
+      "scope": ["account identity", "project ownership", "project sync", "release access policy", "conflict-safe version upload", "quota"],
+      "inputs": ["authenticated actor", "ProjectVersion", "PublishReceipt"],
+      "outputs": ["project cloud record", "sync receipt", "access decision", "quota receipt"],
+      "forbidden": ["reuse CloudAssetEngine as personal project storage", "sync private raw assets without policy", "last-write-wins without version check"],
+      "completionEvidence": ["two-user isolation", "offline/online reconciliation", "ownership transfer policy", "quota and authorization tests"]
+    },
+    {
+      "id": "WP7", "name": "Production Multiplayer", "priority": "P2", "owner": "MultiplayerRuntime", "status": "designed",
+      "dependsOn": ["WP2", "WP5", "WP6"],
+      "scope": ["room lifecycle", "authoritative player slots", "reconnect", "sync strategy selection", "state persistence", "capacity limits"],
+      "inputs": ["compiled network plan", "authenticated players", "runtime release"],
+      "outputs": ["room receipt", "session state", "reconnect receipt", "multiplayer playtest report"],
+      "forbidden": ["gameplay module implementing transport", "multiple realtime tick owners", "room state in browser truth", "multiplayer enabled without template capability"],
+      "completionEvidence": ["two-client browser E2E", "disconnect/reconnect", "packet loss and ordering", "room cleanup", "authority and cheat-boundary tests"]
+    },
+    {
+      "id": "WP8", "name": "Security, Observability, Cost, and Operations", "priority": "P2", "owner": "OperationsBoundary", "status": "designed",
+      "dependsOn": ["WP0", "WP1", "WP5", "WP6", "WP7"],
+      "scope": ["structured telemetry", "privacy and secret handling", "rate limit", "cost ledger", "backup and migration", "incident diagnostics", "SLO"],
+      "inputs": ["OperationalEvent", "provider receipt", "publish event", "room event"],
+      "outputs": ["health report", "cost report", "security decision", "migration receipt", "incident trace"],
+      "forbidden": ["logs as domain truth", "secret in telemetry", "silent schema migration", "unbounded model or storage spend"],
+      "completionEvidence": ["security test suite", "load and soak tests", "backup restore", "schema migration rehearsal", "cost limit enforcement", "operational dashboard smoke"]
+    }
+  ],
+  "ports": [
+    { "id": "ProjectWeavePort", "owner": "ProjectWeaveRuntime", "methods": ["create", "continue", "resume", "cancel"] },
+    { "id": "ProjectStorePort", "owner": "ProjectStore", "methods": ["createProject", "saveVersion", "loadVersion", "rollback", "listProjects"] },
+    { "id": "ProviderRuntimePort", "owner": "ProviderRuntime", "methods": ["invokeRole", "cancel", "health"] },
+    { "id": "ReleasePort", "owner": "ReleaseAssembler", "methods": ["assemble", "verify", "commit"] },
+    { "id": "PublishPort", "owner": "Publisher", "methods": ["publish", "withdraw", "resolveRelease"] },
+    { "id": "ProjectCloudPort", "owner": "ProjectCloudService", "methods": ["authorize", "pushVersion", "pullProject", "resolveConflict"] },
+    { "id": "MultiplayerPort", "owner": "MultiplayerRuntime", "methods": ["createRoom", "join", "leave", "reconnect", "closeRoom"] },
+    { "id": "TelemetryPort", "owner": "OperationsBoundary", "methods": ["record", "measure", "health"] }
+  ],
+  "hardGates": [
+    "no-ui-owned-domain-truth",
+    "no-project-weave-duplication-of-domain-logic",
+    "no-smoke-node-counted-as-live-completion",
+    "no-model-call-outside-provider-governance",
+    "no-required-sketch-upload-or-template-wizard",
+    "no-runtime-binding-to-remote-asset-url",
+    "no-project-version-without-projectworld-assetworld-and-semantic-hash",
+    "no-publish-with-blocking-debt-or-failed-validation",
+    "no-personal-project-data-in-public-asset-cloud",
+    "no-multiplayer-without-compiled-network-capability",
+    "no-secret-in-artifact-log-or-telemetry",
+    "no-legacy-runtime-schema-alias-or-dual-write"
+  ]
+}

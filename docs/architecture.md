@@ -115,9 +115,11 @@ The contract types are complete runtime-facing shapes, not placeholders:
 - `AssemblyReport`: RuntimeLinker bindings, outputs, conflicts, and next action.
 - `ValidationReport`: RuntimeValidator checks, cache hit, owner-on-failure, and next action.
 
-`npm run check:ai` runs `ai/check-contracts.js`, which verifies the schema,
-local `$ref`s, required fields, owner enums, repair/cache fields, and
-`agent-workflow.js` contract owner mappings.
+`npm run check:ai` currently covers the asset/provider gate. The authoritative
+whole-product completion program is `shared/project-completion-contract.json`;
+WP0 must introduce `npm run check:project` and aggregate the complete Project
+Weave contract, runtime, recovery, and E2E evidence instead of relying on
+scattered checks.
 
 `ai/asset-weave-graph.js` is the sole asset runtime entry. It owns the
 conditional local/cloud/variant/model path and emits `AssetManifest` only after
@@ -291,9 +293,10 @@ owner nodes after `ProjectWorld` and `ExecutionReport` are written.
 
 The whole-project orchestration name is **Project Weave Graph** (`项目联排图`).
 It is the graph above the World Intent Layer. The current official LangGraph
-runtime already executes the embedded World Intent Layer; the remaining project
-owners are declared as contract-ready nodes without inventing new prompt surfaces
-or widening LLM2 access.
+runtime already executes the embedded World Intent Layer. Remaining project
+owners have official smoke coverage but are still `wired-langgraph-smoke`, not
+live product nodes. WP0 in `shared/project-completion-contract.json` owns their
+promotion to one checkpointed live graph without widening LLM2 access.
 
 `ai/project-pipeline-graph.js` owns the total graph specification:
 
@@ -304,11 +307,7 @@ Project Weave Graph:
 llm2-intent
   -> intent-compiler
   -> resolver
-  -> asset-library
-  -> image-generation
-  -> asset-review
-  -> asset-resolver
-  -> asset-world
+  -> asset-weave
   -> bridge
   -> runtime-linker
   -> tick-runtime

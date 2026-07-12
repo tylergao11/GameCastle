@@ -67,7 +67,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     status: 'wired-langgraph-smoke',
     reads: ['compiler.contracts', 'assetWorld.previous'],
     writes: ['assetResolver.manifest', 'assetResolver.summary', 'assetWorld.world', 'assetWorld.sanitizedForAgents'],
-    modules: ['ai/asset-engine-langgraph.js', 'ai/asset-weave-graph.js', 'ai/asset-world.js', 'ai/asset-model-ports.js', 'ai/cloud-resource-manager.js', 'ai/runtime-animation-recipes.js', 'ai/asset-animation-state-machine.js'],
+    modules: ['ai/asset-engine-langgraph.js', 'ai/asset-weave-graph.js', 'ai/asset-world.js', 'ai/asset-model-ports.js', 'ai/cloud-asset-engine.js', 'ai/cloud-local-plan-runner.js', 'ai/runtime-animation-recipes.js', 'ai/asset-animation-state-machine.js'],
   },
   bridge: {
     layer: 'world-intent',

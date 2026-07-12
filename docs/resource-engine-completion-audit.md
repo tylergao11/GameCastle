@@ -10,11 +10,11 @@ fixture 成功描述为真实 provider 已上线。
 | STYLE 1 统一视觉词典 | `shared/asset-style-dictionary.json` 被工作台、UI registry、Runtime binding 共同读取 | 已实现 |
 | 低成本状态机 | Asset Weave binding 包含状态机；导出 overlay dispatcher 实测状态转换 | 已实现 |
 | 本地库 | 内容哈希、来源/授权、binding、导出 PNG 与本地优先路由 | 已实现 |
-| 云端 exact/near 复用 | approved-only 搜索、exact/near Asset Weave、`assets/cloud` 材料化 HTTP 回归 | 已实现（本地持久云仓实现） |
+| 云端 exact/near/template-kit 复用 | 受控词典过滤、license/quality rights、exact/near/template-kit、`assets/cloud` 完整 materialization receipt 回归 | 已实现（可替换 Port 的本地开发适配器） |
 | 导出与 immutable release | binding manifest、PNG、overlay 进入 HTML manifest 与 release 回归 | 已实现 |
 | 图像生成/编辑端口 | `AssetModelPorts` fail-closed；无端口产出 PlaceholderDebt；模拟本地端口明确标记 simulated | 已实现为安全降级，未配置真实 provider |
 | 视觉审查修复循环 | mock Vision 通过、修复后二次审查、预算 debt 回归；跨槽共享 `__modelBudget`，外层 policy maxCost 压入 Weave | 已实现为适配器契约，未配置真实 Vision provider |
-| UI 模板资产消费 | 词典中的 `uiTemplates` 同时驱动 Template Registry 与工作台模板/槽位选择 | 已实现 |
+| UI 模板资产消费 | `asset-template-dictionary.json` 同时驱动 Template Registry 与工作台模板/槽位选择 | 已实现 |
 | 外部云服务 | 当前为受控本地持久云仓；未接入外部对象存储/账号/同步服务 | 明确保留 |
 
 ## 总契约阶段核对（2026-07-12）
@@ -27,14 +27,20 @@ fixture 成功描述为真实 provider 已上线。
 | image edit / generation / review | LangGraph 路由、授权、预算、repair 和 debt 均有测试；没有真实 provider 凭据 | 端口闭环，外部实现保留 |
 | immutable revision / receipt | LocalAssetStore 与 derivation kernel 写 hash、parent revision、receipt；绑定和导出回归 | 已闭环 |
 | Runtime / AssetWorld | 实际 GDevelop resource、Sprite、layout usedResources、manifest 和 AssetWorld 回归 | 已闭环 |
-| cloud promotion | 仅显式 queue + 可注入 CloudResourceManager；Runtime 没有自动晋升 API | 接口闭环，独立服务保留 |
+| cloud promotion | 受控 ID、显式 consent、Acceptance/Runtime receipt、完整状态、重试、幂等、audit receipt 和可替换授权 Port | 已实现（真实线上服务适配器未部署） |
 
 ## 真相源审计
 
 - `shared/asset-engine-contract.json` 是流程、阶段、端口和 artifact 的总事实源。
-- `shared/asset-style-dictionary.json` 是色板、描边/投影/高光配方、模板、锚点、动画策略的唯一事实源。
+- `shared/asset-style-dictionary.json` 是色板、描边/投影/高光、锚点与动画策略的唯一事实源。
+- `shared/asset-template-dictionary.json` 是 UI/game template、版本、slot 与约束的唯一事实源。
+- `shared/cloud-asset-dictionary.json` 是公共 tag、bundle、quality、provenance 与 license ID 的唯一事实源。
 - `shared/local-derivation-contract.json` 是本地 operation 与回执字段的唯一事实源。
-- `styleId` 是词典外键；`styleTags` 仅作检索标签。验收会拒绝两者的风格主键不匹配，Runtime 不再从 tag 推断 styleId。
+- `styleId` 是词典外键；`styleTags` 只能作项目本地提示，不得进入公共云索引。Runtime 不从 tag 推断 styleId。
+- 公共动态事实由 RelationIndex/BlobStore 拥有；PromotionQueue 只拥有工作流状态，Projection 只允许重建。
+
+云库 P0 实现以 `docs/cloud-asset-engine-terra-handoff.md` 为准；对象存储、数据库、Worker、认证和
+运营告警的真实线上适配器尚未部署，不得将本地开发适配器称为线上服务。
 
 ## P0 离线增量（2026-07-12）
 

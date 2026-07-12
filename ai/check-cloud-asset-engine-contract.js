@@ -1,0 +1,28 @@
+var assert = require('assert');
+var fs = require('fs');
+var path = require('path');
+var contract = require('../shared/cloud-asset-engine-contract.json');
+
+assert.equal(contract.contractId, 'gamecastle.cloud-asset-engine');
+assert.equal(contract.schemaVersion, 2);
+assert(contract.principles.indexOf('cloud-finds-assets-local-runtime-makes-them-playable') >= 0);
+assert.equal(contract.scopes['cloud-shared'].public, true);
+assert.equal(contract.scopes['private-local'].cloudAllowed, false);
+Object.keys(contract.truthSources).forEach(function(key) { assert(fs.existsSync(path.resolve(__dirname, '..', contract.truthSources[key])), 'missing truth source: ' + key); });
+var nodeKinds = Object.keys(contract.nodeKinds), relationIds = contract.relationKinds.map(function(relation) { return relation.id; });
+assert.equal(new Set(relationIds).size, relationIds.length);
+contract.relationKinds.forEach(function(relation) { relation.from.concat(relation.to).forEach(function(kind) { assert(nodeKinds.indexOf(kind) >= 0, relation.id + ' references unknown node ' + kind); }); });
+['query', 'materialize', 'promotion', 'maintenance'].forEach(function(flow) { assert(Array.isArray(contract.flows[flow]) && contract.flows[flow].length >= 4); });
+['CloudAssetQuery', 'CloudCandidateSet', 'TemplateKitCandidate', 'LocalMaterializationPlan', 'MaterializationReceipt', 'CloudPromotionRequest', 'CloudPromotionReceipt'].forEach(function(name) { assert(contract.artifacts[name], 'missing artifact ' + name); });
+assert(contract.agent.forbidden.indexOf('bind project runtime') >= 0);
+assert(contract.hardGates.indexOf('no-model-call-when-local-plan-satisfies-spec') >= 0);
+assert(contract.hardGates.indexOf('no-legacy-schema-alias-or-dual-write') >= 0);
+['CloudBlobStorePort', 'CloudRelationIndexPort', 'CloudPromotionQueuePort', 'CloudProjectionPort', 'CloudAccessPolicyPort'].forEach(function(id) { assert(contract.ports.some(function(port) { return port.id === id; }), 'missing replaceable plane port: ' + id); });
+assert(contract.hardGates.indexOf('no-direct-filesystem-assumption-in-engine-core') >= 0);
+assert.equal(contract.truthModel.queryProjection.authoritative, false);
+assert.equal(contract.truthModel.agentProposal.authoritative, false);
+assert.equal(contract.truthModel.publicAssetFacts.owner, 'CloudRelationIndexPort');
+['semanticTags', 'bundleKindId', 'qualityTierId', 'qualityFlags', 'provenanceTypeId', 'licensePolicyId', 'styleId', 'templateId', 'kind'].forEach(function(field) { assert(contract.controlledFields[field] && contract.controlledFields[field].freeTextAllowed === false, 'uncontrolled cloud field: ' + field); });
+assert.equal(contract.nodeKinds.LicensePolicy, undefined);
+assert.deepEqual(contract.graphCommandOperations, ['addRelation', 'setClassification', 'markQuality', 'createBundle', 'withdrawRevision']);
+console.log('[CloudAssetEngineContract] public library, lightweight relations, local-first plans, promotion, and agent boundaries passed');

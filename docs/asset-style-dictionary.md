@@ -1,12 +1,13 @@
 # GameCastle 资源词典
 
-资源词典是视觉资产、UI 模板和 Runtime 的共同语言，而不是一段仅供模型阅读的风格描述。
+资源词典是视觉资产与 Runtime 的共同视觉语言，而不是一段仅供模型阅读的风格描述。UI/game
+模板由独立的 `shared/asset-template-dictionary.json` 拥有，避免模板定义混入视觉语法。
 当前唯一默认样式为 `gamecastle.style-1`，源文件为
 `shared/asset-style-dictionary.json`。
 
 `styleId` 是指向词典的唯一风格主键，必须随 `AssetSpec`、资产 revision、Runtime binding
-和 UI 模板传递；`styleTags` 则是可多选的检索/描述标签（例如 `arcade`），不能被当作
-`styleId` 推断。缺失 `styleId` 时，才允许取词典的 `defaultStyleId`。
+和模板引用传递。`styleTags` 只能作为项目本地提示，不能进入公共云库真相；公共检索必须使用
+稳定 `styleId`。缺失 `styleId` 时，才允许取词典的 `defaultStyleId`。
 
 ## STYLE 1：GameCastle 意象派
 

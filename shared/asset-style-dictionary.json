@@ -2,10 +2,6 @@
   "schemaVersion": 1,
   "dictionaryId": "gamecastle.asset-style-dictionary",
   "defaultStyleId": "gamecastle.style-1",
-  "uiTemplates": [
-    { "id": "ui.hud.arcade", "name": "Arcade HUD", "styleId": "gamecastle.style-1", "slots": ["asset.ui.health", "asset.ui.pause", "asset.ui.custom"], "theme": { "accent": "red", "panel": "paper" } },
-    { "id": "ui.menu.paper", "name": "Paper Menu", "styleId": "gamecastle.style-1", "slots": ["asset.ui.logo", "asset.ui.play", "asset.ui.custom"], "theme": { "accent": "yellow", "panel": "paper" } }
-  ],
   "styles": {
     "gamecastle.style-1": {
       "name": "GameCastle 意象派",

@@ -56,9 +56,12 @@ The important property is ownership. AI decides in natural game terms; determini
 # Start the Local Game Runtime and the frontend together.
 npm run dev
 
-# Full AI gate. Use the local GDevelop checkout as runtime truth source.
+# Current asset/provider gate. WP0 will replace this with the complete Project Weave gate.
 set GAMECASTLE_GDEVELOP_SOURCE_DIR=C:\Ai\GDevelop-master
 npm run check:ai
+
+# Whole-product design contract (WP0-WP8).
+npm run check:project-design
 
 # Generate an offline Intent fixture into output/.
 npm run gen
@@ -103,3 +106,7 @@ GameCastle does not hand-maintain GDevelop object types, behavior types, object 
 - [Visual Asset Boundaries](docs/visual-asset-boundaries.md)
 - [Visual Asset Test Matrix](docs/visual-asset-test-matrix.md)
 - [Local Asset Studio](docs/local-asset-studio.md)
+- [Project Completion Architecture](docs/project-completion-architecture.md)
+- [Project Completion Boundaries](docs/project-completion-boundaries.md)
+- [Terra Project Roadmap](docs/project-completion-terra-roadmap.md)
+- [Project Completion Test Matrix](docs/project-completion-test-matrix.md)

@@ -1,11 +1,15 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "contractId": "gamecastle.asset-engine",
   "owner": "AssetEngine",
   "truthSources": {
     "engine": "shared/asset-engine-contract.json",
     "style": "shared/asset-style-dictionary.json",
+    "templates": "shared/asset-template-dictionary.json",
+    "cloudVocabulary": "shared/cloud-asset-dictionary.json",
     "localDerivation": "shared/local-derivation-contract.json",
+    "providerGovernance": "shared/ai-provider-governance.json",
+    "cloudAssetEngine": "shared/cloud-asset-engine-contract.json",
     "buildContract": "ai/contracts/schema.json"
   },
   "principles": ["user-input-is-optional", "local-first", "cloud-reuse-before-generation", "deterministic-derivation-before-model", "project-local-is-runtime-truth", "every-mutation-creates-revision-and-receipt", "unimplemented-capabilities-fail-closed", "placeholder-is-explicit-debt", "cloud-promotion-is-never-automatic"],
@@ -22,13 +26,13 @@
     { "id": "AssetDeriveGraph", "owner": "AssetDerivationRouter", "entry": "asset-derive", "exit": "candidate-ready" },
     { "id": "AssetReviewGraph", "owner": "AssetAcceptanceGate", "entry": "asset-review", "exit": "accepted-or-debt" },
     { "id": "AssetFinalizeGraph", "owner": "AssetFinalizer", "entry": "asset-finalize", "exit": "asset-world-ready" },
-    { "id": "CloudPromotionGraph", "owner": "CloudResourceManager", "entry": "promotion-requested", "exit": "promoted-or-rejected" }
+    { "id": "CloudPromotionGraph", "owner": "CloudAssetEngine", "entry": "promotion-requested", "exit": "promoted-or-rejected" }
   ],
   "stages": [
     { "id": "asset-intake", "owner": "AssetSpecCompiler", "input": "BuildContract.assetSlots", "output": "AssetSpec[]", "implementation": "implemented", "module": "ai/asset-engine-langgraph.js" },
     { "id": "local-input-archive", "owner": "LocalInputArchive", "input": "AssetSpec[]", "output": "LocalInputRecord[]", "implementation": "implemented", "module": "ai/asset-engine-langgraph.js" },
     { "id": "asset-resolve", "owner": "AssetResolver", "input": "AssetSpec", "output": "ResolutionDecision", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
-    { "id": "cloud-materialize", "owner": "AssetRepository", "input": "CloudAssetRecord", "output": "ProjectLocalRevision", "implementation": "implemented", "module": "ai/asset-repository.js" },
+    { "id": "cloud-materialize", "owner": "CloudAssetEngine", "input": "MaterializationRequest", "output": "MaterializationReceipt+ProjectLocalRevision", "implementation": "implemented", "module": "ai/cloud-asset-engine.js" },
     { "id": "deterministic-derive", "owner": "LocalDerivationKernel", "input": "DerivationPlan", "output": "AssetRevision+OperationReceipt", "implementation": "partial", "module": "ai/local-derivation-kernel.js" },
     { "id": "model-authorize", "owner": "ModelPolicyGate", "input": "ModelRequest", "output": "AuthorizedModelRequest|DeniedModelRequest", "implementation": "implemented", "module": "ai/model-policy-gate.js" },
     { "id": "image-edit", "owner": "ImageEditPort", "input": "AuthorizedModelRequest", "output": "AssetRevision+ModelReceipt", "implementation": "port", "module": "ai/asset-model-ports.js" },
@@ -40,7 +44,7 @@
     { "id": "manifest-build", "owner": "AssetManifestBuilder", "input": "AssetRecord[]", "output": "AssetManifest", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
     { "id": "runtime-bind", "owner": "RuntimeAssetBinder", "input": "AssetManifest+BindingSpec[]", "output": "RuntimeBindingManifest", "implementation": "implemented", "module": "ai/asset-runtime-overlay-codegen.js" },
     { "id": "asset-world-project", "owner": "AssetWorldProjector", "input": "AssetManifest+RuntimeBindingManifest", "output": "AssetWorld", "implementation": "implemented", "module": "ai/asset-world.js" },
-    { "id": "cloud-promotion", "owner": "CloudResourceManager", "input": "PromotionRequest+AcceptanceReceipt", "output": "CloudAssetRecord|PromotionRejection", "implementation": "implemented", "module": "ai/cloud-resource-manager.js" },
+    { "id": "cloud-promotion", "owner": "CloudAssetEngine", "input": "CloudPromotionRequest", "output": "CloudPromotionReceipt", "implementation": "implemented", "module": "ai/cloud-asset-engine.js" },
     { "id": "placeholder-debt", "owner": "AssetDebtManager", "input": "FailureContext", "output": "AssetDebt", "implementation": "implemented", "module": "ai/asset-weave-graph.js" }
   ],
   "artifacts": {

@@ -2,6 +2,7 @@ var deepseekCacheMonitor = require('./deepseek-cache-monitor');
 var llm2DecisionRuntime = require('./llm2-decision-runtime');
 var semanticFeedback = require('./semantic-feedback');
 var responsesClient = require('./responses-client');
+var governance = require('./ai-provider-governance');
 
 var LLM2_DEEPSEEK_DECISION_PROVIDER_SCHEMA_VERSION = 1;
 
@@ -322,9 +323,9 @@ function normalizeDecision(rawDecision, options) {
 
 async function runDeepSeekDecisionProvider(options) {
   options = Object.assign({
-    endpoint: process.env.LLM_ENDPOINT || 'http://127.0.0.1:18081/v1',
-    apiKey: process.env.DEEPSEEK_API_KEY || '',
-    model: process.env.LLM_MODEL || process.env.GAMECASTLE_INTENT_MODEL || 'deepseek-v4-flash',
+    endpoint: governance.semantic({ provider: 'deepseek' }).endpoint,
+    apiKey: governance.semantic({ provider: 'deepseek' }).apiKey,
+    model: governance.semantic({ provider: 'deepseek' }).textModel,
     threshold: 0.9,
   }, options || {});
   var response = await callProvider(options);

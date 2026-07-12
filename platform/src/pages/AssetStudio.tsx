@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import styleDictionary from '../../../shared/asset-style-dictionary.json'
+import templateDictionary from '../../../shared/asset-template-dictionary.json'
 import { alphaBounds, cropToAlpha, removeLightEdgeBackground, solidifyClosedLineArt } from '../../../shared/local-asset-ops.mjs'
 import { upsertLocalAsset } from '../localAssetLibrary'
 import { generateSimulatedRuntimeSheet, resolveRuntimeCloudAsset, saveRuntimeAssetBinding, searchRuntimeCloudAssets } from '../runtime/client'
@@ -7,7 +8,7 @@ import { generateSimulatedRuntimeSheet, resolveRuntimeCloudAsset, saveRuntimeAss
 type Revision = { id: string; label: string; png: string; createdAt: number }
 const STYLE_ID = styleDictionary.defaultStyleId as keyof typeof styleDictionary.styles
 const STYLE = styleDictionary.styles[STYLE_ID]
-const UI_TEMPLATES = styleDictionary.uiTemplates
+const UI_TEMPLATES = templateDictionary.templates.filter((template) => template.templateKind === 'ui-template' && template.status === 'approved').map((template) => ({ ...template, slots: template.slots.map((slot) => slot.id) }))
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2)}` }
 function canvasPng(canvas: HTMLCanvasElement) { return canvas.toDataURL('image/png') }

@@ -52,12 +52,12 @@ async function runAssetEngine(input) {
   var A = lg.Annotation.Root({ state: lg.Annotation({ reducer: function(_left, right) { return right; }, default: function() { return null; } }) });
   var initial = {
     runId: input.runId,
+    projectId: input.projectId || input.runId,
     buildContract: clone(input.buildContract || {}),
     localInputs: clone(input.localInputs || {}),
     localAssets: input.localAssets || {},
     sources: input.sources || {},
-    cloudRepository: input.cloudRepository || null,
-    cloudResourceManager: input.cloudResourceManager || null,
+    cloudAssetEngine: input.cloudAssetEngine || null,
     visualIntents: input.visualIntents || {},
     ports: input.ports || {},
     modelPolicy: input.modelPolicy || {},
@@ -67,6 +67,7 @@ async function runAssetEngine(input) {
     maxAttempts: input.maxAttempts,
     maxCost: input.maxCost,
     promotionMode: input.promotionMode || 'none',
+    shareConsent: input.shareConsent === true,
     trace: []
   };
   function node(stage, work) { return async function(wire) { var state = Object.assign({}, wire.state); await work(state); state.trace = append(state.trace, stage); return { state: state }; }; }
@@ -77,10 +78,11 @@ async function runAssetEngine(input) {
     .addNode('asset-resolve', node('asset-resolve', async function(state) {
       state.weaveResult = await assetWeave.runAssetWeave({
         runId: state.runId,
+        projectId: state.projectId,
         buildContract: { assetContract: { slots: state.assetSpecs } },
         localAssets: state.localAssets,
         sources: state.sources,
-        cloudRepository: state.cloudRepository,
+        cloudAssetEngine: state.cloudAssetEngine,
         visualIntents: state.visualIntents,
         ports: state.authorizedPorts,
         modelPolicy: state.modelPolicyReceipt,
@@ -100,11 +102,12 @@ async function runAssetEngine(input) {
     }))
     .addNode('cloud-promotion', node('cloud-promotion', function(state) {
       var queue = state.weaveResult.cloudPromotionQueue || [];
+      queue = queue.map(function(entry) { var binding = (state.runtimeBindingManifest.bindings || []).find(function(item) { return item.slotId === entry.slotId; }) || null; return Object.assign({}, entry, { shareConsent: state.shareConsent === true, runtimeBindingReceipt: binding ? Object.assign({}, binding, { status: 'bound', boundAssetStatus: binding.status }) : null }); });
       state.cloudPromotion = { mode: state.promotionMode, queue: clone(queue), entries: [] };
       if (state.promotionMode === 'none' || !queue.length) return;
-      if (!state.cloudResourceManager) throw new Error('Cloud promotion was requested without CloudResourceManager');
-      state.cloudPromotion.entries = state.cloudResourceManager.enqueue(state.weaveResult);
-      if (state.promotionMode === 'sync') state.cloudPromotion.entries = state.cloudResourceManager.sync();
+      if (!state.cloudAssetEngine) throw new Error('Cloud promotion was requested without CloudAssetEngine');
+      state.cloudPromotion.entries = state.cloudAssetEngine.enqueuePromotion({ cloudPromotionQueue: queue });
+      if (state.promotionMode === 'sync') state.cloudPromotion.entries = state.cloudAssetEngine.sync();
     }));
   graph.addEdge(lg.START, 'asset-intake').addEdge('asset-intake', 'local-input-archive').addEdge('local-input-archive', 'model-authorize').addEdge('model-authorize', 'asset-resolve').addEdge('asset-resolve', 'asset-finalize').addEdge('asset-finalize', 'cloud-promotion').addEdge('cloud-promotion', lg.END);
   var output = await graph.compile().invoke({ state: initial });

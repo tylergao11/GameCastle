@@ -43,7 +43,7 @@
 - 晋升必须有 AcceptanceReceipt、license、provenance 和显式请求。
 - 云端记录保留 revision lineage、styleId、semanticTags、质量和使用统计。
 
-当前只暴露扩展接口，不实现云端账户、对象存储、队列消费者或 Runtime 晋升 API。后续云端实现应提供 `CloudResourceManager`：`enqueue(assetEngineResult)`、`sync()`、`search(tags)`、`findExactForSpec(spec)`、`findNearForSpec(spec)` 与 `materialize(assetId, projectAssetDir)`。资产总 LangGraph 通过注入的 manager 消费显式 promotion queue；未注入 manager 时不能进行云端写入。
+CloudAssetEngine 已定义 query、materialize、显式 staging promotion 与 graph command 的本地可验证骨架。后续部署只替换 BlobStore、RelationIndex、ProjectionIndex 和 Queue 的基础设施实现，不得改变 `shared/cloud-asset-engine-contract.json` 的产物与硬门；未注入 CloudAssetEngine 时不能进行云端写入。
 
 ## Definition of Done
 

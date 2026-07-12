@@ -7,8 +7,7 @@ var pipelineRunnerModule = require('./pipeline-runner');
 var stateStoreModule = require('./state-store');
 var transactionModule = require('./workspace-transaction');
 var localAssetStoreModule = require('./local-asset-store');
-var assetRepositoryModule = require('../../ai/asset-repository');
-var cloudResourceManagerModule = require('../../ai/cloud-resource-manager');
+var cloudAssetEngineModule = require('../../ai/cloud-asset-engine');
 var simulatedPortsModule = require('../../ai/simulated-local-asset-ports');
 
 function createRuntime(options) {
@@ -23,8 +22,8 @@ function createRuntime(options) {
   var stateStore = options.stateStore || stateStoreModule.createStateStore(path.join(dataDir, 'local-runtime-state.json'));
   var simulatedPorts = options.simulatedPorts || simulatedPortsModule.createSimulatedLocalAssetPorts({ outputDir: outputDir });
   var localAssetStore = options.localAssetStore || localAssetStoreModule.createLocalAssetStore({ outputDir: outputDir, ports: simulatedPorts });
-  var cloudRepository = options.cloudRepository || assetRepositoryModule.createAssetRepository(path.join(dataDir, 'cloud-assets'));
-  var cloudResourceManager = options.cloudResourceManager || cloudResourceManagerModule.createCloudResourceManager({ cloudRepository: cloudRepository, queuePath: path.join(dataDir, 'cloud-resource-queue.json') });
+  var cloudAssetRoot = options.cloudAssetRoot || process.env.GAMECASTLE_CLOUD_ASSET_ROOT || path.join(root, '.gamecastle-cloud-assets');
+  var cloudAssetEngine = options.cloudAssetEngine || cloudAssetEngineModule.createCloudAssetEngine({ rootDir: cloudAssetRoot });
   var transaction = options.transaction || transactionModule.createWorkspaceTransaction({
     outputDir: outputDir,
     transactionDir: path.join(dataDir, 'active-transaction'),
@@ -45,10 +44,10 @@ function createRuntime(options) {
     coordinator: coordinator,
     artifactStore: artifactStore,
     localAssetStore: localAssetStore,
-    cloudResourceManager: cloudResourceManager,
+    cloudAssetEngine: cloudAssetEngine,
     allowedUiOrigin: options.allowedUiOrigin || process.env.GAMECASTLE_UI_ORIGIN || 'http://127.0.0.1:5173',
   });
-  return { server: server, coordinator: coordinator, artifactStore: artifactStore, localAssetStore: localAssetStore, cloudResourceManager: cloudResourceManager, cloudRepository: cloudRepository, simulatedPorts: simulatedPorts };
+  return { server: server, coordinator: coordinator, artifactStore: artifactStore, localAssetStore: localAssetStore, cloudAssetEngine: cloudAssetEngine, simulatedPorts: simulatedPorts };
 }
 
 module.exports = {

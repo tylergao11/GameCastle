@@ -1,12 +1,9 @@
+var governance = require('./ai-provider-governance');
 function normalize(policy) {
   policy = policy || {};
-  return {
-    provider: policy.provider || 'simulated-local',
-    simulated: policy.simulated !== false,
-    allowExternal: policy.allowExternal === true,
-    maxCost: policy.maxCost === undefined ? Infinity : Number(policy.maxCost),
-    allowedScopes: policy.allowedScopes || ['ephemeral']
-  };
+  var resolved;
+  try { resolved = governance.assetPolicy(policy); } catch (_error) { resolved = governance.assetPolicy({}); resolved.provider = policy.provider || resolved.provider; resolved.simulated = false; resolved.allowExternal = false; }
+  return { provider: resolved.provider, simulated: policy.simulated === undefined ? resolved.simulated : policy.simulated === true, allowExternal: policy.allowExternal === undefined ? resolved.allowExternal : policy.allowExternal === true, maxCost: policy.maxCost === undefined ? resolved.maxCost : Number(policy.maxCost), allowedScopes: policy.allowedScopes || resolved.allowedScopes, imageModel: resolved.imageModel, visionModel: resolved.visionModel, endpoint: resolved.endpoint };
 }
 
 function authorizeModelPorts(ports, policy) {
@@ -23,6 +20,7 @@ function authorizeModelPorts(ports, policy) {
     };
   });
   if (ports && ports.localDerive && typeof ports.localDerive.derive === 'function') wrapped.localDerive = ports.localDerive;
+  if (ports && ports.localPlan && typeof ports.localPlan.run === 'function') wrapped.localPlan = ports.localPlan;
   return { ports: wrapped, receipt: { allowed: !denied, code: denied, provider: normalized.provider, simulated: normalized.simulated, maxCost: normalized.maxCost, scope: normalized.allowedScopes[0] } };
 }
 

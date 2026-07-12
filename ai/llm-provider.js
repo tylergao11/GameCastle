@@ -1,11 +1,13 @@
 var responsesClient = require('./responses-client');
+var governance = require('./ai-provider-governance');
 
 async function callTextModel(prompt, systemPrompt, opts, logger) {
   opts = opts || {};
   logger = logger || function() {};
-  var ep = process.env.LLM_ENDPOINT || 'http://127.0.0.1:18081/v1';
-  var ak = process.env.DEEPSEEK_API_KEY || '';
-  var model = opts.model || process.env.LLM_MODEL || 'deepseek-v4-flash';
+  var provider = governance.semantic({ model: opts.model });
+  var ep = provider.endpoint;
+  var ak = provider.apiKey;
+  var model = opts.model || provider.textModel;
   var temperature = opts.temperature;
   var reasoningEffort = opts.reasoningEffort || 'xhigh';
   var label = opts.label || 'LLM';
