@@ -1,8 +1,8 @@
 var EventEmitter = require('events');
 var fs = require('fs');
 var path = require('path');
+var creatorExperience = require('./creator-experience');
 
-var PROJECT_ID = 'active-local-project';
 var ACTIVE_STATUSES = ['running', 'cancelling'];
 
 function now() {
@@ -27,11 +27,11 @@ function artifactValue(version, metadata, playBaseUrl) {
   };
 }
 
-function idleState(artifact) {
+function idleState(artifact, projectId) {
   return {
     schemaVersion: 1,
     sequence: 0,
-    projectId: PROJECT_ID,
+    projectId: projectId || null,
     health: 'ready',
     runId: null,
     mode: null,
@@ -47,13 +47,15 @@ function idleState(artifact) {
 }
 
 function normalizeError(error, runId) {
+  var code = error.code || 'RUNTIME_FAILED';
   return {
-    code: error.code || 'RUNTIME_FAILED',
-    message: error.message || String(error),
+    code: code,
+    message: creatorExperience.recovery(code).message,
     detail: null,
     stage: error.stage || null,
     retryable: error.code !== 'RUNTIME_UNHEALTHY',
     runId: runId || null,
+    recovery: creatorExperience.recovery(code),
   };
 }
 
@@ -64,6 +66,8 @@ function createRunCoordinator(options) {
   var runner = options.runner;
   var playBaseUrl = options.playBaseUrl || '';
   var diagnosticsPath = options.diagnosticsPath || null;
+  var projectStore = options.projectStore;
+  var outputDir = options.outputDir;
   var emitter = new EventEmitter();
   emitter.setMaxListeners(100);
   var activeExecution = null;
@@ -72,14 +76,14 @@ function createRunCoordinator(options) {
   try {
     state = stateStore.load();
   } catch (error) {
-    state = idleState(null);
+    state = idleState(null, null);
     state.health = 'unhealthy';
     state.status = 'failed';
     state.error = normalizeError(Object.assign(error, { code: 'STATE_CORRUPT' }), null);
   }
 
   if (!state) {
-    state = idleState(null);
+    state = idleState(null, null);
   } else if (state.artifact && !artifactStore.hasRelease(state.artifact.version)) {
     state.artifact = null;
     state.health = 'unhealthy';
@@ -130,6 +134,18 @@ function createRunCoordinator(options) {
     return copy(state);
   }
 
+  function projectSnapshot(projectId) {
+    var described = projectStore.describeProject(projectId);
+    var version = described.activeVersion;
+    return {
+      project: described.project,
+      activeVersion: version ? creatorExperience.projectVersionCard(version) : null,
+      artifact: version && version.releaseCandidateId && artifactStore.hasRelease(version.releaseCandidateId)
+        ? artifactValue(version.releaseCandidateId, version, playBaseUrl) : null,
+      versions: projectStore.listVersions(projectId).map(creatorExperience.projectVersionCard),
+    };
+  }
+
   function recordDiagnostic(error, id) {
     if (!diagnosticsPath) return;
     try {
@@ -177,6 +193,13 @@ function createRunCoordinator(options) {
       throw invalidMode;
     }
     var mode = request.mode;
+    var projectId = String(request.projectId || '').trim().replace(/[^A-Za-z0-9_.-]/g, '_');
+    if (!projectId) {
+      var missingProject = new Error('Project id is required.');
+      missingProject.code = 'PROJECT_ID_REQUIRED';
+      throw missingProject;
+    }
+    projectStore.createProject({ projectId: projectId, name: request.projectName || projectId });
     if (state.health !== 'ready') {
       var unhealthy = new Error('The local runtime requires recovery before it can accept another build.');
       unhealthy.code = 'RUNTIME_UNHEALTHY';
@@ -197,20 +220,27 @@ function createRunCoordinator(options) {
       busy.code = 'RUN_BUSY';
       throw busy;
     }
-    if (mode === 'continue' && artifactStore.missingEngineArtifacts().length) {
-      var noProject = new Error('Complete Intent iteration state is required before the game can be changed.');
+    if (mode === 'continue' && !projectStore.listProjects().some(function(project) { return project.projectId === projectId && project.activeVersionId; })) {
+      var noProject = new Error('An active ProjectVersion is required before the game can be changed.');
       noProject.code = 'CONTINUE_STATE_MISSING';
       throw noProject;
     }
 
     var id = makeRunId();
-    var previousArtifact = state.artifact;
-    var baseline = artifactStore.captureEngineBaseline();
+    var previousArtifact = null;
+    try {
+      var previousContext = projectStore.getContinueContext(projectId);
+      if (previousContext.projectVersion.releaseCandidateId && artifactStore.hasRelease(previousContext.projectVersion.releaseCandidateId)) {
+        previousArtifact = artifactValue(previousContext.projectVersion.releaseCandidateId, previousContext.projectVersion, playBaseUrl);
+      }
+    } catch (_error) {}
     transaction.begin(id);
+    if (mode === 'continue') projectStore.materializeActiveVersion(projectId, outputDir);
+    var baseline = artifactStore.captureEngineBaseline();
     state = {
       schemaVersion: 1,
       sequence: Number(state.sequence || 0),
-      projectId: PROJECT_ID,
+      projectId: projectId,
       health: 'ready',
       runId: id,
       mode: mode,
@@ -261,9 +291,10 @@ function createRunCoordinator(options) {
           state.artifact = previousArtifact;
         } else {
           var committed = artifactStore.commitRelease(id, baseline);
+          var projectVersion = projectStore.saveVersion({ projectId: projectId, runId: id, sourceDir: outputDir, runtimeDir: outputDir, releaseCandidateId: committed.version });
           transaction.commit();
           state.outcome = 'committed';
-          state.artifact = artifactValue(committed.version, committed, playBaseUrl);
+          state.artifact = Object.assign(artifactValue(committed.version, committed, playBaseUrl), { projectVersionId: projectVersion.versionId });
         }
         activeExecution = null;
         state.status = 'succeeded';
@@ -312,12 +343,12 @@ function createRunCoordinator(options) {
     start: start,
     cancel: cancel,
     snapshot: snapshot,
+    projectSnapshot: projectSnapshot,
     close: close,
     onSnapshot: function(listener) { emitter.on('snapshot', listener); return function() { emitter.off('snapshot', listener); }; },
   };
 }
 
 module.exports = {
-  PROJECT_ID: PROJECT_ID,
   createRunCoordinator: createRunCoordinator,
 };

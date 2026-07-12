@@ -13,7 +13,8 @@ platform UI
   -> RunCoordinator
   -> PipelineRunner
   -> ai/pipeline.js
-  -> output/ mutable engine workspace
+  -> transient engine transaction workspace
+  -> ProjectStore immutable ProjectVersion
   -> verified immutable release
   -> ArtifactStore
   -> isolated localhost /play/* origin
@@ -25,16 +26,18 @@ platform UI
   process adapter, workspace transaction, and artifact publication.
 - `ai/` remains the engine owner. The boundary invokes its public CLI and does
   not import or duplicate Intent, compiler, bridge, or semantic-playtest logic.
-- `output/` remains the mutable engine workspace. Browsers never read it
-  directly. Playable files are allowlisted from the HTML export manifest and
+- `output/` is only a transient engine transaction workspace. Project truth is
+  `.gamecastle/projects/<projectId>/versions/<versionId>`; browsers never read
+  it directly. Playable files are allowlisted from the HTML export manifest and
   atomically committed under `.gamecastle/releases/<version>/`.
 
 ## Product model
 
-The first runtime has one honest project id: `active-local-project`. It accepts
-one run at a time. `create` starts a new project and `continue` requires an
-existing playable project. There is no hidden multi-project abstraction, job
-queue, cloud workspace, or dual runtime path.
+The Runtime accepts one local build at a time, while ProjectStore owns many
+local projects. `create` starts or updates the supplied `projectId`; `continue`
+materializes that project's active immutable version into the transient engine
+workspace. There is no global active-project truth, cloud workspace, or dual
+runtime path.
 
 The coordinator persists its last snapshot under `.gamecastle/`. Before a run,
 it snapshots `output/`. Success is published only when all of these artifacts
@@ -43,6 +46,7 @@ exist:
 - `game.html`
 - `project.json`
 - `project-world.json`
+- `asset-world.json`
 - `execution-ledger.json`
 - `html-export-manifest.json`
 
@@ -60,6 +64,7 @@ Returns the current `RunSnapshot`.
 
 ```json
 {
+  "projectId": "my-night-market",
   "intent": "Make a mobile platformer with coins and enemies.",
   "mode": "create"
 }
@@ -71,6 +76,12 @@ snapshot. Invalid intent is `400`; a busy runtime or missing iteration state is
 
 Mutation requests require `application/json` and the exact GameCastle UI
 `Origin`. The isolated playable origin cannot create or cancel a run.
+
+### `GET /api/projects` and `POST /api/projects/:projectId/rollback`
+
+Returns the local project index or changes only a project's active-version
+pointer to an existing immutable ProjectVersion. The browser never owns or
+receives project files.
 
 ### `GET /api/runtime/runs/:runId/events`
 

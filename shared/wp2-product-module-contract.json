@@ -1,0 +1,386 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.wp2.product-module-system",
+  "status": "designed",
+  "workPackage": "WP2",
+  "umbrellaOwner": "ProductModuleSystem",
+  "purpose": "Project the existing semantic engine output into deterministic product-module composition, spatial composition, compiler input, explicit debt, and verified reusable module candidates.",
+  "sourceTruth": {
+    "semanticDictionary": "ai/semantic-mapping/semantic-feedback.json",
+    "capabilitySemanticIndex": "ai/semantic-mapping/capability-semantic-index.json",
+    "productModuleSchema": "ai/product-modules/schema.json",
+    "productModuleCatalog": "ai/product-modules",
+    "buildContractSchema": "ai/contracts/schema.json",
+    "projectWorldOwner": "ai/project-world.js",
+    "placementContract": "ai/placement-resolution-contract.js",
+    "moduleCompiler": "ai/module-compiler.js",
+    "runtimeTruth": "ai/gdevelop-truth/runtime-truth.json"
+  },
+  "principles": [
+    "reuse-existing-semantic-engine",
+    "archetypes-are-acceptance-samples-not-generator-switches",
+    "online-flow-composes-approved-modules-only",
+    "offline-foundry-never-runs-inside-user-create-or-continue",
+    "semantic-requirements-contain-no-module-ids-or-target-plan",
+    "spatial-composition-owns-topology-but-not-final-coordinates",
+    "placement-resolver-owns-final-coordinates",
+    "product-module-compiler-alone-expands-approved-modules-to-target-plan",
+    "unsupported-capability-becomes-explicit-module-debt",
+    "continue-compiles-a-minimal-module-delta-from-project-world",
+    "cloud-repository-distributes-approved-immutable-module-revisions-only"
+  ],
+  "semanticReferenceResolution": {
+    "canonicalForms": [
+      "semantic-dictionary#/<section>/<key>",
+      "capability-index#/by_semantic/<semantic_id>"
+    ],
+    "dictionarySections": ["semantic_concepts", "gameplayRoles", "playGoals", "playIntents", "eventMeanings", "semantic_routes"],
+    "rule": "Every runtime semantic reference resolves by JSON Pointer into the existing semantic dictionary or capability index. Bare labels and a second WP2 semantic dictionary are forbidden.",
+    "unresolvedDesignRule": "A semantic requirement absent from the current dictionary must have exactly one SemanticEngine ownerChangeRequest. It is not runtime-valid until that request is implemented in the existing semantic dictionary and the canonical pointer resolves.",
+    "ownerChangeRequests": [
+      { "requestId": "semantic.wp2.top-down-movement", "targetRef": "semantic-dictionary#/semantic_concepts/top_down_movement", "meaning": "Player-controlled movement across both world axes.", "owner": "SemanticEngine", "status": "closed", "closureEvidence": ["ai/semantic-mapping/semantic-feedback.json", "ai/check-semantic-reference-resolver.js"] },
+      { "requestId": "semantic.wp2.objective-completion", "targetRef": "semantic-dictionary#/playGoals/complete-objective", "meaning": "Complete a declared finite objective and emit completion evidence.", "owner": "SemanticEngine", "status": "closed", "closureEvidence": ["ai/semantic-mapping/semantic-feedback.json", "ai/check-semantic-reference-resolver.js"] },
+      { "requestId": "semantic.wp2.aim-fire", "targetRef": "semantic-dictionary#/semantic_concepts/aim_and_fire", "meaning": "Aim or select a target and emit a projectile or equivalent attack.", "owner": "SemanticEngine", "status": "closed", "closureEvidence": ["ai/semantic-mapping/semantic-feedback.json", "ai/check-semantic-reference-resolver.js"] },
+      { "requestId": "semantic.wp2.solve", "targetRef": "semantic-dictionary#/playGoals/solve", "meaning": "Reach a valid solution state under declared interaction constraints.", "owner": "SemanticEngine", "status": "closed", "closureEvidence": ["ai/semantic-mapping/semantic-feedback.json", "ai/check-semantic-reference-resolver.js"] },
+      { "requestId": "semantic.wp2.reset", "targetRef": "semantic-dictionary#/eventMeanings/PuzzleReset", "meaning": "Restore a puzzle interaction state to its declared reset state.", "owner": "SemanticEngine", "status": "closed", "closureEvidence": ["ai/semantic-mapping/semantic-feedback.json", "ai/check-semantic-reference-resolver.js"] },
+      { "requestId": "semantic.wp2.grow", "targetRef": "semantic-dictionary#/playGoals/grow", "meaning": "Increase a resource-production or progression state through repeated conversion and upgrades.", "owner": "SemanticEngine", "status": "closed", "closureEvidence": ["ai/semantic-mapping/semantic-feedback.json", "ai/check-semantic-reference-resolver.js"] },
+      { "requestId": "semantic.wp2.resource-conversion", "targetRef": "semantic-dictionary#/semantic_concepts/resource_conversion", "meaning": "Convert declared resources into output resources or progression.", "owner": "SemanticEngine", "status": "closed", "closureEvidence": ["ai/semantic-mapping/semantic-feedback.json", "ai/check-semantic-reference-resolver.js"] },
+      { "requestId": "semantic.wp2.upgrade", "targetRef": "semantic-dictionary#/eventMeanings/UpgradeApplied", "meaning": "Apply a persistent declared upgrade and expose its effect in feedback.", "owner": "SemanticEngine", "status": "closed", "closureEvidence": ["ai/semantic-mapping/semantic-feedback.json", "ai/check-semantic-reference-resolver.js"] }
+    ]
+  },
+  "owners": {
+    "SemanticEngine": {
+      "owns": ["creative meaning", "gameplay roles", "play goals", "event meanings", "semantic requirement ids"],
+      "outputs": ["GameplayRequirementGraph"],
+      "forbidden": ["select internal module ids", "emit target plan", "own layout coordinates"]
+    },
+    "ProductModulePlanner": {
+      "owns": ["catalog coverage", "module selection", "module parameter selection", "dependency and conflict resolution", "module delta planning"],
+      "inputs": ["GameplayRequirementGraph", "approved product module catalog", "ProjectWorld in continue mode"],
+      "outputs": ["ModuleCompositionPlan", "ModuleDebt"],
+      "forbidden": ["invent semantic meaning", "emit target plan", "modify ProjectWorld", "use unapproved candidate in online flow"]
+    },
+    "ProductModuleSystem": {
+      "owns": ["WP2 delivery integration", "cross-owner artifact sequence", "aggregate completion gate"],
+      "inputs": ["owner artifacts and completion evidence"],
+      "outputs": ["WP2 delivery status"],
+      "forbidden": ["take over domain artifact ownership", "declare implemented from schema-only evidence"]
+    },
+    "SpatialCompositionPlanner": {
+      "owns": ["macro topology", "semantic regions", "spatial role assignment", "pacing bands", "abstract spatial relations"],
+      "inputs": ["GameplayRequirementGraph", "ModuleCompositionPlan", "ModuleDeclarationPlan"],
+      "outputs": ["SpatialCompositionPlan", "ModuleDebt"],
+      "forbidden": ["emit final x or y coordinates", "write project objects", "copy fixed layouts from archetype ids"]
+    },
+    "PlacementResolver": {
+      "owns": ["final placement coordinates", "safe areas", "overlap avoidance", "pattern emission", "placement route evidence"],
+      "inputs": ["SpatialCompositionPlan", "ModuleDeclarationPlan", "ProjectWorld in continue mode"],
+      "outputs": ["PlacementPlan"],
+      "forbidden": ["select gameplay modules", "change play goals", "invent missing capabilities"]
+    },
+    "ProductModuleCompiler": {
+      "owns": ["manifest validation", "pre-placement subject declaration", "deterministic module expansion", "slot linking", "configure updates", "remove and replace expansion", "network manifest"],
+      "inputs": ["ModuleCompositionPlan", "ModuleDeclarationPlan in emission phase", "PlacementPlan", "approved product module manifests", "ProjectWorld in continue mode"],
+      "outputs": ["ModuleDeclarationPlan", "CompiledModulePlan"],
+      "forbidden": ["infer user intent", "call a model", "accept undeclared parameters", "perform one-off project patches"]
+    },
+    "ProductModuleFoundry": {
+      "owns": ["offline fixture mining", "module recipe extraction", "candidate manifest generation", "candidate verification packet"],
+      "inputs": ["ModuleDebt", "reference fixture", "capability semantic index", "runtime truth"],
+      "outputs": ["ModuleCandidate"],
+      "forbidden": ["run in online create or continue", "publish a draft", "let an LLM emit compiler target instructions", "mutate approved module revisions"]
+    },
+    "RuntimeValidator": {
+      "owns": ["artifact validation", "runtime smoke", "blocking validation debt"],
+      "inputs": ["compiled runtime", "ModuleCompositionPlan", "SpatialCompositionPlan"],
+      "outputs": ["ValidationReport"],
+      "forbidden": ["repair module implementation", "downgrade blocking failure silently"]
+    },
+    "SemanticPlaytestAgent": {
+      "owns": ["play-goal evidence", "failure and restart evidence", "pacing and route evidence"],
+      "inputs": ["GameplayRequirementGraph", "ProjectWorld", "tick trace"],
+      "outputs": ["PlaytestReport"],
+      "forbidden": ["declare support from schema presence alone", "rewrite runtime"]
+    },
+    "ModuleRepository": {
+      "owns": ["immutable approved revisions", "candidate promotion", "provenance", "deprecation"],
+      "inputs": ["ModuleCandidate", "ModulePromotionReceipt"],
+      "outputs": ["approved module revision"],
+      "forbidden": ["store personal project state", "promote without evidence", "serve mutable latest without revision pinning"]
+    }
+  },
+  "onlineFlow": [
+    { "order": 1, "owner": "SemanticEngine", "input": "natural request plus safe project context", "output": "GameplayRequirementGraph" },
+    { "order": 2, "owner": "ProductModulePlanner", "input": "GameplayRequirementGraph", "output": "ModuleCompositionPlan or ModuleDebt" },
+    { "order": 3, "owner": "ProductModuleCompiler", "input": "ModuleCompositionPlan plus approved manifests", "output": "ModuleDeclarationPlan without target instructions" },
+    { "order": 4, "owner": "SpatialCompositionPlanner", "input": "GameplayRequirementGraph plus ModuleCompositionPlan plus ModuleDeclarationPlan", "output": "SpatialCompositionPlan or ModuleDebt" },
+    { "order": 5, "owner": "PlacementResolver", "input": "SpatialCompositionPlan plus ModuleDeclarationPlan plus safe ProjectWorld", "output": "PlacementPlan" },
+    { "order": 6, "owner": "ProductModuleCompiler", "input": "ModuleCompositionPlan plus ModuleDeclarationPlan plus PlacementPlan", "output": "CompiledModulePlan" },
+    { "order": 7, "owner": "RuntimeValidator", "input": "compiled runtime", "output": "ValidationReport" },
+    { "order": 8, "owner": "SemanticPlaytestAgent", "input": "tick trace plus semantic requirements", "output": "PlaytestReport" }
+  ],
+  "offlineFoundryFlow": [
+    { "order": 1, "owner": "ProductModuleFoundry", "action": "accept explicit ModuleDebt and a licensed reference fixture" },
+    { "order": 2, "owner": "ProductModuleFoundry", "action": "diff or inspect the fixture and bind used runtime facts to existing semantic capability ids" },
+    { "order": 3, "owner": "ProductModuleFoundry", "action": "separate stable owned structure from configurable parameters and internal link slots" },
+    { "order": 4, "owner": "ProductModuleFoundry", "action": "emit a draft ModuleCandidate without direct LLM-authored target instructions" },
+    { "order": 5, "owner": "ProductModuleCompiler", "action": "compile candidate create, configure, remove, and replace paths in an isolated fixture workspace" },
+    { "order": 6, "owner": "RuntimeValidator", "action": "validate artifact, lifecycle, ownership cleanup, and runtime behavior" },
+    { "order": 7, "owner": "SemanticPlaytestAgent", "action": "prove declared goals, pressures, failure, restart, and layout variant behavior" },
+    { "order": 8, "owner": "ModuleRepository", "action": "promote an immutable revision only when ModulePromotionReceipt passes" }
+  ],
+  "artifactContracts": {
+    "GameplayRequirementGraph": {
+      "owner": "SemanticEngine",
+      "required": ["schemaVersion", "requirementGraphId", "mode", "experience", "requirements", "surfaces", "constraints", "semanticEvidence"],
+      "mode": ["create", "continue"],
+      "experienceRequired": ["actorRoles", "playGoals", "pressureRoles", "rewardRoles", "failureMeaning", "recoveryMeaning", "progressionMeaning", "controlMeaning", "cameraMeaning"],
+      "requirementRequired": ["semanticRef", "kind", "required", "providerCardinality", "evidenceIds"],
+      "requirementKinds": ["mechanic", "lifecycle", "feedback", "control", "progression", "spatial-role", "network"],
+      "providerCardinalities": ["exclusive", "at-least-one", "composed"],
+      "surfaceRequired": ["semanticRef", "required", "slotRole"],
+      "forbiddenFields": ["moduleId", "targetPlan", "componentId", "x", "y", "gdjsType"]
+    },
+    "ModuleCompositionPlan": {
+      "owner": "ProductModulePlanner",
+      "required": ["schemaVersion", "planId", "mode", "requirementGraphId", "catalogFingerprint", "baseGuard", "operations", "coverage", "slotBindings", "spatialRequirements", "debt", "determinism"],
+      "baseGuardRequired": ["expectedProjectWorldHash", "expectedCatalogFingerprint", "expectedModuleRevisionSetHash"],
+      "operationRequired": ["operationId", "op", "parameters", "reasonRequirementRefs", "atomicGroupId"],
+      "operationKinds": ["install", "configure", "retain", "remove", "replace"],
+      "operationContracts": {
+        "install": ["toModule"],
+        "configure": ["fromModule", "toModule", "expectedOwnershipHash"],
+        "retain": ["fromModule", "expectedOwnershipHash"],
+        "remove": ["fromModule", "expectedOwnershipHash", "cleanupPlan", "sharedArtifactPolicy"],
+        "replace": ["fromModule", "toModule", "expectedOwnershipHash", "cleanupPlan", "sharedArtifactPolicy", "stateMigration"]
+      },
+      "moduleRevisionRefRequired": ["moduleId", "revision", "manifestHash"],
+      "cleanupPlanRequired": ["orderedArtifactIds", "dependentChecks", "rollbackPolicy"],
+      "stateMigrationRequired": ["strategy", "sourceStateIds", "targetStateIds", "failurePolicy"],
+      "sharedArtifactPolicyRequired": ["artifactIds", "remainingOwnerIds", "referenceRule"],
+      "coverageRequired": ["requiredSemanticRefs", "satisfiedSemanticRefs", "missingSemanticRefs", "conflictingSemanticRefs"],
+      "slotBindingRequired": ["slotRole", "providerModuleId", "consumerModuleId", "bindingId"],
+      "determinismRequired": ["inputHash", "outputHash", "plannerVersion"],
+      "invariants": [
+        "every required semantic ref is satisfied according to exclusive, at-least-one, or composed provider cardinality, or appears in debt",
+        "every selected revision is approved and pinned",
+        "every operation parameter is declared by the selected manifest",
+        "remove and replace prove ownership cleanup and dependent safety",
+        "continue uses ProjectWorld modules as base truth",
+        "same catalog fingerprint plus same requirement graph plus same base world yields the same plan"
+      ]
+    },
+    "ModuleDeclarationPlan": {
+      "owner": "ProductModuleCompiler",
+      "required": ["schemaVersion", "declarationPlanId", "compositionPlanId", "catalogFingerprint", "subjects", "sharedArtifacts", "declarationHash"],
+      "subjectRequired": ["subjectId", "moduleId", "moduleRevision", "prototypeId", "semanticRoleRefs", "bounds", "layerRole", "cardinality", "placementPolicy"],
+      "boundsRequired": ["width", "height", "anchor"],
+      "sharedArtifactRequired": ["artifactId", "kind", "ownerModuleIds", "dependentModuleIds", "referenceRule"],
+      "forbiddenFields": ["targetPlan", "targetPlanText", "x", "y"],
+      "invariants": [
+        "declaration is derived only from approved pinned manifests",
+        "every spatial role assignment can resolve to a declared subject",
+        "bounds and ownership are available before PlacementResolver runs",
+        "declaration contains no executable target instruction or final coordinate"
+      ]
+    },
+    "SpatialCompositionPlan": {
+      "owner": "SpatialCompositionPlanner",
+      "required": ["schemaVersion", "spatialPlanId", "compositionPlanId", "topology", "regions", "roleAssignments", "relations", "pacingBands", "variationSeed", "constraints", "evidence"],
+      "topologies": ["linear", "branching-route", "arena", "rooms", "grid", "lanes", "single-screen", "staged-zones"],
+      "regionRequired": ["regionId", "semanticRole", "capacity", "connectivity"],
+      "roleAssignmentRequired": ["spatialRole", "moduleId", "regionId", "cardinality"],
+      "relationKinds": ["before", "after", "inside", "near", "far", "between", "surrounding", "along-route", "outside-safe-area"],
+      "forbiddenFields": ["x", "y", "zOrder", "targetPlan", "gdjsType"],
+      "invariants": [
+        "topology is selected from module-supported topologies",
+        "all required spatial roles are assigned",
+        "variation seed changes layout without changing declared game rules",
+        "no final coordinate is emitted"
+      ]
+    },
+    "CompiledModulePlan": {
+      "owner": "ProductModuleCompiler",
+      "required": ["schemaVersion", "compositionPlanId", "targetPlanText", "targetPlanLines", "installedModules", "removedModules", "tickRuntimeManifest", "ownershipReceipt"],
+      "invariants": [
+        "all emitted instructions originate from approved manifest templates or deterministic placement emission",
+        "no model output is executed as target instructions",
+        "ownership receipt lists every created, updated, removed, and retained artifact",
+        "continue operations are minimal deltas and do not replay retained module creation"
+      ]
+    },
+    "ModuleDebt": {
+      "owner": "ProductModulePlanner or SpatialCompositionPlanner",
+      "required": ["schemaVersion", "debtId", "code", "blocking", "owner", "requirementRefs", "missingSemanticRefs", "message", "nextAction"],
+      "codes": ["MODULE_CAPABILITY_MISSING", "MODULE_CONFLICT", "MODULE_SLOT_UNFULFILLED", "MODULE_TOPOLOGY_UNSUPPORTED", "MODULE_PARAMETER_UNSUPPORTED", "MODULE_REVISION_UNAPPROVED", "MODULE_REMOVE_UNSAFE", "MODULE_CONTINUE_BASE_STALE"],
+      "nextActions": ["revise-requirement", "select-approved-alternative", "route-to-foundry", "route-to-module-owner", "refresh-project-world"]
+    },
+    "ModuleCandidate": {
+      "owner": "ProductModuleFoundry",
+      "required": ["schemaVersion", "candidateId", "status", "sourceDebtIds", "semanticBindings", "referenceFixture", "draftManifest", "ownershipModel", "verificationPlan", "provenance"],
+      "statuses": ["draft", "verified", "rejected"],
+      "invariants": [
+        "candidate never participates in online composition before a valid promotion receipt inserts an immutable approved revision into the catalog",
+        "semantic bindings reference the existing semantic dictionary",
+        "reference fixture license and hash are recorded",
+        "draft manifest exposes no machine instructions to an LLM-facing view"
+      ]
+    },
+    "ModulePromotionReceipt": {
+      "owner": "ModuleRepository",
+      "required": ["schemaVersion", "receiptId", "candidateId", "moduleId", "revision", "manifestHash", "fixtureHashes", "contractEvidence", "runtimeEvidence", "playtestEvidence", "provenanceEvidence", "decision", "decidedAt"],
+      "decisions": ["approved-local", "approved-cloud", "rejected"],
+      "invariants": [
+        "approved revision is immutable",
+        "cloud approval requires reusable scope and non-personal provenance",
+        "rejection leaves the approved catalog unchanged"
+      ]
+    }
+  },
+  "productModuleManifestExtensions": {
+    "semanticContract": {
+      "required": ["provides", "requires", "goals", "roles", "pressures", "rewards"],
+      "rule": "All ids reference existing semantic dictionary or capability semantic index entries; no parallel WP2 dictionary is allowed."
+    },
+    "spatialContract": {
+      "required": ["supportedTopologies", "requiredRoles", "optionalRoles", "constraints", "variationParameters"],
+      "rule": "Module manifests declare spatial needs and supported topology; they do not own final coordinates."
+    },
+    "declarationContract": {
+      "required": ["spatialSubjects", "sharedArtifacts"],
+      "spatialSubjectRequired": ["subjectId", "prototypeId", "semanticRoleRefs", "bounds", "layerRole", "cardinality", "placementPolicy"],
+      "boundsRequired": ["width", "height", "anchor"],
+      "sharedArtifactRequired": ["artifactId", "kind", "ownerModuleIds", "dependentModuleIds", "referenceRule"],
+      "rule": "This is the only approved-manifest source for ModuleDeclarationPlan; declaration code must not mine targetPlan text or invent bounds."
+    },
+    "lifecycleContract": {
+      "required": ["start", "pause", "failure", "restart", "continue"],
+      "rule": "Every playable core declares how lifecycle surfaces are provided or required."
+    },
+    "ownershipContract": {
+      "required": ["artifacts", "cleanupOrder", "stateMigrationPolicy"],
+      "artifactRequired": ["artifactId", "kind", "stableRuntimeId", "ownership", "ownerModuleIds", "dependentModuleIds", "cleanupPhase", "statePolicy"],
+      "ownershipKinds": ["exclusive", "shared"],
+      "rule": "Ownership uses stable artifact ids and explicit shared dependencies sufficient to configure, remove, replace, roll back, and migrate state without guessing."
+    },
+    "compilerExtensions": {
+      "required": ["targetPlan", "configureUpdateTemplates", "removeTemplates", "replacePolicy"],
+      "rule": "Compiler templates remain internal and deterministic; LLM-facing capabilities never contain target instructions."
+    },
+    "acceptanceContract": {
+      "required": ["createFixture", "continueFixture", "failureFixtures", "supportedLayoutFixtures", "playGoals"],
+      "rule": "A module is supported only when its declared semantics and layout variants have executable evidence."
+    }
+  },
+  "acceptanceMatrix": {
+    "archetypesAre": "minimum diverse acceptance coverage, not generator dispatch ids",
+    "archetypes": [
+      {
+        "id": "runner-platformer",
+        "requiredSemanticRefs": ["semantic-dictionary#/semantic_concepts/movement", "semantic-dictionary#/playGoals/collect", "semantic-dictionary#/playGoals/avoid-threats", "semantic-dictionary#/eventMeanings/ActorFailed", "semantic-dictionary#/eventMeanings/ActorSpawned", "semantic-dictionary#/gameplayRoles/feedback", "semantic-dictionary#/gameplayRoles/action_entry"],
+        "minimumTopologies": ["linear", "branching-route"],
+        "createFixtures": 2,
+        "continueFixtures": 1
+      },
+      {
+        "id": "top-down-collector",
+        "requiredSemanticRefs": ["semantic-dictionary#/semantic_concepts/top_down_movement", "semantic-dictionary#/playGoals/collect", "semantic-dictionary#/playGoals/complete-objective", "semantic-dictionary#/eventMeanings/RewardReached", "semantic-dictionary#/eventMeanings/PhaseTransitioned", "semantic-dictionary#/gameplayRoles/feedback", "semantic-dictionary#/gameplayRoles/action_entry"],
+        "minimumTopologies": ["arena", "rooms"],
+        "createFixtures": 2,
+        "continueFixtures": 1
+      },
+      {
+        "id": "lightweight-shooter",
+        "requiredSemanticRefs": ["semantic-dictionary#/semantic_concepts/movement", "semantic-dictionary#/semantic_concepts/aim_and_fire", "semantic-dictionary#/eventMeanings/PressureDetected", "semantic-dictionary#/eventMeanings/ActorDamaged", "semantic-dictionary#/eventMeanings/ActorFailed", "semantic-dictionary#/eventMeanings/ActorSpawned", "semantic-dictionary#/gameplayRoles/feedback"],
+        "minimumTopologies": ["arena", "lanes"],
+        "createFixtures": 2,
+        "continueFixtures": 1
+      },
+      {
+        "id": "interaction-puzzle",
+        "requiredSemanticRefs": ["semantic-dictionary#/gameplayRoles/action_entry", "semantic-dictionary#/playGoals/solve", "semantic-dictionary#/eventMeanings/PhaseTransitioned", "semantic-dictionary#/eventMeanings/PuzzleReset", "semantic-dictionary#/gameplayRoles/experience_structure", "semantic-dictionary#/gameplayRoles/feedback"],
+        "minimumTopologies": ["rooms", "grid"],
+        "createFixtures": 2,
+        "continueFixtures": 1
+      },
+      {
+        "id": "idle-clicker",
+        "requiredSemanticRefs": ["semantic-dictionary#/gameplayRoles/action_entry", "semantic-dictionary#/playGoals/grow", "semantic-dictionary#/semantic_concepts/resource_conversion", "semantic-dictionary#/eventMeanings/UpgradeApplied", "semantic-dictionary#/gameplayRoles/phase_driver", "semantic-dictionary#/gameplayRoles/reward", "semantic-dictionary#/gameplayRoles/feedback"],
+        "minimumTopologies": ["single-screen", "staged-zones"],
+        "createFixtures": 2,
+        "continueFixtures": 1
+      }
+    ],
+    "sharedSurfaceRoles": ["hud", "start", "pause", "game-over", "score", "controls"],
+    "failureFixtures": ["missing capability", "module conflict", "slot unfulfilled", "unsupported topology", "unapproved revision", "unsafe removal", "stale continue base"],
+    "recoveryEvidence": ["previous playable version remains intact", "owner debt is actionable", "foundry is not invoked online", "same request can resume after catalog or requirement correction"]
+  },
+  "completionEvidence": [
+    "contract checker passes",
+    "planner deterministic replay tests",
+    "semantic-to-module coverage and explicit-debt tests",
+    "module conflict and slot fulfillment tests",
+    "ten create fixtures covering two layouts for each archetype",
+    "five continue fixtures proving minimal module delta",
+    "remove and replace ownership-cleanup tests",
+    "layout variation tests proving same rules with distinct topology or seed",
+    "browser-playable evidence for every canonical archetype",
+    "offline foundry candidate cannot enter online catalog before promotion",
+    "independent tester report",
+    "independent architecture audit"
+  ],
+  "hardGates": [
+    "no-new-parallel-semantic-dictionary",
+    "no-archetype-switch-in-generator-core",
+    "no-llm-authored-target-plan",
+    "no-online-foundry",
+    "no-unapproved-module-revision",
+    "no-layout-owned-by-final-coordinate-template",
+    "no-silent-capability-fallback",
+    "no-continue-full-replay-for-retained-modules",
+    "no-remove-without-ownership-proof",
+    "no-schema-only-playable-claim",
+    "no-cloud-promotion-without-provenance-and-runtime-evidence",
+    "no-unresolved-semantic-reference-in-online-plan",
+    "no-placement-before-module-declaration",
+    "no-online-target-plan-outside-compiled-module-plan",
+    "no-legacy-bridge-plan-target-plan-execution"
+  ],
+  "implementationGaps": [
+    { "gapId": "WP2-GAP-SEMANTIC-HIGH-LEVEL", "owner": "SemanticEngine", "status": "closed", "evidence": "Current high-level dictionary covers platformer-oriented play goals and must receive the ownerChangeRequests before affected fixtures are online-valid.", "closure": "Every acceptance semanticRef resolves with the canonical resolver and semantic dictionary checks pass.", "closureEvidence": ["ai/semantic-reference-resolver.js", "ai/check-semantic-reference-resolver.js"] },
+    { "gapId": "WP2-GAP-BUILD-CONTRACT-LIFECYCLE", "owner": "IntentAgent", "status": "closed", "evidence": "BuildContract is created before ProductModulePlanner artifacts exist.", "closure": "BuildContract remains immutable and carries only GameplayRequirementGraph or its content hash; planner, declaration, spatial, placement, and compiled plans are separate ProjectRun artifacts with their own owners.", "closureEvidence": ["ai/project-weave-runtime.js", "ai/check-wp2-product-module-system.js"] },
+    { "gapId": "WP2-GAP-PLACEMENT-DECLARATION", "owner": "ProductModuleCompiler", "status": "closed", "evidence": "Current placement context mined bounds from compiler target templates.", "closure": "Approved manifests produce ModuleDeclarationPlan before spatial composition and placement; target template mining is deleted.", "closureEvidence": ["ai/placement-context.js", "ai/check-product-module-planner.js"] },
+    { "gapId": "WP2-GAP-REMOVE-DECLARED-NOT-IMPLEMENTED", "owner": "ProductModuleCompiler", "status": "open", "evidence": "BuildContract ModuleIntent declares remove while module-compiler resolves only install and configure.", "closure": "Remove and replace use guarded atomic operations, ownership receipts, shared policies, state migration, rollback tests, and no external patch path.", "closureEvidence": [] },
+    { "gapId": "WP2-GAP-LEGACY-TARGET-PLAN", "owner": "ProjectWeaveRuntime", "status": "closed", "evidence": "Current online runtime executed intent.bridgePlan.targetPlanText directly.", "closure": "Project Weave accepts online module instructions only from hash-verified CompiledModulePlan and rejects or removes legacy bridgePlan target execution.", "closureEvidence": ["ai/project-weave-runtime.js", "ai/check-wp2-product-module-system.js"] }
+  ],
+  "terraImplementationOrder": [
+    "T1 implement SemanticEngine ownerChangeRequests in the existing semantic dictionary, add canonical semantic reference resolution, and forbid unresolved refs online",
+    "T2 make BuildContract immutable after SemanticEngine output and limit moduleContract to GameplayRequirementGraph content or hash; store all later owner artifacts separately in ProjectRun without legacy aliases",
+    "T3 extend product module manifest schema with semantic, spatial subject, lifecycle, stable ownership, compiler remove, and acceptance contracts",
+    "T4 implement deterministic ProductModulePlanner with cardinality-aware coverage, constraint solving, approved revision pinning, guarded delta operations, and explicit debt",
+    "T5 implement ProductModuleCompiler declaration phase that emits ModuleDeclarationPlan before spatial composition or placement",
+    "T6 implement SpatialCompositionPlanner and connect abstract relations plus declared subjects to PlacementResolver; delete target-template bounds mining",
+    "T7 extend ProductModuleCompiler emission phase for plan input, ownership receipts, atomic remove and replace, state migration, rollback, and minimal continue delta",
+    "T8 replace the online intent.bridgePlan.targetPlanText execution path so Project Weave executes only hash-verified CompiledModulePlan output and rejects legacy bypass",
+    "T9 complete shared lifecycle and interface modules for HUD, start, pause, game-over, score, and controls",
+    "T10 deliver all five archetypes with two distinct layout create fixtures and one minimal-delta continue fixture each",
+    "T11 implement offline ProductModuleFoundry candidate packet and immutable ModuleRepository promotion gate",
+    "T12 wire WP2 tests into the project aggregate gate, run browser playable verification, independent testing, and independent audit",
+    "T13 only after every completionEvidence item exists change WP2 status from designed to implemented"
+  ],
+  "solHandoff": {
+    "designOwner": "Sol",
+    "implementationOwner": "Terra",
+    "terraMustRead": [
+      "shared/wp2-product-module-contract.json",
+      "docs/wp2-product-module-generator-design.md",
+      "shared/project-completion-contract.json",
+      "docs/project-completion-boundaries.md",
+      "ai/product-modules/schema.json",
+      "ai/module-compiler.js",
+      "ai/semantic-mapping/semantic-feedback.json",
+      "ai/placement-resolution-contract.js"
+    ],
+    "stopCondition": "Terra stops and routes back to Sol if an implementation requires a second semantic dictionary, cannot resolve a semantic ref or its declared SemanticEngine owner change, lets a model emit target instructions, runs PlacementResolver without ModuleDeclarationPlan, assigns coordinates outside PlacementResolver, invokes Foundry online, keeps the legacy bridgePlan target execution path, or cannot prove guarded atomic cleanup and state migration for continue remove or replace."
+  }
+}

@@ -1,0 +1,11 @@
+var assert = require('assert').strict;
+var planner = require('./product-module-planner');
+var compiler = require('./module-compiler');
+var spatial = require('./spatial-composition-planner');
+var catalog = compiler.loadProductModuleCatalog(require('path').join(__dirname, 'product-modules'));
+var requirements = { requirementGraphId: 'spatial.test', mode: 'create', requirements: [{ semanticRef: 'semantic-dictionary#/playGoals/collect', required: true }] };
+var composition = planner.plan(requirements, { catalog }).plan;
+var declaration = compiler.declareModuleSubjects(composition, catalog);
+var result = spatial.plan(requirements, composition, declaration, catalog);
+assert(result.plan && !result.debt); assert(result.plan.topology); assert.equal(JSON.stringify(result.plan).indexOf('"x"'), -1); assert.equal(JSON.stringify(result.plan).indexOf('targetPlan'), -1);
+console.log('[SpatialCompositionPlanner] topology and declarations without coordinates passed');

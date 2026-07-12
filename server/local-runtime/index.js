@@ -9,6 +9,7 @@ var transactionModule = require('./workspace-transaction');
 var localAssetStoreModule = require('./local-asset-store');
 var cloudAssetEngineModule = require('../../ai/cloud-asset-engine');
 var simulatedPortsModule = require('../../ai/simulated-local-asset-ports');
+var projectStoreModule = require('../../ai/project-store');
 
 function createRuntime(options) {
   options = options || {};
@@ -20,6 +21,7 @@ function createRuntime(options) {
     releasesDir: path.join(dataDir, 'releases'),
   });
   var stateStore = options.stateStore || stateStoreModule.createStateStore(path.join(dataDir, 'local-runtime-state.json'));
+  var projectStore = options.projectStore || projectStoreModule.createProjectStore({ rootDir: dataDir });
   var simulatedPorts = options.simulatedPorts || simulatedPortsModule.createSimulatedLocalAssetPorts({ outputDir: outputDir });
   var localAssetStore = options.localAssetStore || localAssetStoreModule.createLocalAssetStore({ outputDir: outputDir, ports: simulatedPorts });
   var cloudAssetRoot = options.cloudAssetRoot || process.env.GAMECASTLE_CLOUD_ASSET_ROOT || path.join(root, '.gamecastle-cloud-assets');
@@ -34,20 +36,24 @@ function createRuntime(options) {
   });
   var coordinator = coordinatorModule.createRunCoordinator({
     artifactStore: artifactStore,
+    projectStore: projectStore,
     stateStore: stateStore,
     transaction: transaction,
     runner: runner,
     playBaseUrl: options.playBaseUrl || '',
     diagnosticsPath: options.diagnosticsPath || path.join(dataDir, 'runtime-diagnostics.jsonl'),
+    projectStore: projectStore,
+    outputDir: outputDir,
   });
   var server = httpServerModule.createLocalGameRuntimeServer({
     coordinator: coordinator,
     artifactStore: artifactStore,
+    projectStore: projectStore,
     localAssetStore: localAssetStore,
     cloudAssetEngine: cloudAssetEngine,
     allowedUiOrigin: options.allowedUiOrigin || process.env.GAMECASTLE_UI_ORIGIN || 'http://127.0.0.1:5173',
   });
-  return { server: server, coordinator: coordinator, artifactStore: artifactStore, localAssetStore: localAssetStore, cloudAssetEngine: cloudAssetEngine, simulatedPorts: simulatedPorts };
+  return { server: server, coordinator: coordinator, artifactStore: artifactStore, projectStore: projectStore, localAssetStore: localAssetStore, cloudAssetEngine: cloudAssetEngine, simulatedPorts: simulatedPorts };
 }
 
 module.exports = {

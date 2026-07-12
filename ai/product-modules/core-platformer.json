@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "core.platformer",
+  "revision": "local-v1",
   "name": "Platformer Core",
   "summary": "A playable side-view platform game loop with player movement, platforms, coins, score, hazards, and a fail rule.",
   "llm1Card": "A complete platformer game core: move, jump, collect coins, avoid hazards, and score.",
@@ -21,6 +22,12 @@
     "promotionTarget": "cloudModuleRepo",
     "trainingEligible": false
   },
+  "semanticContract": { "provides": ["semantic-dictionary#/semantic_concepts/movement", "semantic-dictionary#/playGoals/collect", "semantic-dictionary#/playGoals/avoid-threats", "semantic-dictionary#/eventMeanings/ActorFailed"], "requires": [], "goals": ["semantic-dictionary#/playGoals/collect"], "roles": ["semantic-dictionary#/gameplayRoles/actor", "semantic-dictionary#/gameplayRoles/reward", "semantic-dictionary#/gameplayRoles/pressure"], "pressures": ["semantic-dictionary#/gameplayRoles/pressure"], "rewards": ["semantic-dictionary#/gameplayRoles/reward"] },
+  "spatialContract": { "supportedTopologies": ["linear", "branching-route"], "requiredRoles": ["actor_spawn", "active_route", "reward_zone", "pressure_zone"], "optionalRoles": ["goal_zone"], "constraints": [], "variationParameters": ["variationSeed"] },
+  "declarationContract": { "spatialSubjects": [{ "subjectId": "player", "prototypeId": "Player", "semanticRoleRefs": ["semantic-dictionary#/gameplayRoles/actor"], "bounds": { "width": 32, "height": 48, "anchor": "bottom-center" }, "layerRole": "world", "cardinality": "exclusive", "placementPolicy": "actor_spawn" }, { "subjectId": "coin", "prototypeId": "Coin", "semanticRoleRefs": ["semantic-dictionary#/gameplayRoles/reward"], "bounds": { "width": 16, "height": 16, "anchor": "center" }, "layerRole": "world", "cardinality": "composed", "placementPolicy": "reward_zone" }, { "subjectId": "enemy", "prototypeId": "Enemy", "semanticRoleRefs": ["semantic-dictionary#/gameplayRoles/pressure"], "bounds": { "width": 32, "height": 32, "anchor": "bottom-center" }, "layerRole": "world", "cardinality": "composed", "placementPolicy": "pressure_zone" }], "sharedArtifacts": [] },
+  "lifecycleContract": { "start": "provided", "pause": "required", "failure": "provided", "restart": "provided", "continue": "provided" },
+  "ownershipContract": { "artifacts": [], "cleanupOrder": [], "stateMigrationPolicy": "none" },
+  "acceptanceContract": { "createFixture": "runner-platformer.linear", "continueFixture": "runner-platformer.continue", "failureFixtures": ["runner-platformer.failure"], "supportedLayoutFixtures": ["runner-platformer.linear", "runner-platformer.branching"], "playGoals": ["semantic-dictionary#/playGoals/collect"] },
   "defaults": {
     "scene": "Game",
     "failAction": "restart"

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.creator-experience",
+  "owner": "CreatorExperience",
+  "principles": ["one-screen-idea-entry", "ui-consumes-stable-api-only", "no-log-parsing", "optional-assets-never-block", "previous-playable-version-is-safe", "debt-is-actionable-not-technical"],
+  "inputs": ["RunSnapshot", "ProjectWorkspace", "ProjectVersion cards", "playable artifact", "stable recovery route"],
+  "outputs": ["idea request", "continue request", "project selection", "version rollback request", "user-visible debt"],
+  "stages": ["queued", "understanding", "directing", "compiling", "building", "runtime", "packaging", "playtesting", "complete", "cancelling"],
+  "debtKinds": ["start-first-version", "build-in-progress", "cancelled", "provider-budget", "asset-debt", "build-debt"],
+  "repairPolicy": { "automatic": "domain-runtime-only", "maxAutomaticAttempts": 1, "forbidden": ["destructive-project-overwrite", "ui-direct-provider-call", "silent-retry-after-debt"] },
+  "forbidden": ["engine-form-workflow", "raw-owner-diagnostics", "ui-project-file-storage", "required-sketch-upload", "ui-log-parsing"],
+  "evidence": ["new-project API flow", "continue API flow", "cancel and previous-version preservation", "version rollback API flow", "mapped failure without raw diagnostic", "platform build"]
+}

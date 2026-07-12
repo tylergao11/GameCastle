@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
   "governanceId": "gamecastle.ai-provider-governance",
-  "principles": ["keys-are-environment-only", "semantic-and-asset-share-provider-policy", "modality-adapters-own-request-shapes", "external-calls-require-explicit-authorization", "usage-and-cost-are-receipted"],
+  "principles": ["keys-are-environment-only", "semantic-and-asset-share-provider-policy", "modality-adapters-own-request-shapes", "external-calls-require-explicit-authorization", "usage-and-cost-are-receipted", "provider-runtime-is-the-only-external-invocation-path"],
   "defaultProvider": "deepseek",
   "providers": {
     "deepseek": { "endpointEnv": "LLM_ENDPOINT", "apiKeyEnv": "DEEPSEEK_API_KEY", "defaultEndpoint": "http://127.0.0.1:18081/v1", "textModelEnv": "LLM_MODEL", "defaultTextModel": "deepseek-v4-flash", "modalities": ["text"] },
     "openai": { "endpointEnv": "OPENAI_ENDPOINT", "apiKeyEnv": "OPENAI_API_KEY", "defaultEndpoint": "https://api.openai.com/v1", "textModelEnv": "OPENAI_TEXT_MODEL", "defaultTextModel": "gpt-4.1-mini", "imageModelEnv": "OPENAI_IMAGE_MODEL", "visionModelEnv": "OPENAI_VISION_MODEL", "modalities": ["text", "image-generation", "image-edit", "vision-review"] },
     "simulated-local": { "defaultEndpoint": "local://simulated", "defaultTextModel": "simulated-text", "modalities": ["text", "image-generation", "image-edit", "vision-review"] }
   },
-  "assetDefaults": { "providerEnv": "ASSET_MODEL_PROVIDER", "imageModelEnv": "ASSET_IMAGE_MODEL", "visionModelEnv": "ASSET_VISION_MODEL", "maxCostEnv": "ASSET_MODEL_MAX_COST", "allowExternalEnv": "ASSET_ALLOW_EXTERNAL" }
+  "assetDefaults": { "providerEnv": "ASSET_MODEL_PROVIDER", "imageModelEnv": "ASSET_IMAGE_MODEL", "visionModelEnv": "ASSET_VISION_MODEL", "maxCostEnv": "ASSET_MODEL_MAX_COST", "allowExternalEnv": "ASSET_ALLOW_EXTERNAL" },
+  "runtimeDefaults": { "allowExternalEnvs": ["AI_ALLOW_EXTERNAL", "LLM_ALLOW_EXTERNAL", "ASSET_ALLOW_EXTERNAL"], "timeoutMs": 30000, "maxAttempts": 3, "receiptPolicy": "safe-immutable" }
 }

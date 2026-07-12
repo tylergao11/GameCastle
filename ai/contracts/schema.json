@@ -680,29 +680,21 @@
         "moduleContract": {
           "type": "object",
           "required": [
-            "moduleIntents",
-            "gameplaySlots",
-            "stateVariables",
+            "gameplayRequirementGraph",
             "networkPolicy"
           ],
           "properties": {
-            "moduleIntents": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/ModuleIntent"
-              }
-            },
-            "gameplaySlots": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "stateVariables": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
+            "gameplayRequirementGraph": {
+              "type": "object",
+              "required": ["requirementGraphId", "mode", "requirements", "surfaces", "semanticEvidence"],
+              "properties": {
+                "requirementGraphId": { "type": "string" },
+                "mode": { "type": "string", "enum": ["create", "continue"] },
+                "requirements": { "type": "array" },
+                "surfaces": { "type": "array" },
+                "semanticEvidence": { "type": "array" }
+              },
+              "additionalProperties": true
             },
             "networkPolicy": {
               "$ref": "#/$defs/SyncPolicy"

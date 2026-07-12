@@ -93,7 +93,9 @@ async function requestResponses(options) {
   var signal = options.signal;
   if (options.timeoutMs) {
     controller = new AbortController();
-    signal = controller.signal;
+    signal = signal && typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function'
+      ? AbortSignal.any([signal, controller.signal])
+      : controller.signal;
     timeoutId = setTimeout(function() { controller.abort(); }, options.timeoutMs);
   }
   try {

@@ -11,7 +11,7 @@ function sendJson(res, status, value) {
 
 function errorStatus(code) {
   if (code === 'RUN_BUSY' || code === 'CONTINUE_STATE_MISSING' || code === 'RUN_NOT_CANCELLABLE') return 409;
-  if (code === 'INTENT_REQUIRED' || code === 'INTENT_TOO_LONG' || code === 'INVALID_JSON' || code === 'INVALID_MODE' || code === 'ASSET_BINDING_INVALID' || code === 'ASSET_PNG_REQUIRED' || code === 'ASSET_SIZE_INVALID' || code === 'ASSET_SIGNATURE_INVALID' || code === 'ASSET_PNG_CONTRACT_INVALID' || code === 'ASSET_WEAVE_REJECTED' || code === 'ASSET_CLOUD_RESOLVE_INVALID' || code === 'ASSET_CLOUD_UNAVAILABLE' || code === 'ASSET_CLOUD_MATERIALIZE_FAILED' || code === 'ASSET_SIMULATED_GENERATE_INVALID' || code === 'ASSET_SIMULATED_GENERATE_REJECTED' || code === 'ASSET_SIMULATED_MATERIALIZE_FAILED') return 400;
+  if (code === 'PROJECT_ID_REQUIRED' || code === 'VERSION_ID_REQUIRED' || code === 'INTENT_REQUIRED' || code === 'INTENT_TOO_LONG' || code === 'INVALID_JSON' || code === 'INVALID_MODE' || code === 'ASSET_BINDING_INVALID' || code === 'ASSET_PNG_REQUIRED' || code === 'ASSET_SIZE_INVALID' || code === 'ASSET_SIGNATURE_INVALID' || code === 'ASSET_PNG_CONTRACT_INVALID' || code === 'ASSET_WEAVE_REJECTED' || code === 'ASSET_CLOUD_RESOLVE_INVALID' || code === 'ASSET_CLOUD_UNAVAILABLE' || code === 'ASSET_CLOUD_MATERIALIZE_FAILED' || code === 'ASSET_SIMULATED_GENERATE_INVALID' || code === 'ASSET_SIMULATED_GENERATE_REJECTED' || code === 'ASSET_SIMULATED_MATERIALIZE_FAILED') return 400;
   return 500;
 }
 
@@ -56,6 +56,7 @@ function decodeSegment(value, res) {
 function createLocalGameRuntimeServer(options) {
   var coordinator = options.coordinator;
   var artifactStore = options.artifactStore;
+  var projectStore = options.projectStore;
   var localAssetStore = options.localAssetStore;
   var cloudAssetEngine = options.cloudAssetEngine;
   var allowedUiOrigin = options.allowedUiOrigin || 'http://127.0.0.1:5173';
@@ -102,6 +103,28 @@ function createLocalGameRuntimeServer(options) {
       sendJson(res, 200, coordinator.snapshot());
       return;
     }
+    if (req.method === 'GET' && pathname === '/api/projects') {
+      sendJson(res, 200, { projects: projectStore.listProjects() });
+      return;
+    }
+    var projectMatch = pathname.match(/^\/api\/projects\/([^/]+)$/);
+    if (req.method === 'GET' && projectMatch) {
+      var describedProjectId = decodeSegment(projectMatch[1], res);
+      if (describedProjectId === null) return;
+      try { sendJson(res, 200, coordinator.projectSnapshot(describedProjectId)); } catch (error) { sendJson(res, 404, { error: { code: 'PROJECT_NOT_FOUND', message: 'Project not found.' } }); }
+      return;
+    }
+    var rollbackMatch = pathname.match(/^\/api\/projects\/([^/]+)\/rollback$/);
+    if (req.method === 'POST' && rollbackMatch) {
+      var rollbackProjectId = decodeSegment(rollbackMatch[1], res);
+      if (rollbackProjectId === null) return;
+      readJson(req).then(function(body) {
+        if (!body.versionId) { var error = new Error('versionId is required.'); error.code = 'VERSION_ID_REQUIRED'; throw error; }
+        var receipt = projectStore.rollback(rollbackProjectId, body.versionId);
+        sendJson(res, 200, { receipt: receipt, workspace: coordinator.projectSnapshot(rollbackProjectId) });
+      }).catch(function(error) { sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } }); });
+      return;
+    }
     if (req.method === 'GET' && pathname === '/api/runtime/assets/cloud/search') {
       var tags = String(requestUrl.searchParams.get('tags') || '').split(',').map(function(value) { return value.trim(); }).filter(function(value) { return /^[A-Za-z0-9._-]{1,128}$/.test(value); });
       var matches = cloudAssetEngine.search(tags).map(function(asset) { return { assetId: asset.assetId, sha256: asset.sha256, format: asset.format, width: asset.width || null, height: asset.height || null, styleId: asset.styleId || null, semanticTags: asset.semanticTags || [], repositoryStatus: asset.status }; });
@@ -110,7 +133,7 @@ function createLocalGameRuntimeServer(options) {
     }
     if (req.method === 'POST' && pathname === '/api/runtime/runs') {
       readJson(req).then(function(body) {
-        var snapshot = coordinator.start({ intent: body.intent, mode: body.mode });
+        var snapshot = coordinator.start({ projectId: body.projectId, projectName: body.projectName, intent: body.intent, mode: body.mode });
         sendJson(res, 202, snapshot);
       }).catch(function(error) {
         sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
@@ -119,7 +142,7 @@ function createLocalGameRuntimeServer(options) {
     }
     if (req.method === 'POST' && pathname === '/api/runtime/fixtures/mobile-platformer') {
       readJson(req).then(function() {
-        var snapshot = coordinator.start({ intent: 'Offline platformer fixture', mode: 'create', intentFixtureFile: 'ai/fixtures/intent-mobile-platformer.dsl' });
+        var snapshot = coordinator.start({ projectId: body.projectId, projectName: body.projectName, intent: 'Offline platformer fixture', mode: 'create', intentFixtureFile: 'ai/fixtures/intent-mobile-platformer.dsl' });
         sendJson(res, 202, snapshot);
       }).catch(function(error) {
         sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });

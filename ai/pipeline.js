@@ -5,6 +5,7 @@ var fs = require("fs");
 var path = require("path");
 var crypto = require("crypto");
 var projectWorld = require("./project-world");
+var assetWorld = require('./asset-world');
 var placementContext = require("./placement-context");
 var pipelineState = require("./pipeline-state");
 var moduleCompiler = require("./module-compiler");
@@ -66,6 +67,25 @@ function localAssetExportFiles() {
     if (/^assets\/generated\/[A-Za-z0-9._-]+\.png$/.test(String(sheetPath || '')) && fs.existsSync(path.join(STATE_DIR, sheetPath))) files.push(sheetPath);
   });
   return Array.from(new Set(files));
+}
+
+function ensureProjectAssetWorld() {
+  var previous = assetWorld.loadAssetWorld(STATE_DIR);
+  var bindings = loadJsonFile(path.join(STATE_DIR, 'asset-runtime-bindings.json'), { bindings: [] }).bindings || [];
+  var assets = bindings.map(function(binding) {
+    var asset = binding && binding.asset ? binding.asset : {};
+    return {
+      slotId: binding.slotId || binding.binding || asset.assetId || 'asset.unknown', assetId: asset.assetId || null,
+      path: asset.path || null, source: asset.source || 'localProject', status: binding.status || asset.status || 'reused',
+      format: asset.format || 'png', width: asset.width || 1, height: asset.height || 1, transparent: asset.transparent !== false,
+      semanticTags: asset.semanticTags || [], styleTags: asset.styleTags || [], publishability: asset.publishability || { playable: true, publishable: !asset.simulated, repoEligible: false, trainingEligible: false, blocksFinalExport: false, debt: 'none' },
+      resolution: asset.resolution || { strategy: 'exactCache', cacheHit: false, ownerOnFailure: 'RuntimeAssetResolver' }
+    };
+  });
+  var manifest = { meta: { schemaVersion: 1, contractId: 'pipeline:asset-manifest', createdAt: new Date().toISOString(), owner: 'RuntimeAssetResolver', status: 'ready' }, buildContractId: 'pipeline', assets: assets, summary: { resolved: assets.length, generated: 0, reused: assets.length, placeholders: 0, failed: 0, cacheHit: false, publishable: assets.every(function(asset) { return asset.publishability.publishable; }) } };
+  var world = assetWorld.buildAssetWorld(manifest, previous);
+  assetWorld.saveAssetWorld(STATE_DIR, world);
+  return world;
 }
 
 function hasArg(name) {
@@ -348,8 +368,10 @@ function parseEventDSL(line, project) {
   }
 
   // Timer events: wrap in repeat structure
-  if (conditions.length === 1 && conditions[0].type.value === '__TIMER__') {
-    var sec = parseFloat(conditions[0].parameters[0]) || 2;
+  var timerCondition = conditions.filter(function(condition) { return condition.type.value === '__TIMER__'; })[0];
+  if (timerCondition) {
+    var sec = parseFloat(timerCondition.parameters[0]) || 2;
+    var childConditions = conditions.filter(function(condition) { return condition.type.value !== '__TIMER__'; });
     return {
       disabled: false, folded: false,
       type: 'BuiltinCommonInstructions::Repeat',
@@ -359,7 +381,7 @@ function parseEventDSL(line, project) {
       events: [{
         disabled: false, folded: false,
         type: 'BuiltinCommonInstructions::Standard',
-        conditions: [],
+        conditions: childConditions,
         actions: actions,
         events: []
       }]
@@ -376,6 +398,16 @@ function parseEventDSL(line, project) {
 }
 
 function parseTrigger(text) {
+  // A gameplay event may carry the shared pause gate before its concrete
+  // trigger: "on var GameCastlePaused = 0 and key Space".  Keeping this in
+  // the DSL parser makes the gate a real GDevelop condition, not a metadata
+  // convention that the runtime can silently ignore.
+  var pausePrefix = text.match(/^on\s+var\s+GameCastlePaused\s*=\s*0\s+and\s+(.+)$/);
+  if (pausePrefix) {
+    var nested = parseTrigger('on ' + pausePrefix[1]);
+    if (!nested) return null;
+    return [CONDITIONS.variable('GameCastlePaused', '=', '0')].concat(nested);
+  }
   var words = text.split(/\s+/).filter(Boolean);
   if (words.length < 2) return null;
 
@@ -482,6 +514,8 @@ function parseAction(text) {
   }
   if (words[0] === 'scene' && words.length >= 2) return ACTIONS.change_scene(words[1]);
   if (words[0] === 'restart') return ACTIONS.restart();
+  if (words[0] === 'pause') return ACTIONS.set_var('GameCastlePaused', '=', '1');
+  if (words[0] === 'resume') return ACTIONS.set_var('GameCastlePaused', '=', '0');
 
   return null;
 }
@@ -664,7 +698,10 @@ EXEC["set placement"] = function(p, ps) {
   var scene = p.layouts.find(function(l){return l.name===ps.scene;});
   if (!scene) return {ok:false,msg:"scene not found"};
   var inst = scene.instances.find(function(i){return i.name===ps.object;});
-  if (!inst) return {ok:false,msg:"placement not found: "+ps.object};
+  if (!inst) {
+    inst = { angle: 0, customSize: false, height: 0, width: 0, layer: '', locked: false, name: ps.object, x: 0, y: 0, zOrder: 1, numberProperties: [], stringProperties: [], initialVariables: [], persistentUuid: makePersistentUuid([scene.name, ps.object, 'spatial-placement']) };
+    scene.instances.push(inst);
+  }
   if (ps.x!==undefined) inst.x=parseFloat(ps.x);
   if (ps.y!==undefined) inst.y=parseFloat(ps.y);
   if (ps.width!==undefined) inst.width=parseFloat(ps.width);
@@ -810,6 +847,7 @@ function loadState() {
 }
 function saveState(vision, history) {
   fs.mkdirSync(STATE_DIR, {recursive:true});
+  ensureProjectAssetWorld();
   fs.writeFileSync(CREATIVE_VISION_PATH, String(vision || ''), 'utf8');
   fs.writeFileSync(CREATIVE_HISTORY_PATH, JSON.stringify(history,null,2), 'utf8');
 }

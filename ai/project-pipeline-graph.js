@@ -20,12 +20,12 @@ var PROJECT_GRAPH_NODE_SEQUENCE = [
   'asset-weave',
   'bridge',
   'runtime-linker',
+  'runtime',
+  'project-world',
   'tick-runtime',
   'server-runtime',
   'html-export',
-  'runtime',
   'runtime-validator',
-  'project-world',
   'tick-playtest',
   'semantic-feedback',
 ];
@@ -64,7 +64,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
   'asset-weave': {
     layer: 'asset-weave',
     owner: 'RuntimeAssetResolver',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['compiler.contracts', 'assetWorld.previous'],
     writes: ['assetResolver.manifest', 'assetResolver.summary', 'assetWorld.world', 'assetWorld.sanitizedForAgents'],
     modules: ['ai/asset-engine-langgraph.js', 'ai/asset-weave-graph.js', 'ai/asset-world.js', 'ai/asset-model-ports.js', 'ai/cloud-asset-engine.js', 'ai/cloud-local-plan-runner.js', 'ai/runtime-animation-recipes.js', 'ai/asset-animation-state-machine.js'],
@@ -79,7 +79,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
   'runtime-linker': {
     layer: 'runtime-assembly',
     owner: 'RuntimeLinker',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['bridge.bridgePlan', 'bridge.targetPlanText', 'assetResolver.manifest', 'assetWorld.world'],
     writes: ['assembly.report', 'assembly.htmlExportManifest', 'assembly.runtimeFiles'],
     modules: ['ai/pipeline.js', 'ai/runtime-codegen.js'],
@@ -87,7 +87,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
   'tick-runtime': {
     layer: 'runtime-assembly',
     owner: 'TickRuntimeCodegen',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['bridge.bridgePlan', 'assembly.report'],
     writes: ['tickRuntime.manifest', 'tickRuntime.bundle', 'tickRuntime.summary'],
     modules: ['ai/network-runtime/codegen.js', 'ai/network-runtime/transport.js', 'ai/network-runtime/tick-intent-bridge.js', 'ai/network-runtime/tick-intent-runtime.js', 'ai/network-runtime/snapshot-sync.js', 'ai/network-runtime/event-relay.js', 'ai/network-runtime/async-persistence.js'],
@@ -95,7 +95,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
   'server-runtime': {
     layer: 'server-weave',
     owner: 'ServerRuntime',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['tickRuntime.manifest', 'tickRuntime.summary'],
     writes: ['serverRuntime.report', 'serverRuntime.rooms', 'serverRuntime.stateStore'],
     modules: ['server/signaling-server.js', 'server/room.js', 'server/game-loop.js', 'server/server-ordered-input.js', 'server/state-store.js'],
@@ -103,7 +103,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
   'html-export': {
     layer: 'runtime-assembly',
     owner: 'HtmlExporter',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['assembly.report', 'tickRuntime.bundle', 'assetResolver.manifest'],
     writes: ['htmlExport.manifest', 'htmlExport.files', 'htmlExport.summary'],
     modules: ['ai/html-exporter.js'],
@@ -118,21 +118,21 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
   'runtime-validator': {
     layer: 'validation',
     owner: 'RuntimeValidator',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['runtime.executionReport', 'projectWorld.world', 'assetWorld.world', 'assembly.report'],
     writes: ['validation.report', 'validation.ownerRoute'],
   },
   'project-world': {
     layer: 'world-summary',
     owner: 'ProjectWorld',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['runtime.executionReport', 'validation.report', 'projectWorld.previous'],
     writes: ['projectWorld.world', 'projectWorld.sanitizedForLlm2', 'executionLedger.latest'],
   },
   'tick-playtest': {
     layer: 'world-summary',
     owner: 'SemanticPlaytestAgent',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['projectWorld.world', 'projectWorld.sanitizedForLlm2', 'semanticMapping.dictionary', 'semanticMapping.llmSafeView'],
     writes: ['tickPlaytest.playPolicy', 'tickPlaytest.report', 'tickPlaytest.llmReport', 'tickPlaytest.userReport', 'tickPlaytest.repairIntentDslText', 'tickPlaytest.summary'],
     modules: ['ai/semantic-playtest-agent.js', 'ai/tick-playtest-runtime.js', 'ai/semantic-mapping/semantic-feedback.json'],
@@ -140,7 +140,7 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
   'semantic-feedback': {
     layer: 'world-summary',
     owner: 'SemanticFeedback',
-    status: 'wired-langgraph-smoke',
+    status: 'wired-langgraph',
     reads: ['projectWorld.sanitizedForLlm2', 'runtime.executionReport', 'validation.report', 'tickPlaytest.llmReport', 'semanticMapping.dictionary'],
     writes: ['semanticFeedback.report', 'semanticFeedback.repairIntentDslText', 'semanticFeedback.summary', 'semanticFeedback.semanticMappingView'],
     modules: ['ai/semantic-feedback.js', 'ai/semantic-mapping/semantic-feedback.json'],

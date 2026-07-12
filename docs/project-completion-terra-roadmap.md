@@ -34,10 +34,19 @@ simulated 只能证明离线控制流，不能满足 live smoke。
 
 ### WP2 — Gameplay Module and Template Coverage
 
-一句话目标：让五类常见轻量玩法通过模块和模板确定性组合生成，不依赖 LLM 临时写玩法实现。
+一句话目标：复用现有语义引擎，让五类常见轻量玩法通过批准模块与宏观空间计划确定性组合生成，
+不依赖 LLM 临时写玩法实现。
 
-依次完成 runner/platformer、top-down collector、lightweight shooter、interaction puzzle、idle/clicker，
-并补齐 HUD、start、pause、game-over、score、controls 等模板槽。每类都要覆盖 create 与 continue。
+Terra 开工前必须完整读取 `shared/wp2-product-module-contract.json` 与
+`docs/wp2-product-module-generator-design.md`。先完成 canonical semantic ref、不可变 BuildContract、
+ProductModulePlanner、ModuleDeclarationPlan、SpatialCompositionPlanner、PlacementResolver 接线、
+两阶段 ProductModuleCompiler 和唯一 CompiledModulePlan 在线入口；随后完成 runner/platformer、
+top-down collector、lightweight shooter、interaction puzzle、idle/clicker，并补齐 HUD、start、pause、
+game-over、score、controls。
+
+五类 archetype 只是验收样本，不得成为生成器 dispatch switch。每类至少两个不同 topology 的 create
+fixture 和一个 minimal-delta continue fixture。Foundry 只允许离线产生候选，promotion 之前不能进入在线
+catalog。完整顺序和停止条件以 WP2 机器合同的 `terraImplementationOrder` 与 `solHandoff` 为准。
 
 ### WP3 — Project Workspace and Version Lifecycle
 

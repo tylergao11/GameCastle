@@ -88,7 +88,41 @@ function validateProductModules(schema, modules) {
     validateRepositoryPolicy(manifest);
     validateInteractionContracts(manifest);
     validateIntentFacingModuleFields(manifest);
+    validateWp2Contracts(manifest);
   });
+}
+
+function validateWp2Contracts(manifest) {
+  ['semanticContract', 'spatialContract', 'declarationContract', 'lifecycleContract', 'ownershipContract', 'acceptanceContract'].forEach(function(field) {
+    if (!manifest[field] || typeof manifest[field] !== 'object') throw new Error('Product module ' + manifest.id + ' missing ' + field);
+  });
+  if (!manifest.revision || typeof manifest.revision !== 'string') throw new Error('Product module ' + manifest.id + ' missing immutable revision');
+  ['provides', 'requires', 'goals', 'roles', 'pressures', 'rewards'].forEach(function(field) { if (!Array.isArray(manifest.semanticContract[field])) throw new Error('Product module ' + manifest.id + ' semanticContract.' + field + ' must be array'); });
+  ['supportedTopologies', 'requiredRoles', 'optionalRoles', 'constraints', 'variationParameters'].forEach(function(field) { if (!Array.isArray(manifest.spatialContract[field])) throw new Error('Product module ' + manifest.id + ' spatialContract.' + field + ' must be array'); });
+  ['spatialSubjects', 'sharedArtifacts'].forEach(function(field) { if (!Array.isArray(manifest.declarationContract[field])) throw new Error('Product module ' + manifest.id + ' declarationContract.' + field + ' must be array'); });
+  ['start', 'pause', 'failure', 'restart', 'continue'].forEach(function(field) { if (!manifest.lifecycleContract[field]) throw new Error('Product module ' + manifest.id + ' lifecycleContract.' + field + ' required'); });
+  ['artifacts', 'cleanupOrder'].forEach(function(field) { if (!Array.isArray(manifest.ownershipContract[field])) throw new Error('Product module ' + manifest.id + ' ownershipContract.' + field + ' must be array'); });
+  if (!manifest.ownershipContract.stateMigrationPolicy) throw new Error('Product module ' + manifest.id + ' ownershipContract.stateMigrationPolicy required');
+  ['createFixture', 'continueFixture', 'failureFixtures', 'supportedLayoutFixtures', 'playGoals'].forEach(function(field) { if (manifest.acceptanceContract[field] === undefined) throw new Error('Product module ' + manifest.id + ' acceptanceContract.' + field + ' required'); });
+}
+
+function declareModuleSubjects(compositionPlan, catalog) {
+  catalog = catalog || loadProductModuleCatalog(path.join(__dirname, 'product-modules'));
+  var byId = indexCatalog(catalog);
+  var subjects = [], sharedArtifacts = [];
+  (compositionPlan.operations || []).forEach(function(operation) {
+    if (operation.op === 'remove') return;
+    var ref = operation.toModule || operation.fromModule;
+    var manifest = ref && byId[ref.moduleId];
+    if (!manifest) throw new Error('Module declaration references unknown module');
+    (manifest.declarationContract.spatialSubjects || []).forEach(function(subject) {
+      subjects.push(Object.assign({}, clone(subject), { moduleId: manifest.id, moduleRevision: manifest.revision }));
+    });
+    (manifest.declarationContract.sharedArtifacts || []).forEach(function(artifact) { sharedArtifacts.push(clone(artifact)); });
+  });
+  var declaration = { schemaVersion: 1, declarationPlanId: compositionPlan.planId + ':declaration', compositionPlanId: compositionPlan.planId, catalogFingerprint: compositionPlan.catalogFingerprint, subjects: subjects, sharedArtifacts: sharedArtifacts, declarationHash: '' };
+  declaration.declarationHash = require('crypto').createHash('sha256').update(JSON.stringify(declaration)).digest('hex').slice(0, 16);
+  return declaration;
 }
 
 function validateIntentFacingModuleFields(manifest) {
@@ -595,6 +629,12 @@ function compileModuleCommands(commands, catalog, options) {
   var installedModules = [];
   var networkModules = [];
 
+  function pauseGate(line, manifest) {
+    if (manifest.category !== 'core' || !/^((on\s+(key|collision|mouse|var)\s+)|every\s+)/.test(line)) return line;
+    if (line.indexOf('GameCastlePaused') >= 0) return line;
+    return 'on var GameCastlePaused = 0 and ' + (line.indexOf('on ') === 0 ? line.slice(3) : line);
+  }
+
   installs.forEach(function(install) {
     var manifest = install.manifest;
     var slots = clone((manifest.compiler && manifest.compiler.slots) || {});
@@ -610,8 +650,9 @@ function compileModuleCommands(commands, catalog, options) {
       lines = lines.concat(buildSlotUpdateLines(install, slotOverrides[install.id], options.projectWorld));
       lines = lines.concat(buildConfigureUpdateLines(install, options.projectWorld));
     } else {
+      if (manifest.category === 'core') lines.push('set variable name=GameCastlePaused value=0 type=Number scope=global');
       (manifest.compiler.targetPlan || []).forEach(function(line) {
-        lines.push(renderTemplate(line, values));
+        lines.push(pauseGate(renderTemplate(line, values), manifest));
       });
     }
     installedModules.push({
@@ -646,6 +687,152 @@ function compileModuleCommands(commands, catalog, options) {
   };
 }
 
+function compileCompositionPlan(compositionPlan, catalog, options) {
+  options = options || {};
+  catalog = catalog || loadProductModuleCatalog(path.join(__dirname, 'product-modules'));
+  var baseModules = options.baseModules || (options.previousWorld && options.previousWorld.modules) || [];
+  (compositionPlan.operations || []).filter(function(operation) { return operation.op === 'remove' || operation.op === 'replace'; }).forEach(function(operation) {
+    if (!operation.expectedOwnershipHash || !operation.cleanupPlan || !operation.sharedArtifactPolicy) throw new Error('Guarded ' + operation.op + ' requires ownership proof and cleanup policy');
+  });
+  var commands = (compositionPlan.operations || []).filter(function(operation) { return operation.op === 'install' || operation.op === 'configure' || operation.op === 'replace'; }).map(function(operation, index) {
+    var ref = operation.toModule || operation.fromModule;
+    return { verb: operation.op === 'replace' ? 'install' : operation.op, id: ref.moduleId, params: Object.assign({ id: ref.moduleId }, operation.parameters || {}), lineNumber: index + 1 };
+  });
+  var compiled = compileModuleCommands(commands, catalog, Object.assign({}, options, { baseModules: baseModules }));
+  function placementLines(moduleId) {
+    return ((options.placementPlan && options.placementPlan.placements) || []).filter(function(placement) { return placement.moduleId === moduleId; }).reduce(function(lines, placement) {
+      var point = placement.resolved || (placement.points || [])[0];
+      if (point) lines.push('set placement object=' + placement.subject + ' x=' + point.x + ' y=' + point.y + ' scene=' + (placement.scene || 'Game'));
+      return lines;
+    }, []);
+  }
+  var allPlacementLines = (compositionPlan.operations || []).filter(function(operation) { return operation.op === 'install' || operation.op === 'replace'; }).reduce(function(lines, operation) { return lines.concat(placementLines(operation.toModule.moduleId)); }, []);
+  compiled.targetPlanLines = compiled.targetPlanLines.concat(allPlacementLines);
+  compiled.targetPlanText = compiled.targetPlanLines.join('\n');
+  compiled.installedModules = (compiled.installedModules || []).map(function(module) {
+    var ownedArtifactIds = ['module:' + module.id];
+    var selectedRef = (compositionPlan.operations || []).map(function(item) { return item.toModule || item.fromModule; }).filter(Boolean).find(function(ref) { return ref.moduleId === module.id; });
+    return Object.assign({}, module, { revision: (selectedRef && selectedRef.revision) || module.revision || 'local-v1', ownershipHash: require('crypto').createHash('sha256').update(JSON.stringify({ id: module.id, params: module.params, ownedArtifactIds: ownedArtifactIds })).digest('hex').slice(0, 16), ownedArtifactIds: ownedArtifactIds });
+  });
+  var runtimeOperations = (compositionPlan.operations || []).map(function(operation, index) {
+    var command;
+    var emittedLines = [];
+    if (operation.op === 'install' || operation.op === 'replace') {
+      command = { verb: 'install', id: operation.toModule.moduleId, params: Object.assign({ id: operation.toModule.moduleId }, operation.parameters || {}), lineNumber: index + 1 };
+      emittedLines = compileModuleCommands([command], catalog, options).targetPlanLines.concat(placementLines(operation.toModule.moduleId));
+    } else if (operation.op === 'configure') {
+      command = { verb: 'configure', id: operation.fromModule.moduleId, params: Object.assign({ id: operation.fromModule.moduleId }, operation.parameters || {}), lineNumber: index + 1 };
+      var existing = baseModules.filter(function(module) { return (module.id || module.moduleId) === operation.fromModule.moduleId; });
+      if (!existing.length) throw new Error('Cannot configure module without ProjectWorld base module: ' + operation.fromModule.moduleId);
+      emittedLines = compileModuleCommands([command], catalog, Object.assign({}, options, { baseModules: existing })).targetPlanLines;
+    }
+    return {
+      operationId: operation.operationId,
+      op: operation.op,
+      atomicGroupId: operation.atomicGroupId,
+      fromModule: clone(operation.fromModule),
+      toModule: clone(operation.toModule),
+      expectedOwnershipHash: operation.expectedOwnershipHash || null,
+      cleanupPlan: clone(operation.cleanupPlan),
+      sharedArtifactPolicy: clone(operation.sharedArtifactPolicy),
+      stateMigration: clone(operation.stateMigration),
+      targetPlanLines: emittedLines
+    };
+  });
+  return {
+    schemaVersion: 1,
+    compositionPlanId: compositionPlan.planId,
+    targetPlanText: compiled.targetPlanText,
+    targetPlanLines: compiled.targetPlanLines,
+    installedModules: compiled.installedModules,
+    removedModules: (compositionPlan.operations || []).filter(function(operation) { return operation.op === 'remove' || operation.op === 'replace'; }).map(function(operation) { return operation.fromModule.moduleId; }),
+    tickRuntimeManifest: compiled.tickRuntimeManifest,
+    runtimeOperations: runtimeOperations,
+    ownershipReceipt: { created: compiled.installedModules.map(function(module) { return module.id; }), updated: [], removed: (compositionPlan.operations || []).filter(function(item) { return item.op === 'remove' || item.op === 'replace'; }).map(function(item) { return item.fromModule.moduleId; }), retained: (compositionPlan.operations || []).filter(function(item) { return item.op === 'retain'; }).map(function(item) { return item.fromModule.moduleId; }) },
+    provenance: { owner: 'ProductModuleCompiler', compositionPlanHash: compositionPlan.determinism.outputHash }
+  };
+}
+
+/*
+ * Runtime ownership is deliberately structural rather than name-heuristic.
+ * An installation records the exact project fragments it created; a later
+ * remove/replace can therefore delete only those fragments, verify ownership,
+ * and allow the caller to restore a transaction snapshot on failure.
+ */
+function stable(value) { return JSON.stringify(value); }
+function same(value, other) { return stable(value) === stable(other); }
+function artifactKey(kind, sceneName, value) { return kind + ':' + (sceneName || 'global') + ':' + require('crypto').createHash('sha256').update(stable(value)).digest('hex').slice(0, 16); }
+function listProjectArtifacts(project) {
+  var artifacts = [];
+  (project.objects || []).forEach(function(item) { artifacts.push({ artifactId: artifactKey('object', '', item), kind: 'object', scene: null, value: clone(item) }); });
+  (project.variables || []).forEach(function(item) { artifacts.push({ artifactId: artifactKey('variable', '', item), kind: 'variable', scene: null, value: clone(item) }); });
+  (project.layouts || []).forEach(function(scene) {
+    artifacts.push({ artifactId: artifactKey('scene', scene.name, { name: scene.name }), kind: 'scene', scene: scene.name, value: { name: scene.name } });
+    ['objects', 'instances', 'events', 'variables'].forEach(function(kind) {
+      (scene[kind] || []).forEach(function(item) { artifacts.push({ artifactId: artifactKey(kind, scene.name, item), kind: kind, scene: scene.name, value: clone(item) }); });
+    });
+  });
+  return artifacts;
+}
+function captureOwnedArtifacts(beforeProject, afterProject) {
+  var before = listProjectArtifacts(beforeProject);
+  var after = listProjectArtifacts(afterProject);
+  var beforeIds = {};
+  before.forEach(function(item) { beforeIds[item.artifactId] = true; });
+  return after.filter(function(item) { return !beforeIds[item.artifactId]; });
+}
+function removeOwnedArtifacts(project, module, operation, installedModules) {
+  if (!module || !module.ownershipHash || module.ownershipHash !== operation.expectedOwnershipHash) throw new Error('MODULE_REMOVE_UNSAFE: ownership hash does not match');
+  var owned = module.ownedArtifacts || [];
+  var expected = (operation.cleanupPlan && operation.cleanupPlan.orderedArtifactIds) || [];
+  if (expected.length && expected.some(function(id) { return !owned.some(function(item) { return item.artifactId === id; }); })) throw new Error('MODULE_REMOVE_UNSAFE: cleanup plan references unowned artifact');
+  var policy = operation.sharedArtifactPolicy || {};
+  var shared = policy.artifactIds || [];
+  if (shared.some(function(id) { return !owned.some(function(item) { return item.artifactId === id; }); })) throw new Error('MODULE_REMOVE_UNSAFE: shared policy references unowned artifact');
+  if (shared.length && (!Array.isArray(policy.remainingOwnerIds) || !policy.remainingOwnerIds.length || !policy.referenceRule)) throw new Error('MODULE_REMOVE_UNSAFE: shared artifact requires remaining owner and reference rule');
+  if (shared.length) {
+    var installedIds = (installedModules || []).filter(function(candidate) { return candidate && candidate.id !== module.id; }).map(function(candidate) { return candidate.id || candidate.moduleId; });
+    if (policy.remainingOwnerIds.some(function(id) { return installedIds.indexOf(id) < 0; })) throw new Error('MODULE_REMOVE_UNSAFE: shared policy remaining owner is not installed');
+  }
+  var checks = (operation.cleanupPlan && operation.cleanupPlan.dependentChecks) || [];
+  if (checks.some(function(check) { return check && check.blocking === true; })) throw new Error('MODULE_REMOVE_UNSAFE: blocking dependent check prevents cleanup');
+  var byId = {}; owned.forEach(function(item) { byId[item.artifactId] = item; });
+  var ordered = expected.length ? expected.map(function(id) { return byId[id]; }) : owned.slice();
+  var targets = ordered.filter(function(item) { return shared.indexOf(item.artifactId) < 0; });
+  targets.forEach(function(artifact) {
+    if (artifact.kind === 'scene') {
+      var sceneForDelete = (project.layouts || []).find(function(scene) { return scene.name === artifact.scene; });
+      var foreignArtifactExists = sceneForDelete && ['objects', 'instances', 'events', 'variables'].some(function(kind) {
+        return (sceneForDelete[kind] || []).some(function(value) {
+          return !owned.some(function(candidate) { return candidate.scene === artifact.scene && candidate.kind === kind && same(candidate.value, value); });
+        });
+      });
+      if (foreignArtifactExists) return;
+      project.layouts = (project.layouts || []).filter(function(scene) { return scene.name !== artifact.scene; });
+      if (project.firstLayout === artifact.scene) project.firstLayout = (project.layouts[0] && project.layouts[0].name) || '';
+      return;
+    }
+    if (!artifact.scene) {
+      var globalBucket = artifact.kind === 'object' ? 'objects' : artifact.kind === 'variable' ? 'variables' : null;
+      if (globalBucket) project[globalBucket] = (project[globalBucket] || []).filter(function(item) { return !same(item, artifact.value); });
+      return;
+    }
+    var scene = (project.layouts || []).find(function(item) { return item.name === artifact.scene; });
+    if (scene && scene[artifact.kind]) scene[artifact.kind] = scene[artifact.kind].filter(function(item) { return !same(item, artifact.value); });
+  });
+  return targets.map(function(item) { return item.artifactId; });
+}
+function migrateState(project, migration, sourceProject) {
+  if (!migration || migration.strategy === 'none') return [];
+  var copied = [];
+  (migration.sourceStateIds || []).forEach(function(sourceId, index) {
+    var source = ((sourceProject || project).variables || []).find(function(item) { return item.name === sourceId; });
+    var targetId = (migration.targetStateIds || [])[index];
+    if (source && targetId) { project.variables = (project.variables || []).filter(function(item) { return item.name !== targetId; }); project.variables.push(Object.assign({}, clone(source), { name: targetId })); copied.push({ from: sourceId, to: targetId }); }
+  });
+  return copied;
+}
+
 function saveTickRuntimeManifest(stateDir, manifest) {
   fs.mkdirSync(stateDir, { recursive: true });
   var filePath = path.join(stateDir, 'tick-runtime-manifest.json');
@@ -658,6 +845,12 @@ module.exports = {
   validateProductModules: validateProductModules,
   buildProductModuleCards: buildProductModuleCards,
   compileModuleCommands: compileModuleCommands,
+  compileCompositionPlan: compileCompositionPlan,
+  listProjectArtifacts: listProjectArtifacts,
+  captureOwnedArtifacts: captureOwnedArtifacts,
+  removeOwnedArtifacts: removeOwnedArtifacts,
+  migrateState: migrateState,
   makeNetworkPlan: makeNetworkPlan,
+  declareModuleSubjects: declareModuleSubjects,
   saveTickRuntimeManifest: saveTickRuntimeManifest
 };

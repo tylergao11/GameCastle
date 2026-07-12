@@ -7,12 +7,6 @@ function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
-function renderTemplate(text, values) {
-  return String(text || '').replace(/\{\{([a-zA-Z0-9_.-]+)\}\}/g, function(_match, key) {
-    return values[key] === undefined || values[key] === null ? '' : String(values[key]);
-  });
-}
-
 function makeEmptyContext() {
   return {
     objectBounds: {},
@@ -40,40 +34,6 @@ function mergePlacementContexts() {
   return result;
 }
 
-function valuesForModule(moduleIntent, manifest) {
-  var values = {};
-  Object.assign(values, clone(manifest.defaults || {}));
-  Object.assign(values, clone((manifest.compiler && manifest.compiler.slots) || {}));
-  values.id = moduleIntent.id;
-  values.preset = moduleIntent.preset || manifest.defaultPreset || 'basic';
-  return values;
-}
-
-function addCreateObjectBounds(bounds, line) {
-  var match = String(line || '').match(/^create\s+object\s+name=([^\s]+).*?\bwidth=([0-9.]+)\s+height=([0-9.]+)/i);
-  if (!match) return;
-  var name = match[1];
-  bounds[name] = mergeBound(bounds[name], {
-    width: Number(match[2]),
-    height: Number(match[3]),
-  });
-}
-
-function addPlaceObjectBounds(bounds, line) {
-  var match = String(line || '').match(/^place\s+object=([^\s]+)\s+at=([-0-9.]+),([-0-9.]+)(.*)$/i);
-  if (!match) return;
-  var name = match[1];
-  var tail = match[4] || '';
-  var widthMatch = tail.match(/\bwidth=([0-9.]+)/i);
-  var heightMatch = tail.match(/\bheight=([0-9.]+)/i);
-  bounds[name] = mergeBound(bounds[name], {
-    x: Number(match[2]),
-    y: Number(match[3]),
-    width: widthMatch ? Number(widthMatch[1]) : undefined,
-    height: heightMatch ? Number(heightMatch[1]) : undefined,
-  });
-}
-
 function contextFromModuleIntents(moduleIntents, productModuleCatalog) {
   var catalog = productModuleCatalog || moduleCompiler.loadProductModuleCatalog(PRODUCT_MODULES_DIR);
   var context = makeEmptyContext();
@@ -82,11 +42,22 @@ function contextFromModuleIntents(moduleIntents, productModuleCatalog) {
       return candidate.id === moduleIntent.id;
     });
     if (!manifest) return;
-    var values = valuesForModule(moduleIntent, manifest);
-    ((manifest.compiler && manifest.compiler.targetPlan) || []).forEach(function(templateLine) {
-      var line = renderTemplate(templateLine, values);
-      addCreateObjectBounds(context.objectBounds, line);
-      addPlaceObjectBounds(context.objectBounds, line);
+    ((manifest.declarationContract && manifest.declarationContract.spatialSubjects) || []).forEach(function(subject) {
+      var bounds = subject.bounds || {};
+      context.objectBounds[subject.prototypeId] = mergeBound(context.objectBounds[subject.prototypeId], {
+        width: Number(bounds.width || 0), height: Number(bounds.height || 0), layer: subject.layerRole || ''
+      });
+    });
+  });
+  return context;
+}
+
+function contextFromModuleDeclaration(declaration) {
+  var context = makeEmptyContext();
+  (declaration && declaration.subjects || []).forEach(function(subject) {
+    var bounds = subject.bounds || {};
+    context.objectBounds[subject.prototypeId] = mergeBound(context.objectBounds[subject.prototypeId], {
+      width: Number(bounds.width || 0), height: Number(bounds.height || 0), layer: subject.layerRole || ''
     });
   });
   return context;
@@ -111,6 +82,7 @@ function contextFromProjectWorld(world) {
 
 module.exports = {
   contextFromModuleIntents: contextFromModuleIntents,
+  contextFromModuleDeclaration: contextFromModuleDeclaration,
   contextFromProjectWorld: contextFromProjectWorld,
   mergePlacementContexts: mergePlacementContexts,
 };

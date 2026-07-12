@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.provider-runtime",
+  "owner": "ProviderRuntime",
+  "principles": ["keys-are-environment-only", "one-provider-invocation-path", "typed-role-input", "fail-closed", "bounded-cost-and-retry", "receipts-are-safe-and-immutable", "simulated-results-cannot-publish"],
+  "roles": {
+    "creative-text": { "modality": "text", "owner": "CreativeImagination", "defaultEstimatedCost": 0.01 },
+    "intent-text": { "modality": "text", "owner": "IntentAgent", "defaultEstimatedCost": 0.01 },
+    "image-generate": { "modality": "image-generation", "owner": "ImageAgent", "defaultEstimatedCost": 0.04 },
+    "image-edit": { "modality": "image-edit", "owner": "ImageAgent", "defaultEstimatedCost": 0.04 },
+    "vision-review": { "modality": "vision-review", "owner": "VisionAgent", "defaultEstimatedCost": 0.005 }
+  },
+  "request": { "required": ["requestId", "projectId", "role", "input"], "forbidden": ["apiKey", "authorization", "secret"] },
+  "receipt": { "required": ["receiptId", "requestId", "projectId", "role", "provider", "model", "status", "attempts", "cost", "provenance"], "forbidden": ["apiKey", "authorization", "rawPrompt", "rawImage"] },
+  "states": ["requested", "denied", "succeeded", "failed", "cancelled"],
+  "failureCodes": ["ROLE_UNSUPPORTED", "MODALITY_UNSUPPORTED", "PROVIDER_NOT_AUTHORIZED", "PROVIDER_KEY_UNAVAILABLE", "PROVIDER_BUDGET_EXHAUSTED", "PROVIDER_CANCELLED", "PROVIDER_HTTP_*", "IMAGE_EDIT_INPUT_MISSING", "VISION_INPUT_MISSING"],
+  "ports": { "ProviderRuntimePort": ["invokeRole", "cancel", "health"] },
+  "publishGate": { "simulated": "deny", "failed": "deny", "receiptRequired": true }
+}

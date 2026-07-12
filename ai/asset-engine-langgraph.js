@@ -4,6 +4,7 @@ var assetWeave = require('./asset-weave-graph');
 var assetWorld = require('./asset-world');
 var modelPolicyGate = require('./model-policy-gate');
 var styleDictionary = require('./asset-style-dictionary');
+var providerRuntimeAdapters = require('./provider-runtime-adapters');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function sha256(value) { return crypto.createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex'); }
@@ -60,6 +61,8 @@ async function runAssetEngine(input) {
     cloudAssetEngine: input.cloudAssetEngine || null,
     visualIntents: input.visualIntents || {},
     ports: input.ports || {},
+    providerRuntime: input.providerRuntime || null,
+    providerOptions: input.providerOptions || {},
     modelPolicy: input.modelPolicy || {},
     projectAssetDir: input.projectAssetDir || null,
     ledger: input.ledger || {},
@@ -74,7 +77,7 @@ async function runAssetEngine(input) {
   var graph = new lg.StateGraph(A)
     .addNode('asset-intake', node('asset-intake', function(state) { state.assetSpecs = compileSpecs(state.buildContract); }))
     .addNode('local-input-archive', node('local-input-archive', function(state) { state.localInputRecords = archiveLocalInputs(state.localInputs); }))
-    .addNode('model-authorize', node('model-authorize', function(state) { var authorized = modelPolicyGate.authorizeModelPorts(state.ports, state.modelPolicy); state.authorizedPorts = authorized.ports; state.modelPolicyReceipt = authorized.receipt; var requestedMaxCost = state.maxCost === undefined ? Infinity : Number(state.maxCost); state.maxCost = Math.min(requestedMaxCost, authorized.receipt.maxCost); }))
+    .addNode('model-authorize', node('model-authorize', function(state) { var candidatePorts = state.providerRuntime ? providerRuntimeAdapters.createAssetProviderPorts(state.providerRuntime, state.providerOptions) : state.ports; var authorized = modelPolicyGate.authorizeModelPorts(candidatePorts, state.modelPolicy); state.authorizedPorts = authorized.ports; state.modelPolicyReceipt = authorized.receipt; var requestedMaxCost = state.maxCost === undefined ? Infinity : Number(state.maxCost); state.maxCost = Math.min(requestedMaxCost, authorized.receipt.maxCost); }))
     .addNode('asset-resolve', node('asset-resolve', async function(state) {
       state.weaveResult = await assetWeave.runAssetWeave({
         runId: state.runId,

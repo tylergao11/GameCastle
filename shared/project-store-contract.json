@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.project-store",
+  "owner": "ProjectStore",
+  "principles": ["multi-project-local-first", "one-active-version-per-project", "versions-are-immutable", "failed-runs-never-mutate-active-version", "continue-loads-active-version", "rollback-is-a-pointer-change"],
+  "ports": { "ProjectStorePort": ["createProject", "saveVersion", "loadVersion", "rollback", "listProjects"] },
+  "projectVersion": { "required": ["versionId", "projectId", "parentVersionId", "semanticHash", "assetSemanticHash", "releaseCandidateId", "createdAt", "contentHash", "artifacts"], "requiredArtifacts": ["project.json", "project-world.json", "asset-world.json", "execution-ledger.json", "runtime"] },
+  "workspace": { "root": ".gamecastle/projects/<projectId>", "activeVersion": "project.json.activeVersionId", "versions": "versions/<versionId>" },
+  "forbidden": ["global-output-as-project-truth", "mutable-version-artifacts", "version-without-projectworld-or-assetworld", "failed-run-updating-active-version", "browser-owning-project-files"]
+}

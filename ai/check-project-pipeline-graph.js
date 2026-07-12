@@ -32,7 +32,7 @@ function main() {
   ].forEach(function(nodeName) {
     var node = projectPipelineGraph.getNodeDefinition(nodeName);
     assert(node, 'missing project graph node: ' + nodeName);
-    assert.strictEqual(node.status, 'wired-langgraph-smoke', nodeName + ' should be covered by a LangGraph smoke');
+    assert.strictEqual(node.status, 'wired-langgraph', nodeName + ' should be live in ProjectWeaveRuntime');
     assert(node.owner, nodeName + ' should declare an owner');
     assert(node.reads.length > 0, nodeName + ' should declare reads');
     assert(node.writes.length > 0, nodeName + ' should declare writes');
@@ -45,7 +45,7 @@ function main() {
   );
   assert.deepStrictEqual(
     projectPipelineGraph.getLayerNodes('runtime-assembly'),
-    ['runtime-linker', 'tick-runtime', 'html-export', 'runtime'],
+    ['runtime-linker', 'runtime', 'tick-runtime', 'html-export'],
     'runtime-assembly layer should own assembly and execution nodes'
   );
   assert.deepStrictEqual(
@@ -54,25 +54,11 @@ function main() {
     'server-weave layer should own server composition'
   );
 
-  assert.deepStrictEqual(
-    projectPipelineGraph.getWiredLangGraphNodes(),
-    intentPipelineGraph.INTENT_PIPELINE_NODE_SEQUENCE,
-    'only the World Intent Layer should be marked live wired'
-  );
+  assert.deepStrictEqual(projectPipelineGraph.getWiredLangGraphNodes(), spec.nodeSequence, 'every Project Weave owner must be live wired');
   assert.deepStrictEqual(
     projectPipelineGraph.getLangGraphSmokeNodes(),
-    [
-      'asset-weave',
-      'runtime-linker',
-      'tick-runtime',
-      'server-runtime',
-      'html-export',
-      'runtime-validator',
-      'project-world',
-      'tick-playtest',
-      'semantic-feedback',
-    ],
-    'scattered project owners should be covered by official LangGraph smoke nodes'
+    [],
+    'WP0 must not retain smoke-only Project Weave owners'
   );
   assert.deepStrictEqual(
     projectPipelineGraph.getContractReadyNodes(),

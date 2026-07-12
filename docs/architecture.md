@@ -51,7 +51,7 @@ LLM2 具备受限自循环：首轮输出作为 `apply_intent`；槽位验证失
 项目模式必须先判定：
 
 - 新项目：默认 live prompt 模式，或显式 `--intent-fixture-file` fixture，重置上一局 generated state，从空项目开始。
-- 迭代项目：`--continue`，必须加载完整 Intent iteration state：`output/project.json`、`output/project-world.json` 和含至少一条运行记录的 `output/execution-ledger.json`。`project.json` 是 GDJS 运行产物，不能单独作为 AI 继续迭代入口。
+- 迭代项目：ProjectStore Runtime 先恢复 active `ProjectVersion`（其中包含 `project.json`、`ProjectWorld`、`AssetWorld` 与 execution ledger）到临时引擎 transaction workspace，再执行 `continue`。`output/` 不再是项目真相。
 
 因此 repair loop 的“当前已应用项目”只在同一局游戏内延续；开新项目时不得继承上一局缓存。
 
@@ -115,11 +115,10 @@ The contract types are complete runtime-facing shapes, not placeholders:
 - `AssemblyReport`: RuntimeLinker bindings, outputs, conflicts, and next action.
 - `ValidationReport`: RuntimeValidator checks, cache hit, owner-on-failure, and next action.
 
-`npm run check:ai` currently covers the asset/provider gate. The authoritative
-whole-product completion program is `shared/project-completion-contract.json`;
-WP0 must introduce `npm run check:project` and aggregate the complete Project
-Weave contract, runtime, recovery, and E2E evidence instead of relying on
-scattered checks.
+`npm run check:ai` currently covers the asset/provider gate. `npm run check:project`
+is the implemented WP0 Project Weave gate: it aggregates graph ownership,
+create/continue, checkpoint recovery, owner-routed debt and isolated playable
+artifact evidence.
 
 `ai/asset-weave-graph.js` is the sole asset runtime entry. It owns the
 conditional local/cloud/variant/model path and emits `AssetManifest` only after
@@ -292,11 +291,8 @@ owner nodes after `ProjectWorld` and `ExecutionReport` are written.
 ### Project Weave Graph
 
 The whole-project orchestration name is **Project Weave Graph** (`项目联排图`).
-It is the graph above the World Intent Layer. The current official LangGraph
-runtime already executes the embedded World Intent Layer. Remaining project
-owners have official smoke coverage but are still `wired-langgraph-smoke`, not
-live product nodes. WP0 in `shared/project-completion-contract.json` owns their
-promotion to one checkpointed live graph without widening LLM2 access.
+It is the graph above the World Intent Layer. `ai/project-weave-runtime.js`
+implements its one checkpointed official LangGraph without widening LLM2 access.
 
 `ai/project-pipeline-graph.js` owns the total graph specification:
 
@@ -310,12 +306,12 @@ llm2-intent
   -> asset-weave
   -> bridge
   -> runtime-linker
+  -> runtime
+  -> project-world
   -> tick-runtime
   -> server-runtime
   -> html-export
-  -> runtime
   -> runtime-validator
-  -> project-world
   -> tick-playtest
   -> semantic-feedback
 ```
@@ -335,7 +331,7 @@ Plan, runtime report, or internal target plan. Resource and assembly details flo
 downstream through owned runtime nodes and only return to models through
 sanitized world summaries.
 
-Official LangGraph smoke coverage now exists for the following currently wired or smoke-wired paths:
+The official Project Weave graph runs the following real paths:
 
 资产路径是条件子图，不是固定的 `asset-library -> image-generation -> asset-review`
 线性链。其完整状态、循环上限和读写边界见
@@ -348,12 +344,10 @@ Official LangGraph smoke coverage now exists for the following currently wired o
 
 该条件图由 `check:visual-assets` 覆盖；旧的两份局部 asset smoke 已删除，不能恢复为
 独立执行路径。
-- `tick-runtime -> server-runtime`
-- `runtime-linker -> html-export -> runtime-validator -> project-world -> tick-playtest -> semantic-feedback`
+- `runtime-linker -> runtime -> project-world -> tick-runtime -> server-runtime -> html-export -> runtime-validator -> tick-playtest -> semantic-feedback`
 
-Every Project Weave Graph owner outside the live World Intent path has at least
-one official `StateGraph` smoke. Live nodes are listed under `wired-langgraph`;
-covered non-live owners are listed under `wired-langgraph-smoke`.
+Every Project Weave Graph owner is live in the official `StateGraph`; no project
+node remains `wired-langgraph-smoke`.
 
 The Intent surface owns low-cognition concepts:
 

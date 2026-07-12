@@ -7,7 +7,7 @@ var runtime = runtimeModule.createRuntime({
 });
 
 runtime.server.listen(port, host, function() {
-  console.log('[LocalGameRuntime] http://' + host + ':' + port + ' project=active-local-project');
+  console.log('[LocalGameRuntime] http://' + host + ':' + port + ' workspace=multi-project');
 });
 
 function shutdown() {

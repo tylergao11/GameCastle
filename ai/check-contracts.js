@@ -96,9 +96,7 @@ function main() {
   requireRequiredFields(build.properties.request, 'BuildContract.request', ['rawUserPrompt', 'projectMode', 'iterationIntent']);
   requireRequiredFields(build.properties.world, 'BuildContract.world', ['projectWorldHash', 'knownScenes', 'knownModules']);
   requireRequiredFields(build.properties.moduleContract, 'BuildContract.moduleContract', [
-    'moduleIntents',
-    'gameplaySlots',
-    'stateVariables',
+    'gameplayRequirementGraph',
     'networkPolicy',
   ]);
   requireRequiredFields(build.properties.assetContract, 'BuildContract.assetContract', [

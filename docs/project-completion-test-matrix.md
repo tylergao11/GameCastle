@@ -18,7 +18,7 @@
 | --- | --- | --- | --- | --- |
 | WP0 | create/continue 完整 Project Weave | 任一 owner 报错 | checkpoint resume、cancel rollback | 正式 graph trace + `check:project` |
 | WP1 | 每个 role 一次授权 live smoke | timeout、预算、无凭据、错误响应 | fail closed、重试上限、receipt | provider matrix |
-| WP2 | 五类模板首次生成和修改 | 模块冲突、缺槽、无能力 | owner error 或安全 debt | 五个 playable fixtures |
+| WP2 | 五类玩法各两种 topology create + minimal-delta continue | 未解析语义、模块冲突、缺槽、无能力、不支持 topology、未批准 revision、legacy target-plan 旁路 | 明确 owner debt、上一 playable 保留、catalog/需求修正后重试；Foundry 不在线运行 | 10 create + 5 continue playable fixtures、remove/replace receipt、browser/playtest evidence、独立测试与审计 |
 | WP3 | 两项目隔离、保存版本 | 崩溃、写入中断、版本冲突 | transaction rollback、restart continue | version/rollback receipts |
 | WP4 | 一句话到试玩再修改 | 取消、repair 耗尽、Runtime 失败 | 上一 release 继续可玩 | browser screenshots + API trace |
 | WP5 | publish/share/withdraw | blocking debt、许可、hash、allowlist 失败 | 回滚旧 release | PublishReceipt + hosted E2E |

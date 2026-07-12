@@ -1,8 +1,8 @@
 var deepseekCacheMonitor = require('./deepseek-cache-monitor');
 var llm2DecisionRuntime = require('./llm2-decision-runtime');
 var semanticFeedback = require('./semantic-feedback');
-var responsesClient = require('./responses-client');
 var governance = require('./ai-provider-governance');
+var providerRuntimeModule = require('./provider-runtime');
 
 var LLM2_DEEPSEEK_DECISION_PROVIDER_SCHEMA_VERSION = 1;
 
@@ -228,21 +228,19 @@ function extractJsonObject(text) {
 }
 
 async function callProvider(options) {
-  return responsesClient.requestResponses({
-    endpoint: options.endpoint,
-    apiKey: options.apiKey,
-    fetchImpl: options.fetchImpl,
-    body: {
-      model: options.model || 'deepseek-v4-flash',
-      input: [
-        { role: 'system', content: stablePrefix() },
-        { role: 'user', content: dynamicPrompt(options) },
-      ],
-      max_output_tokens: options.maxTokens || 512,
-      reasoning_effort: options.reasoningEffort || 'low',
-      stream: true,
-    },
+  var runtime = options.providerRuntime || providerRuntimeModule.createProviderRuntime({ fetchImpl: options.fetchImpl });
+  var result = await runtime.invokeRole({
+    requestId: options.requestId || ('llm2-decision.' + Date.now()),
+    projectId: options.projectId || 'local-session',
+    role: 'intent-text',
+    provider: 'deepseek',
+    model: options.model || 'deepseek-v4-flash',
+    estimatedCost: options.estimatedCost || 0,
+    timeoutMs: options.timeoutMs,
+    input: { messages: [{ role: 'system', content: stablePrefix() }, { role: 'user', content: dynamicPrompt(options) }], maxTokens: options.maxTokens || 512 }
   });
+  if (!result.ok) throw Object.assign(new Error(result.debt.code), { code: result.debt.code });
+  return { text: result.output.text, usage: result.receipt.usage || {}, events: result.output.events || [] };
 }
 
 function normalizeDecision(rawDecision, options) {
@@ -323,8 +321,6 @@ function normalizeDecision(rawDecision, options) {
 
 async function runDeepSeekDecisionProvider(options) {
   options = Object.assign({
-    endpoint: governance.semantic({ provider: 'deepseek' }).endpoint,
-    apiKey: governance.semantic({ provider: 'deepseek' }).apiKey,
     model: governance.semantic({ provider: 'deepseek' }).textModel,
     threshold: 0.9,
   }, options || {});
@@ -347,7 +343,7 @@ async function runDeepSeekDecisionProvider(options) {
     schemaVersion: LLM2_DEEPSEEK_DECISION_PROVIDER_SCHEMA_VERSION,
     owner: 'LLM2DeepSeekDecisionProvider',
     provider: {
-      endpoint: options.endpoint,
+      endpoint: governance.semantic({ provider: 'deepseek' }).endpoint,
       model: options.model,
       cacheKind: 'deepseek-text-kv-prefix',
     },

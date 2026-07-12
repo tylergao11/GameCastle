@@ -25,6 +25,11 @@ function fakeSse(events) {
 }
 
 async function main() {
+  // Explicit test-only environment authorization; production keys remain environment-only.
+  process.env.LLM_PROVIDER = 'deepseek';
+  process.env.DEEPSEEK_API_KEY = 'test-key';
+  process.env.LLM_ALLOW_EXTERNAL = 'true';
+  process.env.LLM_ENDPOINT = 'http://fake.local/v1';
   function cachedResponse(decisionPayload) {
     return fakeSse([
       { type: 'response.output_text.delta', delta: JSON.stringify(decisionPayload) },

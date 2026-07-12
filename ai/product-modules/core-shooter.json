@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "core.shooter",
+  "revision": "local-v1",
   "name": "Shooter Core",
   "summary": "A playable side-scrolling shooter with free movement, bullet shooting, wave-based enemies, scoring, power-up drops, and a fail condition.",
   "llm1Card": "A complete side-scrolling shooter: move freely, shoot enemies, dodge hazards, collect power-ups, and survive waves that get harder over time.",
@@ -21,6 +22,15 @@
     "promotionTarget": "cloudModuleRepo",
     "trainingEligible": false
   },
+  "semanticContract": { "provides": ["semantic-dictionary#/semantic_concepts/aim_and_fire", "semantic-dictionary#/eventMeanings/ActorDamaged"], "requires": [], "goals": [], "roles": ["semantic-dictionary#/gameplayRoles/actor", "semantic-dictionary#/gameplayRoles/pressure"], "pressures": ["semantic-dictionary#/gameplayRoles/pressure"], "rewards": [] },
+  "spatialContract": { "supportedTopologies": ["arena", "lanes"], "requiredRoles": ["actor_spawn", "pressure_zone"], "optionalRoles": [], "constraints": [], "variationParameters": ["variationSeed"] },
+  "declarationContract": { "spatialSubjects": [
+    { "subjectId": "player", "prototypeId": "Player1", "semanticRoleRefs": ["semantic-dictionary#/gameplayRoles/actor"], "bounds": { "width": 32, "height": 32, "anchor": "center" }, "layerRole": "world", "cardinality": "exclusive", "placementPolicy": "actor_spawn" },
+    { "subjectId": "enemy", "prototypeId": "Enemy", "semanticRoleRefs": ["semantic-dictionary#/gameplayRoles/pressure"], "bounds": { "width": 32, "height": 32, "anchor": "center" }, "layerRole": "world", "cardinality": "composed", "placementPolicy": "pressure_zone" }
+  ], "sharedArtifacts": [] },
+  "lifecycleContract": { "start": "required", "pause": "required", "failure": "provided", "restart": "provided", "continue": "provided" },
+  "ownershipContract": { "artifacts": [], "cleanupOrder": [], "stateMigrationPolicy": "none" },
+  "acceptanceContract": { "createFixture": "lightweight-shooter.arena", "continueFixture": "lightweight-shooter.continue", "failureFixtures": ["lightweight-shooter.failure"], "supportedLayoutFixtures": ["lightweight-shooter.arena", "lightweight-shooter.lanes"], "playGoals": [] },
   "defaults": {
     "scene": "Game",
     "failAction": "restart"

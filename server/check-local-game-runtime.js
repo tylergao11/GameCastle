@@ -18,6 +18,7 @@ function writePlayableOutput(outputDir, marker, runNumber) {
   fs.writeFileSync(path.join(outputDir, 'data.js'), 'window.__gamecastleMarker=' + JSON.stringify(marker) + ';', 'utf8');
   fs.writeFileSync(path.join(outputDir, 'project.json'), JSON.stringify({ marker: marker }), 'utf8');
   fs.writeFileSync(path.join(outputDir, 'project-world.json'), JSON.stringify({ worldVersion: runNumber, semanticHash: 'semantic-' + runNumber }), 'utf8');
+  fs.writeFileSync(path.join(outputDir, 'asset-world.json'), JSON.stringify({ worldVersion: runNumber, semanticHash: 'asset-semantic-' + runNumber }), 'utf8');
   fs.writeFileSync(path.join(outputDir, 'execution-ledger.json'), JSON.stringify({ runs: [{ runId: 'fake-' + runNumber, summary: { nextAction: 'done' } }] }), 'utf8');
   fs.writeFileSync(path.join(outputDir, 'html-export-manifest.json'), JSON.stringify({ schemaVersion: 1, target: 'html', scriptFiles: ['data.js'], assetFiles: [] }), 'utf8');
 }
@@ -73,11 +74,11 @@ async function waitFor(baseUrl, predicate) {
   throw new Error('Timed out waiting for runtime state.');
 }
 
-async function postRun(baseUrl, intent, mode) {
+async function postRun(baseUrl, intent, mode, projectId) {
   return fetch(baseUrl + '/api/runtime/runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: 'http://127.0.0.1:5173' },
-    body: JSON.stringify({ intent: intent, mode: mode }),
+    body: JSON.stringify({ projectId: projectId || 'runtime-test-project', intent: intent, mode: mode }),
   });
 }
 
@@ -159,6 +160,11 @@ async function main() {
     var firstHead = await fetch(firstUrl, { method: 'HEAD' });
     assert.strictEqual(firstHead.status, 200);
     assert.strictEqual((await firstHead.text()).length, 0);
+    var projectIndex = await (await fetch(baseUrl + '/api/projects')).json();
+    assert.strictEqual(projectIndex.projects.length, 1, 'runtime success must create a ProjectStore record');
+    assert(projectIndex.projects[0].activeVersionId, 'runtime success must advance the active immutable ProjectVersion');
+    var firstProjectWorkspace = await (await fetch(baseUrl + '/api/projects/runtime-test-project')).json();
+    var firstProjectVersionId = firstProjectWorkspace.activeVersion.versionId;
     var malformedPlay = await fetch('http://localhost:' + port + '/play/%/game.html');
     assert.strictEqual(malformedPlay.status, 400, 'malformed play version must be rejected without crashing');
     assert.strictEqual((await fetch(baseUrl + '/api/runtime/health')).status, 200, 'runtime must stay alive after malformed play path');
@@ -187,6 +193,8 @@ async function main() {
     var failed = await waitFor(baseUrl, function(snapshot) { return snapshot.status === 'failed' && snapshot.intent === 'fail this build'; });
     assert.strictEqual(failed.artifact.version, changed.artifact.version);
     assert.strictEqual(failed.error.detail, null, 'public RunState must not expose pipeline diagnostics');
+    assert.strictEqual(failed.error.message.indexOf('Synthetic pipeline failure'), -1, 'public RunState must map raw pipeline failures into CreatorExperience debt copy');
+    assert(failed.error.recovery && failed.error.recovery.actions.indexOf('continue') >= 0, 'public failure must include an actionable recovery route');
     assert.strictEqual((await fetch(changed.artifact.playUrl)).status, 200);
     assert.strictEqual(sha1(path.join(outputDir, 'game.html')), workspaceHashBeforeFailure, 'failed run must restore the exact mutable workspace');
     assert(fs.readFileSync(path.join(dataDir, 'runtime-diagnostics.jsonl'), 'utf8').indexOf('Synthetic pipeline failure') >= 0, 'private diagnostic log must retain the failure detail');
@@ -202,6 +210,13 @@ async function main() {
     var cancelled = await cancelResponse.json();
     assert.strictEqual(cancelled.status, 'cancelled');
     assert.strictEqual(cancelled.artifact.version, changed.artifact.version);
+
+    var rollbackResponse = await fetch(baseUrl + '/api/projects/runtime-test-project/rollback', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://127.0.0.1:5173' }, body: JSON.stringify({ versionId: firstProjectVersionId }),
+    });
+    assert.strictEqual(rollbackResponse.status, 200, 'ProjectStore rollback endpoint must accept an immutable version');
+    var rolledBack = await (await fetch(baseUrl + '/api/projects/runtime-test-project')).json();
+    assert.strictEqual(rolledBack.activeVersion.versionId, firstProjectVersionId, 'rollback endpoint must move only the active-version pointer');
 
     assert.strictEqual((await fetch(baseUrl + '/play/' + changed.artifact.version + '/game.html')).status, 403, 'API origin must not serve playable files');
     assert.strictEqual((await fetch('http://localhost:' + port + '/api/runtime')).status, 403, 'play origin must not serve Runtime API');

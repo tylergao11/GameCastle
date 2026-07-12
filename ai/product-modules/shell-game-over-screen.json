@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "shell.game_over_screen",
+  "revision": "local-v1",
   "name": "Game Over Screen",
   "summary": "A fail-state scene and restart action for core gameplay modules.",
   "llm1Card": "Add a game over screen after the player fails.",
@@ -18,6 +19,12 @@
     "promotionTarget": "cloudModuleRepo",
     "trainingEligible": false
   },
+  "semanticContract": { "provides": ["semantic-dictionary#/eventMeanings/ActorFailed"], "requires": [], "goals": [], "roles": ["semantic-dictionary#/gameplayRoles/feedback"], "pressures": [], "rewards": [] },
+  "spatialContract": { "supportedTopologies": ["single-screen"], "requiredRoles": [], "optionalRoles": ["game-over"], "constraints": [], "variationParameters": [] },
+  "declarationContract": { "spatialSubjects": [], "sharedArtifacts": [] },
+  "lifecycleContract": { "start": "required", "pause": "required", "failure": "provided", "restart": "provided", "continue": "provided" },
+  "ownershipContract": { "artifacts": [], "cleanupOrder": [], "stateMigrationPolicy": "none" },
+  "acceptanceContract": { "createFixture": "game-over.create", "continueFixture": "game-over.continue", "failureFixtures": ["game-over.failure"], "supportedLayoutFixtures": ["game-over.overlay"], "playGoals": [] },
   "defaults": {
     "scene": "GameOver",
     "targetScene": "Game",

@@ -1,4 +1,4 @@
-import type { RunSnapshot, RuntimeMode } from './types'
+import type { RunSnapshot, RuntimeArtifact, RuntimeMode } from './types'
 
 type ErrorEnvelope = { error?: { code?: string; message?: string } }
 
@@ -25,11 +25,36 @@ export async function getRuntimeSnapshot(): Promise<RunSnapshot> {
   return readSnapshot(await fetch('/api/runtime', { cache: 'no-store' }))
 }
 
-export async function startRuntimeRun(intent: string, mode: RuntimeMode): Promise<RunSnapshot> {
+export type ProjectSummary = { projectId: string; name: string; activeVersionId: string | null; updatedAt: string }
+export type ProjectVersionCard = { versionId: string; parentVersionId: string | null; semanticHash: string; assetSemanticHash: string; createdAt: string; releaseCandidateId: string | null }
+export type ProjectWorkspace = { project: ProjectSummary; activeVersion: ProjectVersionCard | null; artifact: RuntimeArtifact | null; versions: ProjectVersionCard[] }
+
+export async function listRuntimeProjects(): Promise<ProjectSummary[]> {
+  const response = await fetch('/api/projects', { cache: 'no-store' })
+  const body = await response.json() as { projects?: ProjectSummary[] } & ErrorEnvelope
+  if (!response.ok) throw new LocalRuntimeError(body.error?.code ?? 'PROJECT_LIST_FAILED', body.error?.message ?? `Project list failed with ${response.status}`)
+  return body.projects ?? []
+}
+
+export async function getRuntimeProject(projectId: string): Promise<ProjectWorkspace> {
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, { cache: 'no-store' })
+  const body = await response.json() as ProjectWorkspace & ErrorEnvelope
+  if (!response.ok) throw new LocalRuntimeError(body.error?.code ?? 'PROJECT_NOT_FOUND', body.error?.message ?? `Project lookup failed with ${response.status}`)
+  return body
+}
+
+export async function rollbackRuntimeProject(projectId: string, versionId: string): Promise<ProjectWorkspace> {
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/rollback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ versionId }) })
+  const body = await response.json() as { workspace?: ProjectWorkspace } & ErrorEnvelope
+  if (!response.ok || !body.workspace) throw new LocalRuntimeError(body.error?.code ?? 'PROJECT_ROLLBACK_FAILED', body.error?.message ?? `Rollback failed with ${response.status}`)
+  return body.workspace
+}
+
+export async function startRuntimeRun(intent: string, mode: RuntimeMode, projectId: string): Promise<RunSnapshot> {
   return readSnapshot(await fetch('/api/runtime/runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ intent, mode }),
+    body: JSON.stringify({ projectId, intent, mode }),
   }))
 }
 

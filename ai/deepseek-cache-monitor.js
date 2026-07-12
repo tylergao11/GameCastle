@@ -1,6 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 var responsesClient = require('./responses-client');
+var providerRuntimeModule = require('./provider-runtime');
 
 var LLM2_CONTEXT_CACHE_ROUTER_SCHEMA_VERSION = require('./llm2-context-cache-router').LLM2_CONTEXT_CACHE_ROUTER_SCHEMA_VERSION;
 
@@ -133,19 +134,16 @@ async function callResponses(options, turn) {
     var fixture = options.responseFixtures.shift();
     return responsesClient.readResponseStream(fixture);
   }
-  var body = {
-    model: options.model,
-    input: buildInput(options.stablePrefix, turn),
-    max_output_tokens: options.maxTokens || 64,
-    reasoning_effort: options.reasoningEffort || 'low',
-    stream: true,
-  };
-  return responsesClient.requestResponses({
-    endpoint: options.endpoint,
-    apiKey: options.apiKey,
-    fetchImpl: options.fetchImpl,
-    body: body,
+  var runtime = options.providerRuntime || providerRuntimeModule.createProviderRuntime({ fetchImpl: options.fetchImpl });
+  var result = await runtime.invokeRole({
+    requestId: (options.requestId || 'deepseek-cache') + ':' + turn.id,
+    projectId: options.projectId || 'local-session',
+    role: 'intent-text', provider: 'deepseek', model: options.model,
+    estimatedCost: options.estimatedCost || 0,
+    input: { messages: buildInput(options.stablePrefix, turn), maxTokens: options.maxTokens || 64 }
   });
+  if (!result.ok) throw Object.assign(new Error(result.debt.code), { code: result.debt.code });
+  return { text: result.output.text, reasoningText: result.output.reasoningText || '', usage: result.receipt.usage || {}, events: result.output.events || [], streamed: true };
 }
 
 function summarizeHotSteps(steps, threshold) {

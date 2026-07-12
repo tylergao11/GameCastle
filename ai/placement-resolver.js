@@ -523,8 +523,31 @@ function resolvePlacements(graph, context, options) {
   return plan;
 }
 
+function resolveSpatialComposition(spatialPlan, declaration, options) {
+  options = options || {};
+  var topology = spatialPlan && spatialPlan.topology;
+  if (!topology) throw new Error('SpatialCompositionPlan topology is required for placement');
+  var scene = options.scene || 'Game';
+  var byPolicy = {};
+  (declaration && declaration.subjects || []).forEach(function(subject) { if (!byPolicy[subject.placementPolicy]) byPolicy[subject.placementPolicy] = subject; });
+  var placements = (spatialPlan.roleAssignments || []).map(function(assignment, index) {
+    var subject = byPolicy[assignment.spatialRole];
+    if (!subject) return null;
+    var x = 120 + index * 150;
+    var y = 420;
+    if (topology === 'branching-route' || topology === 'rooms' || topology === 'staged-zones') y = 220 + (index % 2) * 240;
+    if (topology === 'arena') { x = 400 + Math.round(Math.cos(index * 2.1) * 220); y = 300 + Math.round(Math.sin(index * 2.1) * 150); }
+    if (topology === 'grid') { x = 180 + (index % 3) * 180; y = 180 + Math.floor(index / 3) * 170; }
+    if (topology === 'lanes') { x = 120 + index * 160; y = 140 + (index % 3) * 150; }
+    if (topology === 'single-screen') { x = 400; y = 300 + index * 65; }
+    return { subject: subject.prototypeId, moduleId: subject.moduleId, spatialRole: assignment.spatialRole, regionId: assignment.regionId, scene: scene, points: [{ x: x, y: y }], resolved: { x: x, y: y }, topology: topology, evidence: { owner: 'PlacementResolver', spatialPlanId: spatialPlan.spatialPlanId, declarationPlanId: declaration.declarationPlanId } };
+  }).filter(Boolean);
+  return { schemaVersion: PLACEMENT_PLAN_SCHEMA_VERSION, placementPlanId: spatialPlan.spatialPlanId + ':placement', topology: topology, placements: placements, editPlan: { edits: [] }, diagnostics: [] };
+}
+
 module.exports = {
   PLACEMENT_PLAN_SCHEMA_VERSION: PLACEMENT_PLAN_SCHEMA_VERSION,
   resolvePlacements: resolvePlacements,
+  resolveSpatialComposition: resolveSpatialComposition,
   directionToAxis: directionToAxis
 };

@@ -26,7 +26,10 @@
     "mobile_jump_control": { "extends": "action_entry", "meaning": "A touch surface that triggers jumping." },
     "collectible_route": { "extends": "reward", "meaning": "Collectible content arranged along the active route." },
     "chase_pressure": { "extends": "pressure", "meaning": "A threat that follows or rises against player progress." },
-    "inventory": { "extends": "action_entry", "meaning": "A player-facing capacity and collection surface." }
+    "inventory": { "extends": "action_entry", "meaning": "A player-facing capacity and collection surface." },
+    "top_down_movement": { "extends": "route", "meaning": "Player-controlled movement across both world axes." },
+    "aim_and_fire": { "extends": "action_entry", "meaning": "Aim or select a target and emit a projectile or equivalent attack." },
+    "resource_conversion": { "extends": "reward", "meaning": "Convert declared resources into output resources or progression." }
   },
   "canonical_write_values": {
     "controls": { "joystick": "mobile_movement_control", "jump button": "mobile_jump_control", "attack button": "action_entry", "fire button": "action_entry" },
@@ -69,7 +72,10 @@
     "mobile_jump_control": { "status": "implemented", "owner": "component-catalog" },
     "collectible_route": { "status": "implemented", "owner": "core.platformer" },
     "chase_pressure": { "status": "candidate", "owner": "component-catalog", "route_id": "new-reusable-game-system" },
-    "inventory": { "status": "implemented", "owner": "component-catalog" }
+    "inventory": { "status": "implemented", "owner": "component-catalog" },
+    "top_down_movement": { "status": "candidate", "owner": "ProductModulePlanner", "route_id": "new-reusable-game-system" },
+    "aim_and_fire": { "status": "candidate", "owner": "ProductModulePlanner", "route_id": "new-reusable-game-system" },
+    "resource_conversion": { "status": "candidate", "owner": "ProductModulePlanner", "route_id": "new-reusable-game-system" }
   },
   "validation_rules": { "abstract_nodes_require_extends": true, "canonical_values_are_unique": true, "writable_values_require_bindings": true, "template_defaults_are_not_writable": true, "route_owner_required_for_candidates": true },
   "subjectAliases": {
@@ -591,6 +597,15 @@
     },
     "avoid-threats": {
       "meaning": "Avoid enemy or hazard pressure when the route becomes unsafe."
+    },
+    "complete-objective": {
+      "meaning": "Complete a declared finite objective and emit completion evidence."
+    },
+    "solve": {
+      "meaning": "Reach a valid solution state under declared interaction constraints."
+    },
+    "grow": {
+      "meaning": "Increase a resource-production or progression state through repeated conversion and upgrades."
     }
   },
   "playIntents": {
@@ -616,7 +631,9 @@
     "PressureDetected": "Pressure became relevant to the route.",
     "PhaseTransitioned": "A phase, wave, boss, or objective state changed.",
     "ActorDamaged": "The route produced damage or failure pressure.",
-    "ActorFailed": "The sampled route failed before the target duration."
+    "ActorFailed": "The sampled route failed before the target duration.",
+    "PuzzleReset": "A puzzle interaction state returned to its declared reset state.",
+    "UpgradeApplied": "A persistent declared upgrade changed progression or production."
   },
   "tickFeedbackIssues": {
     "reward_pacing_low": {

@@ -32,6 +32,10 @@ function fakeResponse(usage, text) {
 }
 
 async function main() {
+  process.env.LLM_PROVIDER = 'deepseek';
+  process.env.DEEPSEEK_API_KEY = 'test-key';
+  process.env.LLM_ALLOW_EXTERNAL = 'true';
+  process.env.LLM_ENDPOINT = 'http://fake.local/v1';
   var warmUsage = {
     input_tokens: 1000,
     input_tokens_details: { cached_tokens: 0 },

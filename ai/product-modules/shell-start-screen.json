@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "shell.start_screen",
+  "revision": "local-v1",
   "name": "Start Screen",
   "summary": "A lightweight start scene that launches the main game scene.",
   "llm1Card": "Add a start screen before gameplay.",
@@ -18,6 +19,12 @@
     "promotionTarget": "cloudModuleRepo",
     "trainingEligible": false
   },
+  "semanticContract": { "provides": ["semantic-dictionary#/gameplayRoles/action_entry"], "requires": [], "goals": [], "roles": ["semantic-dictionary#/gameplayRoles/action_entry"], "pressures": [], "rewards": [] },
+  "spatialContract": { "supportedTopologies": ["single-screen"], "requiredRoles": [], "optionalRoles": ["start"], "constraints": [], "variationParameters": [] },
+  "declarationContract": { "spatialSubjects": [], "sharedArtifacts": [] },
+  "lifecycleContract": { "start": "provided", "pause": "required", "failure": "required", "restart": "required", "continue": "provided" },
+  "ownershipContract": { "artifacts": [], "cleanupOrder": [], "stateMigrationPolicy": "none" },
+  "acceptanceContract": { "createFixture": "start.create", "continueFixture": "start.continue", "failureFixtures": [], "supportedLayoutFixtures": ["start.menu"], "playGoals": [] },
   "defaults": {
     "scene": "Start",
     "targetScene": "Game",

@@ -11,6 +11,13 @@
     "defaultPreset",
     "presets",
     "repositoryPolicy",
+    "revision",
+    "semanticContract",
+    "spatialContract",
+    "declarationContract",
+    "lifecycleContract",
+    "ownershipContract",
+    "acceptanceContract",
     "networking",
     "compiler",
     "capabilities"
@@ -32,6 +39,13 @@
     "compiler.configureUpdateTemplates": "Per-parameter update templates for configuring an already installed module from ProjectWorld state.",
     "interaction": "AI-visible fixed runtime interaction contract. Use this for trigger/copy constraints without exposing internal target templates.",
     "repositoryPolicy": "Module repository strategy. Product modules are reused from the module repository; expensive generated module variants must be promoted back as cloud-module candidates instead of remaining one-off outputs.",
+    "revision": "Immutable approved local revision. Planner pins this value and manifest hash in every composition plan.",
+    "semanticContract": "Canonical semantic refs provided and required by this module. This is the only Planner capability mapping.",
+    "spatialContract": "Supported topology and abstract spatial role requirements; never final coordinates.",
+    "declarationContract": "Prototype, bounds, layer and ownership declarations consumed before PlacementResolver.",
+    "lifecycleContract": "Provided or required start, pause, failure, restart and continue surfaces.",
+    "ownershipContract": "Stable artifact ids and cleanup/state policy for safe configure, remove and replace.",
+    "acceptanceContract": "Create, continue, failure and layout fixture ids for evidence.",
     "networking": "Declares what networking models this module supports. Used by compiler to match with network modules."
   }
 }

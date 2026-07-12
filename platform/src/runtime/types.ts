@@ -18,11 +18,12 @@ export interface RuntimeError {
   code: string
   message: string
   detail: string | null
+  recovery?: { kind: string; title: string; message: string; actions: string[] }
 }
 
 export interface RunSnapshot {
   schemaVersion: 1
-  projectId: 'active-local-project'
+  projectId: string | null
   sequence: number
   health: 'ready' | 'unhealthy'
   runId: string | null
