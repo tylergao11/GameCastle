@@ -14,27 +14,6 @@ artifacts/
 # Local official GDJS runtime cache. Rebuild with `npm run runtime:prepare`.
 engine/gdevelop-runtime/
 
-# Generated HTML runtime output. Rebuild through ProjectWeave.
-output/*.js
-output/*.map
-output/index.html
-output/html-export-manifest.json
-output/*.json
-output/*.txt
-output/*.intent.dsl
-output/*transcripts/
-output/full-creative-loop-reliability/
-output/libs/
-output/events-tools/
-output/splash/
-output/pixi-renderers/
-output/howler-sound-manager/
-output/fontfaceobserver-font-manager/
-output/object-capabilities/
-output/Extensions/
-output/Cordova/
-output/Electron/
-output/FacebookInstantGames/
-output/InGameEditor/
-output/debugger-client/
-output/types/
+# Generated projects, local asset candidates, playtest evidence, and HTML runtime output.
+# Rebuild through ProjectWeave; never commit local production artifacts.
+output/
