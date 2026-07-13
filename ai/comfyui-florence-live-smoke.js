@@ -31,6 +31,15 @@ if (process.env.COMFYUI_ALLOW_LOCAL !== 'true') throw new Error('Florence live s
     candidate: registered,
     source: { reviewPolicy: { requiredSemanticTags: [], minConfidence: 0.35 } }
   }));
+  if (review.reviewer !== 'florence2-semantic-review') {
+    throw new Error('Florence semantic review did not return its typed receipt: ' + JSON.stringify({
+      pass: review.pass,
+      repairable: review.repairable,
+      issues: review.issues,
+      reviewer: review.reviewer,
+      providerReceipt: review.providerReceipt || null
+    }));
+  }
   assert.equal(review.reviewer, 'florence2-semantic-review');
   assert.equal(review.pass, true);
   assert(review.providerReceipt && review.providerReceipt.provenance);

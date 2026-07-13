@@ -315,7 +315,7 @@ function localReview(context) {
 async function invokeComfyUI(context) {
   if (context.request.role === 'image-generate') return generated(context);
   if (context.request.role === 'image-edit') return edited(context);
-  if (context.request.role === 'vision-review') return context.model === 'gamecastle.asset-review.dev-cpu.v1' ? localReview(context) : semanticReview(context);
+  if (context.request.role === 'vision-review') return context.model === 'gamecastle.test-local-png-review.v1' ? localReview(context) : semanticReview(context);
   if (context.request.role === 'subject-segment') return segmentSubject(context);
   throw code('COMFYUI_ROLE_UNAVAILABLE', 'ComfyUI role is unavailable.');
 }
