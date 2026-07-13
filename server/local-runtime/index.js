@@ -3,11 +3,10 @@ var path = require('path');
 var artifactStoreModule = require('./artifact-store');
 var coordinatorModule = require('./run-coordinator');
 var httpServerModule = require('./http-server');
-var pipelineRunnerModule = require('./pipeline-runner');
+var projectWeaveRunnerModule = require('./project-weave-runner');
 var stateStoreModule = require('./state-store');
 var transactionModule = require('./workspace-transaction');
 var localAssetStoreModule = require('./local-asset-store');
-var cloudAssetEngineModule = require('../../ai/cloud-asset-engine');
 var simulatedPortsModule = require('../../ai/simulated-local-asset-ports');
 var projectStoreModule = require('../../ai/project-store');
 
@@ -24,15 +23,15 @@ function createRuntime(options) {
   var projectStore = options.projectStore || projectStoreModule.createProjectStore({ rootDir: dataDir });
   var simulatedPorts = options.simulatedPorts || simulatedPortsModule.createSimulatedLocalAssetPorts({ outputDir: outputDir });
   var localAssetStore = options.localAssetStore || localAssetStoreModule.createLocalAssetStore({ outputDir: outputDir, ports: simulatedPorts });
-  var cloudAssetRoot = options.cloudAssetRoot || process.env.GAMECASTLE_CLOUD_ASSET_ROOT || path.join(root, '.gamecastle-cloud-assets');
-  var cloudAssetEngine = options.cloudAssetEngine || cloudAssetEngineModule.createCloudAssetEngine({ rootDir: cloudAssetRoot });
+  // Shared-library truth is an explicitly injected service. Local creation must never recreate a file-system cloud library.
+  var cloudAssetEngine = options.cloudAssetEngine || null;
   var transaction = options.transaction || transactionModule.createWorkspaceTransaction({
     outputDir: outputDir,
     transactionDir: path.join(dataDir, 'active-transaction'),
   });
-  var runner = options.runner || pipelineRunnerModule.createPipelineRunner({
-    cwd: root,
-    scriptPath: path.join(root, 'ai', 'pipeline.js'),
+  var runner = options.runner || projectWeaveRunnerModule.createProjectWeaveRunner({
+    workspaceRoot: dataDir,
+    outputDir: outputDir,
   });
   var coordinator = coordinatorModule.createRunCoordinator({
     artifactStore: artifactStore,

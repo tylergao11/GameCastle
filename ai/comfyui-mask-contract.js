@@ -1,0 +1,23 @@
+/* Deterministic inpaint boundary: the alpha mask declares where pixel change is permitted. */
+var zlib = require('zlib');
+function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'ComfyMaskContract'; throw error; }
+function decode(bytes) {
+  if (!Buffer.isBuffer(bytes) || !bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) fail('COMFYUI_MASK_CONTRACT_INVALID', 'Mask contract requires PNG bytes.');
+  var cursor = 8, width, height, depth, type, interlace, parts = [];
+  while (cursor + 12 <= bytes.length) { var length = bytes.readUInt32BE(cursor), name = bytes.subarray(cursor + 4, cursor + 8).toString('ascii'), start = cursor + 8, end = start + length; if (end + 4 > bytes.length) fail('COMFYUI_MASK_CONTRACT_INVALID', 'PNG is truncated.'); var data = bytes.subarray(start, end); if (name === 'IHDR') { width = data.readUInt32BE(0); height = data.readUInt32BE(4); depth = data[8]; type = data[9]; interlace = data[12]; } if (name === 'IDAT') parts.push(data); if (name === 'IEND') break; cursor = end + 4; }
+  var channels = type === 2 ? 3 : type === 6 ? 4 : 0; if (!width || !height || depth !== 8 || !channels || interlace !== 0) fail('COMFYUI_MASK_CONTRACT_INVALID', 'PNG encoding is unsupported for inpaint comparison.');
+  var rowBytes = width * channels, raw; try { raw = zlib.inflateSync(Buffer.concat(parts)); } catch (_error) { fail('COMFYUI_MASK_CONTRACT_INVALID', 'PNG pixels cannot be decoded.'); }
+  if (raw.length !== height * (rowBytes + 1)) fail('COMFYUI_MASK_CONTRACT_INVALID', 'PNG scanlines are invalid.');
+  var unfiltered = Buffer.alloc(rowBytes * height), previous = Buffer.alloc(rowBytes);
+  for (var y = 0; y < height; y++) { var input = raw.subarray(y * (rowBytes + 1) + 1, (y + 1) * (rowBytes + 1)), output = unfiltered.subarray(y * rowBytes, (y + 1) * rowBytes), filter = raw[y * (rowBytes + 1)]; for (var x = 0; x < rowBytes; x++) { var left = x >= channels ? output[x - channels] : 0, up = previous[x], upLeft = x >= channels ? previous[x - channels] : 0, value = input[x]; if (filter === 1) value += left; else if (filter === 2) value += up; else if (filter === 3) value += Math.floor((left + up) / 2); else if (filter === 4) { var p = left + up - upLeft, pa = Math.abs(p - left), pb = Math.abs(p - up), pc = Math.abs(p - upLeft); value += pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft; } else if (filter !== 0) fail('COMFYUI_MASK_CONTRACT_INVALID', 'PNG filter is invalid.'); output[x] = value & 255; } previous = output; }
+  var rgba = Buffer.alloc(width * height * 4); for (var i = 0, j = 0; i < unfiltered.length; i += channels, j += 4) { rgba[j] = unfiltered[i]; rgba[j + 1] = channels > 1 ? unfiltered[i + 1] : unfiltered[i]; rgba[j + 2] = channels > 1 ? unfiltered[i + 2] : unfiltered[i]; rgba[j + 3] = channels === 4 ? unfiltered[i + 3] : 255; } return { width: width, height: height, rgba: rgba };
+}
+function assertMaskedEdit(parentBytes, maskBytes, childBytes) {
+  var parent = decode(parentBytes), mask = decode(maskBytes), child = decode(childBytes); if (parent.width !== mask.width || parent.height !== mask.height || parent.width !== child.width || parent.height !== child.height) fail('COMFYUI_MASK_DIMENSION_MISMATCH', 'Parent, mask, and child dimensions must match.');
+  var editable = 0, protectedPixels = 0, changedProtected = 0, totalDifference = 0;
+  for (var pixel = 0; pixel < parent.width * parent.height; pixel++) { var at = pixel * 4, isEditable = mask.rgba[at + 3] < 128; if (isEditable) { editable++; continue; } protectedPixels++; var difference = Math.abs(parent.rgba[at] - child.rgba[at]) + Math.abs(parent.rgba[at + 1] - child.rgba[at + 1]) + Math.abs(parent.rgba[at + 2] - child.rgba[at + 2]); totalDifference += difference; if (difference > 48) changedProtected++; }
+  if (!editable || editable === parent.width * parent.height) fail('COMFYUI_MASK_EMPTY_OR_FULL', 'Mask must contain both editable and protected pixels.');
+  var meanDifference = totalDifference / Math.max(1, protectedPixels * 3), changedRatio = changedProtected / Math.max(1, protectedPixels); if (meanDifference > 24 || changedRatio > 0.3) { var error = new Error('Image edit changed too many protected pixels outside the mask.'); error.code = 'COMFYUI_MASK_OUTSIDE_CHANGED'; error.owner = 'ComfyMaskContract'; error.evidence = { editablePixels: editable, protectedPixels: protectedPixels, protectedMeanDifference: meanDifference, protectedChangedRatio: changedRatio }; throw error; }
+  return { editablePixels: editable, protectedPixels: protectedPixels, protectedMeanDifference: meanDifference, protectedChangedRatio: changedRatio };
+}
+module.exports = { decode: decode, assertMaskedEdit: assertMaskedEdit };

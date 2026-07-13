@@ -116,16 +116,20 @@
     "forbidden": ["read private-local bytes", "bind project runtime", "call image generation for a project", "publish without deterministic gates", "change immutable blobs", "auto-promote user input"]
   },
   "ports": [
-    { "id": "CloudBlobStorePort", "methods": ["put", "get"], "owns": "immutable blob bytes only" },
-    { "id": "CloudRelationIndexPort", "methods": ["load", "save"], "owns": "families, revisions, templates, slots, bundles, and relations" },
-    { "id": "CloudPromotionQueuePort", "methods": ["load", "save"], "owns": "asynchronous promotion state and receipts" },
+    { "id": "CloudBlobStorePort", "methods": ["put", "get"], "owns": "immutable blob bytes only", "productionRequired": true },
+    { "id": "CloudRelationIndexPort", "methods": ["load", "save"], "owns": "families, revisions, templates, slots, bundles, and relations", "productionRequired": true },
+    { "id": "CloudPromotionQueuePort", "methods": ["load", "save"], "owns": "asynchronous promotion state and receipts", "productionRequired": true },
     { "id": "CloudAssetQueryPort", "methods": ["query"] },
     { "id": "CloudAssetMaterializePort", "methods": ["materialize"] },
     { "id": "CloudAssetPromotionPort", "methods": ["enqueuePromotion", "getPromotionStatus", "withdrawPromotion"] },
     { "id": "CloudGraphCommandPort", "methods": ["validate", "apply"] },
-    { "id": "CloudProjectionPort", "methods": ["rebuild"], "owns": "rebuildable approved-revision query projection" },
+    { "id": "CloudProjectionPort", "methods": ["rebuild"], "owns": "rebuildable approved-revision query projection", "productionRequired": true },
     { "id": "CloudAccessPolicyPort", "methods": ["authorizeQuery", "authorizeMaterialize", "authorizePromotion"], "owns": "deployment-specific identity and public-read policy" }
   ],
+  "testFixturePolicy": {
+    "inMemoryPorts": "test-only",
+    "forbidden": ["file-system cloud fallback", "fixture records as production evidence", "fixture records as shared-library truth"]
+  },
   "hardGates": [
     "no-private-local-input-in-cloud",
     "no-publication-without-explicit-share-consent",
@@ -137,6 +141,7 @@
     "no-free-form-public-classification-license-or-quality-id",
     "no-cloud-defined-template-or-style-token",
     "no-direct-filesystem-assumption-in-engine-core",
-    "no-legacy-schema-alias-or-dual-write"
+    "no-legacy-schema-alias-or-dual-write",
+    "no-implicit-file-system-cloud-truth"
   ]
 }

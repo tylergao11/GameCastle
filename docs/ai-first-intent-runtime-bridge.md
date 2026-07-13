@@ -1027,7 +1027,7 @@ The bridge must not expose these as normal LLM2 prompt surface.
 | Semantic placement | `ai/placement-resolver.js` |
 | GDJS bridge plan | `ai/gdjs-bridge.js` |
 | Intent runtime adapters | `ai/intent-runtime-codegen.js` and `intent-runtime.js` |
-| Target-plan execution | `ai/pipeline.js` executor until split |
+| Target-plan execution | ProjectWeave GDJS execution library |
 | Project state summary | `ai/project-world.js` |
 | GDevelop runtime truth | `ai/gdevelop-truth.js` and `runtime-truth.json` |
 | Browser runtime export | `ai/runtime-codegen.js`, `ai/html-exporter.js`, `engine/` |

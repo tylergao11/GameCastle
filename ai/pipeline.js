@@ -1382,7 +1382,6 @@ async function savePendingApproval(options) {
   saveJsonFile(PENDING_APPROVAL_PATH, pending);
   console.log('[Approval] Pending Intent artifact written: ' + PENDING_APPROVAL_PATH);
   console.log('[Approval] Review summary: ' + JSON.stringify(pending.summary, null, 2));
-  console.log('[Approval] Execute after review with: node ai/pipeline.js --approve-pending');
   return pending;
 }
 
@@ -1660,18 +1659,9 @@ async function run(prompt) {
   }
 }
 
-// ===== CLI =====
-var args = process.argv.slice(2);
-var prompt = getPromptFromArgs();
-if (require.main === module) {
-  if (!prompt && !hasArg('--approve-pending') && !getArgValue('--intent-fixture-file')) {
-    console.log('Usage: node ai/pipeline.js [--continue] [--approval-gate] "game description"');
-    console.log('       node ai/pipeline.js --intent-fixture-file ai/fixtures/<intent-name>.dsl');
-    console.log('       node ai/pipeline.js --approve-pending');
-    process.exit(1);
-  }
-  run(prompt).catch(function(e){console.error(e);process.exit(1);});
-}
+// ProjectWeave is the only build entry. This module is a temporary GDJS execution
+// library until its remaining low-level exports are moved into dedicated owners.
+var args = [];
 
 module.exports = {
   parseTargetPlan: parseTargetPlan,

@@ -5,12 +5,13 @@ var path = require('path');
 var engine = require('./asset-engine-langgraph');
 var portsModule = require('./simulated-local-asset-ports');
 var cloudAssetEngineModule = require('./cloud-asset-engine');
+var memoryCloudPorts = require('./test-memory-cloud-ports');
 
 (async function() {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-asset-engine-graph-'));
   try {
     var inputPng = path.join(root, 'sketch.png'); fs.writeFileSync(inputPng, Buffer.from([137,80,78,71,13,10,26,10]));
-    var cloudAssetEngine = cloudAssetEngineModule.createCloudAssetEngine({ rootDir: path.join(root, 'cloud') });
+    var cloudAssetEngine = cloudAssetEngineModule.createCloudAssetEngine({ ports: memoryCloudPorts.createInMemoryCloudPorts().ports });
     var slots = ['sun', 'moon', 'key'].map(function(tag) { return { slotId: 'asset.graph.' + tag, kind: 'sprite', semanticTags: [tag], styleTags: ['gamecastle.style-1'], constraints: { width: 96, height: 96, transparent: true }, bindingTarget: 'ui.' + tag }; });
     var result = await engine.runAssetEngine({ runId: 'asset-engine-graph', buildContract: { assetContract: { slots: slots } }, localInputs: { 'asset.graph.sun': { path: inputPng, scope: 'private-local' } }, ports: portsModule.createSimulatedLocalAssetPorts({ outputDir: root }), projectAssetDir: path.join(root, 'assets', 'generated'), cloudAssetEngine: cloudAssetEngine, promotionMode: 'none' });
     assert.deepStrictEqual(result.trace, ['asset-intake', 'local-input-archive', 'model-authorize', 'asset-resolve', 'asset-finalize', 'cloud-promotion']);

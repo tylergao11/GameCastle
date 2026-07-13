@@ -18,6 +18,7 @@
 - 语义默认：`LLM_PROVIDER`、`LLM_ENDPOINT`、`LLM_MODEL`、`DEEPSEEK_API_KEY`。
 - 资产 provider：`ASSET_MODEL_PROVIDER`；缺省为 `simulated-local`，不会静默调用网络。
 - OpenAI 多模态：`OPENAI_API_KEY`、可选 `OPENAI_ENDPOINT`、`OPENAI_IMAGE_MODEL`、`OPENAI_VISION_MODEL`。
+- 本地 ComfyUI：`ASSET_MODEL_PROVIDER=comfyui-local`、`COMFYUI_ALLOW_LOCAL=true`、`COMFYUI_ENDPOINT`、`COMFYUI_MODEL_PATH`、`COMFYUI_MODEL_SHA256`。它不需要 API key，endpoint 必须是 loopback，模型调用仍由 ProviderRuntime 统一授权、计费和记 receipt。
 - 外部调用：`AI_ALLOW_EXTERNAL=true` 或对应的 `LLM_ALLOW_EXTERNAL=true` / `ASSET_ALLOW_EXTERNAL=true`；资产预算为 `ASSET_MODEL_MAX_COST=<非负数>`。
 
 将 `ASSET_MODEL_PROVIDER=openai`、`ASSET_ALLOW_EXTERNAL=true` 和 OpenAI Key 配齐后，

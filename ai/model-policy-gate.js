@@ -3,12 +3,13 @@ function normalize(policy) {
   policy = policy || {};
   var resolved;
   try { resolved = governance.assetPolicy(policy); } catch (_error) { resolved = governance.assetPolicy({}); resolved.provider = policy.provider || resolved.provider; resolved.simulated = false; resolved.allowExternal = false; }
-  return { provider: resolved.provider, simulated: policy.simulated === undefined ? resolved.simulated : policy.simulated === true, allowExternal: policy.allowExternal === undefined ? resolved.allowExternal : policy.allowExternal === true, maxCost: policy.maxCost === undefined ? resolved.maxCost : Number(policy.maxCost), allowedScopes: policy.allowedScopes || resolved.allowedScopes, imageModel: resolved.imageModel, visionModel: resolved.visionModel, endpoint: resolved.endpoint };
+  return { provider: resolved.provider, simulated: policy.simulated === undefined ? resolved.simulated : policy.simulated === true, allowExternal: policy.allowExternal === undefined ? resolved.allowExternal : policy.allowExternal === true, localAllowed: policy.localAllowed === undefined ? resolved.localAllowed : policy.localAllowed === true, maxCost: policy.maxCost === undefined ? resolved.maxCost : Number(policy.maxCost), allowedScopes: policy.allowedScopes || resolved.allowedScopes, imageModel: resolved.imageModel, visionModel: resolved.visionModel, endpoint: resolved.endpoint, localOnly: resolved.localOnly === true };
 }
 
 function authorizeModelPorts(ports, policy) {
   var normalized = normalize(policy), denied = null;
-  if (normalized.simulated !== true && normalized.allowExternal !== true) denied = 'MODEL_UNAVAILABLE';
+  if (normalized.simulated !== true && normalized.localOnly !== true && normalized.allowExternal !== true) denied = 'MODEL_UNAVAILABLE';
+  if (normalized.simulated !== true && normalized.localOnly === true && normalized.localAllowed !== true) denied = 'MODEL_UNAVAILABLE';
   if (!Number.isFinite(normalized.maxCost) && normalized.maxCost !== Infinity) denied = 'MODEL_BUDGET_EXHAUSTED';
   var wrapped = {};
   ['generate', 'edit', 'review', 'variant'].forEach(function(name) {
@@ -21,6 +22,8 @@ function authorizeModelPorts(ports, policy) {
   });
   if (ports && ports.localDerive && typeof ports.localDerive.derive === 'function') wrapped.localDerive = ports.localDerive;
   if (ports && ports.localPlan && typeof ports.localPlan.run === 'function') wrapped.localPlan = ports.localPlan;
+  if (ports && typeof ports.materializeCandidate === 'function') wrapped.materializeCandidate = ports.materializeCandidate;
+  if (ports && typeof ports.promoteCandidate === 'function') wrapped.promoteCandidate = ports.promoteCandidate;
   return { ports: wrapped, receipt: { allowed: !denied, code: denied, provider: normalized.provider, simulated: normalized.simulated, maxCost: normalized.maxCost, scope: normalized.allowedScopes[0] } };
 }
 

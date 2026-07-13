@@ -81,9 +81,10 @@ project-local revision 与 operation receipt。计划无法满足或声明 `requ
 正式云库是全用户共享的 `cloud-shared`。上传先进入不可公开的 `promotion-staging`，通过同意、
 AcceptanceReceipt、Runtime binding、provenance、license、hash 去重和质量门后才能发布。
 
-部署时所有 Runtime 必须把 `GAMECASTLE_CLOUD_ASSET_ROOT`（或启动时的 `cloudAssetRoot`）指向
-同一个服务端挂载点；本地开发可使用项目根下的 `.gamecastle-cloud-assets`。这是基础设施替换点，
-不会改变云图契约或项目本地 materialize 规则。
+文件系统 cloud root 已移除，不能作为部署、fixture 或共享库真相。隔离测试只可注入进程内假端口。
+部署 Runtime 必须注入 `CloudBlobStorePort`、`CloudRelationIndexPort`、`CloudPromotionQueuePort` 与
+`CloudProjectionPort`；未注入时 `CloudAssetEngine` 会失败关闭。当前本地正式库的 bytes/hash 由 MinIO
+保存，Revision/receipt 由 PostgreSQL 保存；项目运行时仍只绑定其 project-local materialization。
 
 用户原始手绘、原始上传、private-local、测试和 simulated 资产永不进入云库。晋升异步执行，
 失败不影响当前项目。相同 hash 已存在时只建立资源族、模板槽或使用关系，不重复上传 Blob。

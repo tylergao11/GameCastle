@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "registryId": "gamecastle.wp2.truth-source-registry",
+  "owner": "ProductModuleSystem",
+  "status": "designed",
+  "truthKinds": ["authoritative", "generated-projection", "runtime-evidence", "project-state"],
+  "sources": [
+    { "id": "creative-semantics", "path": "ai/semantic-mapping/semantic-feedback.json", "truthKind": "authoritative", "owner": "SemanticEngine", "owns": ["semantic IDs", "meaning", "roles", "goals", "event meanings"], "doesNotOwn": ["GDJS signatures", "mechanic implementation", "blueprint constraints"] },
+    { "id": "gdevelop-upstream", "locator": "GAMECASTLE_GDEVELOP_SOURCE_DIR", "truthKind": "authoritative", "owner": "GDevelop upstream snapshot", "owns": ["object, behavior, condition, action, expression, extension declarations"], "identity": ["upstream commit", "source file hashes"], "doesNotOwn": ["GameCastle semantics", "template rights"] },
+    { "id": "runtime-truth", "path": "ai/gdevelop-truth/runtime-truth.json", "truthKind": "generated-projection", "owner": "GDevelopTruthExtractor", "generatedFrom": ["gdevelop-upstream"], "rebuildCommand": "npm run truth:extract", "driftCommand": "npm run truth:check" },
+    { "id": "capability-universe", "path": "ai/gdevelop-truth/capability-universe.json", "truthKind": "generated-projection", "owner": "GDevelopCapabilityExtractor", "generatedFrom": ["gdevelop-upstream"], "rebuildCommand": "npm run capabilities:extract", "driftCommand": "npm run capabilities:check" },
+    { "id": "capability-semantic-index", "path": "ai/semantic-mapping/capability-semantic-index.json", "truthKind": "generated-projection", "owner": "CapabilitySemanticIndexer", "generatedFrom": ["creative-semantics", "capability-universe"], "rebuildCommand": "npm run semantics:extract", "driftCommand": "npm run semantics:check" },
+    { "id": "mechanic-registry", "path": "shared/wp2-mechanic-registry.json", "truthKind": "authoritative", "owner": "ProductMechanicRegistry", "owns": ["stable mechanic capability contracts"], "generatedFrom": [], "doesNotOwn": ["semantic meaning", "GDJS instruction signatures"] },
+    { "id": "template-source-catalog", "path": "shared/wp2-template-source-catalog.json", "truthKind": "authoritative", "owner": "TemplateIntake", "owns": ["source identity", "license decision", "allowed uses", "source status"] },
+    { "id": "template-ir-contract", "path": "shared/wp2-template-ir-contract.json", "truthKind": "authoritative", "owner": "TemplateNormalizer", "owns": ["normalization schema", "loss accounting", "lineage rules"] },
+    { "id": "gdjs-tests", "locator": "GAMECASTLE_GDEVELOP_SOURCE_DIR/GDJS/tests/games", "truthKind": "runtime-evidence", "owner": "GDevelop upstream tests", "generatedFrom": ["gdevelop-upstream"], "allowedEvidence": ["structure", "runtime", "normalizer fixtures", "animation-state shape"], "forbiddenEvidence": ["fun direction", "asset redistribution rights", "template category coverage"] },
+    { "id": "fun-blueprint-dictionary", "path": "shared/wp2-fun-blueprint-dictionary.json", "truthKind": "authoritative", "owner": "FunBlueprintLibrary", "owns": ["play-direction taxonomy", "approved blueprint revisions", "playtest constraints"] },
+    { "id": "product-module-catalog", "path": "ai/product-modules", "truthKind": "authoritative", "owner": "ModuleRepository", "owns": ["approved immutable module manifests"], "catalogRule": "manifest files are source truth; any index is generated from manifest hashes" },
+    { "id": "project-world", "path": "runtime ProjectWorld artifact", "truthKind": "project-state", "owner": "ProjectWorld", "owns": ["installed module revisions", "project semantic state", "project debt"], "doesNotOwn": ["dictionary definitions", "catalog approval"] }
+  ],
+  "dependencyOrder": ["gdevelop-upstream -> runtime-truth", "gdevelop-upstream -> capability-universe", "creative-semantics + capability-universe -> capability-semantic-index", "template-source-catalog + runtime-truth -> TemplateIR instances", "TemplateIR + mechanic-registry -> ModuleCandidate", "fun-blueprint-dictionary + mechanic-registry + product-module-catalog -> ModuleCompositionPlan"],
+  "crossReferenceGates": ["all semantic refs resolve", "all mechanic refs resolve", "all capability refs resolve", "all source and revision refs are hash pinned", "all generated projections reproduce", "no authoritative source is silently overwritten by a projection"],
+  "driftPolicy": { "blocking": true, "requiredMetadata": ["owner", "truthKind", "version or revision", "fingerprint", "generatedFrom when derived", "rebuild command when derived"], "machineAbsolutePathIsNotIdentity": true }
+}

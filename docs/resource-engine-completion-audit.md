@@ -12,10 +12,10 @@ fixture 成功描述为真实 provider 已上线。
 | 本地库 | 内容哈希、来源/授权、binding、导出 PNG 与本地优先路由 | 已实现 |
 | 云端 exact/near/template-kit 复用 | 受控词典过滤、license/quality rights、exact/near/template-kit、`assets/cloud` 完整 materialization receipt 回归 | 已实现（可替换 Port 的本地开发适配器） |
 | 导出与 immutable release | binding manifest、PNG、overlay 进入 HTML manifest 与 release 回归 | 已实现 |
-| 图像生成/编辑端口 | `AssetModelPorts` fail-closed；无端口产出 PlaceholderDebt；模拟本地端口明确标记 simulated | 已实现为安全降级，未配置真实 provider |
-| 视觉审查修复循环 | mock Vision 通过、修复后二次审查、预算 debt 回归；跨槽共享 `__modelBudget`，外层 policy maxCost 压入 Weave | 已实现为适配器契约，未配置真实 Vision provider |
+| 图像生成/编辑端口 | `AssetModelPorts` fail-closed；无端口产出 PlaceholderDebt；`comfyui-local` 有 loopback adapter、固定 workflow/model provenance、临时 blob 物化和验收后 project-local 晋升；ImageEdit 只接收同项目 consent 的 parent revision/mask refs，private-local 派生产物不可进入 cloud promotion 或云库持久化 | Stage A/Stage B CPU smoke 已通过（含 child AssetRevision persistence）；非生产性能证据 |
+| 视觉审查修复循环 | mock Vision 通过、修复后二次审查、预算 debt 回归；Stage B 有 Florence-2 custom-node hash allowlist、结构化 semantic evidence 与 fail-closed schema | Florence 只提供语义证据，Acceptance 仍是 AssetWeave owner |
 | UI 模板资产消费 | `asset-template-dictionary.json` 同时驱动 Template Registry 与工作台模板/槽位选择 | 已实现 |
-| 外部云服务 | 当前为受控本地持久云仓；未接入外部对象存储/账号/同步服务 | 明确保留 |
+| 外部云服务 | 当前为受控本地持久云仓；Stage C 新增受 governance 约束的 `comfyui-worker` 云 GPU 协议、deployment attestation 与本地输出验证，但没有已批准 deployment 或真实 NVIDIA Worker | 协议/边界已实现；真实线上服务、GPU 性能与 SLO 仍待验证 |
 
 ## 总契约阶段核对（2026-07-12）
 
@@ -24,7 +24,7 @@ fixture 成功描述为真实 provider 已上线。
 | intake / local archive | `asset-engine-langgraph.js` 编译 slot、归档可选本地输入；无输入回归通过 | 已闭环 |
 | local / cloud exact / cloud near resolve | AssetWeave 本地优先、approved-only repository、项目本地 materialize 回归 | 已闭环（本地持久云仓） |
 | deterministic derive | `local-derivation-contract.json` 的每一个 operation 均有 default handler；`LocalDerivationPort` 将 kernel RGBA 实际写为 project-local PNG 并进入 AssetWeave/Runtime binding 回归 | 已闭环 |
-| image edit / generation / review | LangGraph 路由、授权、预算、repair 和 debt 均有测试；没有真实 provider 凭据 | 端口闭环，外部实现保留 |
+| image generation / review | LangGraph 路由、授权、预算、repair 和 debt 均有测试；`check:comfyui-local` 覆盖 health、submit/history、transit、promotion、timeout、cancel、坏输出、预算、幂等与 restart index；`check:comfyui-stage-b` 覆盖受控 edit/Florence review/child revision；真实 CPU Stage B smoke 已通过 | LoRA/ControlNet 仅有未批准 artifact 的 registry gate；CPU smoke 不构成生产质量、性能或 SLO 证据 |
 | immutable revision / receipt | LocalAssetStore 与 derivation kernel 写 hash、parent revision、receipt；绑定和导出回归 | 已闭环 |
 | Runtime / AssetWorld | 实际 GDevelop resource、Sprite、layout usedResources、manifest 和 AssetWorld 回归 | 已闭环 |
 | cloud promotion | 受控 ID、显式 consent、Acceptance/Runtime receipt、完整状态、重试、幂等、audit receipt 和可替换授权 Port | 已实现（真实线上服务适配器未部署） |
@@ -56,4 +56,4 @@ fixture 成功描述为真实 provider 已上线。
 ## 当前发布门
 
 执行 `npm run check:visual-assets` 与 `npm --prefix platform run build`。常规门不访问模型或网络；
-真实模型 smoke 只能在 provider、用户授权、预算和审查记录都配置后单独运行。
+真实模型 smoke 只能在 provider、用户授权、预算和审查记录都配置后单独运行。Comfy Stage A 使用 `npm run smoke:comfyui-local`，需要 `ASSET_MODEL_PROVIDER=comfyui-local`、`COMFYUI_ALLOW_LOCAL=true`、loopback endpoint 和已校验模型文件 hash；它不进入常规测试。

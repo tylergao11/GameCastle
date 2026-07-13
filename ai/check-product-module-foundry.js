@@ -2,5 +2,16 @@ var assert = require('assert').strict; var foundry = require('./product-module-f
 var debt = { debtId: 'debt.missing', blocking: true };
 var item = foundry.candidate({ debt: debt, referenceFixture: { hash: 'fixture-hash', license: 'internal' }, draftManifest: { id: 'core.test', revision: 'local-v1' } });
 assert.equal(item.status, 'draft'); assert.equal(foundry.promote(item, {}).decision, 'rejected'); item.status = 'verified';
-assert.equal(foundry.promote(item, { contractEvidence: 'c', runtimeEvidence: 'r', playtestEvidence: 'p', provenanceEvidence: 'v' }).decision, 'approved-local');
+var approved = foundry.promote(item, { contractEvidence: 'c', runtimeEvidence: 'r', playtestEvidence: 'p', provenanceEvidence: 'v' });
+assert.equal(approved.decision, 'approved-local'); assert.equal(approved.manifestHash.length, 64, 'promotion receipt must retain full manifest SHA-256');
+var source = { sourceId: 'fixture', contentHash: 'source-hash', intakeStatus: 'quarantined' };
+var ir = { artifactKind: 'TemplateIR', irId: 'ir.fixture', sourceContentHash: 'source-hash', normalizationHash: 'ir-hash', lossAccounting: { blocking: [] } };
+var templated = foundry.candidateFromTemplateIR({ debt: debt, templateSourceRecord: source, templateIR: ir, funBlueprintSelection: { blueprintRef: { blueprintId: 'route-mastery', revision: 1, contentHash: 'blueprint-hash' }, requiredSemanticRefs: [] } });
+assert.equal(templated.lineageProjection.templateIR.normalizationHash, 'ir-hash');
+assert.equal(templated.provenance.sourceBinaryReuseAllowed, false);
+templated.status = 'verified';
+assert.equal(foundry.promote(templated, { contractEvidence: 'c', runtimeEvidence: 'r', playtestEvidence: 'p', provenanceEvidence: 'v' }).reason, 'SOURCE_NOT_PROMOTABLE');
+var internal = foundry.candidate({ debt: debt, referenceFixture: { hash: 'internal-fixture', license: 'GameCastle-internal' }, draftManifest: { id: 'core.route_dash', revision: 'local-v1' } });
+internal.status = 'verified'; internal.internalOriginReceipt = 'origin.gamecastle.route-dash.v1';
+assert.equal(foundry.promote(internal, { contractEvidence: 'c', runtimeEvidence: 'r', playtestEvidence: 'p', provenanceEvidence: 'v' }).decision, 'approved-local');
 console.log('[ProductModuleFoundry] offline candidate and promotion gate passed');

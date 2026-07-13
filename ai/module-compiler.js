@@ -97,6 +97,11 @@ function validateWp2Contracts(manifest) {
     if (!manifest[field] || typeof manifest[field] !== 'object') throw new Error('Product module ' + manifest.id + ' missing ' + field);
   });
   if (!manifest.revision || typeof manifest.revision !== 'string') throw new Error('Product module ' + manifest.id + ' missing immutable revision');
+  require('./internal-module-origin').forModule(manifest.id, manifest.revision);
+  if (manifest.mechanicRevisionRefs !== undefined) {
+    if (!Array.isArray(manifest.mechanicRevisionRefs)) throw new Error('Product module ' + manifest.id + ' mechanicRevisionRefs must be array');
+    manifest.mechanicRevisionRefs.forEach(require('./mechanic-registry').resolve);
+  }
   ['provides', 'requires', 'goals', 'roles', 'pressures', 'rewards'].forEach(function(field) { if (!Array.isArray(manifest.semanticContract[field])) throw new Error('Product module ' + manifest.id + ' semanticContract.' + field + ' must be array'); });
   ['supportedTopologies', 'requiredRoles', 'optionalRoles', 'constraints', 'variationParameters'].forEach(function(field) { if (!Array.isArray(manifest.spatialContract[field])) throw new Error('Product module ' + manifest.id + ' spatialContract.' + field + ' must be array'); });
   ['spatialSubjects', 'sharedArtifacts'].forEach(function(field) { if (!Array.isArray(manifest.declarationContract[field])) throw new Error('Product module ' + manifest.id + ' declarationContract.' + field + ' must be array'); });

@@ -3,7 +3,7 @@ var fs = require('fs');
 var path = require('path');
 
 var ROOT = path.join(__dirname, '..');
-var SOURCE_DIR = process.env.GAMECASTLE_GDEVELOP_SOURCE_DIR || 'C:\\Ai\\GDevelop-master';
+var SOURCE_DIR = process.env.GAMECASTLE_GDEVELOP_SOURCE_DIR || path.resolve(ROOT, '..', 'GDevelop-master');
 var OUT_PATH = path.join(ROOT, 'ai', 'gdevelop-truth', 'capability-universe.json');
 var CHECK_MODE = process.argv.indexOf('--check') >= 0;
 

@@ -71,6 +71,10 @@ async function runAssetEngine(input) {
     maxCost: input.maxCost,
     promotionMode: input.promotionMode || 'none',
     shareConsent: input.shareConsent === true,
+    assetPersistenceBridge: input.assetPersistenceBridge || null,
+    assetFamilyIds: input.assetFamilyIds || {},
+    persistAcceptedGeneratedAssets: input.persistAcceptedGeneratedAssets === true,
+    persistenceMode: input.persistenceMode || 'none',
     trace: []
   };
   function node(stage, work) { return async function(wire) { var state = Object.assign({}, wire.state); await work(state); state.trace = append(state.trace, stage); return { state: state }; }; }
@@ -103,14 +107,25 @@ async function runAssetEngine(input) {
       state.debts = debtRecords(state.weaveResult);
       state.accepted = state.debts.length === 0;
     }))
-    .addNode('cloud-promotion', node('cloud-promotion', function(state) {
+    .addNode('cloud-promotion', node('cloud-promotion', async function(state) {
       var queue = state.weaveResult.cloudPromotionQueue || [];
       queue = queue.map(function(entry) { var binding = (state.runtimeBindingManifest.bindings || []).find(function(item) { return item.slotId === entry.slotId; }) || null; return Object.assign({}, entry, { shareConsent: state.shareConsent === true, runtimeBindingReceipt: binding ? Object.assign({}, binding, { status: 'bound', boundAssetStatus: binding.status }) : null }); });
       state.cloudPromotion = { mode: state.promotionMode, queue: clone(queue), entries: [] };
-      if (state.promotionMode === 'none' || !queue.length) return;
-      if (!state.cloudAssetEngine) throw new Error('Cloud promotion was requested without CloudAssetEngine');
-      state.cloudPromotion.entries = state.cloudAssetEngine.enqueuePromotion({ cloudPromotionQueue: queue });
-      if (state.promotionMode === 'sync') state.cloudPromotion.entries = state.cloudAssetEngine.sync();
+      if (state.promotionMode !== 'none' && queue.length) {
+        if (!state.cloudAssetEngine) throw new Error('Cloud promotion was requested without CloudAssetEngine');
+        state.cloudPromotion.entries = state.cloudAssetEngine.enqueuePromotion({ cloudPromotionQueue: queue });
+        if (state.promotionMode === 'sync') state.cloudPromotion.entries = state.cloudAssetEngine.sync();
+      }
+      if (state.persistAcceptedGeneratedAssets) {
+        if (state.persistenceMode !== 'verification-staging') throw new Error('Accepted generated asset persistence requires persistenceMode=verification-staging; use CloudPromotion for shared publication');
+        if (!state.assetPersistenceBridge || typeof state.assetPersistenceBridge.persistAcceptedGeneratedAsset !== 'function') throw new Error('Accepted generated asset persistence was requested without AssetPersistenceBridge');
+        state.cloudLibraryAssets = [];
+        for (var i = 0; i < (state.weaveResult.slots || []).length; i++) {
+          var slotResult = state.weaveResult.slots[i], candidate = slotResult.candidate;
+          if (!slotResult.accepted || slotResult.debt || !candidate || candidate.privacyScope === 'private-local' || (candidate.status !== 'generated' && candidate.status !== 'variant')) continue;
+          state.cloudLibraryAssets.push(await state.assetPersistenceBridge.persistAcceptedGeneratedAsset({ candidate: candidate, familyId: state.assetFamilyIds[candidate.slotId] || 'asset-family.' + candidate.assetId, persistenceMode: state.persistenceMode }));
+        }
+      }
     }));
   graph.addEdge(lg.START, 'asset-intake').addEdge('asset-intake', 'local-input-archive').addEdge('local-input-archive', 'model-authorize').addEdge('model-authorize', 'asset-resolve').addEdge('asset-resolve', 'asset-finalize').addEdge('asset-finalize', 'cloud-promotion').addEdge('cloud-promotion', lg.END);
   var output = await graph.compile().invoke({ state: initial });

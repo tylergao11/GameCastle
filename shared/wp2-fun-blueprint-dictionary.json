@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "dictionaryId": "gamecastle.wp2.fun-blueprint-dictionary",
+  "owner": "FunBlueprintLibrary",
+  "status": "designed",
+  "closedFamilyEnumeration": false,
+  "purpose": "Own human-reviewed reasons a composition should be fun while leaving implementation to mechanic modules and GDJS compilation.",
+  "truthBoundary": {
+    "owns": ["family discovery taxonomy", "core loops", "player decisions", "pressure structure", "progression structure", "reward pacing", "failure recovery", "capability-slot constraints", "forbidden combinations", "playtest assertions"],
+    "doesNotOwn": ["semantic meanings", "mechanic implementations", "GDJS instructions", "final coordinates", "asset bytes", "complete game projects"],
+    "semanticDictionary": "ai/semantic-mapping/semantic-feedback.json",
+    "mechanicRegistry": "shared/wp2-mechanic-registry.json"
+  },
+  "familyReferenceFormat": "fun-blueprint-dictionary#/families/<family-id>",
+  "blueprintReferenceFormat": "fun-blueprint-dictionary#/blueprints/<blueprint-id>/<revision>",
+  "familyPolicy": {
+    "multiFamilyMembership": true,
+    "newFamilyRequiresHumanReview": true,
+    "familyIdForbiddenAsGeneratorDispatch": true,
+    "familiesAreDiscoveryFacetsNotSupportClaims": true,
+    "aliasAndDeprecationRequireMigrationReceipt": true
+  },
+  "families": {
+    "traversal_challenge": { "status": "seed", "playerValue": "Master movement, route reading, timing, and arrival.", "loopPatterns": ["observe route", "commit movement", "avoid or recover", "reach next landmark"], "antiDefinitions": ["side view alone", "platform behavior alone"] },
+    "survival_pressure": { "status": "seed", "playerValue": "Stay viable while pressure grows or changes.", "loopPatterns": ["read pressure", "reposition", "reduce threat", "gain recovery or growth"], "antiDefinitions": ["enemies without shrinking options", "timer without pressure"] },
+    "combat_mastery": { "status": "seed", "playerValue": "Improve attack, defense, positioning, and enemy-response skill.", "loopPatterns": ["identify threat", "choose target or defense", "execute", "read outcome"], "antiDefinitions": ["projectiles without meaningful target or risk"] },
+    "timing_precision": { "status": "seed", "playerValue": "Succeed through rhythm, windows, reaction, and input precision.", "loopPatterns": ["anticipate cue", "act in window", "receive timing feedback", "maintain or recover chain"], "antiDefinitions": ["real-time execution without timing windows"] },
+    "navigation_racing": { "status": "seed", "playerValue": "Optimize routes, speed, overtaking, or completion time.", "loopPatterns": ["read route", "manage speed", "choose line", "compare progress"], "antiDefinitions": ["vehicle graphics alone", "movement without comparative performance"] },
+    "physics_play": { "status": "seed", "playerValue": "Predict and manipulate momentum, collision, balance, or physical chains.", "loopPatterns": ["predict", "apply force or placement", "observe simulation", "adjust"], "antiDefinitions": ["physics behavior used only for movement"] },
+    "puzzle_inference": { "status": "seed", "playerValue": "Infer rules and construct a valid solution state.", "loopPatterns": ["inspect state", "form hypothesis", "manipulate", "validate or reset"], "antiDefinitions": ["locked door without inference", "single obvious interaction"] },
+    "tactical_planning": { "status": "seed", "playerValue": "Win through position, action order, risk, and resource allocation.", "loopPatterns": ["assess", "plan", "commit actions", "resolve and adapt"], "antiDefinitions": ["multiple units without consequential choices"] },
+    "economy_production": { "status": "seed", "playerValue": "Design production, conversion, building, and efficiency loops.", "loopPatterns": ["acquire input", "convert or build", "remove bottleneck", "expand capacity"], "antiDefinitions": ["currency counter without conversion decisions"] },
+    "collection_progression": { "status": "seed", "playerValue": "Collect, unlock, combine, and grow toward long-term completion.", "loopPatterns": ["pursue reward", "collect", "choose growth", "unlock new pursuit"], "antiDefinitions": ["collectibles without future consequence"] },
+    "social_competition_cooperation": { "status": "seed", "playerValue": "Create meaning through competition, cooperation, negotiation, or asymmetric roles.", "loopPatterns": ["observe players", "coordinate or contest", "resolve shared event", "adapt relationship"], "antiDefinitions": ["network transport alone", "leaderboard alone"] },
+    "narrative_exploration_roleplay": { "status": "seed", "playerValue": "Discover, choose, relate, and express identity through a world.", "loopPatterns": ["explore", "discover context", "choose response", "observe consequence"], "antiDefinitions": ["dialogue text without choice or discovery"] }
+  },
+  "crosscutFacets": {
+    "presentation": ["2d", "2_5d", "3d"],
+    "view": ["side", "top-down", "isometric", "first-person", "third-person"],
+    "timeModel": ["real-time", "turn-based", "pause-to-plan", "rhythm-synced"],
+    "playerModel": ["single-player", "local-multiplayer", "online-multiplayer"],
+    "socialRelation": ["solo", "cooperative", "competitive", "asymmetric", "mixed"],
+    "worldStructure": ["fixed-level", "open-region", "room-graph", "procedural"],
+    "sessionStructure": ["short-run", "level-based", "continuous-world", "persistent-management"],
+    "controlSurface": ["keyboard-mouse", "gamepad", "touch", "single-input", "drag"],
+    "failureModel": ["instant-retry", "checkpoint", "permanent-loss", "soft-failure"],
+    "platform": ["web", "desktop", "mobile", "wechat-minigame"]
+  },
+  "blueprintContract": {
+    "required": ["blueprintId", "revision", "status", "familyAffinities", "coreLoop", "playerDecisions", "pressureModel", "progressionModel", "rewardPacing", "failureRecovery", "mechanicSlots", "substitutionRules", "forbiddenCombinations", "allowedFacets", "parameterBounds", "playtestAssertions", "counterExamples", "humanReviewReceipt", "contentHash"],
+    "statuses": ["draft", "approved", "deprecated"],
+    "familyAffinityRequired": ["familyRef", "weight", "reason"],
+    "mechanicSlotRequired": ["slotId", "cardinality", "requiredMechanicRevisionRefs", "allowedSubstitutionRevisionRefs"],
+    "playtestAssertionRequired": ["assertionId", "measurement", "passRule", "failureOwner"],
+    "forbiddenFields": ["targetPlan", "targetPlanText", "gdjsInstruction", "projectJson", "finalCoordinates", "assetPath"],
+    "materialDifferenceRule": "Two compositions differ materially only when mechanic provider set, player decision structure, pressure model, or progression path differs; seed, topology, camera, art, or numeric reskin alone is insufficient.",
+    "approvalGate": ["all mechanic refs resolve", "all semantic refs resolve", "positive composition evidence", "forbidden-combination rejection", "boundary parameter evidence", "failure and recovery evidence", "at least two materially distinct playable compositions"]
+  },
+  "blueprints": {
+    "survivor-growth": {
+      "1": {
+        "blueprintId": "survivor-growth",
+        "revision": 1,
+        "status": "approved",
+        "familyAffinities": [{ "familyRef": "survival_pressure", "weight": 1, "reason": "Escalating pressure constrains survival choices." }, { "familyRef": "combat_mastery", "weight": 0.8, "reason": "Threat response and targeting create moment-to-moment decisions." }, { "familyRef": "collection_progression", "weight": 0.7, "reason": "Upgrades alter future survival options." }],
+        "coreLoop": ["read pressure", "move to preserve space", "attack or evade", "earn growth", "survive next phase"],
+        "playerDecisions": ["targeting versus repositioning", "upgrade choice", "risk reward route choice"],
+        "pressureModel": { "required": "rising spatial pressure", "mustChange": ["density", "approach", "safe-space availability"] },
+        "progressionModel": { "required": "persistent run growth", "mustChangeFuturePlay": true },
+        "rewardPacing": { "immediate": "combat or collection feedback", "midRun": "upgrade choice", "longRun": "survival completion" },
+        "failureRecovery": { "failure": "actor failure", "recovery": "restart with a playable baseline" },
+        "requiredSemanticRefs": ["semantic-dictionary#/playGoals/survive", "semantic-dictionary#/semantic_concepts/aim_and_fire", "semantic-dictionary#/eventMeanings/ActorFailed", "semantic-dictionary#/eventMeanings/UpgradeApplied"],
+        "mechanicSlots": [
+          { "slotId": "movement", "cardinality": "exclusive", "requiredMechanicRevisionRefs": [{ "mechanicId": "motion.top-down", "revision": 1, "contentHash": "ba44f0b59fcd242a205066d116747fdcec7b62924899f8e540a1c714f80814c2" }], "allowedSubstitutionRevisionRefs": [] },
+          { "slotId": "attack", "cardinality": "at-least-one", "requiredMechanicRevisionRefs": [{ "mechanicId": "combat.aim-fire", "revision": 1, "contentHash": "e1a429e317639bb2f0b085d1e36b6b0bddcdbf7b51f1b8f06a1ebca4078a2933" }], "allowedSubstitutionRevisionRefs": [] },
+          { "slotId": "pressure", "cardinality": "composed", "requiredMechanicRevisionRefs": [{ "mechanicId": "pressure.chase", "revision": 1, "contentHash": "37e8b7c7e916fa8f61c99e6f609735a94b95ee957561c1d5b66736b74f897db7" }, { "mechanicId": "pressure.wave", "revision": 1, "contentHash": "ba6f7082a139fda69e16d8a26a2201afe6111b22e20b2c9c84e377a419e95cd8" }], "allowedSubstitutionRevisionRefs": [] },
+          { "slotId": "progression", "cardinality": "exclusive", "requiredMechanicRevisionRefs": [{ "mechanicId": "progression.upgrade", "revision": 1, "contentHash": "2c9a06d4c1c6709243715bc1c6097b555c54e3046289b4d470aacdb3c20849b5" }], "allowedSubstitutionRevisionRefs": [] }
+        ],
+        "substitutionRules": ["attack presentation may vary without removing target response", "arena and room graph are both allowed when pressure remains measurable"],
+        "allowedFacets": { "view": ["top-down"], "timeModel": ["real-time"], "worldStructure": ["open-region", "room-graph"], "sessionStructure": ["short-run"] },
+        "forbiddenCombinations": [{ "code": "SURVIVOR_NO_PRESSURE", "rule": "pressure slot cannot be removed or fixed at zero" }, { "code": "SURVIVOR_NO_GROWTH_CHOICE", "rule": "progression must expose a meaningful upgrade choice" }],
+        "parameterBounds": { "pressureDensity": { "min": 1, "max": 100 }, "upgradeChoices": { "min": 2, "max": 5 } },
+        "playtestAssertions": [{ "assertionId": "pressure-escalates", "measurement": "pressure phase count and safe-space reduction", "passRule": "at least two pressure phases change playable constraints", "failureOwner": "SemanticPlaytestAgent" }, { "assertionId": "upgrade-changes-play", "measurement": "post-upgrade behavior trace", "passRule": "an upgrade changes a future decision or capability", "failureOwner": "SemanticPlaytestAgent" }],
+        "counterExamples": ["stationary target practice", "endless enemy spawning with no survival pressure", "visual level-up with no changed capability"],
+        "humanReviewReceipt": { "reviewer": "Sol", "decision": "approved", "reason": "Core loop, pressure, growth and counterexamples are explicit." },
+        "contentHash": "898495e76bc00b013262b733570a7ebb80a36abe902ecdece2b213246eacb42a"
+      }
+    },
+    "route-mastery": {
+      "1": {
+        "blueprintId": "route-mastery", "revision": 1, "status": "approved",
+        "familyAffinities": [{ "familyRef": "traversal_challenge", "weight": 1, "reason": "Route reading and movement timing are primary." }, { "familyRef": "timing_precision", "weight": 0.6, "reason": "Execution windows make route commitment meaningful." }],
+        "coreLoop": ["read route", "commit movement", "manage timing", "collect or reach landmark", "recover or restart"],
+        "playerDecisions": ["safe route versus reward route", "timing commitment", "recovery choice"],
+        "pressureModel": { "required": "route or timing constraint", "mustChange": ["available route", "execution window"] },
+        "progressionModel": { "required": "landmark completion", "mustChangeFuturePlay": false },
+        "rewardPacing": { "immediate": "movement feedback", "midRun": "route reward", "longRun": "objective completion" },
+        "failureRecovery": { "failure": "missed route or actor failure", "recovery": "restart or checkpoint" },
+        "requiredSemanticRefs": ["semantic-dictionary#/semantic_concepts/movement", "semantic-dictionary#/playGoals/collect", "semantic-dictionary#/playGoals/avoid-threats"],
+        "mechanicSlots": [{ "slotId": "movement", "cardinality": "exclusive", "requiredMechanicRevisionRefs": [{ "mechanicId": "motion.platform", "revision": 1, "contentHash": "9eac95e61df5602692a595ecebd7da2b934b41b1e1976a4ad8f1d5eb1ecc7f92" }], "allowedSubstitutionRevisionRefs": [] }, { "slotId": "route", "cardinality": "exclusive", "requiredMechanicRevisionRefs": [{ "mechanicId": "space.route", "revision": 1, "contentHash": "caa98d691f35709b5ee6ac4b165d94b7ee4965739a92b513c2e604a8a2e50abf" }], "allowedSubstitutionRevisionRefs": [] }],
+        "substitutionRules": ["linear and branching routes may vary while route choice remains meaningful"], "allowedFacets": { "view": ["side"], "timeModel": ["real-time"], "worldStructure": ["fixed-level", "room-graph"] }, "forbiddenCombinations": [{ "code": "ROUTE_NO_DECISION", "rule": "a route blueprint needs at least one meaningful safe versus reward decision" }], "parameterBounds": { "routeBranches": { "min": 1, "max": 8 } }, "playtestAssertions": [{ "assertionId": "route-choice", "measurement": "reachable alternative routes", "passRule": "at least one choice has distinct risk or reward", "failureOwner": "SemanticPlaytestAgent" }], "counterExamples": ["single straight route with no timing or reward distinction"], "humanReviewReceipt": { "reviewer": "Sol", "decision": "approved", "reason": "Traversal direction is explicit." }, "contentHash": "15df6844c678e0b9e94b2dc3596c8797e987299e49b97e9efa25947b03926862"
+      }
+    },
+    "state-puzzle": {
+      "1": {
+        "blueprintId": "state-puzzle", "revision": 1, "status": "approved", "familyAffinities": [{ "familyRef": "puzzle_inference", "weight": 1, "reason": "Players infer and alter constrained state." }], "coreLoop": ["inspect state", "form hypothesis", "activate interaction", "validate solution or reset"], "playerDecisions": ["which state to alter", "when to reset"], "pressureModel": { "required": "constraint visibility", "mustChange": ["solution state"] }, "progressionModel": { "required": "objective completion", "mustChangeFuturePlay": false }, "rewardPacing": { "immediate": "state feedback", "midRun": "constraint resolution", "longRun": "objective completion" }, "failureRecovery": { "failure": "invalid state", "recovery": "explicit reset" }, "requiredSemanticRefs": ["semantic-dictionary#/playGoals/solve", "semantic-dictionary#/eventMeanings/PuzzleReset"], "mechanicSlots": [{ "slotId": "activation", "cardinality": "at-least-one", "requiredMechanicRevisionRefs": [{ "mechanicId": "interaction.activate", "revision": 1, "contentHash": "1fb1968401165687e8cd12c763f4f989a7c98a483b1811e3a705f6ce785f69ec" }], "allowedSubstitutionRevisionRefs": [] }, { "slotId": "solution", "cardinality": "exclusive", "requiredMechanicRevisionRefs": [{ "mechanicId": "goal.solve-reset", "revision": 1, "contentHash": "3562f88c1e4a4fbaf8ecb28d13b4c8d0fcd7999d6f0289d6c7ae3ab985eb2075" }], "allowedSubstitutionRevisionRefs": [] }], "substitutionRules": ["room and grid topology may vary without hiding the state rule"], "allowedFacets": { "timeModel": ["pause-to-plan", "turn-based"], "worldStructure": ["room-graph", "fixed-level"] }, "forbiddenCombinations": [{ "code": "PUZZLE_NO_INFERENCE", "rule": "solution cannot be a single unambiguous action" }], "parameterBounds": { "stateVariables": { "min": 2, "max": 12 } }, "playtestAssertions": [{ "assertionId": "solution-and-reset", "measurement": "solution and reset transitions", "passRule": "both a valid solution and an invalid reset trace exist", "failureOwner": "SemanticPlaytestAgent" }], "counterExamples": ["single button that immediately completes objective"], "humanReviewReceipt": { "reviewer": "Sol", "decision": "approved", "reason": "Inference and reset are required." }, "contentHash": "d3f6e136e71bc21473ea7dbddadb315d3649e61f30d6c405c4b288568e5dbb8e"
+      }
+    }
+  },
+  "curationBacklog": [
+    { "directionId": "survivor-growth", "familyRefs": ["survival_pressure", "combat_mastery", "collection_progression"], "pilotPriority": 1 },
+    { "directionId": "route-mastery", "familyRefs": ["traversal_challenge", "timing_precision"], "pilotPriority": 2 },
+    { "directionId": "wave-defense", "familyRefs": ["tactical_planning", "combat_mastery", "economy_production"], "pilotPriority": 3 },
+    { "directionId": "state-puzzle", "familyRefs": ["puzzle_inference"], "pilotPriority": 4 },
+    { "directionId": "production-growth", "familyRefs": ["economy_production", "collection_progression"], "pilotPriority": 5 },
+    { "directionId": "narrative-discovery", "familyRefs": ["narrative_exploration_roleplay"], "pilotPriority": 6 }
+  ],
+  "invariants": [
+    "No family count is a WP2 completion claim.",
+    "No family or blueprint id becomes a Planner or Compiler switch branch.",
+    "Blueprints reference approved mechanic revisions pinned by mechanicId, revision, and contentHash plus canonical semantic refs only.",
+    "A blueprint defines why a composition should be fun, never how GDJS executes it.",
+    "Approved revisions are immutable and hash pinned."
+  ]
+}

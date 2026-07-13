@@ -11,8 +11,8 @@ pipeline logs, or generated files.
 platform UI
   -> /api/runtime contract
   -> RunCoordinator
-  -> PipelineRunner
-  -> ai/pipeline.js
+  -> ProjectWeaveRunner
+  -> ai/project-weave-runtime.js
   -> transient engine transaction workspace
   -> ProjectStore immutable ProjectVersion
   -> verified immutable release
@@ -24,8 +24,9 @@ platform UI
 - `platform/` owns intent entry, progress presentation, errors, and the iframe.
 - `server/local-runtime/` owns the single-run lifecycle, stable status model,
   process adapter, workspace transaction, and artifact publication.
-- `ai/` remains the engine owner. The boundary invokes its public CLI and does
-  not import or duplicate Intent, compiler, bridge, or semantic-playtest logic.
+- `ai/project-weave-runtime.js` is the only build owner. The boundary invokes
+  its public port and does not duplicate Intent, compiler, bridge, asset, or
+  semantic-playtest logic.
 - `output/` is only a transient engine transaction workspace. Project truth is
   `.gamecastle/projects/<projectId>/versions/<versionId>`; browsers never read
   it directly. Playable files are allowlisted from the HTML export manifest and
@@ -139,7 +140,8 @@ run.
 frontend. Vite proxies `/api` to the runtime, so production UI code always uses
 relative runtime URLs.
 
-Natural-language creation still requires the engine's configured LLM endpoint
-(`LLM_ENDPOINT`, default `http://127.0.0.1:18081/v1`) to be listening. If it is
-unavailable, the run terminates as failed, the UI shows the failure, the mutable
-workspace rolls back, and the last committed release remains playable.
+Natural-language creation uses the governed DeepSeek API endpoint
+(`LLM_ENDPOINT`, default `https://api.deepseek.com/v1`) with the environment-only
+`DEEPSEEK_API_KEY`. If it is unavailable, the run terminates as failed, the UI
+shows the failure, the mutable workspace rolls back, and the last committed
+release remains playable.

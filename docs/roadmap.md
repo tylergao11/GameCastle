@@ -18,7 +18,7 @@ This roadmap tracks the live AI-first Intent Engine.
 
 ## Active Priorities
 
-- Split `ai/pipeline.js` into clearer design, compile, execute, state, and provider owners.
+- Finish moving the remaining GDJS execution helpers out of `ai/pipeline.js` into dedicated owners.
 - Keep the LLM2 surface small: natural intent, semantic evidence, owner routes, and safe requested context slots.
 - Continue strengthening semantic playtest coverage for creation and follow-up iteration.
 - Expose current module, generation step, and playable version state in the platform UI.

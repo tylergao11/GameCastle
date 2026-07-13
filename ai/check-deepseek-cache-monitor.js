@@ -10,8 +10,8 @@ function fakeResponse(usage, text) {
       getReader: function() {
         var done = false;
         var payload = [
-          'data: ' + JSON.stringify({ type: 'response.output_text.delta', delta: text || 'ok' }),
-          'data: ' + JSON.stringify({ type: 'response.completed', response: { usage: usage } }),
+          'data: ' + JSON.stringify({ choices: [{ delta: { content: text || 'ok' } }] }),
+          'data: ' + JSON.stringify({ usage: usage, choices: [] }),
           'data: [DONE]',
           '',
           '',
@@ -85,8 +85,8 @@ async function main() {
   assert.strictEqual(report.steps.length, 2, 'report should observe each step');
   assert.strictEqual(report.steps[0].observation.role, 'warmup', 'first step should be warmup');
   assert.strictEqual(report.steps[1].observation.cacheGate.passed, true, 'second step should pass cache gate');
-  assert(calls[0].body.input[0].content.indexOf('GameCastle stable LLM2 prefix') >= 0, 'stable prefix should be first input content');
-  assert.notStrictEqual(calls[0].body.input[1].content, calls[1].body.input[1].content, 'dynamic turn should vary after stable prefix');
+  assert(calls[0].body.messages[0].content.indexOf('GameCastle stable LLM2 prefix') >= 0, 'stable prefix should be first input content');
+  assert.notStrictEqual(calls[0].body.messages[1].content, calls[1].body.messages[1].content, 'dynamic turn should vary after stable prefix');
 
   var failed = await monitor.runDeepSeekCacheDebug({
     threshold: 0.9,
@@ -98,10 +98,13 @@ async function main() {
       { id: 'warm_prefix', userRequest: '金币多一点', expected: 'warm cache with stable prefix' },
       { id: 'cold_prefix', userRequest: '怪别太密', expected: 'reuse stable prefix at >=90%' },
     ],
-    fetchImpl: async function(url, init) {
-      return url && init && init.body ? (failed ? fakeResponse(lowUsage, 'low') : fakeResponse(warmUsage, 'warm')) : fakeResponse(lowUsage, 'low');
-    },
-    responseFixtures: [fakeResponse(warmUsage, 'warm'), fakeResponse(lowUsage, 'low')],
+    invoke: (function() {
+      var results = [
+        { text: 'warm', reasoningText: '', usage: warmUsage, events: [], streamed: true },
+        { text: 'low', reasoningText: '', usage: lowUsage, events: [], streamed: true }
+      ];
+      return function() { return Promise.resolve(results.shift()); };
+    })(),
     writeArtifacts: false,
   });
   assert.strictEqual(failed.summary.passed, false, 'low hot usage should fail the whole monitor');

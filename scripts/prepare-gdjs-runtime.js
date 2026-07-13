@@ -39,7 +39,7 @@ function run(command, args, cwd) {
 var sourceDir = path.resolve(
   getArgValue('--source') ||
   process.env.GDEVELOP_SOURCE_DIR ||
-  'C:\\Ai\\GDevelop-master'
+  path.resolve(rootDir, '..', 'GDevelop-master')
 );
 var gdjsDir = resolveGdjsDir(sourceDir);
 var outDir = path.resolve(

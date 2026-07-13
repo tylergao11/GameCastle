@@ -34,19 +34,19 @@ simulated 只能证明离线控制流，不能满足 live smoke。
 
 ### WP2 — Gameplay Module and Template Coverage
 
-一句话目标：复用现有语义引擎，让五类常见轻量玩法通过批准模块与宏观空间计划确定性组合生成，
-不依赖 LLM 临时写玩法实现。
+一句话目标：把获许可的 GDevelop/GDJS 模板持续拆成可复用能力模块，由人工 Fun Blueprint 提供好玩的
+核心循环与组合约束，再通过确定性 Planner/Compiler 生成可玩项目；固定五类玩法只作为历史回归集。
 
 Terra 开工前必须完整读取 `shared/wp2-product-module-contract.json` 与
-`docs/wp2-product-module-generator-design.md`。先完成 canonical semantic ref、不可变 BuildContract、
-ProductModulePlanner、ModuleDeclarationPlan、SpatialCompositionPlanner、PlacementResolver 接线、
-两阶段 ProductModuleCompiler 和唯一 CompiledModulePlan 在线入口；随后完成 runner/platformer、
-top-down collector、lightweight shooter、interaction puzzle、idle/clicker，并补齐 HUD、start、pause、
-game-over、score、controls。
+`docs/wp2-product-module-generator-design.md`。先建立 TemplateSourceRecord、许可策略、TemplateIR、
+FunBlueprint 和对应 owner；再完成模板摄取与标准化、TemplateIR 驱动的 ProductModuleFoundry、
+FunBlueprintSelector、蓝图约束的 ProductModulePlanner、ModuleDeclarationPlan、SpatialCompositionPlanner、
+PlacementResolver、两阶段 ProductModuleCompiler 和唯一 CompiledModulePlan 在线入口。
 
-五类 archetype 只是验收样本，不得成为生成器 dispatch switch。每类至少两个不同 topology 的 create
-fixture 和一个 minimal-delta continue fixture。Foundry 只允许离线产生候选，promotion 之前不能进入在线
-catalog。完整顺序和停止条件以 WP2 机器合同的 `terraImplementationOrder` 与 `solHandoff` 为准。
+现有五类 archetype 只是回归样本，不得成为覆盖边界或生成器 dispatch switch。WP2 必须证明新的获许可模板
+无需修改 Planner/Compiler 核心即可进入模块候选与晋升流程；每个 approved Fun Blueprint 必须产生至少两个
+显著不同的可玩组合。Foundry 只允许离线消费 TemplateIR，promotion 之前不能进入在线 catalog。完整顺序和
+停止条件以 WP2 机器合同的 `terraImplementationOrder` 与 `solHandoff` 为准。
 
 ### WP3 — Project Workspace and Version Lifecycle
 

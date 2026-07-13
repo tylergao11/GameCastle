@@ -1,6 +1,7 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
+var governance = require('./ai-provider-governance');
 
 function assetPrompt(state) {
   var slot = state.slot || {}; var constraints = slot.constraints || {};
@@ -18,6 +19,8 @@ function candidate(state, result, source, parentRevisionId) {
 }
 function createAssetProviderPorts(runtime, options) {
   options = options || {};
+  if (governance.asset({ provider: options.provider }).provider === 'comfyui-local') return require('./comfyui-local-provider').createAssetProviderPorts(runtime, options);
+  if (governance.asset({ provider: options.provider }).provider === 'comfyui-worker') return require('./comfyui-worker-provider').createAssetProviderPorts(runtime, options);
   function call(role, state, extra) { return runtime.invokeRole({ requestId: state.runId + ':' + state.slot.slotId + ':' + role, projectId: state.projectId || state.runId, role: role, provider: options.provider, estimatedCost: options.estimatedCost, timeoutMs: options.timeoutMs, maxAttempts: options.maxAttempts, input: Object.assign({ prompt: assetPrompt(state), size: options.size, transparent: !!((state.slot.constraints || {}).transparent) }, extra || {}) }); }
   return {
     generate: async function(state) { return candidate(state, await call('image-generate', state), 'imageGeneration'); },

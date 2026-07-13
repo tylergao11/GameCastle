@@ -51,6 +51,10 @@ async function main() {
     var debt = await projectWeave.create(debtRequest, { workspaceRoot: root, runId: 'asset-debt-run' });
     assert.strictEqual(debt.lifecycle, 'debt', 'asset failure must end in recoverable debt, never a false playable result');
     assert.strictEqual(debt.ownerRoute.owner, 'RuntimeAssetResolver', 'asset failure must retain its owning route');
+
+    var persistenceBypass = request('persistence-bypass-project', 'persistence-bypass');
+    persistenceBypass.assetOptions = { persistAcceptedGeneratedAssets: true };
+    await assert.rejects(function() { return projectWeave.create(persistenceBypass, { workspaceRoot: root }); }, /ProjectWeave cannot write cloud verification staging or shared-library records/, 'ProjectWeave must not bypass explicit CloudPromotion with a persistence bridge');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

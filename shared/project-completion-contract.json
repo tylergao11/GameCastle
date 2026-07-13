@@ -17,6 +17,12 @@
     "providerRuntime": "shared/provider-runtime-contract.json",
     "projectStore": "shared/project-store-contract.json",
     "wp2ProductModuleSystem": "shared/wp2-product-module-contract.json",
+    "wp2TruthSources": "shared/wp2-truth-source-registry.json",
+    "wp2Mechanics": "shared/wp2-mechanic-registry.json",
+    "wp2TemplateSources": "shared/wp2-template-source-catalog.json",
+    "wp2TemplateIr": "shared/wp2-template-ir-contract.json",
+    "wp2FunBlueprints": "shared/wp2-fun-blueprint-dictionary.json",
+    "wp2LegacyRegression": "shared/wp2-legacy-regression-suite.json",
     "creatorExperience": "shared/creator-experience-contract.json",
     "productModules": "ai/product-modules/schema.json",
     "gdevelopRuntimeTruth": "ai/gdevelop-truth/runtime-truth.json"
@@ -97,12 +103,12 @@
     {
       "id": "WP2", "name": "Gameplay Module and Template Coverage", "priority": "P0", "owner": "ProductModuleSystem", "status": "designed",
       "dependsOn": ["WP0"],
-      "scope": ["existing semantic-engine projection", "approved deterministic module composition", "macro spatial composition with PlacementResolver coordinate ownership", "two-phase module declaration and emission", "safe create and continue delta", "offline module foundry and immutable promotion", "multi-layout playable acceptance fixtures"],
-      "minimumArchetypes": ["runner-platformer", "top-down-collector", "lightweight-shooter", "interaction-puzzle", "idle-clicker"],
-      "inputs": ["immutable BuildContract gameplay requirement graph", "existing semantic dictionary and capability index", "approved revision-pinned product module manifests", "ProjectWorld continue truth"],
-      "outputs": ["module composition plan", "module declaration plan", "spatial composition plan", "compiled module plan", "module debt", "verified module candidate and promotion receipt", "playable archetype fixtures"],
-      "forbidden": ["second WP2 semantic dictionary", "archetype dispatch switch in generator core", "LLM emitting module implementation or target plan", "online foundry", "final coordinates outside PlacementResolver", "legacy bridgePlan target execution", "one-off project patch outside module compiler", "remove or replace without guarded ownership and rollback"],
-      "completionEvidence": ["WP2 machine contract checker", "canonical semantic reference and owner-change tests", "planner deterministic replay and explicit debt tests", "module conflict and slot fulfillment tests", "ten create fixtures covering two layouts per archetype", "five minimal-delta continue fixtures", "atomic remove and replace ownership cleanup tests", "online legacy target-plan bypass rejection", "browser playable and semantic playtest evidence for every canonical archetype", "offline foundry promotion gate", "independent tester and auditor reports"]
+      "scope": ["licensed GDevelop/GDJS template intake", "deterministic TemplateIR normalization with per-node lineage and loss accounting", "open product mechanic registry", "open human-authored Fun Blueprint library", "TemplateIR-to-reusable-module foundry", "approved deterministic blueprint-constrained module composition", "macro spatial composition with PlacementResolver coordinate ownership", "two-phase module declaration and emission", "safe create and continue delta", "immutable module and blueprint promotion", "isolated legacy regression suite"],
+      "legacyRegressionSuite": "shared/wp2-legacy-regression-suite.json",
+      "inputs": ["licensed content-hashed GDevelop/GDJS template sources", "immutable approved Fun Blueprints", "immutable BuildContract gameplay requirement graph", "existing semantic dictionary and capability index", "approved revision-pinned product module manifests", "ProjectWorld continue truth"],
+      "outputs": ["template source record", "TemplateIR", "Fun Blueprint selection", "module composition plan", "module declaration plan", "spatial composition plan", "compiled module plan", "module debt", "verified reusable module candidate and promotion receipt", "playable blueprint compositions", "historical regression fixtures"],
+      "forbidden": ["fixed archetype count as template coverage", "closed Fun Blueprint family enumeration", "bare mechanic ids outside the canonical registry", "template intake without license provenance and content hash", "silent TemplateIR normalization loss", "GDJS tests binary promotion", "complete project copy or GDJS instructions inside Fun Blueprint", "new template requiring Planner or Compiler archetype dispatch", "second WP2 semantic dictionary", "LLM emitting module implementation or target plan", "online foundry", "final coordinates outside PlacementResolver", "legacy bridgePlan target execution", "one-off project patch outside module compiler", "remove or replace without guarded ownership and rollback"],
+      "completionEvidence": ["WP2 foundation and machine contract checkers", "truth-source DAG cross-reference closure and reproducible drift checks", "two independent licensed template sources pass intake and deterministic TemplateIR replay", "unknown license and unsupported template structures fail closed", "TemplateIR-derived modules retain per-node source trace and prove reuse outside their source template", "blind unseen template reaches browser playtest without protected core changes", "approved open human-authored Fun Blueprint catalog with review receipts", "at least two mechanically or decisionally distinct browser-playable compositions per approved blueprint", "blueprint forbidden-combination, counterexample, boundary-parameter, failure and recovery tests", "isolated legacy regression suite remains green without contributing to coverage", "atomic remove and replace ownership cleanup tests", "online legacy target-plan bypass rejection", "offline foundry promotion gate", "independent tester and auditor reports"]
     },
     {
       "id": "WP3", "name": "Project Workspace and Version Lifecycle", "priority": "P0", "owner": "ProjectStore", "status": "implemented",

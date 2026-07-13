@@ -257,6 +257,9 @@ function createRunCoordinator(options) {
 
     try {
       activeExecution = runner.start({
+        runId: id,
+        projectId: projectId,
+        projectName: request.projectName || projectId,
         intent: intent,
         mode: mode,
         intentFixtureFile: request.intentFixtureFile || null,

@@ -1,0 +1,10 @@
+var assert = require('assert');
+var library = require('./fun-blueprint-library');
+var selector = require('./fun-blueprint-selector');
+var survivor = library.approved('survivor-growth', 1);
+assert.strictEqual(survivor.mechanicSlots.length, 4);
+assert.strictEqual(library.allApproved().length, 3);
+var selected = selector.select({ requirementGraphId: 'check', requirements: survivor.requiredSemanticRefs.map(function(semanticRef) { return { semanticRef: semanticRef, required: true }; }) });
+assert.strictEqual(selected.blueprintRef.blueprintId, 'survivor-growth');
+assert.throws(function() { selector.select({ requirementGraphId: 'none', requirements: [{ semanticRef: 'semantic-dictionary#/gameplayRoles/actor', required: true }] }); }, /FUN_BLUEPRINT_UNRESOLVED/);
+console.log('[FunBlueprintLibrary] immutable approval, semantic/mechanic pinning, and deterministic selection passed');

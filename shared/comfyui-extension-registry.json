@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "registryId": "gamecastle.comfyui-extensions",
+  "owner": "ComfyExtensionRegistry",
+  "principles": ["id-only-caller-contract", "hash-and-license-required", "workflow-scoped", "no-runtime-download", "style-id-mapping-only"],
+  "extensions": {
+    "gamecastle.style-1.sd15-lora.v1": {
+      "kind": "lora",
+      "status": "reserved-not-installed",
+      "styleId": "gamecastle.style-1",
+      "source": "approved-artifact-required",
+      "licenseId": "UNRESOLVED",
+      "version": "v1",
+      "sha256Env": "COMFYUI_STYLE1_LORA_SHA256",
+      "pathEnv": "COMFYUI_STYLE1_LORA_PATH",
+      "baseModelId": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors",
+      "allowedWorkflows": ["gamecastle.sprite-generate.dev-cpu.v1", "gamecastle.sprite-edit.dev-cpu.v1"],
+      "customNodeIds": []
+    },
+    "gamecastle.edge.sd15-controlnet.v1": {
+      "kind": "controlnet",
+      "status": "reserved-not-installed",
+      "source": "approved-artifact-required",
+      "licenseId": "UNRESOLVED",
+      "version": "v1",
+      "sha256Env": "COMFYUI_EDGE_CONTROLNET_SHA256",
+      "pathEnv": "COMFYUI_EDGE_CONTROLNET_PATH",
+      "baseModelId": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors",
+      "allowedWorkflows": ["gamecastle.sprite-generate.dev-cpu.v1", "gamecastle.sprite-edit.dev-cpu.v1"],
+      "customNodeIds": [],
+      "inputKinds": ["edge-map"]
+    }
+  }
+}

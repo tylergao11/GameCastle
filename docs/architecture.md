@@ -74,7 +74,7 @@ hard-code model names:
 
 Image and vision roles are intentionally registered before they are wired into
 game generation. They should enter through asset/runtime ownership, not by
-adding more prompt branches inside `pipeline.js`.
+adding more prompt branches inside the ProjectWeave semantic port.
 
 ### Multi-Agent Contract
 
@@ -527,7 +527,7 @@ other owning layer.
 surface-form errors may be repaired by LLM2, but compiled diagnostics with
 `nextAction=route-to-owner` fail fast and preserve the owner-routed diagnostic
 instead of entering the LLM2 repair loop.
-`ai/pipeline.js` enforces the same boundary after execution: if an Intent artifact
+The ProjectWeave GDJS execution library enforces the same boundary after execution: if an Intent artifact
 has already compiled to bridge/internal target instructions and runtime execution fails, the
 pipeline records the `ExecutionReport`, returns a failure status, and does not
 ask LLM2 to write internal target repair lines.
@@ -779,7 +779,7 @@ hot pass; the hot pass owns the 90% gate. Both passes write transcripts so cache
 behavior, raw model text, proof slots, verifier output, and final decision can
 be audited step by step.
 
-### `ai/pipeline.js`
+### ProjectWeave GDJS execution library
 
 当前编排层，负责项目模式判定、状态读写、target plan 执行、approval gate、repair loop 编排和 `output/` 写入。
 
@@ -835,7 +835,7 @@ capability cards derive LLM-safe ability summaries:
 
 ### `ai/gdevelop-truth/`
 
-`runtime-truth.json` is extracted from `C:\Ai\GDevelop-master` and is the canonical
+`runtime-truth.json` is reproducibly extracted from `GAMECASTLE_GDEVELOP_SOURCE_DIR` (defaulting to the sibling `../GDevelop-master` checkout) and is the canonical
 GDevelop/GDJS runtime truth snapshot for the supported surface. It owns official
 object types, behavior types, include files, runtime registration sources,
 instruction function mappings, and object/behavior data fields.
@@ -850,7 +850,7 @@ GDJS 浏览器运行时。它只负责执行 `project.json`，不应该理解用
 
 ### `platform/`
 
-React/Vite 前端只消费 Local Game Runtime 的 HTTP/SSE 契约。当前产品主链已经接入真实 `ai/pipeline.js`，负责创建与继续迭代输入、权威运行状态、失败展示和不可变 release 的 iframe 试玩。它不读取 `output/`、不启动子进程、不解析日志，也不拥有引擎成功判定。
+React/Vite 前端只消费 Local Game Runtime 的 HTTP/SSE 契约。当前产品主链由 `ai/project-weave-runtime.js` 构建，负责创建与继续迭代输入、权威运行状态、失败展示和不可变 release 的 iframe 试玩。它不读取 `output/`、不启动子进程、不解析日志，也不拥有引擎成功判定。
 
 `server/local-runtime/` 是唯一运行边界：单 active project、忙时拒绝、工作区事务、完整进程树生命周期、HTML manifest allowlist、不可变 release 提交和独立试玩 origin。详细契约见 `docs/local-game-runtime.md`。
 

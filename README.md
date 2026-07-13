@@ -31,7 +31,7 @@ The important property is ownership. AI decides in natural game terms; determini
 | `ai/` | Intent engine, pipeline CLI, graph runners, LLM boundaries, semantic playtest, decision loop, contracts, and checks. |
 | `ai/components/` | AI-safe component cards plus compiler manifests for bindings, placement policy, runtime requirements, and target metadata. |
 | `ai/product-modules/` | Product capability truth source. Modules are selected through natural intent, not by exposing module ids as the product language. |
-| `ai/gdevelop-truth/` | Extracted GDevelop/GDJS runtime truth from `C:\Ai\GDevelop-master`; project emission must validate against this snapshot. |
+| `ai/gdevelop-truth/` | Reproducibly extracted GDevelop/GDJS runtime truth from `GAMECASTLE_GDEVELOP_SOURCE_DIR` (default sibling checkout); project emission validates against this snapshot. |
 | `engine/` | Cached official GDJS browser runtime used by HTML export. |
 | `platform/` | React/Vite product shell for creation, iteration, playtest, and future publishing/multiplayer surfaces. |
 | `server/local-runtime/` | Single-project boundary for real pipeline runs, status events, rollback, and playable artifacts. |
@@ -57,7 +57,7 @@ The important property is ownership. AI decides in natural game terms; determini
 npm run dev
 
 # Asset/provider gate.
-set GAMECASTLE_GDEVELOP_SOURCE_DIR=C:\Ai\GDevelop-master
+set GAMECASTLE_GDEVELOP_SOURCE_DIR=D:\GDevelop-master
 npm run check:ai
 
 # WP0 Project Weave gate: graph ownership, create/continue, checkpoint resume,
@@ -66,12 +66,6 @@ npm run check:project
 
 # Whole-product design contract (WP0-WP8).
 npm run check:project-design
-
-# Generate an offline Intent fixture into output/.
-npm run gen
-
-# Continue the current complete Intent iteration state.
-node ai/pipeline.js --continue "加入一个 Boss，并让金币更密集"
 
 # Run the deterministic AI test suite.
 npm run test:ai
@@ -95,7 +89,7 @@ npm --prefix platform run build
 
 ## Runtime Truth
 
-GameCastle does not hand-maintain GDevelop object types, behavior types, object data fields, or extension includes. `scripts/extract-gdevelop-truth.js` extracts the supported runtime surface from `C:\Ai\GDevelop-master` into `ai/gdevelop-truth/runtime-truth.json`.
+GameCastle does not hand-maintain GDevelop object types, behavior types, object data fields, or extension includes. `scripts/extract-gdevelop-truth.js` extracts the supported runtime surface from `GAMECASTLE_GDEVELOP_SOURCE_DIR` into `ai/gdevelop-truth/runtime-truth.json`. When the environment variable is absent, the default is the sibling `../GDevelop-master` checkout; the machine path is evidence, not source identity.
 
 `ai/gdevelop-truth.js` is the single in-repo entry for those facts. HTML export reads from the same truth snapshot and fails fast on unsupported runtime types.
 
@@ -113,6 +107,7 @@ GameCastle does not hand-maintain GDevelop object types, behavior types, object 
 - [Project Completion Architecture](docs/project-completion-architecture.md)
 - [Project Completion Boundaries](docs/project-completion-boundaries.md)
 - [Terra Project Roadmap](docs/project-completion-terra-roadmap.md)
+- [WP2 Template and Fun Blueprint Foundation](docs/wp2-template-blueprint-foundation.md)
 - [Project Completion Test Matrix](docs/project-completion-test-matrix.md)
 - [Project Store and Version Lifecycle](docs/project-store.md)
 - [Creator Experience](docs/creator-experience.md)

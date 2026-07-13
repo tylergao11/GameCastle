@@ -4,6 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var governance = require('./ai-provider-governance');
 var responsesClient = require('./responses-client');
+var chatCompletionsClient = require('./chat-completions-client');
 var providerContract = require('../shared/provider-runtime-contract.json');
 
 var ROLE_MODALITY = {
@@ -14,7 +15,7 @@ var ROLE_MODALITY = {
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function hash(value) { return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
 function now() { return new Date().toISOString(); }
-function safeId(value) { return String(value || '').replace(/[^A-Za-z0-9_.:-]/g, '_'); }
+function safeId(value) { return String(value || '').replace(/[^A-Za-z0-9_.-]/g, '_'); }
 function finite(value, fallback) { var number = Number(value); return Number.isFinite(number) && number >= 0 ? number : fallback; }
 function redact(value, secrets) {
   if (typeof value === 'string') return secrets.reduce(function(text, secret) { return secret ? text.split(secret).join('[REDACTED]') : text; }, value);
@@ -61,8 +62,9 @@ function createProviderRuntime(options) {
     if ((config.modalities || []).indexOf(modality) < 0) throw makeError('MODALITY_UNSUPPORTED', config.provider + ' does not support ' + modality);
     var estimated = request.estimatedCost === undefined ? Number(providerContract.roles[request.role].defaultEstimatedCost) : finite(request.estimatedCost, -1);
     if (!Number.isFinite(estimated) || estimated < 0) throw makeError('PROVIDER_COST_INVALID', 'Provider request requires a non-negative estimated cost');
-    if (!config.simulated && config.allowExternal !== true) throw makeError('PROVIDER_NOT_AUTHORIZED', 'External provider requires explicit authorization');
-    if (!config.simulated && !config.apiKey) throw makeError('PROVIDER_KEY_UNAVAILABLE', 'Provider key is unavailable from environment');
+    if (!config.simulated && config.localOnly !== true && config.allowExternal !== true) throw makeError('PROVIDER_NOT_AUTHORIZED', 'External provider requires explicit authorization');
+    if (!config.simulated && config.localOnly === true && config.localAllowed !== true) throw makeError('PROVIDER_NOT_AUTHORIZED', 'Local provider requires explicit local authorization');
+    if (!config.simulated && config.requiresApiKey !== false && !config.apiKey) throw makeError('PROVIDER_KEY_UNAVAILABLE', 'Provider key is unavailable from environment');
     if (spent + estimated > Math.min(maxCost, config.maxCost)) throw makeError('PROVIDER_BUDGET_EXHAUSTED', 'Provider budget is exhausted');
     return estimated;
   }
@@ -84,7 +86,7 @@ function createProviderRuntime(options) {
           attempt.status = 'succeeded'; attempt.finishedAt = now(); receipt.attempts.push(attempt);
           receipt.status = 'succeeded'; receipt.finishedAt = now(); receipt.usage = redact(result.usage || {}, [config.apiKey]); receipt.cost.settled = finite(result.cost, reservation);
           spent += receipt.cost.settled - reservation;
-          receipt.provenance = { provider: config.provider, model: receipt.model, simulated: !!config.simulated, modality: receipt.modality };
+          receipt.provenance = Object.assign({ provider: config.provider, model: receipt.model, simulated: !!config.simulated, modality: receipt.modality }, redact(result.provenance || {}, [config.apiKey]));
           return { ok: true, output: redact(result.output, [config.apiKey]), receipt: persist(receipt) };
         } catch (error) {
           attempt.status = controller.signal.aborted ? 'cancelled' : 'failed'; attempt.code = error.code || error.name || 'PROVIDER_INVOKE_FAILED'; attempt.finishedAt = now(); receipt.attempts.push(attempt);
@@ -110,6 +112,9 @@ function debt(error) { return { code: error.code || 'PROVIDER_INVOKE_FAILED', ow
 async function invokeHttpTransport(context) {
   var role = context.request.role;
   if (context.config.simulated) throw makeError('SIMULATED_TRANSPORT_NOT_CONFIGURED', 'Simulated calls must use an injected local transport');
+  if (context.config.provider === 'comfyui-local') return require('./comfyui-local-provider').invokeComfyUI(context);
+  if (context.config.provider === 'comfyui-worker') return require('./comfyui-worker-provider').invokeWorker(context);
+  if ((role === 'creative-text' || role === 'intent-text') && context.config.provider === 'deepseek') return invokeDeepSeekChat(context);
   if (role === 'creative-text' || role === 'intent-text' || role === 'vision-review') return invokeResponses(context);
   if (role === 'image-generate') return invokeImageGeneration(context);
   if (role === 'image-edit') return invokeImageEdit(context);
@@ -125,6 +130,13 @@ async function invokeResponses(context) {
   var body = { model: context.model, input: messages, max_output_tokens: input.maxTokens || 4096, stream: true };
   var result = await responsesClient.requestResponses({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
   return { output: context.request.role === 'vision-review' ? { text: result.text, events: result.events } : { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost };
+}
+async function invokeDeepSeekChat(context) {
+  var input = context.request.input || {};
+  var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
+  var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true }, thinking: { type: 'disabled' } };
+  var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, fetchImpl: context.fetchImpl || undefined });
+  return { output: { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: 'deepseek-chat-completions' } };
 }
 async function invokeImageGeneration(context) {
   var input = context.request.input || {}; var requestFetch = context.fetchImpl || fetch; var response = await requestFetch(String(context.config.endpoint).replace(/\/$/, '') + '/images/generations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + context.config.apiKey }, body: JSON.stringify({ model: context.model, prompt: input.prompt, size: input.size || '1024x1024', background: input.transparent ? 'transparent' : undefined, response_format: 'b64_json' }), signal: context.signal });

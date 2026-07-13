@@ -4,8 +4,6 @@ var path = require('path');
 var contract = require('../shared/cloud-asset-engine-contract.json');
 var registryModule = require('./cloud-asset-registry');
 
-function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_error) { return fallback; } }
-function writeJson(file, value) { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(value, null, 2), 'utf8'); }
 function hash(value) { return crypto.createHash('sha256').update(Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex'); }
 function hashFile(file) { return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); }
 function unique(values) { return Array.from(new Set((values || []).filter(Boolean))).sort(); }
@@ -13,39 +11,18 @@ function cloudError(code, message) { var error = new Error(message); error.code 
 function nowIso(options) { return (options && options.now ? new Date(options.now) : new Date()).toISOString(); }
 function safeId(value, prefix) { return new RegExp('^' + prefix.replace('.', '\\.') + '[a-z0-9][a-z0-9._-]{0,127}$').test(String(value || '')); }
 
-function createFileSystemCloudPorts(rootDir) {
-  var graphPath = path.join(rootDir, 'cloud-asset-graph.json');
-  var queuePath = path.join(rootDir, 'promotion-queue.json');
-  var projectionPath = path.join(rootDir, 'cloud-asset-projection.json');
-  var blobDir = path.join(rootDir, 'blobs');
-  return {
-    blobStore: {
-      put: function(bytes, metadata) { var extension = String((metadata || {}).extension || '.png').replace(/[^.A-Za-z0-9_-]/g, ''); if (!extension || extension[0] !== '.') extension = '.png'; var storageKey = path.join(blobDir, String(metadata.sha256) + extension); fs.mkdirSync(blobDir, { recursive: true }); if (!fs.existsSync(storageKey)) fs.writeFileSync(storageKey, bytes); return { storageKey: storageKey, sha256: metadata.sha256 }; },
-      get: function(ref) { return fs.readFileSync(ref.storageKey); }
-    },
-    relationIndex: { load: function() { return readJson(graphPath, null); }, save: function(value) { writeJson(graphPath, value); } },
-    promotionQueue: { load: function() { return readJson(queuePath, null); }, save: function(value) { writeJson(queuePath, value); } },
-    projectionIndex: {
-      rebuild: function(value) {
-        var revisions = value.revisions.filter(function(revision) { return revision.status === 'approved' && revision.scope === 'cloud-shared'; }).sort(function(left, right) { return (right.qualityRank || 0) - (left.qualityRank || 0) || (right.usageCount || 0) - (left.usageCount || 0) || left.revisionId.localeCompare(right.revisionId); });
-        var projection = { schemaVersion: 2, graphHash: hash(value), dictionaryFingerprint: value.dictionaryFingerprint, approvedRevisionIds: revisions.map(function(revision) { return revision.revisionId; }) };
-        writeJson(projectionPath, projection); return projection;
-      }
-    }
-  };
-}
 function requirePort(port, methods, name) { if (!port || methods.some(function(method) { return typeof port[method] !== 'function'; })) throw cloudError('CLOUD_PORT_INVALID', name + ' does not implement: ' + methods.join(', ')); return port; }
 
 function createCloudAssetEngine(options) {
   options = options || {};
   var registry = options.registry || registryModule.createCloudAssetRegistry();
-  var rootDir = path.resolve(options.rootDir || path.join(process.cwd(), '.gamecastle', 'cloud-asset-engine'));
-  var defaults = createFileSystemCloudPorts(rootDir), configured = options.ports || {};
+  var configured = options.ports || {};
+  if (!Object.keys(configured).length) throw cloudError('CLOUD_PORTS_REQUIRED', 'CloudAssetEngine requires explicit ports; it has no file-system fallback.');
   var ports = {
-    blobStore: requirePort(configured.blobStore || defaults.blobStore, ['put', 'get'], 'CloudBlobStorePort'),
-    relationIndex: requirePort(configured.relationIndex || defaults.relationIndex, ['load', 'save'], 'CloudRelationIndexPort'),
-    promotionQueue: requirePort(configured.promotionQueue || defaults.promotionQueue, ['load', 'save'], 'CloudPromotionQueuePort'),
-    projectionIndex: requirePort(configured.projectionIndex || defaults.projectionIndex, ['rebuild'], 'CloudProjectionPort'),
+    blobStore: requirePort(configured.blobStore, ['put', 'get'], 'CloudBlobStorePort'),
+    relationIndex: requirePort(configured.relationIndex, ['load', 'save'], 'CloudRelationIndexPort'),
+    promotionQueue: requirePort(configured.promotionQueue, ['load', 'save'], 'CloudPromotionQueuePort'),
+    projectionIndex: requirePort(configured.projectionIndex, ['rebuild'], 'CloudProjectionPort'),
     accessPolicy: requirePort(configured.accessPolicy || options.accessPolicy || { authorizeQuery: function() { return true; }, authorizeMaterialize: function(request, revision) { return request.targetScope === 'project-local' && revision.scope === 'cloud-shared'; }, authorizePromotion: function() { return true; } }, ['authorizeQuery', 'authorizeMaterialize', 'authorizePromotion'], 'CloudAccessPolicyPort')
   };
   var maxRetries = Number.isInteger(options.maxRetries) ? options.maxRetries : 2;
@@ -151,7 +128,7 @@ function createCloudAssetEngine(options) {
     writeAudit(value, Object.assign({ type: 'CloudGraphReceipt', at: nowIso(), actor: (command || {}).actor || null, reason: (command || {}).reason || null }, receipt)); saveGraph(value); return receipt;
   }
   function withdrawPromotion(stagingId) { var value = queue(), entry = value.entries.find(function(item) { return item.stagingId === stagingId; }); if (!entry) throw cloudError('CLOUD_STAGING_NOT_FOUND', 'Unknown promotion staging id.'); if (entry.state === 'published') throw cloudError('CLOUD_PROMOTION_WITHDRAW_FORBIDDEN', 'Published revision must be withdrawn through a graph command.'); transition(entry, 'withdrawn', { decision: 'withdrawn' }); saveQueue(value); return entry; }
-  return { contract: contract, registry: registry, ports: ports, enqueuePromotion: enqueuePromotion, sync: sync, query: query, search: search, findByTags: findByTags, findExactForSpec: findExactForSpec, findNearForSpec: findNearForSpec, findTemplateKit: findTemplateKit, materialize: materialize, getPromotionStatus: function() { return queue().entries.slice(); }, withdrawPromotion: withdrawPromotion, validate: validate, apply: apply, health: function() { var value = graph(); return { contractId: contract.contractId, dictionaryFingerprint: value.dictionaryFingerprint, revisions: value.revisions.length, queueDepth: queue().entries.filter(function(entry) { return entry.state === 'requested'; }).length }; }, rootDir: rootDir };
+  return { contract: contract, registry: registry, ports: ports, enqueuePromotion: enqueuePromotion, sync: sync, query: query, search: search, findByTags: findByTags, findExactForSpec: findExactForSpec, findNearForSpec: findNearForSpec, findTemplateKit: findTemplateKit, materialize: materialize, getPromotionStatus: function() { return queue().entries.slice(); }, withdrawPromotion: withdrawPromotion, validate: validate, apply: apply, health: function() { var value = graph(); return { contractId: contract.contractId, dictionaryFingerprint: value.dictionaryFingerprint, revisions: value.revisions.length, queueDepth: queue().entries.filter(function(entry) { return entry.state === 'requested'; }).length }; } };
 }
 
-module.exports = { createCloudAssetEngine: createCloudAssetEngine, createFileSystemCloudPorts: createFileSystemCloudPorts };
+module.exports = { createCloudAssetEngine: createCloudAssetEngine };

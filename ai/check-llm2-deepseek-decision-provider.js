@@ -32,17 +32,14 @@ async function main() {
   process.env.LLM_ENDPOINT = 'http://fake.local/v1';
   function cachedResponse(decisionPayload) {
     return fakeSse([
-      { type: 'response.output_text.delta', delta: JSON.stringify(decisionPayload) },
+      { choices: [{ delta: { content: JSON.stringify(decisionPayload) } }] },
       {
-        type: 'response.completed',
-        response: {
-          usage: {
+        usage: {
             input_tokens: 1000,
             input_tokens_details: { cached_tokens: 950 },
             prompt_cache_hit_tokens: 950,
             prompt_cache_miss_tokens: 50,
-          },
-        },
+        }, choices: [],
       },
     ]);
   }
@@ -83,17 +80,14 @@ async function main() {
     fetchImpl: async function(url, init) {
       calls.push({ url: url, body: JSON.parse(init.body) });
       return fakeSse([
-        { type: 'response.output_text.delta', delta: decisionJson },
+        { choices: [{ delta: { content: decisionJson } }] },
         {
-          type: 'response.completed',
-          response: {
-            usage: {
+          usage: {
               input_tokens: 1000,
               input_tokens_details: { cached_tokens: 930 },
               prompt_cache_hit_tokens: 930,
               prompt_cache_miss_tokens: 70,
-            },
-          },
+          }, choices: [],
         },
       ]);
     },
@@ -104,15 +98,15 @@ async function main() {
   assert.strictEqual(decision.decision.verifier.passed, true, 'decision verifier should pass');
   assert.strictEqual(decision.cacheGate.passed, true, 'cache gate should pass');
   assert.strictEqual(decision.cacheGate.hitRate, 0.93, 'cache hit rate should be captured');
-  assert(calls[0].body.input[0].content.indexOf('GameCastle LLM2 real decision') >= 0, 'stable prefix should be first');
-  assert(calls[0].body.input[1].content.indexOf('金币多一点') >= 0, 'dynamic request should be in second message');
-  assert(calls[0].body.input[1].content.indexOf('reward_pacing') >= 0, 'Chinese gameplay request should carry generic experience dimension');
-  assert(calls[0].body.input[1].content.indexOf('increase_presence') >= 0, 'Chinese gameplay request should carry generic repair verb');
-  assert(calls[0].body.input[1].content.indexOf('apply_semantic_repair') >= 0, 'provider prompt should carry unified semantic repair action');
-  assert(calls[0].body.input[1].content.indexOf('action=no_op') < 0, 'provider prompt must not expose no_op as a semantic repair candidate');
-  assert(calls[0].body.input[1].content.indexOf('slot:local_proof') >= 0, 'provider prompt should use proof slots');
-  assert(calls[0].body.input[1].content.indexOf('candidate_matched') >= 0, 'provider prompt should expose candidate proof vocabulary');
-  assert(calls[0].body.input[1].content.indexOf('slot:allowed_requested_context_ids') >= 0, 'provider prompt should constrain request_context ids by slot');
+  assert(calls[0].body.messages[0].content.indexOf('GameCastle LLM2 real decision') >= 0, 'stable prefix should be first');
+  assert(calls[0].body.messages[1].content.indexOf('金币多一点') >= 0, 'dynamic request should be in second message');
+  assert(calls[0].body.messages[1].content.indexOf('reward_pacing') >= 0, 'gameplay request should carry generic experience dimension');
+  assert(calls[0].body.messages[1].content.indexOf('increase_presence') >= 0, 'gameplay request should carry generic repair verb');
+  assert(calls[0].body.messages[1].content.indexOf('apply_semantic_repair') >= 0, 'provider prompt should carry unified semantic repair action');
+  assert(calls[0].body.messages[1].content.indexOf('action=no_op') < 0, 'provider prompt must not expose no_op as a semantic repair candidate');
+  assert(calls[0].body.messages[1].content.indexOf('slot:local_proof') >= 0, 'provider prompt should use proof slots');
+  assert(calls[0].body.messages[1].content.indexOf('candidate_matched') >= 0, 'provider prompt should expose candidate proof vocabulary');
+  assert(calls[0].body.messages[1].content.indexOf('slot:allowed_requested_context_ids') >= 0, 'provider prompt should constrain request_context ids by slot');
   assert.strictEqual(decision.decision.proof.applied, true, 'candidate proof should apply local safe Intent');
 
   var promptSummaryCalls = [];
@@ -149,7 +143,7 @@ async function main() {
       return cachedResponse({ decisionType: 'no_op', intentDslLines: [], requestedContext: [], reason: 'safe empty', confidence: 0.4 });
     },
   });
-  var summaryPrompt = promptSummaryCalls[0].body.input[1].content;
+  var summaryPrompt = promptSummaryCalls[0].body.messages[1].content;
   assert(summaryPrompt.indexOf('semanticRepairCandidateCount') >= 0, 'provider prompt should retain context-route semantic repair candidate count without exposing candidates');
   assert(summaryPrompt.indexOf('semanticRepairRecommendationCount') >= 0, 'provider prompt should retain world-view semantic repair recommendation count without exposing recommendations');
 
@@ -174,8 +168,8 @@ async function main() {
     userRequest: '金币多一点',
     fetchImpl: async function() {
       return fakeSse([
-        { type: 'response.output_text.delta', delta: JSON.stringify({ decisionType: 'apply_intent', intentDslLines: ['place Coin x=1 y=2'], requestedContext: [] }) },
-        { type: 'response.completed', response: { usage: { input_tokens: 1000, input_tokens_details: { cached_tokens: 950 }, prompt_cache_hit_tokens: 950, prompt_cache_miss_tokens: 50 } } },
+        { choices: [{ delta: { content: JSON.stringify({ decisionType: 'apply_intent', intentDslLines: ['place Coin x=1 y=2'], requestedContext: [] }) } }] },
+        { usage: { input_tokens: 1000, input_tokens_details: { cached_tokens: 950 }, prompt_cache_hit_tokens: 950, prompt_cache_miss_tokens: 50 }, choices: [] },
       ]);
     },
   });
@@ -193,8 +187,8 @@ async function main() {
     userRequest: '再看一下',
     fetchImpl: async function() {
       return fakeSse([
-        { type: 'response.output_text.delta', delta: JSON.stringify({ decisionType: 'request_context', intentDslLines: [], requestedContext: ['user_intent'], reason: 'need user intent', confidence: 0.2 }) },
-        { type: 'response.completed', response: { usage: { input_tokens: 1000, input_tokens_details: { cached_tokens: 950 }, prompt_cache_hit_tokens: 950, prompt_cache_miss_tokens: 50 } } },
+        { choices: [{ delta: { content: JSON.stringify({ decisionType: 'request_context', intentDslLines: [], requestedContext: ['user_intent'], reason: 'need user intent', confidence: 0.2 }) } }] },
+        { usage: { input_tokens: 1000, input_tokens_details: { cached_tokens: 950 }, prompt_cache_hit_tokens: 950, prompt_cache_miss_tokens: 50 }, choices: [] },
       ]);
     },
   });

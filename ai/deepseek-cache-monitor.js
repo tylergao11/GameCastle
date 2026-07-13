@@ -1,7 +1,7 @@
 var fs = require('fs');
 var path = require('path');
-var responsesClient = require('./responses-client');
 var providerRuntimeModule = require('./provider-runtime');
+var governance = require('./ai-provider-governance');
 
 var LLM2_CONTEXT_CACHE_ROUTER_SCHEMA_VERSION = require('./llm2-context-cache-router').LLM2_CONTEXT_CACHE_ROUTER_SCHEMA_VERSION;
 
@@ -130,10 +130,7 @@ function buildInput(stablePrefix, turn) {
 }
 
 async function callResponses(options, turn) {
-  if (options.responseFixtures && options.responseFixtures.length) {
-    var fixture = options.responseFixtures.shift();
-    return responsesClient.readResponseStream(fixture);
-  }
+  if (typeof options.invoke === 'function') return options.invoke(turn);
   var runtime = options.providerRuntime || providerRuntimeModule.createProviderRuntime({ fetchImpl: options.fetchImpl });
   var result = await runtime.invokeRole({
     requestId: (options.requestId || 'deepseek-cache') + ':' + turn.id,
@@ -189,17 +186,17 @@ function writeHumanSummary(report, filePath) {
 }
 
 async function runDeepSeekCacheDebug(options) {
+  var deepSeek = governance.semantic({ provider: 'deepseek' });
   options = Object.assign({
-    endpoint: process.env.LLM_ENDPOINT || 'http://127.0.0.1:18081/v1',
-    apiKey: process.env.DEEPSEEK_API_KEY || '',
-    model: process.env.LLM_MODEL || process.env.GAMECASTLE_INTENT_MODEL || 'deepseek-v4-flash',
+    endpoint: deepSeek.endpoint,
+    apiKey: deepSeek.apiKey,
+    model: deepSeek.textModel,
     threshold: DEFAULT_THRESHOLD,
     stablePrefix: defaultStablePrefix(),
     dynamicTurns: defaultDynamicTurns(),
     writeArtifacts: true,
     outputPrefix: 'deepseek-cache-monitor',
   }, options || {});
-  options.responseFixtures = options.responseFixtures ? options.responseFixtures.slice() : null;
   ensureOutputDir();
 
   var steps = [];

@@ -14,10 +14,12 @@ var assetWorldStore = require('./asset-world');
 var gdevelopTruth = require('./gdevelop-truth');
 var htmlExporter = require('./html-exporter');
 var intentCompiler = require('./intent-compiler');
+var naturalIntentSemanticPort = require('./natural-intent-semantic-port');
 var pipeline = require('./pipeline');
 var projectWorldStore = require('./project-world');
 var projectStoreModule = require('./project-store');
 var productModulePlanner = require('./product-module-planner');
+var funBlueprintSelector = require('./fun-blueprint-selector');
 var productModuleCompiler = require('./module-compiler');
 var placementResolver = require('./placement-resolver');
 var spatialCompositionPlanner = require('./spatial-composition-planner');
@@ -27,9 +29,10 @@ var semanticPlaytest = require('./semantic-playtest-agent');
 var simulatedAssetPorts = require('./simulated-local-asset-ports');
 var tickRuntimeCodegen = require('./network-runtime/codegen');
 var langGraphRuntime = require('./langgraph-runtime');
+var GDJS_RUNTIME_DIR = process.env.GAMECASTLE_GDJS_RUNTIME_DIR || path.join(__dirname, '..', 'engine', 'gdevelop-runtime');
 
 var PROJECT_WEAVE_NODE_SEQUENCE = [
-  'llm2-intent', 'intent-compiler', 'product-module-planner', 'module-declaration', 'spatial-composition', 'resolver', 'asset-weave', 'bridge',
+  'llm2-intent', 'intent-compiler', 'fun-blueprint-selector', 'product-module-planner', 'module-declaration', 'spatial-composition', 'resolver', 'asset-weave', 'bridge',
   'runtime-linker', 'runtime', 'project-world', 'tick-runtime',
   'server-runtime', 'html-export', 'runtime-validator', 'tick-playtest',
   'semantic-feedback'
@@ -50,18 +53,14 @@ function checkpointPath(state) { return path.join(state.runDir, 'checkpoint.json
 function saveCheckpoint(state) { state.run.checkpointAt = now(); writeJson(checkpointPath(state), state); }
 
 function makeGameplayRequirementGraph(request, compiled) {
-  var isPlatformer = /platform|parkour|runner/i.test(String(request.naturalIntent || ''));
-  var refs = isPlatformer ? [
-    'semantic-dictionary#/semantic_concepts/movement',
-    'semantic-dictionary#/playGoals/collect',
-    'semantic-dictionary#/playGoals/avoid-threats',
-    'semantic-dictionary#/eventMeanings/ActorFailed'
-  ] : ['semantic-dictionary#/gameplayRoles/actor'];
+  var refs = (request.requiredSemanticRefs || ['semantic-dictionary#/gameplayRoles/actor']).slice();
   return {
     schemaVersion: 1,
     requirementGraphId: request.requestId + ':requirements',
     mode: request.mode === 'continue' ? 'continue' : 'create',
-    experience: { actorRoles: ['semantic-dictionary#/gameplayRoles/actor'], playGoals: refs.slice(1, 3), pressureRoles: [], rewardRoles: [], failureMeaning: refs[3] || null, recoveryMeaning: 'semantic-dictionary#/eventMeanings/ActorSpawned', progressionMeaning: null, controlMeaning: 'semantic-dictionary#/gameplayRoles/action_entry', cameraMeaning: null },
+    funBlueprintRef: request.funBlueprintRef || null,
+    modulePreference: request.modulePreference || null,
+    experience: { actorRoles: ['semantic-dictionary#/gameplayRoles/actor'], playGoals: refs.filter(function(ref) { return ref.indexOf('/playGoals/') >= 0; }), pressureRoles: [], rewardRoles: [], failureMeaning: refs.filter(function(ref) { return ref.indexOf('/eventMeanings/ActorFailed') >= 0; })[0] || null, recoveryMeaning: 'semantic-dictionary#/eventMeanings/ActorSpawned', progressionMeaning: null, controlMeaning: 'semantic-dictionary#/gameplayRoles/action_entry', cameraMeaning: null },
     requirements: refs.map(function(ref) { return { semanticRef: ref, kind: 'mechanic', required: true, providerCardinality: 'at-least-one', evidenceIds: ['intent:' + request.requestId] }; }),
     surfaces: ['hud', 'start', 'pause', 'game-over', 'score', 'controls'].map(function(slotRole) { return { semanticRef: 'semantic-dictionary#/gameplayRoles/feedback', required: slotRole !== 'pause', slotRole: slotRole }; }),
     constraints: { source: 'IntentAgent', compiledIntentPresent: !!compiled },
@@ -85,7 +84,14 @@ function makeBuildContract(request, compiled, previousWorld) {
 }
 
 function defaultSemanticPort(request, previousWorld) {
-  if (!request.intentDslText) throw new Error('ProjectWeave default SemanticPort requires intentDslText; WP1 supplies model-backed natural-intent compilation.');
+  if (!request.intentDslText) {
+    return naturalIntentSemanticPort.compile(request, previousWorld).then(function(natural) {
+      return {
+        buildContract: makeBuildContract(request, { graph: natural.intentGraph }, previousWorld),
+        intent: natural
+      };
+    });
+  }
   var compiled = intentCompiler.compileIntentDsl(request.intentDslText, { baseWorld: previousWorld || null });
   return {
     buildContract: makeBuildContract(request, compiled, previousWorld),
@@ -170,6 +176,7 @@ function writeRuntime(state) {
   gdevelopTruth.validateProject(project);
   fs.mkdirSync(state.runtimeDir, { recursive: true });
   writeJson(path.join(state.runtimeDir, 'project.json'), project);
+  writeJson(path.join(state.runtimeDir, 'semantic-session.json'), state.artifacts.intent.semanticSession || null);
   fs.writeFileSync(path.join(state.runtimeDir, 'data.js'), 'gdjs.projectData = ' + JSON.stringify(project) + ';\ngdjs.runtimeGameOptions = {};\n', 'utf8');
   var files = runtimeCodegen.generateProjectCodeFiles(project);
   files.forEach(function(file) { fs.writeFileSync(path.join(state.runtimeDir, file.fileName), file.code, 'utf8'); });
@@ -181,6 +188,7 @@ function writeRuntime(state) {
   if (!fs.existsSync(path.join(state.runtimeDir, 'tick-runtime.js'))) fs.writeFileSync(path.join(state.runtimeDir, 'tick-runtime.js'), '(function(){})();\n', 'utf8');
   var assetFiles = bindings.filter(function(binding) { return binding && binding.asset && binding.asset.path; }).map(function(binding) { return binding.asset.path; });
   var manifest = htmlExporter.buildHtmlExportManifest(project, { codeFiles: files, modules: state.artifacts.compiledModulePlan.installedModules, hasAssetRuntime: assetFiles.length > 0, assetFiles: assetFiles });
+  htmlExporter.syncHtmlRuntime(GDJS_RUNTIME_DIR, state.runtimeDir, manifest);
   writeJson(path.join(state.runtimeDir, 'html-export-manifest.json'), manifest);
   htmlExporter.writeHtmlExport(state.runtimeDir, manifest, { hasTickRuntime: false });
   return { files: files.map(function(file) { return file.fileName; }), manifest: manifest, bindings: bindings };
@@ -201,7 +209,7 @@ function makeHandlers(options) {
   var services = options.services || {};
   return {
     'llm2-intent': node('IntentAgent', 'llm2-intent', async function(state) {
-      var result = services.semanticPort ? await services.semanticPort.compile(state.request, state.previous.projectWorld || null) : defaultSemanticPort(state.request, state.previous.projectWorld || null);
+      var result = services.semanticPort ? await services.semanticPort.compile(state.request, state.previous.projectWorld || null) : await defaultSemanticPort(state.request, state.previous.projectWorld || null);
       if (!result || !result.buildContract || !result.intent) throw new Error('SemanticPort must return BuildContract and intent artifact');
       state.artifacts.buildContract = deepFreeze(result.buildContract);
       state.artifacts.buildContractReceipt = { owner: 'IntentAgent', immutable: true, contentHash: hash(result.buildContract) };
@@ -210,11 +218,20 @@ function makeHandlers(options) {
     'intent-compiler': node('IntentCompiler', 'intent-compiler', function(state) {
       if (!state.artifacts.intent.bridgePlan || !state.artifacts.intent.intentContracts || state.artifacts.intent.intentContracts.intentCompile !== 'passed') throw new Error('Intent artifact is not a passed compiler result');
     }, options),
-    'product-module-planner': node('ProductModulePlanner', 'product-module-planner', function(state) {
+    'fun-blueprint-selector': node('FunBlueprintSelector', 'fun-blueprint-selector', function(state) {
+      var graph = state.artifacts.buildContract.moduleContract.gameplayRequirementGraph;
+      if (!graph.funBlueprintRef) { state.artifacts.funBlueprintSelection = null; return; }
+      state.artifacts.funBlueprintSelection = funBlueprintSelector.select(graph, { blueprintRef: graph.funBlueprintRef });
+    }, options),
+    'product-module-planner': node('ProductModulePlanner', 'product-module-planner', async function(state) {
       var plannerPort = services.productModulePlanner || productModulePlanner;
-      var result = plannerPort.plan(state.artifacts.buildContract.moduleContract.gameplayRequirementGraph, { previousWorld: state.previous.projectWorld });
+      var result = plannerPort.plan(state.artifacts.buildContract.moduleContract.gameplayRequirementGraph, { previousWorld: state.previous.projectWorld, funBlueprintSelection: state.artifacts.funBlueprintSelection, modulePreference: state.artifacts.buildContract.moduleContract.gameplayRequirementGraph.modulePreference });
       if (result.debt) { state.artifacts.moduleDebt = result.debt; throw new Error(result.debt.message); }
       state.artifacts.moduleCompositionPlan = result.plan;
+      if (services.compositionPersistenceBridge) {
+        if (typeof services.compositionPersistenceBridge.persistPlannedComposition !== 'function') throw new Error('CompositionPersistenceBridge must implement persistPlannedComposition');
+        state.artifacts.moduleCompositionPersistence = await services.compositionPersistenceBridge.persistPlannedComposition(result.plan);
+      }
     }, options),
     'module-declaration': node('ProductModuleCompiler', 'module-declaration', function(state) {
       state.artifacts.moduleDeclarationPlan = productModuleCompiler.declareModuleSubjects(state.artifacts.moduleCompositionPlan);
@@ -230,6 +247,7 @@ function makeHandlers(options) {
     }, options),
     'asset-weave': node('RuntimeAssetResolver', 'asset-weave', async function(state) {
       var assetOptions = state.request.assetOptions || {};
+      if (assetOptions.persistAcceptedGeneratedAssets === true || services.assetPersistenceBridge) throw new Error('ProjectWeave cannot write cloud verification staging or shared-library records; request explicit CloudPromotion after a bound local asset exists.');
       var ports = assetOptions.ports || services.assetPorts || simulatedAssetPorts.createSimulatedLocalAssetPorts({ outputDir: state.runtimeDir });
       state.artifacts.assetEngine = await assetEngine.runAssetEngine({ runId: state.run.runId, projectId: state.request.projectId, buildContract: state.artifacts.buildContract, localInputs: assetOptions.localInputs || {}, localAssets: assetOptions.localAssets || {}, sources: assetOptions.sources || {}, visualIntents: assetOptions.visualIntents || {}, ports: ports, providerRuntime: services.providerRuntime || null, providerOptions: assetOptions.providerOptions || {}, projectAssetDir: path.join(state.runtimeDir, 'asset-staging'), ledgerPath: path.join(state.runDir, 'asset-ledger.json'), maxAttempts: assetOptions.maxAttempts, maxCost: assetOptions.maxCost, modelPolicy: assetOptions.modelPolicy || { simulated: true } });
       assetWorldStore.saveAssetWorld(state.runDir, state.artifacts.assetEngine.assetWorld);
@@ -361,7 +379,12 @@ async function start(request, options, forceMode) {
   options = options || {}; var normalized = normalizeRequest(Object.assign({}, request, forceMode ? { mode: forceMode } : {})); var store = getProjectStore(options); store.createProject({ projectId: normalized.projectId, name: normalized.projectName || normalized.projectId });
   var previous = options.previous || null;
   if (normalized.mode === 'continue' && !previous) previous = store.getContinueContext(normalized.projectId);
-  var state = makeInitialState(normalized, Object.assign({}, options, { previous: previous || {} })); saveCheckpoint(state); state = await invoke(state, options); return commitPlayableVersion(state, store);
+  if (previous && previous.semanticSession && !normalized.previousSemanticSession) normalized.previousSemanticSession = clone(previous.semanticSession);
+  if (previous && previous.executionLedger && !normalized.previousExecutionReport) {
+    var runs = previous.executionLedger.runs || [];
+    normalized.previousExecutionReport = runs.length ? clone(runs[runs.length - 1]) : null;
+  }
+  var state = makeInitialState(normalized, Object.assign({}, options, { previous: previous || {} })); saveCheckpoint(state); state = await invoke(state, options); return options.commitPlayableVersion === false ? state : commitPlayableVersion(state, store);
 }
 async function create(request, options) { return start(request, options, 'create'); }
 async function continueProject(request, options) { return start(request, options, 'continue'); }

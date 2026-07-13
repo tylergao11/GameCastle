@@ -5,11 +5,14 @@ dist/
 .env
 .DS_Store
 .gamecastle/
+.gamecastle-browser/
+.tools/
+artifacts/
 
 # Local official GDJS runtime cache. Rebuild with `npm run runtime:prepare`.
 engine/gdevelop-runtime/
 
-# Generated HTML runtime output. Rebuild with `node ai/pipeline.js ...`.
+# Generated HTML runtime output. Rebuild through ProjectWeave.
 output/*.js
 output/*.map
 output/index.html

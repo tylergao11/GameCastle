@@ -10,8 +10,12 @@ assert(declaration.subjects.length > 0); assert(declaration.subjects.every(funct
 assert.equal(JSON.stringify(declaration).indexOf('targetPlan'), -1);
 var context = placementContext.contextFromModuleDeclaration(declaration);
 assert.equal(context.objectBounds.Player.width, 32); assert.equal(context.objectBounds.Coin.height, 16);
-var missing = planner.plan({ requirementGraphId: 'missing', mode: 'create', requirements: [{ semanticRef: 'semantic-dictionary#/playGoals/survive', required: true }] });
+var missing = planner.plan({ requirementGraphId: 'missing', mode: 'create', requirements: [{ semanticRef: 'semantic-dictionary#/semantic_concepts/route', required: true }] });
 assert.equal(missing.debt.code, 'MODULE_CAPABILITY_MISSING');
+var slotMissing = planner.plan(graph, { funBlueprintSelection: { requiredSemanticRefs: [], mechanicSlots: [{ slotId: 'wrong-movement', requiredMechanicRevisionRefs: [{ mechanicId: 'motion.top-down', revision: 1, contentHash: 'ba44f0b59fcd242a205066d116747fdcec7b62924899f8e540a1c714f80814c2' }] }] } });
+assert.equal(slotMissing.debt.code, 'MODULE_MECHANIC_SLOT_MISSING');
+var actorPlan = planner.plan({ requirementGraphId: 'actor-role-coverage', mode: 'create', requirements: [{ semanticRef: 'semantic-dictionary#/gameplayRoles/actor', required: true }] });
+assert.equal(actorPlan.debt, null, 'a module semantic role must satisfy the default actor requirement');
 assert.equal(planner.guardedRemove({ id: 'core.platformer', revision: 'local-v1' }, { modules: [{ id: 'core.platformer' }] }).debt.code, 'MODULE_REMOVE_UNSAFE');
 assert.equal(planner.guardedRemove({ id: 'core.platformer', revision: 'local-v1' }, { modules: [{ id: 'core.platformer', ownershipHash: 'owned', ownedArtifactIds: ['obj.player'] }] }).plan.op, 'remove');
 assert.throws(function() { compiler.compileCompositionPlan({ planId: 'unsafe', operations: [{ op: 'remove', fromModule: { moduleId: 'core.platformer' } }] }); }, /ownership proof/);

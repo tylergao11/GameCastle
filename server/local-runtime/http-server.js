@@ -126,6 +126,10 @@ function createLocalGameRuntimeServer(options) {
       return;
     }
     if (req.method === 'GET' && pathname === '/api/runtime/assets/cloud/search') {
+      if (!cloudAssetEngine) {
+        sendJson(res, 503, { error: { code: 'ASSET_CLOUD_UNAVAILABLE', message: 'The shared asset library is not configured for this local runtime.' } });
+        return;
+      }
       var tags = String(requestUrl.searchParams.get('tags') || '').split(',').map(function(value) { return value.trim(); }).filter(function(value) { return /^[A-Za-z0-9._-]{1,128}$/.test(value); });
       var matches = cloudAssetEngine.search(tags).map(function(asset) { return { assetId: asset.assetId, sha256: asset.sha256, format: asset.format, width: asset.width || null, height: asset.height || null, styleId: asset.styleId || null, semanticTags: asset.semanticTags || [], repositoryStatus: asset.status }; });
       sendJson(res, 200, { matches: matches });
@@ -158,6 +162,10 @@ function createLocalGameRuntimeServer(options) {
       return;
     }
     if (req.method === 'POST' && pathname === '/api/runtime/assets/cloud/resolve') {
+      if (!cloudAssetEngine) {
+        sendJson(res, 503, { error: { code: 'ASSET_CLOUD_UNAVAILABLE', message: 'The shared asset library is not configured for this local runtime.' } });
+        return;
+      }
       readJson(req).then(function(body) {
         return localAssetStore.resolveCloud(body, cloudAssetEngine).then(function(binding) { sendJson(res, 201, { binding: binding }); });
       }).catch(function(error) {

@@ -75,7 +75,7 @@ The AI continuation interface is complete Intent iteration state, not a standalo
 Run the full gate with the local GDevelop checkout:
 
 ```bash
-set GAMECASTLE_GDEVELOP_SOURCE_DIR=C:\Ai\GDevelop-master
+set GAMECASTLE_GDEVELOP_SOURCE_DIR=D:\GDevelop-master
 npm run check:ai
 ```
 
@@ -102,10 +102,11 @@ node ai/check-llm2-semantic-eval-loop.js
 node ai/check-full-creative-loop.js
 ```
 
-## Fixture Entry
+## Fixture Coverage
 
 ```bash
-node ai/pipeline.js --intent-fixture-file ai/fixtures/intent-mobile-platformer.dsl
+node ai/check-project-weave-runtime.js
 ```
 
-`--intent-fixture-file` accepts only offline fixtures under `ai/fixtures/intent-*.dsl` or generated repair artifacts under `output/*.intent.dsl`. It is not a general external command-file path.
+Offline Intent fixtures are only injected by isolated ProjectWeave checks. They
+are not a product or CLI entry.

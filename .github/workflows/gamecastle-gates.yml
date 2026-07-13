@@ -1,0 +1,70 @@
+name: GameCastle quality gates
+
+on:
+  pull_request:
+    paths-ignore:
+      - "platform/**"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts-and-provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:delivery
+      - run: npm run check:wp2
+      - run: npm run check:cloud-library
+      - run: npm run check:comfyui-local
+      - run: node ai/check-project-weave-runtime.js
+      - run: npm run check:module-artifact
+      - run: npm run artifact:modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gamecastle-module-catalog
+          path: dist/module-artifact/
+          if-no-files-found: error
+
+  publish-module-catalog:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: contracts-and-provenance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run artifact:modules
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: metadata
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/gamecastle-modules
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Dockerfile.module-artifact
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}

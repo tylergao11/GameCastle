@@ -33,11 +33,17 @@ Object.keys(contract.sourceTruth).forEach(function(key) {
 
 [
   'ProductModuleSystem',
+  'ProductMechanicRegistry',
+  'ModuleLineageProjection',
   'SemanticEngine',
   'ProductModulePlanner',
   'SpatialCompositionPlanner',
   'PlacementResolver',
   'ProductModuleCompiler',
+  'TemplateIntake',
+  'TemplateNormalizer',
+  'FunBlueprintLibrary',
+  'FunBlueprintSelector',
   'ProductModuleFoundry',
   'RuntimeValidator',
   'SemanticPlaytestAgent',
@@ -48,11 +54,19 @@ Object.keys(contract.sourceTruth).forEach(function(key) {
   assert(contract.owners[owner].forbidden.length > 0, owner + ' must declare forbidden actions');
 });
 
-assert.deepEqual(contract.onlineFlow.map(function(item) { return item.order; }), [1, 2, 3, 4, 5, 6, 7, 8]);
-assert.equal(contract.offlineFoundryFlow.length, 8);
+assert.deepEqual(contract.onlineFlow.map(function(item) { return item.order; }), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+assert.equal(contract.offlineFoundryFlow.length, 10);
 assert(contract.owners.ProductModuleFoundry.forbidden.indexOf('run in online create or continue') >= 0);
+assert.equal(contract.onlineFlow[1].owner, 'FunBlueprintSelector');
+assert.equal(contract.offlineFoundryFlow[0].owner, 'TemplateIntake');
+assert.equal(contract.offlineFoundryFlow[2].owner, 'TemplateNormalizer');
 
 var artifactNames = [
+  'ModuleLineageProjection',
+  'TemplateSourceRecord',
+  'TemplateIR',
+  'FunBlueprint',
+  'FunBlueprintSelection',
   'GameplayRequirementGraph',
   'ModuleCompositionPlan',
   'ModuleDeclarationPlan',
@@ -91,6 +105,17 @@ assert.deepEqual(contract.artifactContracts.ModuleCompositionPlan.operationKinds
 assert(contract.artifactContracts.ModuleCompositionPlan.invariants.some(function(item) { return item.indexOf('same catalog fingerprint') >= 0; }), 'planner determinism invariant missing');
 assert(contract.artifactContracts.CompiledModulePlan.invariants.some(function(item) { return item.indexOf('no model output') >= 0; }), 'compiler model boundary missing');
 assert.deepEqual(contract.artifactContracts.ModuleCandidate.statuses, ['draft', 'verified', 'rejected']);
+assert.equal(contract.artifactContracts.ModuleLineageProjection.owner, 'ModuleLineageProjection');
+assert.equal(contract.artifactContracts.ModuleLineageProjection.appendOnly, true);
+['TemplateIR.sourceToIr', 'ModuleCandidate.irToCandidateLineage', 'ModulePromotionReceipt.candidateToModuleLineage'].forEach(function(source) {
+  assert(contract.artifactContracts.ModuleLineageProjection.generatedFrom.indexOf(source) >= 0, 'lineage projection missing source: ' + source);
+});
+['targetPlan', 'targetPlanText', 'gdjsInstruction', 'projectJson', 'x', 'y', 'assetPath'].forEach(function(field) {
+  assert(contract.artifactContracts.FunBlueprint.forbiddenFields.indexOf(field) >= 0, 'FunBlueprint must forbid ' + field);
+});
+['blueprintId', 'revision', 'blueprintHash'].forEach(function(field) {
+  assert(contract.artifactContracts.ModuleCompositionPlan.blueprintRefRequired.indexOf(field) >= 0, 'ModuleCompositionPlan blueprintRef missing ' + field);
+});
 ['targetPlan', 'targetPlanText', 'x', 'y'].forEach(function(field) {
   assert(contract.artifactContracts.ModuleDeclarationPlan.forbiddenFields.indexOf(field) >= 0, 'ModuleDeclarationPlan must forbid ' + field);
 });
@@ -110,23 +135,30 @@ extensionNames.forEach(function(name) {
   requireKeys(contract.productModuleManifestExtensions[name], ['required', 'rule'], 'productModuleManifestExtensions.' + name);
 });
 
-var archetypes = contract.acceptanceMatrix.archetypes;
-assert.deepEqual(archetypes.map(function(item) { return item.id; }), [
-  'runner-platformer',
-  'top-down-collector',
-  'lightweight-shooter',
-  'interaction-puzzle',
-  'idle-clicker'
-]);
-assert.equal(archetypes.reduce(function(total, item) { return total + item.createFixtures; }, 0), 10);
-assert.equal(archetypes.reduce(function(total, item) { return total + item.continueFixtures; }, 0), 5);
-archetypes.forEach(function(item) {
-  assert(item.minimumTopologies.length >= 2, item.id + ' must prove layout diversity');
-  assert(item.requiredSemanticRefs.length >= 6, item.id + ' semantic coverage is too weak');
-});
+assert.equal(contract.acceptanceMatrix.legacyRegressionSuite, 'shared/wp2-legacy-regression-suite.json');
+var legacyRegression = JSON.parse(fs.readFileSync(path.join(root, contract.acceptanceMatrix.legacyRegressionSuite), 'utf8'));
+assert.equal(legacyRegression.status, 'regression-only');
+assert(legacyRegression.forbiddenUses.indexOf('template coverage claim') >= 0);
+assert(legacyRegression.fixtures.length > 0, 'legacy regression suite must preserve prior behavior');
+assert(contract.acceptanceMatrix.templateIntakeCoverage.minimumIndependentLicensedSources >= 2);
+assert.equal(contract.acceptanceMatrix.templateIntakeCoverage.requiresDeterministicNormalizationReplay, true);
+assert.equal(contract.acceptanceMatrix.moduleReuseCoverage.requiresNoPlannerOrCompilerCoreChangeForNewTemplate, true);
+assert(contract.acceptanceMatrix.funBlueprintCoverage.minimumApprovedBlueprints >= 3);
+assert(contract.acceptanceMatrix.funBlueprintCoverage.minimumDistinctPlayableCompositionsPerBlueprint >= 2);
 
 var semanticDictionary = JSON.parse(fs.readFileSync(path.join(root, contract.sourceTruth.semanticDictionary), 'utf8'));
 var capabilityIndex = JSON.parse(fs.readFileSync(path.join(root, contract.sourceTruth.capabilitySemanticIndex), 'utf8'));
+var mechanicRegistry = JSON.parse(fs.readFileSync(path.join(root, contract.sourceTruth.mechanicRegistry), 'utf8'));
+var blueprintDictionary = JSON.parse(fs.readFileSync(path.join(root, contract.sourceTruth.funBlueprintCatalog), 'utf8'));
+var templateSourceCatalog = JSON.parse(fs.readFileSync(path.join(root, contract.sourceTruth.templateSourceCatalog), 'utf8'));
+var templateIrContract = JSON.parse(fs.readFileSync(path.join(root, contract.sourceTruth.templateIrSchema), 'utf8'));
+var truthSourceRegistry = JSON.parse(fs.readFileSync(path.join(root, contract.sourceTruth.truthSourceRegistry), 'utf8'));
+assert.equal(mechanicRegistry.closedEnumeration, false);
+assert.equal(blueprintDictionary.closedFamilyEnumeration, false);
+assert.equal(blueprintDictionary.familyPolicy.familyIdForbiddenAsGeneratorDispatch, true);
+assert.equal(templateSourceCatalog.licensePolicy.codeLicenseDoesNotLicenseBundledAssets, true);
+assert.equal(templateIrContract.lossAccounting.silentLossAllowed, false);
+assert(truthSourceRegistry.crossReferenceGates.indexOf('all mechanic refs resolve') >= 0);
 var changeRequestsByTarget = {};
 contract.semanticReferenceResolution.ownerChangeRequests.forEach(function(request) {
   assert.equal(request.owner, 'SemanticEngine');
@@ -150,8 +182,8 @@ function resolvePointer(document, pointer) {
 }
 
 var unresolvedDesignRefs = [];
-archetypes.forEach(function(item) {
-  item.requiredSemanticRefs.forEach(function(ref) {
+Object.keys(mechanicRegistry.mechanics).forEach(function(mechanicId) {
+  mechanicRegistry.mechanics[mechanicId].semanticRefs.forEach(function(ref) {
     var document;
     var pointer;
     if (ref.indexOf('semantic-dictionary#/') === 0) {
@@ -184,6 +216,20 @@ assert.equal(unresolvedDesignRefs.length, contract.semanticReferenceResolution.o
 [
   'no-new-parallel-semantic-dictionary',
   'no-archetype-switch-in-generator-core',
+  'no-closed-blueprint-family-enum',
+  'no-bare-mechanic-id',
+  'all-semantic-mechanic-capability-refs-resolve',
+  'all-derived-truth-reproducible-and-drift-free',
+  'template-ir-per-node-lineage-and-zero-silent-loss',
+  'gdjs-tests-binaries-never-promoted',
+  'blind-unseen-template-ingestion-with-zero-core-dispatch-diff',
+  'blueprint-difference-must-be-mechanical-or-decisional-not-cosmetic',
+  'no-fixed-archetype-count-as-template-coverage',
+  'no-template-intake-without-license-hash-and-upstream-revision',
+  'no-silent-template-normalization-loss',
+  'no-complete-project-copy-in-fun-blueprint',
+  'no-gdjs-instruction-or-final-coordinate-in-fun-blueprint',
+  'no-new-template-requiring-planner-or-compiler-core-dispatch',
   'no-llm-authored-target-plan',
   'no-online-foundry',
   'no-layout-owned-by-final-coordinate-template',
@@ -206,7 +252,7 @@ assert.equal(capabilityIndex.summary.capability_count, capabilityIndex.summary.c
 assert.equal(capabilityIndex.summary.uncovered_count, 0, 'WP2 must not hide existing capability coverage gaps');
 
 var gapIds = contract.implementationGaps.map(function(item) { return item.gapId; });
-['WP2-GAP-SEMANTIC-HIGH-LEVEL', 'WP2-GAP-BUILD-CONTRACT-LIFECYCLE', 'WP2-GAP-PLACEMENT-DECLARATION', 'WP2-GAP-REMOVE-DECLARED-NOT-IMPLEMENTED', 'WP2-GAP-LEGACY-TARGET-PLAN'].forEach(function(gapId) {
+['WP2-GAP-TEMPLATE-INTAKE', 'WP2-GAP-TEMPLATE-IR', 'WP2-GAP-MECHANIC-REGISTRY-RUNTIME', 'WP2-GAP-FUN-BLUEPRINT', 'WP2-GAP-BLUEPRINT-COMPOSITION', 'WP2-GAP-SEMANTIC-HIGH-LEVEL', 'WP2-GAP-BUILD-CONTRACT-LIFECYCLE', 'WP2-GAP-PLACEMENT-DECLARATION', 'WP2-GAP-REMOVE-DECLARED-NOT-IMPLEMENTED', 'WP2-GAP-LEGACY-TARGET-PLAN'].forEach(function(gapId) {
   assert(gapIds.indexOf(gapId) >= 0, 'implementation gap missing: ' + gapId);
 });
 var gapsById = {};
@@ -232,18 +278,26 @@ assert.equal(globalContract.artifacts.BuildContract.owner, 'IntentAgent', 'Build
 assert.equal(gapsById['WP2-GAP-BUILD-CONTRACT-LIFECYCLE'].owner, globalContract.artifacts.BuildContract.owner, 'BuildContract lifecycle gap owner must match global artifact owner');
 assert.equal(globalWp2.owner, 'ProductModuleSystem');
 assert.equal(globalWp2.status, contract.status, 'global and WP2 machine contract status must match');
-assert(globalWp2.completionEvidence.some(function(item) { return item.indexOf('ten create fixtures') >= 0; }), 'global WP2 completion gate must require ten create fixtures');
+assert(globalWp2.completionEvidence.some(function(item) { return item.indexOf('licensed template sources') >= 0; }), 'global WP2 completion gate must require licensed template intake');
+assert(globalWp2.completionEvidence.some(function(item) { return item.indexOf('Fun Blueprint') >= 0; }), 'global WP2 completion gate must require Fun Blueprints');
+assert(globalWp2.forbidden.indexOf('fixed archetype count as template coverage') >= 0, 'global WP2 must forbid fixed archetype coverage');
 assert(globalWp2.forbidden.indexOf('legacy bridgePlan target execution') >= 0, 'global WP2 must forbid legacy online target execution');
 assert.equal(globalContract.truthSources.wp2ProductModuleSystem, 'shared/wp2-product-module-contract.json');
 
 [
   'WP2 不建设第二套语义引擎',
+  '能力生产轨',
+  '好玩方向轨',
+  'TemplateSourceRecord',
+  'TemplateIR',
+  '人工 Fun Blueprint',
+  '真相源 DAG',
   '统一语义引用',
   '在线 Composer 与离线 Foundry',
   'ModuleDeclarationPlan',
   'SpatialCompositionPlan',
-  'archetype id 只允许存在于 fixture 标签',
-  '十个 create fixtures',
+  '历史回归样本',
+  '不能单独满足 WP2 覆盖门',
   'Sol',
   'Terra',
   'Tester',
@@ -252,4 +306,4 @@ assert.equal(globalContract.truthSources.wp2ProductModuleSystem, 'shared/wp2-pro
   assert(design.indexOf(text) >= 0, 'WP2 design missing required statement: ' + text);
 });
 
-console.log('[WP2ProductModuleContract] canonical semantic refs, owner changes, two-phase compilation, guarded deltas, legacy bypass gap, global sync, Terra handoff, and completion gates passed');
+console.log('[WP2ProductModuleContract] template intake, TemplateIR, Fun Blueprint, deterministic composition, regression-only archetypes, global sync, Terra handoff, and completion gates passed');

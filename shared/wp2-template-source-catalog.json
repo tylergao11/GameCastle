@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "gamecastle.wp2.template-source-catalog",
+  "owner": "TemplateIntake",
+  "status": "designed",
+  "purpose": "Declare where structural game-template evidence may be discovered and which uses are allowed before TemplateIR normalization.",
+  "locatorPolicy": {
+    "portableRootEnvironmentVariable": "GAMECASTLE_GDEVELOP_SOURCE_DIR",
+    "forbidMachineAbsolutePathAsSourceIdentity": true,
+    "sourceIdentity": ["sourceId", "upstreamRevision", "contentHash"],
+    "localPathIsEvidenceNotIdentity": true
+  },
+  "licensePolicy": {
+    "codeLicenseDoesNotLicenseBundledAssets": true,
+    "unknownLicenseDecision": "reject",
+    "missingProvenanceDecision": "quarantine",
+    "structureOnlyAllows": ["schema discovery", "event graph normalization", "behavior analysis", "test execution", "mechanic candidate evidence"],
+    "structureOnlyForbids": ["shipping source artwork", "republishing source audio", "promoting source asset bytes", "claiming asset ownership"],
+    "assetBytesRequire": ["asset-level source", "asset-level license", "content hash", "redistribution decision"],
+    "generatedReplacementPolicy": "Gameplay structure and animation-state meaning may be retained while distributable visual/audio bytes are independently generated or licensed."
+  },
+  "sources": [
+    {
+      "sourceId": "gamecastle.internal-module-library",
+      "sourceKind": "internal-reference",
+      "locator": { "kind": "workspace", "relativePath": "ai/product-modules" },
+      "licenseDecision": "accepted",
+      "allowedUses": ["module promotion", "generated replacement assets", "runtime regression evidence"],
+      "forbiddenUses": ["claiming GDJS test-corpus binaries as internal assets"],
+      "acceptance": ["internal origin receipt", "self-authored-or-generated asset policy", "immutable module revision"]
+    },
+    {
+      "sourceId": "gdevelop.gdjs-tests",
+      "sourceKind": "gdevelop-test-corpus",
+      "locator": { "kind": "filesystem-relative", "rootEnv": "GAMECASTLE_GDEVELOP_SOURCE_DIR", "relativePath": "GDJS/tests/games" },
+      "upstreamProject": "GDevelopApp/GDevelop",
+      "licenseDecision": "structure-only",
+      "allowedUses": ["TemplateNormalizer fixtures", "runtime regression evidence", "event and animation structure mining"],
+      "forbiddenUses": ["bulk asset promotion", "treating every bundled PNG as MIT", "online catalog publication"],
+      "acceptance": ["root license recorded", "every consumed project content-hashed", "asset references separately classified", "unsupported structures fail closed"]
+    },
+    {
+      "sourceId": "gdevelop.official-template-catalog",
+      "sourceKind": "remote-template-catalog",
+      "locator": { "kind": "https-catalog", "url": "https://gdevelop.io/game-example" },
+      "licenseDecision": "discovery-only",
+      "allowedUses": ["category landscape", "candidate identification", "license review queue"],
+      "forbiddenUses": ["automatic download", "paid-template ingestion without entitlement", "assuming catalog-wide license"],
+      "acceptance": ["template-specific license decision", "immutable downloaded snapshot", "source and entitlement receipt"]
+    }
+  ],
+  "invariants": [
+    "TemplateSourceRecord is emitted before TemplateIR.",
+    "No source enters Foundry directly.",
+    "Source code licensing and asset licensing remain separate decisions.",
+    "A local path change does not create a new source identity when content and upstream revision are unchanged."
+  ]
+}

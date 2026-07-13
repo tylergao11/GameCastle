@@ -6,7 +6,6 @@ var path = require('path');
 var net = require('net');
 
 var runtimeModule = require('./local-runtime');
-var pipelineRunnerModule = require('./local-runtime/pipeline-runner');
 
 function sha1(filePath) {
   return crypto.createHash('sha1').update(fs.readFileSync(filePath)).digest('hex');
@@ -220,24 +219,6 @@ async function main() {
 
     assert.strictEqual((await fetch(baseUrl + '/play/' + changed.artifact.version + '/game.html')).status, 403, 'API origin must not serve playable files');
     assert.strictEqual((await fetch('http://localhost:' + port + '/api/runtime')).status, 403, 'play origin must not serve Runtime API');
-
-    var noChangeScript = path.join(tempRoot, 'no-change-pipeline.js');
-    fs.writeFileSync(noChangeScript, "console.log('[Done] No DSL changes to apply');", 'utf8');
-    var directRunner = pipelineRunnerModule.createPipelineRunner({ cwd: tempRoot, scriptPath: noChangeScript, timeoutMs: 1000 });
-    var directNoChange = await directRunner.start({ intent: 'ignored', mode: 'continue', onLine: function() {}, onStage: function() {} }).promise;
-    assert.strictEqual(directNoChange.noChange, true, 'PipelineRunner must classify the real no-change stdout contract');
-
-    var timeoutScript = path.join(tempRoot, 'timeout-pipeline.js');
-    fs.writeFileSync(timeoutScript, 'setTimeout(function(){}, 5000);', 'utf8');
-    var timeoutRunner = pipelineRunnerModule.createPipelineRunner({ cwd: tempRoot, scriptPath: timeoutScript, timeoutMs: 80 });
-    var timeoutError = null;
-    try {
-      await timeoutRunner.start({ intent: 'ignored', mode: 'create', onLine: function() {}, onStage: function() {} }).promise;
-    } catch (error) {
-      timeoutError = error;
-    }
-    assert(timeoutError, 'PipelineRunner timeout must reject');
-    assert.strictEqual(timeoutError.code, 'RUN_TIMEOUT');
 
     var corruptRoot = path.join(tempRoot, 'corrupt-release-case');
     var corruptData = path.join(corruptRoot, '.gamecastle');

@@ -1,5 +1,5 @@
 function normalizeEndpoint(endpoint) {
-  return String(endpoint || 'http://127.0.0.1:18081/v1').replace(/\/$/, '');
+  return String(endpoint || 'https://api.openai.com/v1').replace(/\/$/, '');
 }
 
 function getDelta(event) {

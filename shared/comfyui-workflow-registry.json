@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "registryId": "gamecastle.comfyui-workflows",
+  "owner": "ComfyWorkflowRegistry",
+  "principles": ["fixed-workflow-revisions", "model-and-node-allowlist", "environment-owned-endpoint", "ephemeral-output-before-acceptance", "deployment-artifacts-are-not-domain-truth"],
+  "customNodes": {
+    "kijai.florence2.v1": {
+      "repository": "https://github.com/kijai/ComfyUI-Florence2",
+      "commit": "9ece3de914214c5f581d725167bc9d0eeb0d1120",
+      "relativeDirectory": "custom_nodes/ComfyUI-Florence2",
+      "packageSha256": "36caace58dc3e220e7b8adb9831335447b311672ebccd7a204c8e0f682158d65",
+      "relativePath": "custom_nodes/ComfyUI-Florence2/nodes.py",
+      "sha256": "7d4140f0d993987118578e5cfab8b62e528a684298aa4ba8d6cadf585e83e950",
+      "licenseId": "Apache-2.0",
+      "nodeClasses": ["Florence2ModelLoader", "Florence2Run"],
+      "roles": ["vision-review"]
+    }
+  },
+  "extensions": {
+    "lora": {},
+    "controlnet": {}
+  },
+  "workflows": {
+    "gamecastle.sprite-generate.dev-cpu.v1": {
+      "role": "image-generate",
+      "workflowFile": "ai/comfyui-workflows/sprite-generate.dev-cpu.v1.json",
+      "workflowSha256": "f47c08898aec00411245aee1cb59c2666bbcecd5fd108435ac0fe0e929cb870a",
+      "outputNodeId": "7",
+      "model": { "id": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors", "sha256Env": "COMFYUI_MODEL_SHA256", "pathEnv": "COMFYUI_MODEL_PATH", "licenseId": "CreativeML-OpenRAIL-M" },
+      "customNodeAllowlist": [],
+      "maxWidth": 512,
+      "maxHeight": 512,
+      "maxOutputBytes": 16777216,
+      "maxTimeoutMs": 600000,
+      "inputFields": ["prompt", "negativePrompt", "width", "height", "seed", "steps"]
+    },
+    "gamecastle.sprite-edit.dev-cpu.v1": {
+      "role": "image-edit",
+      "workflowFile": "ai/comfyui-workflows/sprite-edit.dev-cpu.v1.json",
+      "workflowSha256": "42c794ed98759df79d8cb0b05180925987b89d5d613f9e27ce53bcb2fbc63db2",
+      "outputNodeId": "8",
+      "model": { "id": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors", "sha256Env": "COMFYUI_MODEL_SHA256", "pathEnv": "COMFYUI_MODEL_PATH", "licenseId": "CreativeML-OpenRAIL-M" },
+      "customNodeAllowlist": [],
+      "maxWidth": 512,
+      "maxHeight": 512,
+      "maxOutputBytes": 16777216,
+      "maxTimeoutMs": 600000,
+      "allowsPrivateLocal": true,
+      "inputFields": ["prompt", "sourceRevisionRef", "maskRef", "denoise", "seed", "steps"]
+    },
+    "gamecastle.florence2.review.cpu.v1": {
+      "role": "vision-review",
+      "workflowFile": "ai/comfyui-workflows/florence2-review.cpu.v1.json",
+      "workflowSha256": "f032ea218bec523764f37b151fa3cfb3cde03c2efd1e49ea3388b586e849bc97",
+      "outputNodeId": "4",
+      "model": { "id": "florence2-base", "sha256Env": "COMFYUI_FLORENCE2_MODEL_SHA256", "pathEnv": "COMFYUI_FLORENCE2_MODEL_PATH", "licenseId": "MIT" },
+      "customNodeAllowlist": ["kijai.florence2.v1"],
+      "maxWidth": 512,
+      "maxHeight": 512,
+      "maxOutputBytes": 16777216,
+      "maxTimeoutMs": 600000,
+      "allowsPrivateLocal": true,
+      "inputFields": ["assetBlobRef", "reviewPolicy"]
+    }
+  }
+}

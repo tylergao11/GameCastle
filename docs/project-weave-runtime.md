@@ -15,10 +15,11 @@ following local evidence:
 - `runtime/project.json`, generated runtime files, `index.html`, and HTML manifest;
 - `checkpoint.json` during execution and `project-run.json` on completion.
 
-`ProjectWeaveRuntime` accepts a SemanticPort result containing a `BuildContract`
-and compiled intent artifact. The built-in deterministic adapter exists for
-offline fixture coverage and requires `intentDslText`; WP1 is responsible for
-the model-backed natural-language provider, not WP0.
+`ProjectWeaveRuntime` is the only natural-language build entry. Its default
+SemanticPort calls LLM1 and LLM2 through the governed DeepSeek Flash provider,
+then returns the immutable BuildContract and compiled Intent artifact. An
+explicit `intentDslText` input is reserved for isolated offline tests; it is not
+available from the product runtime.
 
 The aggregate gate is `npm run check:project`. It proves create, continue,
 checkpoint/resume without re-running the checkpointed asset node, an
