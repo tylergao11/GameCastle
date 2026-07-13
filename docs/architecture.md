@@ -120,9 +120,10 @@ is the implemented WP0 Project Weave gate: it aggregates graph ownership,
 create/continue, checkpoint recovery, owner-routed debt and isolated playable
 artifact evidence.
 
-`ai/asset-weave-graph.js` is the sole asset runtime entry. It owns the
-conditional local/cloud/variant/model path and emits `AssetManifest` only after
-Validation and Acceptance; old manifest repository resolvers were removed.
+`ai/asset-engine-langgraph.js` is the sole asset runtime entry. Its only
+production subgraph is `ai/asset-production-loop-graph.js`, governed by
+`shared/asset-production-pipeline-contract.json`; accepted complete production
+sets alone may reach `ai/runtime-asset-binder.js`.
 
 `ai/asset-world.js` is the stable asset-side context. It turns `AssetManifest`
 into `AssetWorld`, preserving slot state, placeholder debt, cache hit state, and
@@ -132,7 +133,7 @@ AssetWorld places them into `cloudPromotionQueue` for cloud repository review,
 indexing, and future reuse.
 
 视觉资产的产品优先级、条件 LangGraph、模型循环和 owner 边界以
-[`visual-asset-loop.md`](visual-asset-loop.md) 与
+[`comfyui-asset-production-pipeline.md`](comfyui-asset-production-pipeline.md) 与
 [`visual-asset-boundaries.md`](visual-asset-boundaries.md) 为准。它规定本地优先、
 云端复用第二、确定性变体第三、受控模型编辑第四、全新绘制最后；模型生成和编辑
 必须经过 Vision 审查与有界 repair loop。
@@ -303,7 +304,7 @@ Project Weave Graph:
 llm2-intent
   -> intent-compiler
   -> resolver
-  -> asset-weave
+  -> asset-production
   -> bridge
   -> runtime-linker
   -> runtime
@@ -319,7 +320,7 @@ llm2-intent
 Layer names:
 
 - `World Intent Layer`: closed Intent slot packet, deterministic Intent DSL, Intent Graph, resolver, bridge plan.
-- `Asset Weave Layer`: asset library lookup, image generation, asset review, slot resolution, reuse/generation debt, AssetWorld.
+- `Asset Production Layer`: plan, resolve, revise, inspect, accept and bind every required asset slot.
 - `Runtime Assembly Layer`: asset/bridge binding, tick runtime codegen, runtime files, HTML export, execution.
 - `Server Weave Layer`: signaling server, rooms, ordered input, game loop, and state store.
 - `Validation Layer`: fulfillment, asset debt, export health, owner routing.
@@ -335,8 +336,8 @@ The official Project Weave graph runs the following real paths:
 
 资产路径是条件子图，不是固定的 `asset-library -> image-generation -> asset-review`
 线性链。其完整状态、循环上限和读写边界见
-[`visual-asset-loop.md`](visual-asset-loop.md)。`project-pipeline-graph.js` 以单一
-`asset-weave` 节点表示该子图，并由图契约测试验证其边界。
+[`comfyui-asset-production-pipeline.md`](comfyui-asset-production-pipeline.md)。`project-pipeline-graph.js` 以单一
+`asset-production` 节点表示唯一资产生产子图，并由机器合同测试验证其边界。
 
 目标覆盖为：
 

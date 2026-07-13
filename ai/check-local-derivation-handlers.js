@@ -4,7 +4,7 @@ var handlers = require('./local-derivation-handlers').createDefaultHandlers();
 var contract = require('../shared/local-derivation-contract.json');
 assert(contract.operations.every(function(operation) { return typeof handlers[operation] === 'function'; }), 'Every declared local derivation operation must have a default handler.');
 function raster() { var data = new Uint8ClampedArray(4 * 4 * 4); data[(1 * 4 + 1) * 4] = 255; data[(1 * 4 + 1) * 4 + 3] = 255; return { width: 4, height: 4, data: data }; }
-function spec(op, params) { return { schemaVersion: 1, dictionaryId: 'gamecastle.asset-style-dictionary', styleId: 'gamecastle.style-1', operationId: 'op.' + op, op: op, input: { assetId: 'asset.input', contentHash: 'input' }, params: params || {}, output: { format: 'png', transparent: true }, scope: 'project-local' }; }
+function spec(op, params) { return { schemaVersion: 1, dictionaryId: 'gamecastle.asset-style-dictionary', styleId: 'gamecastle.style-dna.v1', operationId: 'op.' + op, op: op, input: { assetId: 'asset.input', contentHash: 'input' }, params: params || {}, output: { format: 'png', transparent: true }, scope: 'project-local' }; }
 (async function() {
   var kernel = kernelModule.createLocalDerivationKernel(handlers);
   var cropped = await kernel.execute(spec('trim_alpha'), { raster: raster(), parentRevisionId: 'rev.input' });

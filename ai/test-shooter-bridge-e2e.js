@@ -110,7 +110,7 @@ async function main() {
 
     hostBridge = new GameCastleTickIntentBridge({
       inputs: inputs,
-      tickRate: 20,
+      tickRate: 60,
       sync: "lockstep",
       transport: new GameCastleTransport(SIGNALING_URL),
       autoHost: false,
@@ -118,7 +118,7 @@ async function main() {
     });
     joinBridge = new GameCastleTickIntentBridge({
       inputs: inputs,
-      tickRate: 20,
+      tickRate: 60,
       sync: "lockstep",
       transport: new GameCastleTransport(SIGNALING_URL),
       autoHost: false,

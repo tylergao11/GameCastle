@@ -487,15 +487,42 @@ function resolvePlacements(graph, context, options) {
     resolvedBounds[key] = context.objectBounds[key];
   });
 
-  (graph.placements || []).forEach(function(placement) {
-    var resolved = resolveSingle(placement, graph, context, resolvedBounds);
+  // Placement anchors form a dependency graph. LLM command order is not a
+  // dependency order, so defer unresolved anchors and retry after their group
+  // or object bounds are produced. Output remains in the original order.
+  var pendingPlacements = (graph.placements || []).map(function(placement, index) {
+    return { placement: placement, index: index };
+  });
+  var resolvedPlacements = new Array(pendingPlacements.length);
+  while (pendingPlacements.length) {
+    var nextPending = [];
+    var progressed = false;
+    pendingPlacements.forEach(function(item) {
+      var resolved = resolveSingle(item.placement, graph, context, resolvedBounds);
+      if (resolved.diagnostic && resolved.diagnostic.category === 'missing-anchor') {
+        nextPending.push(item);
+        return;
+      }
+      resolvedPlacements[item.index] = resolved;
+      var bounds = boundsFromResolved(resolved);
+      if (bounds) resolvedBounds[resolved.subject] = bounds;
+      progressed = true;
+    });
+    if (!nextPending.length) break;
+    if (!progressed) {
+      nextPending.forEach(function(item) {
+        resolvedPlacements[item.index] = resolveSingle(item.placement, graph, context, resolvedBounds);
+      });
+      break;
+    }
+    pendingPlacements = nextPending;
+  }
+  resolvedPlacements.forEach(function(resolved) {
     if (resolved.diagnostic) {
       plan.diagnostics.push(resolved.diagnostic);
       addCardDiagnostic(card, resolved.diagnostic);
     }
     plan.placements.push(resolved);
-    var bounds = boundsFromResolved(resolved);
-    if (bounds) resolvedBounds[resolved.subject] = bounds;
     addCardResolution(card, resolved);
   });
 

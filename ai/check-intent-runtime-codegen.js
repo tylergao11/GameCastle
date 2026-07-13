@@ -48,6 +48,9 @@ function main() {
   assert(config.requirements.some(function(req) {
     return req.adapter === 'virtual-joystick' && req.routeId === 'touch-multitouch-state' && req.routeOwner === 'runtime-adapter' && req.mechanism === 'touch-axis-adapter';
   }), 'runtime config should preserve joystick route evidence');
+  assert(config.requirements.every(function(req) {
+    return req.layout && req.layout.viewportRef === 'gdjs-primary-canvas' && req.layout.offsetPolicy.unit === 'fraction-of-safe-content-rect';
+  }), 'every control must compile to canvas-relative UIControlLayoutSpec');
 
   var missingButtonKey = clone(requirements.find(function(req) { return req.adapter === 'touch-button'; }));
   delete missingButtonKey.config.keyboardKey;
@@ -66,6 +69,8 @@ function main() {
   assert(js.indexOf('bindJoystick') >= 0, 'runtime script should include joystick adapter');
   assert(js.indexOf('bindButton') >= 0, 'runtime script should include button adapter');
   assert(js.indexOf('bindInventory') >= 0, 'runtime script should include inventory panel adapter');
+  assert(js.indexOf('RuntimeViewportCoordinator') >= 0, 'runtime script should use the canonical viewport coordinator');
+  assert(js.indexOf('document.body.appendChild') < 0, 'runtime script must not append controls to document.body');
   assert(js.indexOf('runtime adapter') < 0, 'generated runtime should not contain LLM-facing adapter instruction text');
   assert(js.indexOf('componentId.indexOf("attack")') < 0, 'generated runtime should not infer labels from component ids');
   var source = fs.readFileSync(path.join(__dirname, 'intent-runtime-codegen.js'), 'utf8');
@@ -73,7 +78,7 @@ function main() {
   assert(source.indexOf("componentId === 'input.attack_button'") < 0, 'runtime codegen should not hard-code attack button id for key mapping');
   assert(source.indexOf('componentId.indexOf("attack")') < 0, 'runtime codegen should not infer button labels from component ids');
   assert(source.indexOf("action === 'jump'") < 0, 'runtime codegen should not infer keyboard keys from action names');
-  assert(source.indexOf("requirement.adapter === 'virtual-joystick'") < 0, 'runtime codegen should not infer joystick inputs from adapter ids');
+  assert(source.indexOf('document.body.appendChild') < 0, 'source must not position controls through document.body');
 
   var htmlManifest = htmlExporter.buildHtmlExportManifest({ layouts: [], objects: [] }, {
     codeFiles: [{ fileName: 'code0.js' }],

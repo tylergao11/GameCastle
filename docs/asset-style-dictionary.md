@@ -2,7 +2,7 @@
 
 资源词典是视觉资产与 Runtime 的共同视觉语言，而不是一段仅供模型阅读的风格描述。UI/game
 模板由独立的 `shared/asset-template-dictionary.json` 拥有，避免模板定义混入视觉语法。
-当前唯一默认样式为 `gamecastle.style-1`，源文件为
+当前唯一默认样式为 `gamecastle.style-dna.v1`，源文件为
 `shared/asset-style-dictionary.json`。
 
 `styleId` 是指向词典的唯一风格主键，必须随 `AssetSpec`、资产 revision、Runtime binding

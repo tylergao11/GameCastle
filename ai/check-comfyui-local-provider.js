@@ -8,7 +8,9 @@ var adapters = require('./provider-runtime-adapters');
 var assetEngine = require('./asset-engine-langgraph');
 var comfy = require('./comfyui-local-provider');
 
-var png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', 'base64');
+var fixtureRaster = { width: 6, height: 6, data: new Uint8ClampedArray(6 * 6 * 4) };
+for (var fixtureY = 1; fixtureY < 5; fixtureY++) for (var fixtureX = 1; fixtureX < 5; fixtureX++) { var fixtureAt = (fixtureY * 6 + fixtureX) * 4; fixtureRaster.data[fixtureAt] = 238; fixtureRaster.data[fixtureAt + 1] = 73; fixtureRaster.data[fixtureAt + 2] = 58; fixtureRaster.data[fixtureAt + 3] = 255; }
+var png = require('./local-derivation-port').encodePng(fixtureRaster);
 function response(body, status) { var image = Buffer.isBuffer(body); return new Response(image ? body : JSON.stringify(body), { status: status === undefined ? 200 : status, headers: { 'Content-Type': image ? 'image/png' : 'application/json' } }); }
 function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key]; }); }
 
@@ -36,9 +38,12 @@ function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[k
     assert.equal(denied.ok, true, 'explicit COMFYUI_ALLOW_LOCAL authorizes self-hosted ComfyUI without API key');
     require('./comfyui-local-provider')._blobs.clear(); assert.equal(require('./comfyui-local-provider')._findBlob(denied.output.assetBlobRef).sha256, denied.output.assetBlobRef.sha256, 'transit index restores an unexpired candidate after adapter restart');
     var baselineSubmissions = submitted;
-    var slot = { slotId: 'asset.comfy', kind: 'sprite', styleId: 'gamecastle.style-1', semanticTags: ['hero'], styleTags: ['gamecastle.style-1'], constraints: { width: 1, height: 1, transparent: true } };
+    var targets = { hero: 'game.player.visual', enemy: 'game.enemy.visual', collectible: 'game.collectible.visual' };
+    var slots = ['hero', 'enemy', 'collectible'].map(function(slotId) { return { slotId: slotId, kind: 'sprite', targetVisualSlotId: targets[slotId], styleId: 'gamecastle.style-dna.v1', semanticTags: [slotId], styleTags: ['gamecastle.style-dna.v1'], constraints: { width: 6, height: 6, transparent: true } }; });
+    var productionRequest = { requestId: 'comfy-stage-a', projectId: 'comfy-stage-a', templateId: 'game.runner.v1', templateVersion: 2, styleId: 'gamecastle.style-dna.v1', requiredSlotIds: ['hero', 'enemy', 'collectible'], targetVisualSlotIds: targets };
     var persistedAssets = [];
-    var engine = await assetEngine.runAssetEngine({ runId: 'comfy-stage-a', projectId: 'comfy-stage-a', buildContract: { assetContract: { slots: [slot] } }, sources: { 'asset.comfy': { kind: 'generation_required' } }, providerRuntime: runtime, providerOptions: { provider: 'comfyui-local', estimatedCost: 0.1, timeoutMs: 1000 }, projectAssetDir: path.join(root, 'project-assets'), modelPolicy: { provider: 'comfyui-local', localAllowed: true }, ledger: {}, persistAcceptedGeneratedAssets: true, persistenceMode: 'verification-staging', assetFamilyIds: { 'asset.comfy': 'asset-family.comfy-test' }, assetPersistenceBridge: { persistAcceptedGeneratedAsset: async function(input) { persistedAssets.push(input); return { revisionId: 'assetrev.comfy-test', familyId: input.familyId }; } } });
+    var ledgerPath = path.join(root, 'asset-production-ledger.json');
+    var engine = await assetEngine.runAssetEngine({ runId: 'comfy-stage-a', projectId: 'comfy-stage-a', productionRequest: productionRequest, buildContract: { assetContract: { slots: slots } }, sources: { hero: { kind: 'generation_required' }, enemy: { kind: 'generation_required' }, collectible: { kind: 'generation_required' } }, providerRuntime: runtime, providerOptions: { provider: 'comfyui-local', estimatedCost: 0.1, timeoutMs: 1000 }, projectAssetDir: path.join(root, 'project-assets'), modelPolicy: { provider: 'comfyui-local', localAllowed: true }, ledgerPath: ledgerPath, persistAcceptedGeneratedAssets: true, persistenceMode: 'verification-staging', assetFamilyIds: { hero: 'asset-family.hero', enemy: 'asset-family.enemy', collectible: 'asset-family.collectible' }, assetPersistenceBridge: { persistAcceptedGeneratedAsset: async function(input) { persistedAssets.push(input); return { revisionId: 'assetrev.comfy-test', familyId: input.familyId }; } } });
     assert.equal(engine.accepted, true, 'real Comfy transport shape must complete asset engine');
     var candidate = engine.assetManifest.assets[0];
     assert.equal(candidate.path.indexOf(path.join(root, 'project-assets')) === 0, true, 'only accepted candidate is promoted into project-local storage');
@@ -46,15 +51,15 @@ function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[k
     assert.equal(candidate.assetBlobRef, undefined, 'project-local candidate must not retain ephemeral blob reference');
     assert.equal(candidate.providerReceipt.provenance.workflowSha256.length, 64);
     assert.equal(candidate.providerReceipt.provenance.modelSha256, process.env.COMFYUI_MODEL_SHA256);
-    assert.equal(persistedAssets.length, 1, 'explicit persistence must receive the accepted materialized ComfyUI candidate'); assert.equal(persistedAssets[0].familyId, 'asset-family.comfy-test'); assert.equal(engine.cloudLibraryAssets[0].revisionId, 'assetrev.comfy-test');
-    assert.equal(submitted, baselineSubmissions + 1, 'one generation produces one Comfy job');
+    assert.equal(persistedAssets.length, 3, 'explicit persistence must receive every accepted materialized ComfyUI candidate'); assert.equal(persistedAssets[0].familyId, 'asset-family.hero'); assert.equal(engine.cloudLibraryAssets[0].revisionId, 'assetrev.comfy-test');
+    assert.equal(submitted, baselineSubmissions + 3, 'three independent work items produce three Comfy jobs');
     var before = submitted;
-    await assetEngine.runAssetEngine({ runId: 'comfy-stage-a', projectId: 'comfy-stage-a', buildContract: { assetContract: { slots: [slot] } }, sources: { 'asset.comfy': { kind: 'generation_required' } }, providerRuntime: runtime, providerOptions: { provider: 'comfyui-local', estimatedCost: 0.1, timeoutMs: 1000 }, projectAssetDir: path.join(root, 'project-assets'), modelPolicy: { provider: 'comfyui-local', localAllowed: true }, ledger: engine.weaveResult.ledger });
+    await assetEngine.runAssetEngine({ runId: 'comfy-stage-a', projectId: 'comfy-stage-a', productionRequest: productionRequest, buildContract: { assetContract: { slots: slots } }, sources: { hero: { kind: 'generation_required' }, enemy: { kind: 'generation_required' }, collectible: { kind: 'generation_required' } }, providerRuntime: runtime, providerOptions: { provider: 'comfyui-local', estimatedCost: 0.1, timeoutMs: 1000 }, projectAssetDir: path.join(root, 'project-assets'), modelPolicy: { provider: 'comfyui-local', localAllowed: true }, ledgerPath: ledgerPath });
     assert.equal(submitted, before, 'same run/slot/spec ledger must not submit another Comfy job');
     assert(calls.some(function(call) { return call.url.indexOf('/system_stats') >= 0; }));
     assert(calls.some(function(call) { return call.url.indexOf('/history/job-1') >= 0; }));
-    var budget = await assetEngine.runAssetEngine({ runId: 'comfy-budget', buildContract: { assetContract: { slots: [slot] } }, sources: { 'asset.comfy': { kind: 'generation_required' } }, providerRuntime: runtime, providerOptions: { provider: 'comfyui-local', estimatedCost: 1 }, projectAssetDir: path.join(root, 'budget-assets'), modelPolicy: { provider: 'comfyui-local', localAllowed: true, maxCost: 0 }, maxCost: 0, ledger: {} });
-    assert.equal(budget.debts[0].code, 'budget_exhausted');
+    var budget = await assetEngine.runAssetEngine({ runId: 'comfy-budget', productionRequest: Object.assign({}, productionRequest, { requestId: 'comfy-budget' }), buildContract: { assetContract: { slots: slots } }, sources: { hero: { kind: 'generation_required' }, enemy: { kind: 'generation_required' }, collectible: { kind: 'generation_required' } }, providerRuntime: runtime, providerOptions: { provider: 'comfyui-local', estimatedCost: 1 }, projectAssetDir: path.join(root, 'budget-assets'), modelPolicy: { provider: 'comfyui-local', localAllowed: true, maxCost: 0 }, maxCost: 0 });
+    assert.equal(budget.modelPolicyReceipt.code, 'MODEL_BUDGET_EXHAUSTED');
     var bad = runtimeModule.createProviderRuntime({ fetchImpl: async function(url, init) { if (String(url).endsWith('/system_stats')) return response({}); if (String(url).endsWith('/prompt')) return response({ prompt_id: 'bad' }); if (String(url).indexOf('/history/bad') >= 0) return response({ bad: { status: { status: 'success' }, outputs: { '7': { images: [{ filename: 'bad.png', type: 'output' }] } } } }); if (String(url).indexOf('/view?') >= 0) return response('not-a-png'); return response({}); } });
     var badResult = await bad.invokeRole({ requestId: 'bad-output', projectId: 'p', role: 'image-generate', provider: 'comfyui-local', timeoutMs: 1000, input: {} });
     assert.equal(badResult.ok, false); assert.equal(badResult.debt.code, 'COMFYUI_OUTPUT_INVALID');

@@ -18,7 +18,7 @@
 拆分建议：
 
 1. 扩展 Project PipelineState，但引用领域 artifact，不复制 schema。
-2. 为 asset-weave、runtime-linker、tick-runtime、server-runtime、html-export、validator、ProjectWorld、
+2. 为 asset-production、runtime-linker、tick-runtime、server-runtime、html-export、validator、ProjectWorld、
    playtest、feedback 建真实 graph handler。
 3. create/continue/cancel/resume 全部走同一入口。
 4. 建 owner failure matrix 和 checkpoint crash recovery。

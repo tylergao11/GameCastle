@@ -276,6 +276,7 @@ function emitComponent(plan, component, catalog, placementPlan, options) {
 
 function emitPlacementGroups(plan, graph, placementPlan, options) {
   var scene = sceneName(options);
+  var templateOwned = options.templateOwnedObjects || {};
   (graph.things || []).filter(function(thing) {
     return thing.role === 'group';
   }).forEach(function(thing) {
@@ -285,6 +286,10 @@ function emitPlacementGroups(plan, graph, placementPlan, options) {
     if (!objectName) {
       throw new Error('Placement group is missing its canonical member object: ' + thing.name);
     }
+    // Runtime bodies with template-installed behaviors define mechanics, not
+    // decoration. Semantic layout may arrange dependent content around them,
+    // but may not replace their template-owned placement.
+    if (templateOwned[objectName]) return;
     var emission = placement.emission || {};
     if (baseWorldHasInstances(options.baseWorld, objectName)) {
       addLine(
@@ -315,10 +320,21 @@ function emitPlacementGroups(plan, graph, placementPlan, options) {
   });
 }
 
+function templateOwnedObjects(targetPlanLines) {
+  var owned = {};
+  (targetPlanLines || []).forEach(function(line) {
+    var match = /^add behavior\s+type=[^\s]+\s+to=([^\s]+)\s+scene=/.exec(String(line || ''));
+    if (match) owned[match[1]] = true;
+  });
+  return owned;
+}
+
 function emitPlacementEdits(plan, placementPlan, options) {
   var scene = sceneName(options);
+  var templateOwned = options.templateOwnedObjects || {};
   ((((placementPlan || {}).editPlan || {}).edits) || []).forEach(function(edit) {
     if (!edit || edit.unresolved || !edit.resolved) return;
+    if (templateOwned[edit.subject]) return;
     var emission = edit.emission || {};
     addLine(
       plan,
@@ -374,6 +390,7 @@ function compileBridge(compiledIntent, options) {
   });
   plan.installedModules = clone(moduleResult.installedModules || []);
   plan.tickRuntimeManifest = clone(moduleResult.tickRuntimeManifest || null);
+  options = Object.assign({}, options, { templateOwnedObjects: templateOwnedObjects(moduleResult.targetPlanLines) });
 
   (graph.components || []).forEach(function(component) {
     emitComponent(plan, component, catalog, placementPlan, options);

@@ -1,0 +1,13 @@
+var assert = require('assert');
+var dictionary = require('../shared/asset-style-dictionary.json');
+var style = require('./style-dna');
+var id = dictionary.defaultStyleId;
+assert.strictEqual(id, 'gamecastle.style-dna.v1');
+assert.strictEqual(Object.prototype.hasOwnProperty.call(dictionary.styles, 'gamecastle.style-1'), false, 'old style id must not remain as a compatibility alias');
+var prompt = style.generationPrompt(id, 'small playable hero', { transparent: true });
+['bold rounded dark outline', 'flat vector color blocks', 'low-detail geometric mobile game asset', 'subtle single toon shadow', 'western cartoon proportions'].forEach(function(token) { assert(prompt.indexOf(token) >= 0, 'prompt must carry Style DNA token: ' + token); });
+var negative = style.negativePrompt(id);
+['anime', 'pixel art', 'photorealistic', 'realistic texture', '3d render'].forEach(function(token) { assert(negative.indexOf(token) >= 0, 'negative prompt must reject: ' + token); });
+var review = style.reviewPolicy(id, ['hero']);
+assert.deepStrictEqual(review.requiredTraits, ['bold-outline', 'flat-color-blocks', 'low-detail-geometry', 'single-toon-shadow', 'western-cartoon-proportion']);
+console.log('[GameCastleStyleDNA] one canonical vector-toon mobile-game style passed');

@@ -23,9 +23,9 @@ Text callers use `ai/llm-provider.js`; LLM2 DeepSeek decisions use
 `ai/llm2-deepseek-decision-provider.js`. Both now delegate to ProviderRuntime.
 Asset Engine may receive a ProviderRuntime and uses
 `ai/provider-runtime-adapters.js` to turn typed image/vision results into local
-PNG candidates and AssetWeave-compatible review results. This preserves the
+PNG candidates and typed production-loop review results. This preserves the
 local → cloud → deterministic edit → model priority; the Runtime is reached only
-after AssetWeave chooses a model route.
+after AssetProductionResolver and AssetProductionLoopGraph choose a governed model action.
 
 `npm run check:provider` proves the five roles, authorization denial, cost cap,
 cancellation, receipt redaction, local image materialization and the simulated

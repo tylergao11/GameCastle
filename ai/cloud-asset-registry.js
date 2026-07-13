@@ -71,7 +71,7 @@ function createCloudAssetRegistry() {
   function normalizeQuerySpec(spec) {
     spec = spec || {};
     var normalized = Object.assign({}, spec, { styleId: requireStyle(spec.styleId), semanticTags: compileSemanticTags(spec.semanticTags || []) });
-    if (spec.templateId) { var item = template(spec.templateId); normalized.templateId = item.id; if (spec.bindingTarget || spec.slotId) templateSlot(item.id, spec.bindingTarget || spec.slotId); }
+    if (spec.templateId) { var item = template(spec.templateId); normalized.templateId = item.id; if (spec.targetVisualSlotId || spec.slotId) templateSlot(item.id, spec.targetVisualSlotId || spec.slotId); }
     return normalized;
   }
   function projectionTemplates() { return templates.templates.filter(function(item) { return item.status === 'approved'; }); }

@@ -7,7 +7,8 @@ const { ServerOrderedInputSession } = require("./server-ordered-input");
 class GameLoop {
   constructor(options) {
     options = options || {};
-    this._tickRate = options.tickRate || 20;
+    this._tickRate = options.tickRate || 60;
+    if (this._tickRate < 30) throw new Error('GameLoop realtime cadence must be at least 30 Hz');
     this._session = new ServerOrderedInputSession({
       startTick: options.startTick || 0,
       historySize: options.historySize,

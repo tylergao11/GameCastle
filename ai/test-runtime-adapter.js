@@ -36,7 +36,7 @@ var adapter = new GameCastleRuntimeAdapter(game);
 adapter.init({
   inputs: ["p1_move_up", "p1_move_down", "p1_move_left", "p1_move_right", "p1_shoot", "p2_move_up", "p2_move_down", "p2_move_left", "p2_move_right", "p2_shoot"],
   captureInputs: ["move_up", "move_down", "move_left", "move_right", "shoot"],
-  tickRate: 20,
+  tickRate: 60,
 });
 
 game._test.setPressed(38, true);

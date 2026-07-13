@@ -239,7 +239,7 @@ async function compileRuntimeGraph(langGraph) {
       return {
         validation: {
           report: report,
-          ownerRoute: report.nextAction === 'done' ? null : { owner: 'RuntimeAssetResolver', stage: 'asset-weave' },
+          ownerRoute: report.nextAction === 'done' ? null : { owner: 'AssetEngine', stage: 'asset-production' },
         },
         graphTrace: appendTrace(state, 'runtime-validator', ['validation.report', 'validation.ownerRoute']),
       };

@@ -12,6 +12,7 @@
     "cloudAssetEngine": "shared/cloud-asset-engine-contract.json",
     "styleDictionary": "shared/asset-style-dictionary.json",
     "templateDictionary": "shared/asset-template-dictionary.json",
+    "assetProductionPipeline": "shared/asset-production-pipeline-contract.json",
     "cloudAssetDictionary": "shared/cloud-asset-dictionary.json",
     "providerGovernance": "shared/ai-provider-governance.json",
     "providerRuntime": "shared/provider-runtime-contract.json",
@@ -24,12 +25,13 @@
     "wp2FunBlueprints": "shared/wp2-fun-blueprint-dictionary.json",
     "wp2LegacyRegression": "shared/wp2-legacy-regression-suite.json",
     "creatorExperience": "shared/creator-experience-contract.json",
+    "playableRuntime": "shared/playable-runtime-contract.json",
     "productModules": "ai/product-modules/schema.json",
     "gdevelopRuntimeTruth": "ai/gdevelop-truth/runtime-truth.json"
   },
   "completedFoundations": [
     { "id": "semantic-engine", "contract": "ai/contracts/schema.json", "status": "implemented" },
-    { "id": "asset-engine", "contract": "shared/asset-engine-contract.json", "status": "implemented" },
+    { "id": "asset-engine", "contract": "shared/asset-engine-contract.json", "status": "partial-single-asset-core" },
     { "id": "cloud-asset-engine", "contract": "shared/cloud-asset-engine-contract.json", "status": "implemented-local-adapter" }
   ],
   "principles": [
@@ -76,6 +78,7 @@
     "ProjectWorld": { "owner": "ProjectWorld", "required": ["worldVersion", "semanticHash", "modules", "scenes", "debts"] },
     "ValidationReport": { "owner": "RuntimeValidator", "required": ["checks", "pass", "ownerRoute", "blocksPublish"] },
     "PlaytestReport": { "owner": "SemanticPlaytestAgent", "required": ["measurements", "issues", "repairIntent", "pass"] },
+    "PlayableRuntimeEvidence": { "owner": "RuntimeValidator", "source": "shared/playable-runtime-contract.json", "required": ["viewportMatrixReport", "assetProductionReport", "assetBindingReport", "tickPerformanceReport", "tickReplayReceipt", "browserPlaytestReport", "decision", "ownerRoute"] },
     "ProjectVersion": { "owner": "ProjectStore", "required": ["versionId", "projectId", "parentVersionId", "semanticHash", "releaseCandidateId", "createdAt"] },
     "ReleaseCandidate": { "owner": "ReleaseAssembler", "required": ["candidateId", "projectVersionId", "manifest", "validationReport", "assetManifest", "runtimeManifest"] },
     "PublishReceipt": { "owner": "Publisher", "required": ["releaseId", "projectId", "versionId", "decision", "publishedUrl", "contentHash"] },
@@ -186,6 +189,12 @@
     "no-publish-with-blocking-debt-or-failed-validation",
     "no-personal-project-data-in-public-asset-cloud",
     "no-multiplayer-without-compiled-network-capability",
+    "no-playable-release-without-playable-runtime-evidence",
+    "no-local-interactive-runtime-below-60hz",
+    "no-realtime-runtime-or-network-cadence-below-30hz",
+    "no-required-generated-asset-without-real-target-binding",
+    "no-required-asset-production-set-without-complete-work-item-acceptance-and-binding",
+    "no-runtime-control-outside-canvas-safe-viewport",
     "no-secret-in-artifact-log-or-telemetry",
     "no-legacy-runtime-schema-alias-or-dual-write"
   ]

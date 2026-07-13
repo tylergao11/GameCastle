@@ -5,6 +5,7 @@ dist/
 .env
 .DS_Store
 .gamecastle/
+.gamecastle-golden/
 .gamecastle-browser/
 .tools/
 artifacts/

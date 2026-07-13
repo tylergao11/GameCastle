@@ -6,13 +6,14 @@
     "engine": "shared/asset-engine-contract.json",
     "style": "shared/asset-style-dictionary.json",
     "templates": "shared/asset-template-dictionary.json",
+    "assetProductionPipeline": "shared/asset-production-pipeline-contract.json",
     "cloudVocabulary": "shared/cloud-asset-dictionary.json",
     "localDerivation": "shared/local-derivation-contract.json",
     "providerGovernance": "shared/ai-provider-governance.json",
     "cloudAssetEngine": "shared/cloud-asset-engine-contract.json",
     "buildContract": "ai/contracts/schema.json"
   },
-  "principles": ["user-input-is-optional", "local-first", "cloud-reuse-before-generation", "deterministic-derivation-before-model", "project-local-is-runtime-truth", "every-mutation-creates-revision-and-receipt", "unimplemented-capabilities-fail-closed", "placeholder-is-explicit-debt", "cloud-promotion-is-never-automatic"],
+  "principles": ["user-input-is-optional", "local-first", "cloud-reuse-before-generation", "deterministic-derivation-before-model", "project-local-is-runtime-truth", "every-mutation-creates-revision-and-receipt", "every-pixel-change-invalidates-prior-review-evidence", "all-required-assets-before-playable-version", "unimplemented-capabilities-fail-closed", "placeholder-is-explicit-debt", "cloud-promotion-is-never-automatic"],
   "storageZones": {
     "userInput": { "scope": "private-local", "cloudReadable": false, "cloudWritable": false },
     "projectCache": { "scope": "project-local", "cloudReadable": false, "cloudWritable": false },
@@ -24,6 +25,7 @@
     { "id": "AssetIntakeGraph", "owner": "AssetSpecCompiler", "entry": "asset-intake", "exit": "asset-spec-ready" },
     { "id": "AssetResolveGraph", "owner": "AssetResolver", "entry": "asset-resolve", "exit": "resolution-decided" },
     { "id": "AssetDeriveGraph", "owner": "AssetDerivationRouter", "entry": "asset-derive", "exit": "candidate-ready" },
+    { "id": "AssetProductionLoopGraph", "owner": "AssetEngine", "entry": "asset-production-plan", "exit": "production-set-accepted-or-debt", "contract": "shared/asset-production-pipeline-contract.json" },
     { "id": "AssetReviewGraph", "owner": "AssetAcceptanceGate", "entry": "asset-review", "exit": "accepted-or-debt" },
     { "id": "AssetFinalizeGraph", "owner": "AssetFinalizer", "entry": "asset-finalize", "exit": "asset-world-ready" },
     { "id": "CloudPromotionGraph", "owner": "CloudAssetEngine", "entry": "promotion-requested", "exit": "promoted-or-rejected" }
@@ -31,24 +33,28 @@
   "stages": [
     { "id": "asset-intake", "owner": "AssetSpecCompiler", "input": "BuildContract.assetSlots", "output": "AssetSpec[]", "implementation": "implemented", "module": "ai/asset-engine-langgraph.js" },
     { "id": "local-input-archive", "owner": "LocalInputArchive", "input": "AssetSpec[]", "output": "LocalInputRecord[]", "implementation": "implemented", "module": "ai/asset-engine-langgraph.js" },
-    { "id": "asset-resolve", "owner": "AssetResolver", "input": "AssetSpec", "output": "ResolutionDecision", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
+    { "id": "asset-resolve", "owner": "AssetResolver", "input": "AssetSpec", "output": "ResolutionDecision", "implementation": "implemented", "module": "ai/asset-production-resolver.js" },
+    { "id": "asset-production-plan", "owner": "AssetProductionPlanner", "input": "AssetProductionRequest+VisualSlotDeclaration[]", "output": "AssetProductionSetPlan", "implementation": "implemented", "module": "ai/asset-production-planner.js" },
+    { "id": "asset-observe", "owner": "AssetEngine", "input": "AssetRevision+AssetSpec", "output": "AssetObservationReceipt", "implementation": "implemented", "module": "ai/asset-production-loop-graph.js" },
+    { "id": "asset-action-plan", "owner": "AssetEngine", "input": "AssetObservationReceipt", "output": "AssetActionPlan", "implementation": "implemented", "module": "ai/asset-production-loop-graph.js" },
+    { "id": "asset-production-set-accept", "owner": "AssetAcceptanceGate", "input": "WorkItemAcceptanceReceipt[]", "output": "AssetProductionSetAcceptanceReceipt", "implementation": "implemented", "module": "ai/asset-production-loop-graph.js" },
     { "id": "cloud-materialize", "owner": "CloudAssetEngine", "input": "MaterializationRequest", "output": "MaterializationReceipt+ProjectLocalRevision", "implementation": "implemented", "module": "ai/cloud-asset-engine.js" },
     { "id": "deterministic-derive", "owner": "LocalDerivationKernel", "input": "DerivationPlan", "output": "AssetRevision+OperationReceipt", "implementation": "partial", "module": "ai/local-derivation-kernel.js" },
     { "id": "model-authorize", "owner": "ModelPolicyGate", "input": "ModelRequest", "output": "AuthorizedModelRequest|DeniedModelRequest", "implementation": "implemented", "module": "ai/model-policy-gate.js" },
     { "id": "image-edit", "owner": "ImageEditPort", "input": "AuthorizedModelRequest", "output": "AssetRevision+ModelReceipt", "implementation": "port", "module": "ai/asset-model-ports.js" },
     { "id": "image-generation", "owner": "ImageGenerationPort", "input": "AuthorizedModelRequest", "output": "AssetRevision+ModelReceipt", "implementation": "port", "module": "ai/asset-model-ports.js" },
     { "id": "vision-review", "owner": "VisionReviewPort", "input": "ReviewRequest", "output": "ReviewReceipt", "implementation": "port", "module": "ai/asset-model-ports.js" },
-    { "id": "repair-plan", "owner": "AssetRepairPlanner", "input": "ReviewReceipt", "output": "RepairPlan", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
+    { "id": "repair-plan", "owner": "AssetRepairPlanner", "input": "ReviewReceipt", "output": "RepairPlan", "implementation": "implemented", "module": "ai/asset-production-loop-graph.js" },
     { "id": "asset-acceptance", "owner": "AssetAcceptanceGate", "input": "AssetRevision+AssetSpec+ReviewReceipt", "output": "AcceptanceReceipt", "implementation": "implemented", "module": "ai/asset-contract-validator.js" },
-    { "id": "asset-finalize", "owner": "AssetFinalizer", "input": "AcceptanceReceipt", "output": "AssetRecord", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
-    { "id": "manifest-build", "owner": "AssetManifestBuilder", "input": "AssetRecord[]", "output": "AssetManifest", "implementation": "implemented", "module": "ai/asset-weave-graph.js" },
-    { "id": "runtime-bind", "owner": "RuntimeAssetBinder", "input": "AssetManifest+BindingSpec[]", "output": "RuntimeBindingManifest", "implementation": "implemented", "module": "ai/asset-runtime-overlay-codegen.js" },
+    { "id": "asset-finalize", "owner": "AssetFinalizer", "input": "AcceptanceReceipt", "output": "AssetRecord", "implementation": "implemented", "module": "ai/asset-engine-langgraph.js" },
+    { "id": "manifest-build", "owner": "AssetManifestBuilder", "input": "AssetRecord[]", "output": "AssetManifest", "implementation": "implemented", "module": "ai/asset-engine-langgraph.js" },
+    { "id": "runtime-bind", "owner": "RuntimeAssetBinder", "input": "AssetManifest+BindingSpec[]", "output": "RuntimeBindingManifest", "implementation": "implemented", "module": "ai/runtime-asset-binder.js" },
     { "id": "asset-world-project", "owner": "AssetWorldProjector", "input": "AssetManifest+RuntimeBindingManifest", "output": "AssetWorld", "implementation": "implemented", "module": "ai/asset-world.js" },
     { "id": "cloud-promotion", "owner": "CloudAssetEngine", "input": "CloudPromotionRequest", "output": "CloudPromotionReceipt", "implementation": "implemented", "module": "ai/cloud-asset-engine.js" },
-    { "id": "placeholder-debt", "owner": "AssetDebtManager", "input": "FailureContext", "output": "AssetDebt", "implementation": "implemented", "module": "ai/asset-weave-graph.js" }
+    { "id": "placeholder-debt", "owner": "AssetDebtManager", "input": "FailureContext", "output": "AssetDebt", "implementation": "implemented", "module": "ai/asset-production-loop-graph.js" }
   ],
   "artifacts": {
-    "AssetSpec": ["slotId", "kind", "semanticTags", "styleId", "constraints", "bindingTarget"],
+    "AssetSpec": ["slotId", "kind", "semanticTags", "styleId", "constraints", "targetVisualSlotId"],
     "ResolutionDecision": ["route", "reason", "sourceScope", "candidateId", "nextStage"],
     "AssetRevision": ["assetId", "revisionId", "parentRevisionId", "path", "sha256", "provenance", "scope"],
     "OperationReceipt": ["operationId", "inputHash", "outputHash", "tool", "toolVersion", "policyId"],
@@ -60,7 +66,7 @@
     "AssetWorld": ["worldVersion", "assetManifestId", "slots", "debts", "cloudPromotionQueue", "semanticHash"],
     "AssetDebt": ["debtId", "slotId", "code", "owner", "blocksExport", "recoveryStage"]
   },
-  "states": { "asset": ["declared", "resolving", "candidate", "reviewing", "repairing", "accepted", "bound", "debt", "retired"], "reviewDecision": ["pass", "repairable", "reject"], "implementation": ["skeleton", "port", "partial", "implemented"] },
+  "states": { "asset": ["declared", "resolving", "candidate", "reviewing", "repairing", "accepted", "bound", "debt", "retired"], "reviewDecision": ["pass", "repairable", "reject"], "implementation": ["designed", "skeleton", "port", "partial", "implemented"] },
   "transitions": [["declared", "resolving"], ["resolving", "candidate"], ["resolving", "debt"], ["candidate", "reviewing"], ["reviewing", "repairing"], ["reviewing", "accepted"], ["reviewing", "debt"], ["repairing", "candidate"], ["repairing", "debt"], ["accepted", "bound"], ["accepted", "retired"], ["bound", "retired"]],
   "ports": [
     { "id": "LocalInputArchivePort", "direction": "outbound", "required": true }, { "id": "ProjectAssetCachePort", "direction": "outbound", "required": true },
@@ -70,5 +76,5 @@
     { "id": "RuntimeBindingPort", "direction": "outbound", "required": true }, { "id": "CloudPromotionPort", "direction": "outbound", "required": false }
   ],
   "debtCodes": ["NO_CANDIDATE", "CAPABILITY_UNIMPLEMENTED", "MODEL_UNAVAILABLE", "MODEL_BUDGET_EXHAUSTED", "REVIEW_REJECTED", "REPAIR_EXHAUSTED", "CONTRACT_INVALID", "BINDING_FAILED", "LICENSE_UNKNOWN", "PROVENANCE_MISSING"],
-  "hardGates": ["no-cloud-write-without-acceptance-and-explicit-promotion", "no-model-call-without-policy-authorization", "no-finalize-without-revision-and-receipt", "no-runtime-binding-to-non-project-local-path", "no-export-blocking-debt-in-final-release", "no-simulated-provider-labeled-as-real-ai"]
+  "hardGates": ["no-cloud-write-without-acceptance-and-explicit-promotion", "no-model-call-without-policy-authorization", "no-finalize-without-revision-and-receipt", "no-runtime-binding-to-non-project-local-path", "no-pixel-change-without-new-revision-and-reobservation", "no-required-slot-missing-from-production-set-acceptance", "no-playable-project-version-before-all-required-assets-are-accepted-and-bound", "no-export-blocking-debt-in-final-release", "no-simulated-provider-labeled-as-real-ai"]
 }

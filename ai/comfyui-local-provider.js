@@ -8,6 +8,7 @@ var registry = require('../shared/comfyui-workflow-registry.json');
 var stageBInputs = require('./comfyui-stageb-inputs');
 var extensions = require('./comfyui-extension-registry');
 var maskContract = require('./comfyui-mask-contract');
+var styleDNA = require('./style-dna');
 
 var blobs = new Map();
 function code(codeValue, message) { var error = new Error(message); error.code = codeValue; error.owner = 'ComfyUILocalProviderAdapter'; return error; }
@@ -94,10 +95,14 @@ function workflow(model, role) {
 function buildPrompt(item, graph, input) {
   var result = clone(graph), prompt = String(input.prompt || 'game asset');
   result['2'].inputs.text = prompt;
+  result['3'].inputs.text = String(input.negativePrompt || result['3'].inputs.text || 'blurry, low quality, text, watermark');
   result['4'].inputs.width = Math.min(Number(input.width || 512), item.maxWidth);
   result['4'].inputs.height = Math.min(Number(input.height || 512), item.maxHeight);
   result['5'].inputs.seed = Number.isFinite(Number(input.seed)) ? Number(input.seed) : 1;
-  result['5'].inputs.steps = Math.max(1, Math.min(8, Number(input.steps || 4)));
+  // Four diffusion steps produced low-information fog rather than usable
+  // GameCastle assets on the local SD1.5 CPU workflow. The production floor
+  // is intentionally higher; callers may raise it, never lower it silently.
+  result['5'].inputs.steps = Math.max(20, Math.min(32, Number(input.steps || process.env.COMFYUI_GENERATION_STEPS || 24)));
   result['7'].inputs.filename_prefix = 'gamecastle-' + String(input.requestId || 'request').replace(/[^A-Za-z0-9_-]/g, '_');
   return result;
 }
@@ -215,18 +220,19 @@ async function invokeComfyUI(context) {
   if (context.request.role === 'vision-review') return context.model === 'gamecastle.asset-review.dev-cpu.v1' ? localReview(context) : semanticReview(context);
   throw code('COMFYUI_ROLE_UNAVAILABLE', 'ComfyUI role is unavailable.');
 }
-function candidate(state, result) {
+function candidate(state, result, source) {
   if (!result.ok) throw code(result.debt.code, result.debt.code);
-  var output = result.output || {}, slot = state.slot || {};
-  return { assetId: 'comfy.' + output.assetBlobRef.sha256.slice(0, 16), sha256: output.assetBlobRef.sha256, assetBlobRef: output.assetBlobRef, path: 'blob://' + output.assetBlobRef.blobId, format: 'png', width: output.width, height: output.height, transparent: output.transparent, styleId: slot.styleId || null, semanticTags: slot.semanticTags || [], styleTags: slot.styleTags || [], status: 'generated', source: 'imageGeneration', providerReceipt: result.receipt, publishability: { playable: true, publishable: true, blocksFinalExport: false } };
+  var output = result.output || {}, slot = state.slot || {}, kind = source || 'imageGeneration';
+  return { assetId: 'comfy.' + output.assetBlobRef.sha256.slice(0, 16), sha256: output.assetBlobRef.sha256, assetBlobRef: output.assetBlobRef, path: 'blob://' + output.assetBlobRef.blobId, format: 'png', width: output.width, height: output.height, transparent: output.transparent, styleId: slot.styleId || null, semanticTags: slot.semanticTags || [], styleTags: slot.styleTags || [], status: kind === 'imageEdit' ? 'variant' : 'generated', source: kind, parentRevisionId: kind === 'imageEdit' ? state.source.parentRevisionId : null, providerReceipt: result.receipt, publishability: { playable: true, publishable: true, blocksFinalExport: false } };
 }
 function createAssetProviderPorts(runtime, options) {
   options = options || {};
-  function invoke(role, state, extra) { var model = role === 'image-generate' ? (options.imageModel || options.model) : role === 'image-edit' ? (options.editModel || options.model) : (options.visionModel || null); return runtime.invokeRole({ requestId: state.runId + ':' + state.slot.slotId + ':' + role, projectId: state.projectId || state.runId, role: role, provider: 'comfyui-local', model: model, estimatedCost: options.estimatedCost, timeoutMs: options.timeoutMs, maxAttempts: 1, input: Object.assign({ prompt: (state.slot.semanticTags || []).join(', '), width: (state.slot.constraints || {}).width || 512, height: (state.slot.constraints || {}).height || 512, styleId: state.slot.styleId || null, extensions: options.extensions || [] }, extra || {}) }); }
+  function invoke(role, state, extra) { var model = role === 'image-generate' ? (options.imageModel || options.model) : role === 'image-edit' ? (options.editModel || options.model) : (options.visionModel || null), slot = state.slot || {}, styledPrompt = slot.generationPrompt || styleDNA.generationPrompt(slot.styleId, (slot.semanticTags || []).join(', '), { transparent: ((slot.constraints || {}).transparent === true) }); return runtime.invokeRole({ requestId: state.runId + ':' + slot.slotId + ':' + role, projectId: state.projectId || state.runId, role: role, provider: 'comfyui-local', model: model, estimatedCost: options.estimatedCost, timeoutMs: options.timeoutMs, maxAttempts: 1, input: Object.assign({ prompt: styledPrompt, negativePrompt: slot.negativePrompt || styleDNA.negativePrompt(slot.styleId), width: slot.generationWidth || (slot.constraints || {}).width || 512, height: slot.generationHeight || (slot.constraints || {}).height || 512, styleId: slot.styleId || null, extensions: options.extensions || [] }, extra || {}) }); }
   return {
     generate: async function(state) { return candidate(state, await invoke('image-generate', state)); },
-    edit: async function(state) { var source = await stageBInputs.resolve(options, state.source && state.source.parentAssetRef, state, 'parent', pngInfo), mask = await stageBInputs.resolve(options, state.source && state.source.maskAssetRef, state, 'mask', pngInfo); var result = await invoke('image-edit', state, { parentRevisionId: state.source.parentRevisionId, sourceAssetBlobRef: source, maskAssetBlobRef: mask, prompt: (state.source.repairConstraint || (state.slot.semanticTags || []).join(', ')) }); return candidate(state, result); },
-    review: async function(state) { var result = await invoke('vision-review', state, { assetBlobRef: state.candidate && state.candidate.assetBlobRef, reviewPolicy: { requiredSemanticTags: (state.slot && state.slot.semanticTags) || [], minConfidence: 0.35 } }); if (!result.ok) return { pass: false, repairable: false, issues: [result.debt.code], providerReceipt: result.receipt }; try { return Object.assign(JSON.parse(result.output.text), { providerReceipt: result.receipt }); } catch (_error) { return { pass: false, repairable: false, issues: ['vision_review_invalid_json'], providerReceipt: result.receipt }; } },
+    edit: async function(state) { var source = await stageBInputs.resolve(options, state.source && state.source.parentAssetRef, state, 'parent', pngInfo), mask = await stageBInputs.resolve(options, state.source && state.source.maskAssetRef, state, 'mask', pngInfo); var result = await invoke('image-edit', state, { parentRevisionId: state.source.parentRevisionId, sourceAssetBlobRef: source, maskAssetBlobRef: mask, prompt: (state.source.repairConstraint || (state.slot.semanticTags || []).join(', ')) }); return candidate(state, result, 'imageEdit'); },
+    review: async function(state) { var reviewPolicy = state.source && state.source.reviewPolicy || { requiredSemanticTags: (state.slot && state.slot.semanticTags) || [], minConfidence: 0.35 }; var result = await invoke('vision-review', state, { assetBlobRef: state.candidate && state.candidate.assetBlobRef, reviewPolicy: reviewPolicy }); if (!result.ok) return { pass: false, repairable: false, issues: [result.debt.code], providerReceipt: result.receipt }; try { return Object.assign(JSON.parse(result.output.text), { providerReceipt: result.receipt }); } catch (_error) { return { pass: false, repairable: false, issues: ['vision_review_invalid_json'], providerReceipt: result.receipt }; } },
+    registerDerivedCandidate: async function(state) { var candidate = state.candidate || {}, bytes = fs.readFileSync(candidate.path), info = pngInfo(bytes, { maxWidth: 512, maxHeight: 512, maxPixels: 262144, maxOutputBytes: 16777216 }), digest = sha256(bytes), transit = transitRoot(), blobPath = path.join(transit, digest + '.png'); fs.mkdirSync(transit, { recursive: true }); if (!fs.existsSync(blobPath)) fs.copyFileSync(candidate.path, blobPath); var blobId = 'blob.' + digest.slice(0, 24), scope = 'project-local'; rememberBlob(blobId, { path: blobPath, sha256: digest, info: info, projectId: state.projectId || state.runId, scope: scope, expiresAt: Date.now() + 3600000 }); return Object.assign({}, candidate, { assetBlobRef: { blobId: blobId, sha256: digest, scope: scope, mediaType: 'image/png', byteLength: bytes.length } }); },
     materializeCandidate: async function(state) { var ref = state.candidate && state.candidate.assetBlobRef, record = findBlob(ref); return Object.assign({}, state.candidate, { path: record.path, transientMaterialized: true }); },
     promoteCandidate: async function(state) { var ref = state.candidate && state.candidate.assetBlobRef, record = findBlob(ref); if (!state.projectAssetDir) throw code('COMFYUI_PROMOTION_UNAVAILABLE', 'Accepted candidate requires a project-local target.'); var dir = path.resolve(state.projectAssetDir), target = path.join(dir, 'comfy-' + record.sha256.slice(0, 16) + '.png'); fs.mkdirSync(dir, { recursive: true }); if (!fs.existsSync(target)) fs.copyFileSync(record.path, target); var next = Object.assign({}, state.candidate, { path: target, materialized: true, privacyScope: record.scope, assetBlobProvenance: { blobId: ref.blobId, sha256: ref.sha256, transitScope: ref.scope } }); delete next.assetBlobRef; return next; }
   };

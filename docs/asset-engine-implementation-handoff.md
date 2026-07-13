@@ -14,7 +14,7 @@
 
 ### B. 解析与仓库
 
-- 将现有 AssetWeave 的检索逻辑收敛为唯一 AssetResolver。
+- 检索逻辑已经收敛为唯一 AssetProductionResolver；不得恢复旧图或兼容 reader。
 - 明确 exact/near 的评分阈值、license 和 provenance 过滤。
 - 所有云命中先下载到 project-local，再生成 AssetRevision。
 

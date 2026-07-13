@@ -2,7 +2,8 @@ var assert = require('assert'); var fs = require('fs'); var path = require('path
 assert.strictEqual(contract.contractId, 'gamecastle.asset-engine');
 assert.deepStrictEqual(contract.resolutionLadder.slice(0, 4), ['local-input', 'project-cache', 'cloud-exact', 'cloud-near']);
 assert.strictEqual(new Set(contract.stages.map(function(stage) { return stage.id; })).size, contract.stages.length);
-assert.strictEqual(contract.graphs.length, 6);
+assert.deepStrictEqual(contract.graphs.map(function(graph) { return graph.id; }), ['AssetIntakeGraph', 'AssetResolveGraph', 'AssetDeriveGraph', 'AssetProductionLoopGraph', 'AssetReviewGraph', 'AssetFinalizeGraph', 'CloudPromotionGraph']);
+assert.strictEqual(contract.graphs.find(function(graph) { return graph.id === 'AssetProductionLoopGraph'; }).owner, 'AssetEngine');
 Object.keys(contract.truthSources).forEach(function(key) { assert.strictEqual(fs.existsSync(path.resolve(__dirname, '..', contract.truthSources[key])), true, 'missing truth source: ' + key); });
 contract.stages.forEach(function(stage) { assert(stage.input && stage.output && stage.owner && stage.implementation, 'incomplete stage: ' + stage.id); if (stage.module) assert.strictEqual(fs.existsSync(path.resolve(__dirname, '..', stage.module)), true, 'missing module: ' + stage.module); });
 Object.keys(contract.artifacts).forEach(function(name) { assert(contract.artifacts[name].length > 0); });

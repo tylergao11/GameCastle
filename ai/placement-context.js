@@ -20,6 +20,20 @@ function mergeBound(left, right) {
   return merged;
 }
 
+function addObjectBound(context, name, bound) {
+  context.objectBounds[name] = mergeBound(context.objectBounds[name], bound);
+  var natural = String(name || '').toLowerCase();
+  if (natural && natural !== name) context.objectBounds[natural] = mergeBound(context.objectBounds[natural], bound);
+  // Natural intent uses both singular and plural subject forms; both resolve to
+  // the same declared prototype bounds before placement planning.
+  if (natural) {
+    var singular = natural.endsWith('s') ? natural.slice(0, -1) : natural;
+    var plural = singular + 's';
+    context.objectBounds[singular] = mergeBound(context.objectBounds[singular], bound);
+    context.objectBounds[plural] = mergeBound(context.objectBounds[plural], bound);
+  }
+}
+
 function mergePlacementContexts() {
   var result = makeEmptyContext();
   Array.prototype.slice.call(arguments).forEach(function(context) {
@@ -44,7 +58,7 @@ function contextFromModuleIntents(moduleIntents, productModuleCatalog) {
     if (!manifest) return;
     ((manifest.declarationContract && manifest.declarationContract.spatialSubjects) || []).forEach(function(subject) {
       var bounds = subject.bounds || {};
-      context.objectBounds[subject.prototypeId] = mergeBound(context.objectBounds[subject.prototypeId], {
+      addObjectBound(context, subject.prototypeId, {
         width: Number(bounds.width || 0), height: Number(bounds.height || 0), layer: subject.layerRole || ''
       });
     });
@@ -56,7 +70,7 @@ function contextFromModuleDeclaration(declaration) {
   var context = makeEmptyContext();
   (declaration && declaration.subjects || []).forEach(function(subject) {
     var bounds = subject.bounds || {};
-    context.objectBounds[subject.prototypeId] = mergeBound(context.objectBounds[subject.prototypeId], {
+      addObjectBound(context, subject.prototypeId, {
       width: Number(bounds.width || 0), height: Number(bounds.height || 0), layer: subject.layerRole || ''
     });
   });
@@ -68,7 +82,7 @@ function contextFromProjectWorld(world) {
   (world && world.scenes || []).forEach(function(scene) {
     (scene.instances || []).forEach(function(instance) {
       if (!instance.object) return;
-      context.objectBounds[instance.object] = mergeBound(context.objectBounds[instance.object], {
+      addObjectBound(context, instance.object, {
         x: Number(instance.x || 0),
         y: Number(instance.y || 0),
         width: Number(instance.width || 0),

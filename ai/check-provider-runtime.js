@@ -5,9 +5,14 @@ var path = require('path');
 var runtimeModule = require('./provider-runtime');
 var adapters = require('./provider-runtime-adapters');
 var assetEngine = require('./asset-engine-langgraph');
+var pngCodec = require('./local-derivation-port');
 
 function request(role, id, extra) { return Object.assign({ requestId: id, projectId: 'provider-check', role: role, provider: 'simulated-local', estimatedCost: 0.1, input: { prompt: 'safe prompt' } }, extra || {}); }
-function png() { return Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+Zp9Y7QAAAABJRU5ErkJggg==', 'base64'); }
+function png() {
+  var width = 6, height = 6, data = new Uint8ClampedArray(width * height * 4);
+  for (var y = 1; y < height - 1; y++) for (var x = 1; x < width - 1; x++) { var offset = (y * width + x) * 4; data[offset] = 238; data[offset + 1] = 73; data[offset + 2] = 58; data[offset + 3] = 255; }
+  return pngCodec.encodePng({ width: width, height: height, data: data });
+}
 
 async function main() {
   var transportCalls = [];
@@ -44,8 +49,11 @@ async function main() {
     var auditable = runtimeModule.createProviderRuntime({ receiptDir: path.join(root, 'receipts'), invokeTransport: async function() { return { output: { text: 'ok' }, usage: {}, cost: 0 }; } });
     var audited = await auditable.invokeRole(request('intent-text', 'receipt-persist'));
     assert(fs.existsSync(path.join(root, 'receipts', audited.receipt.receiptId + '.json')), 'receipt must persist as an auditable project-local artifact when a receipt directory is configured');
-    var ports = adapters.createAssetProviderPorts(runtime, { estimatedCost: 0.1 });
-    var state = { runId: 'adapter', projectId: 'provider-check', slot: { slotId: 'asset.hero', kind: 'sprite', semanticTags: ['hero'], styleTags: ['gamecastle.style-1'], constraints: { width: 1, height: 1, transparent: true } }, projectAssetDir: root, source: { parentRevisionId: 'source-1' } };
+    var ports = adapters.createAssetProviderPorts(runtime, { provider: 'simulated-local', estimatedCost: 0.1 });
+    var targetVisualSlotIds = { hero: 'test.hero.visual', enemy: 'test.enemy.visual', collectible: 'test.collectible.visual' };
+    var slots = ['hero', 'enemy', 'collectible'].map(function(slotId) { return { slotId: slotId, kind: 'sprite', targetVisualSlotId: targetVisualSlotIds[slotId], semanticTags: [slotId], styleTags: ['gamecastle.style-dna.v1'], constraints: { width: 6, height: 6, transparent: true } }; });
+    var state = { runId: 'adapter', projectId: 'provider-check', slot: slots[0], projectAssetDir: root, source: { parentRevisionId: 'source-1' } };
+    var productionRequest = { requestId: 'provider-runtime-asset-production', projectId: 'provider-check', templateId: 'game.runner.v1', templateVersion: 2, styleId: 'gamecastle.style-dna.v1', requiredSlotIds: ['hero', 'enemy', 'collectible'], targetVisualSlotIds: targetVisualSlotIds };
     var generated = await ports.generate(state);
     assert(fs.existsSync(generated.path), 'image adapter must materialize provider bytes locally');
     assert.strictEqual(generated.publishability.publishable, false, 'simulated provider output must not publish');
@@ -53,13 +61,14 @@ async function main() {
     assert.strictEqual((await ports.review(state)).pass, true, 'vision adapter must consume typed review JSON');
     assert.strictEqual((await ports.edit(state)).status, 'variant', 'edit adapter must keep parent revision semantics');
     var woven = await assetEngine.runAssetEngine({
-      runId: 'provider-runtime-asset-weave', projectId: 'provider-check',
-      buildContract: { assetContract: { slots: [state.slot] } },
-      sources: { 'asset.hero': { kind: 'generation_required' } },
-      providerRuntime: runtime, providerOptions: { estimatedCost: 0.1 },
+      runId: 'provider-runtime-asset-production', projectId: 'provider-check',
+      productionRequest: productionRequest,
+      buildContract: { assetContract: { slots: slots } },
+      sources: { hero: { kind: 'generation_required' }, enemy: { kind: 'generation_required' }, collectible: { kind: 'generation_required' } },
+      providerRuntime: runtime, providerOptions: { provider: 'simulated-local', estimatedCost: 0.1 },
       projectAssetDir: root, modelPolicy: { simulated: true }
     });
-    assert.strictEqual(woven.accepted, true, 'Asset Engine must consume ProviderRuntime ports through the existing AssetWeave path');
+    assert.strictEqual(woven.accepted, true, 'Asset Engine must consume ProviderRuntime ports through the canonical production loop: ' + JSON.stringify(woven.debts || []));
     assert.strictEqual(woven.assetManifest.assets[0].simulated, true, 'provider provenance must remain visible to the asset publish gate');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 

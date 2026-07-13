@@ -5,6 +5,7 @@ var path = require('path');
 var vm = require('vm');
 var runtime = require('./project-weave-runtime');
 var selector = require('./fun-blueprint-selector');
+var testAssetPorts = require('./test-asset-engine-ports');
 var graph = { requirementGraphId: 'blueprint-check', mode: 'create', funBlueprintRef: { blueprintId: 'route-mastery', revision: 1 }, requirements: [{ semanticRef: 'semantic-dictionary#/semantic_concepts/movement', required: true }, { semanticRef: 'semantic-dictionary#/playGoals/collect', required: true }] };
 var selected = selector.select(graph, { blueprintRef: graph.funBlueprintRef });
 assert.strictEqual(selected.blueprintRef.blueprintId, 'route-mastery');
@@ -14,7 +15,11 @@ assert.strictEqual(runtime.defaultSemanticPort({ requestId: 'r', naturalIntent: 
 async function playable(blueprintRef, refs, modulePreference, services) {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-blueprint-'));
   try {
-    var result = await runtime.create({ projectId: blueprintRef.blueprintId, requestId: blueprintRef.blueprintId + '-1', naturalIntent: 'explicit blueprint pilot', intentDslText: 'make a test game', funBlueprintRef: blueprintRef, requiredSemanticRefs: refs, modulePreference: modulePreference }, { workspaceRoot: root, services: services || {} });
+    var completeServices = Object.assign({}, services || {}, {
+      assetPorts: testAssetPorts.createTestAssetEnginePorts({ outputDir: path.join(root, 'test-assets') }),
+      runtimeEvidence: { collect: async function() { return { viewportMatrixReport: { pass: true, simulated: false }, tickPerformanceReport: { pass: true, simulated: false, profile: 'local-interactive', observedSimulationHz: 60 }, tickReplayReceipt: { pass: true, simulated: false, finalStateHash: 'blueprint-fixture-state' }, browserPlaytestReport: { pass: true, simulated: false, origin: 'http://127.0.0.1:4193' } }; } }
+    });
+    var result = await runtime.create({ projectId: blueprintRef.blueprintId, requestId: blueprintRef.blueprintId + '-1', naturalIntent: 'explicit blueprint pilot', intentDslText: 'make a test game', funBlueprintRef: blueprintRef, requiredSemanticRefs: refs, modulePreference: modulePreference, assetOptions: { modelPolicy: { provider: 'deepseek', allowExternal: true } } }, { workspaceRoot: root, services: completeServices });
     assert.equal(result.lifecycle, 'playable');
     assert.equal(result.artifacts.funBlueprintSelection.blueprintRef.blueprintId, blueprintRef.blueprintId);
     assert.ok(fs.existsSync(path.join(result.runtimeDir, 'index.html')));

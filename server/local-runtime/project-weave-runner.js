@@ -17,6 +17,7 @@ function materializeCanonicalRun(state, outputDir) {
   ['project-world.json', 'asset-world.json', 'execution-ledger.json'].forEach(function(name) {
     fs.copyFileSync(path.join(state.runDir, name), path.join(outputDir, name));
   });
+  fs.copyFileSync(path.join(state.runDir, 'project-run.json'), path.join(outputDir, 'project-run.json'));
 }
 
 function createProjectWeaveRunner(options) {

@@ -1,7 +1,7 @@
 var assert = require('assert');
 var validator = require('./asset-contract-validator');
-var slot = { slotId: 'asset.hero', styleId: 'gamecastle.style-1', semanticTags: ['hero'], styleTags: ['arcade'], constraints: { width: 32, height: 48, transparent: true } };
-var valid = { path: 'memory://hero', format: 'png', width: 32, height: 48, transparent: true, styleId: 'gamecastle.style-1', semanticTags: ['hero'], styleTags: ['arcade'], publishability: { playable: true, blocksFinalExport: false } };
+var slot = { slotId: 'asset.hero', styleId: 'gamecastle.style-dna.v1', semanticTags: ['hero'], styleTags: ['arcade'], constraints: { width: 32, height: 48, transparent: true } };
+var valid = { path: 'memory://hero', format: 'png', width: 32, height: 48, transparent: true, styleId: 'gamecastle.style-dna.v1', semanticTags: ['hero'], styleTags: ['arcade'], publishability: { playable: true, blocksFinalExport: false } };
 assert.equal(validator.validateAssetCandidate(slot, valid).pass, true);
 var invalid = validator.validateAssetCandidate(slot, Object.assign({}, valid, { source: 'imageGeneration', status: 'reused', format: 'jpeg', width: 31, transparent: false, styleId: 'other.style', styleTags: [], publishability: { playable: false, blocksFinalExport: true } }));
 assert.equal(invalid.pass, false);

@@ -10,7 +10,7 @@
 | `ai-provider-governance` | provider 选择、endpoint、密钥环境变量名、模型别名、外部授权、预算 | 图片/文本请求体细节 |
 | `ProviderRuntime` | 授权、调用、超时、取消、重试、成本 reservation、safe receipt、debt | 语义/像素/玩法领域决策 |
 | 语义 adapter | 组装 text role 输入并验证语义输出 | 绕过 ProviderRuntime 调网络 |
-| 资产 adapter | ImageGeneration、ImageEdit、VisionReview 请求/响应归一化和本地 PNG materialize | 改写 AssetWeave 路由、预算或 debt |
+| 资产 adapter | ImageGeneration、ImageEdit、VisionReview 请求/响应归一化和本地 PNG materialize | 改写 AssetProductionLoopGraph 路由、预算或 debt |
 | LangGraph | 使用 typed result、repair、Runtime 绑定 | 持有 API Key |
 
 ## 环境变量
@@ -29,7 +29,7 @@
 
 1. 资产默认 `simulated-local`。
 2. 非模拟 provider 必须显式 `allowExternal`。
-3. AssetWeave 在调用前共享预算 reservation；不足时写 `budget_exhausted` debt。
+3. AssetProductionLoopGraph 在调用前共享预算 reservation；不足时写 `budget_exhausted` debt。
 4. provider 返回必须归一为 candidate/review receipt，之后仍走验收、revision、Runtime 与
    AssetWorld。
 5. Provider receipt 只含 request hash、model、usage、成本、provenance 和状态；不含 raw prompt、图片或密钥。

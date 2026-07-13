@@ -18,7 +18,7 @@ function testSessionOrdersFramesAndDropsLateInputs() {
 function testGameLoopUsesOrderedInputSession() {
   var emitted = [];
   var loop = new GameLoop({
-    tickRate: 20,
+    tickRate: 60,
     onTick: function(inputs, tick) {
       emitted.push({ inputs: inputs, tick: tick });
     },

@@ -13,7 +13,7 @@ const { Room } = require("./room");
 // ── Config ────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 
-// ── Helpers ───────────────────────────────────────────────────��───────────
+// -- Helpers ------------------------------------------------------------
 const uid = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -21,7 +21,7 @@ const send = (ws, msg) => {
   if (ws.readyState === 1) ws.send(JSON.stringify(msg));
 };
 
-// ── Schema ───────────────────────────────────────────────────��────────────
+// -- Schema -------------------------------------------------------------
 const SCHEMA = {
   create_room:  {},
   join_room:    { required: ["roomId"] },
@@ -48,7 +48,7 @@ const validate = (msg) => {
 const rooms = new Map();   // roomId → Room
 const conns = new Map();   // ws → { roomId, playerId }
 
-// ── Handlers ───────────────────────────────────────────────────��──────────
+// -- Handlers -----------------------------------------------------------
 
 const handlers = {
 

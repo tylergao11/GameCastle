@@ -3,6 +3,7 @@ var fs = require('fs');
 var os = require('os');
 var path = require('path');
 var runtime = require('./project-weave-runtime');
+var testAssetPorts = require('./test-asset-engine-ports');
 
 var CASES = [
   ['runner-platformer', 'core.platformer'],
@@ -23,13 +24,14 @@ async function main() {
   try {
     for (var i = 0; i < CASES.length; i++) {
       var archetype = CASES[i][0], moduleId = CASES[i][1], planner = plannerFor(moduleId);
-      var created = await runtime.create({ projectId: archetype, requestId: archetype + '-create', naturalIntent: 'make a game', intentDslText: 'make a mobile platformer' }, { workspaceRoot: root, services: { productModulePlanner: planner } });
+      var services = { productModulePlanner: planner, assetPorts: testAssetPorts.createTestAssetEnginePorts({ outputDir: path.join(root, 'test-assets', archetype) }), runtimeEvidence: { collect: async function() { return { viewportMatrixReport: { pass: true, simulated: false }, tickPerformanceReport: { pass: true, simulated: false, profile: 'local-interactive', observedSimulationHz: 60 }, tickReplayReceipt: { pass: true, simulated: false, finalStateHash: 'continue-matrix-fixture-state' }, browserPlaytestReport: { pass: true, simulated: false, origin: 'http://127.0.0.1:4193' } }; } } };
+      var created = await runtime.create({ projectId: archetype, requestId: archetype + '-create', naturalIntent: 'make a game', intentDslText: 'make a mobile platformer', assetOptions: { modelPolicy: { provider: 'deepseek', allowExternal: true } } }, { workspaceRoot: root, services: services });
       assert(created.project.layouts.length > 0, archetype + ' create must produce a runtime scene');
       assert(created.artifacts.projectWorld.modules.some(function(module) { return module.id === moduleId; }), archetype + ' create must persist module ownership');
       assert.equal(created.artifacts.playtestReport.owner, 'SemanticPlaytestAgent', archetype + ' create must execute semantic playtest');
       assert(created.artifacts.playtestReport.tickReport.eventLog.length >= 3, archetype + ' playtest must produce a meaningful tick trace');
       assert.equal(created.artifacts.playtestReport.tickReport.snapshots.length, 3, archetype + ' playtest must retain start/mid/end snapshots');
-      var continued = await runtime.continue({ projectId: archetype, requestId: archetype + '-continue', naturalIntent: 'continue game', intentDslText: 'make a mobile platformer' }, { workspaceRoot: root, services: { productModulePlanner: planner } });
+      var continued = await runtime.continue({ projectId: archetype, requestId: archetype + '-continue', naturalIntent: 'continue game', intentDslText: 'make a mobile platformer', assetOptions: { modelPolicy: { provider: 'deepseek', allowExternal: true } } }, { workspaceRoot: root, services: services });
       assert(continued.artifacts.moduleCompositionPlan.operations.some(function(operation) { return operation.op === 'retain' && operation.fromModule.moduleId === moduleId; }), archetype + ' continue must retain the created module');
       assert.equal(continued.artifacts.compiledModulePlan.targetPlanLines.length, 0, archetype + ' continue must not replay creation');
       assert.equal(continued.artifacts.execution.completed, 0, archetype + ' continue executes no creation instruction');

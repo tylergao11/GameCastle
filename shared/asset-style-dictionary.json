@@ -1,15 +1,17 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "dictionaryId": "gamecastle.asset-style-dictionary",
-  "defaultStyleId": "gamecastle.style-1",
+  "defaultStyleId": "gamecastle.style-dna.v1",
   "styles": {
-    "gamecastle.style-1": {
-      "name": "GameCastle 意象派",
-      "purpose": "将用户已画出的轮廓稳定地重绘为低细节、粗描边、可玩且可模板复用的资产；不推断物体语义。",
+    "gamecastle.style-dna.v1": {
+      "name": "GameCastle Style DNA",
+      "purpose": "A cohesive mobile-game visual language: bold outlined vector cartoon assets with flat color masses, low-detail readable geometry, restrained toon volume, western-cartoon proportions, and high-contrast game UI.",
+      "classification": ["vector-art", "toon-shader", "mobile-game-asset"],
+      "explicitlyNot": ["anime", "pixel-art", "photorealistic", "painterly-realism", "dense-texture", "generic-ui"],
       "inputContract": {
         "required": ["alpha silhouette"],
         "optional": ["subject tag", "palette role", "anchor", "motion"],
-        "rejects": ["empty canvas", "opaque photographic background"]
+        "rejects": ["empty canvas", "opaque photographic background", "anime facial proportions", "pixel grid", "photorealistic material texture"]
       },
       "palette": {
         "ink": "#141923",
@@ -20,11 +22,27 @@
         "deep": "#17253e",
         "lime": "#c6f252"
       },
+      "styleDNA": {
+        "outline": "bold near-black rounded outline around every gameplay-readable silhouette",
+        "shapeLanguage": "simple low-detail geometric primitives, rounded corners, large readable masses",
+        "colorLanguage": "flat color blocks with a deliberately limited local palette; color choice is contextual, not the style identity",
+        "volume": "one restrained toon shadow and at most one small highlight; no realistic rendering",
+        "characterProportion": "western-cartoon, compact body, oversized readable head/face where applicable",
+        "uiLanguage": "high-contrast flat rectangular or rounded game UI blocks with bold outline and single accent fill",
+        "sceneLanguage": "layered broad silhouette masses; gameplay foreground must remain more readable than decoration"
+      },
+      "promptContract": {
+        "requiredPhrases": ["bold rounded dark outline", "flat vector color blocks", "low-detail geometric mobile game asset", "subtle single toon shadow", "western cartoon proportions", "clean transparent background"],
+        "negativePhrases": ["anime", "manga", "pixel art", "photorealistic", "realistic texture", "painterly", "complex material", "3d render", "text", "watermark", "logo", "busy background"],
+        "maxLocalColorFamilies": 5,
+        "maxShadowLayers": 1,
+        "maxHighlightLayers": 1
+      },
       "renderRecipe": {
-        "outline": { "color": "ink", "widthRatio": 0.022, "minimumPx": 3, "join": "round" },
-        "shadow": { "color": "ink", "opacity": 0.36, "offsetOutlineMultipler": 2 },
-        "highlight": { "color": "paper", "opacity": 0.32, "position": "upper-left" },
-        "face": { "preset": "two-dot-smile", "position": "center-lower" },
+        "outline": { "color": "ink", "widthRatio": 0.028, "minimumPx": 3, "join": "round" },
+        "shadow": { "color": "ink", "opacity": 0.28, "offsetOutlineMultipler": 1.5, "layers": 1 },
+        "highlight": { "color": "paper", "opacity": 0.22, "position": "upper-left", "layers": 1 },
+        "face": { "preset": "western-cartoon-readable", "position": "center-lower" },
         "output": { "format": "png", "transparent": true, "anchor": "bottom-center" }
       },
       "animationPolicy": {
@@ -34,10 +52,13 @@
         "maxGeneratedKeyframesPerAction": 2
       },
       "templateRoles": {
-        "sprite.character": ["ink", "fill", "shadow", "highlight", "face"],
-        "sprite.prop": ["ink", "fill", "shadow", "highlight"],
-        "ui.panel": ["ink", "paper", "accent", "shadow"],
-        "ui.button": ["ink", "paper", "accent", "shadow"]
+        "sprite.character": ["ink", "flat-fill", "single-shadow", "single-highlight", "face"],
+        "sprite.enemy": ["ink", "flat-fill", "single-shadow", "single-highlight"],
+        "sprite.prop": ["ink", "flat-fill", "single-shadow", "single-highlight"],
+        "world.platform": ["ink", "flat-fill", "single-shadow"],
+        "scene.background": ["broad-silhouette-layers", "flat-fill", "restrained-toon-depth"],
+        "ui.panel": ["ink", "paper", "accent", "single-shadow"],
+        "ui.button": ["ink", "flat-fill", "accent", "single-shadow"]
       }
     }
   }

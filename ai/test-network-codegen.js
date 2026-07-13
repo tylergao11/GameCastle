@@ -8,7 +8,7 @@ function render(sync) {
         id: "network." + sync,
         syncPolicy: {
           sync: sync,
-          tickRate: 20,
+          tickRate: 60,
           authority: sync === "server-authoritative" ? "server" : "host",
         },
         inputs: ["move_left", "move_right", "jump"],
@@ -51,7 +51,7 @@ var mixedPlanJs = codegen.generate({
     realtime: {
       sync: "lockstep",
       authority: "host",
-      tickRate: 20,
+      tickRate: 60,
       deterministic: true,
       inputs: ["move_left", "move_right", "jump", "restart"],
       state: ["Player", "Score"],

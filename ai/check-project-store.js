@@ -4,16 +4,18 @@ var os = require('os');
 var path = require('path');
 var projectStoreModule = require('./project-store');
 var projectWeave = require('./project-weave-runtime');
+var testAssetPorts = require('./test-asset-engine-ports');
 
 var fixture = fs.readFileSync(path.join(__dirname, 'fixtures', 'intent-mobile-platformer.dsl'), 'utf8');
-function request(projectId, requestId, dsl) { return { projectId: projectId, requestId: requestId, naturalIntent: 'make a mobile platformer', intentDslText: dsl || fixture, assetSlots: [] }; }
-function slot(id) { return { slotId: id, kind: 'sprite', styleId: 'gamecastle.style-1', semanticTags: ['hero'], styleTags: ['gamecastle.style-1'], constraints: { width: 32, height: 32, transparent: true } }; }
+function request(projectId, requestId, dsl) { return { projectId: projectId, requestId: requestId, naturalIntent: 'make a mobile platformer', intentDslText: dsl || fixture, assetSlots: [], assetOptions: { modelPolicy: { provider: 'deepseek', allowExternal: true } } }; }
+function runtimeEvidence() { return { collect: async function() { return { viewportMatrixReport: { pass: true, simulated: false }, tickPerformanceReport: { pass: true, simulated: false, profile: 'local-interactive', observedSimulationHz: 60 }, tickReplayReceipt: { pass: true, simulated: false, finalStateHash: 'project-store-fixture-state' }, browserPlaytestReport: { pass: true, simulated: false, origin: 'http://127.0.0.1:4193' } }; } }; }
 
 async function main() {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-project-store-'));
   try {
     var store = projectStoreModule.createProjectStore({ rootDir: root });
-    var first = await projectWeave.create(request('alpha', 'first'), { workspaceRoot: root, projectStore: store });
+    var services = { assetPorts: testAssetPorts.createTestAssetEnginePorts({ outputDir: path.join(root, 'test-assets') }), runtimeEvidence: runtimeEvidence() };
+    var first = await projectWeave.create(request('alpha', 'first'), { workspaceRoot: root, projectStore: store, services: services });
     assert(first.artifacts.projectVersion, 'playable create must atomically commit a ProjectVersion');
     assert.strictEqual(store.listVersions('alpha').length, 1, 'first project must own one immutable version');
     var firstVersion = first.artifacts.projectVersion;
@@ -21,18 +23,18 @@ async function main() {
     var version = store.loadVersion('alpha', firstVersion.versionId);
     assert(fs.existsSync(path.join(version.runtimeDir, 'index.html')), 'version must contain an immutable playable runtime snapshot');
 
-    var continued = await projectWeave.continue(request('alpha', 'continue', 'make a mobile platformer'), { workspaceRoot: root, projectStore: store });
+    var continued = await projectWeave.continue(request('alpha', 'continue', 'make a mobile platformer'), { workspaceRoot: root, projectStore: store, services: services });
     assert.strictEqual(continued.lifecycle, 'playable', 'continue must load its own active version and remain playable');
     assert.strictEqual(store.listVersions('alpha').length, 2, 'continue must commit a second immutable version');
     assert.strictEqual(continued.artifacts.projectVersion.parentVersionId, firstVersion.versionId, 'continue version must retain parent lineage');
 
-    var secondProject = await projectWeave.create(request('beta', 'first'), { workspaceRoot: root, projectStore: store });
+    var secondProject = await projectWeave.create(request('beta', 'first'), { workspaceRoot: root, projectStore: store, services: services });
     assert.strictEqual(store.listProjects().length, 2, 'two local projects must coexist');
     assert.notStrictEqual(secondProject.artifacts.projectVersion.projectId, firstVersion.projectId, 'project versions must remain isolated');
     assert.strictEqual(store.listVersions('beta').length, 1, 'second project must not inherit alpha versions');
 
     var beforeDebt = store.getContinueContext('alpha').projectVersion.versionId;
-    var debt = request('alpha', 'failed'); debt.assetSlots = [slot('asset.required')]; debt.assetOptions = { sources: { 'asset.required': { kind: 'generation_required' } }, ports: {} };
+    var debt = request('alpha', 'failed'); debt.assetOptions = { sources: { hero: { kind: 'generation_required' }, enemy: { kind: 'generation_required' }, collectible: { kind: 'generation_required' } }, ports: {}, modelPolicy: { provider: 'external-provider', simulated: false } };
     var failed = await projectWeave.create(debt, { workspaceRoot: root, projectStore: store });
     assert.strictEqual(failed.lifecycle, 'debt', 'failed run must remain recoverable debt');
     assert.strictEqual(store.getContinueContext('alpha').projectVersion.versionId, beforeDebt, 'failed run must not mutate active version');

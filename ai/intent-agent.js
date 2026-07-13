@@ -306,7 +306,9 @@ async function compileIntentSlotsWithRepair(options) {
       intentSlotText = String(repaired || '').trim();
       if (options.onAttempt) options.onAttempt({ attempt: attempt + 1, status: 'repair-received', intentSlotText: intentSlotText });
       if (!intentSlotText) throw new Error('LLM2 returned an empty Intent slot repair');
-      intentDslText = intentSlots.renderSlotPacket(intentSlotText).intentDslText;
+      // Re-enter the single validation path at the next loop iteration.  A
+      // malformed repair must consume the normal repair budget rather than
+      // escaping this loop through a duplicate eager render.
     }
   }
   throw new Error('Intent DSL compile repair loop exhausted');

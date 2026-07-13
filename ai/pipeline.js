@@ -11,7 +11,6 @@ var pipelineState = require("./pipeline-state");
 var moduleCompiler = require("./module-compiler");
 var runtimeCodegen = require("./runtime-codegen");
 var htmlExporter = require("./html-exporter");
-var assetRuntimeOverlayCodegen = require('./asset-runtime-overlay-codegen');
 var tickRuntimeCodegen = require("./network-runtime/codegen");
 var intentRuntimeCodegen = require("./intent-runtime-codegen");
 var gdevelopTruth = require("./gdevelop-truth");
@@ -1008,12 +1007,11 @@ function writeProjectOutputs(project, options) {
     console.log('[IntentRuntime] ' + path.join(STATE_DIR, 'intent-runtime.js') + ' (' + intentRuntimeJs.length + ' bytes)');
   }
   var localAssets = localAssetExportFiles();
-  if (localAssets.length) fs.writeFileSync(path.join(STATE_DIR, 'asset-runtime.js'), assetRuntimeOverlayCodegen.generate(loadJsonFile(path.join(STATE_DIR, 'asset-runtime-bindings.json'), { bindings: [] })), 'utf8');
   var htmlManifest = htmlExporter.buildHtmlExportManifest(project, {
     codeFiles: codeFiles,
     modules: options.modules,
     hasIntentRuntime: !!(intentRuntimeRequirements && intentRuntimeRequirements.length),
-    hasAssetRuntime: localAssets.length > 0,
+    hasAssetRuntime: false,
     assetFiles: localAssets,
   });
   fs.writeFileSync(HTML_EXPORT_MANIFEST_PATH, JSON.stringify(htmlManifest, null, 2));

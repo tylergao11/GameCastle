@@ -1,12 +1,14 @@
 var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
+var playableRuntimeValidator = require('../../ai/playable-runtime-validator');
 
 var REQUIRED_ENGINE_ARTIFACTS = [
   'game.html',
   'project.json',
   'project-world.json',
   'execution-ledger.json',
+  'project-run.json',
   'html-export-manifest.json',
 ];
 
@@ -97,12 +99,12 @@ function createArtifactStore(options) {
     assertChanged('game.html', baseline && baseline.game);
     assertChanged('html-export-manifest.json', baseline && baseline.manifest);
     assertChanged('execution-ledger.json', baseline && baseline.ledger);
-    var ledger = JSON.parse(fs.readFileSync(path.join(outputDir, 'execution-ledger.json'), 'utf8'));
-    var runs = Array.isArray(ledger.runs) ? ledger.runs : [];
-    var lastRun = runs[runs.length - 1];
-    if (!lastRun || !lastRun.summary || lastRun.summary.nextAction !== 'done') {
-      throw new Error('ExecutionLedger does not prove a completed current run.');
+    var projectRun = JSON.parse(fs.readFileSync(path.join(outputDir, 'project-run.json'), 'utf8'));
+    if (projectRun.lifecycle !== 'playable' || !projectRun.artifacts || !projectRun.artifacts.validationReport || projectRun.artifacts.validationReport.pass !== true) {
+      throw new Error('ProjectRun does not prove a playable validated current run.');
     }
+    var aggregate = playableRuntimeValidator.validate(projectRun.artifacts.playableRuntimeEvidence || {});
+    if (!aggregate.pass) throw new Error('ProjectRun aggregate PlayableRuntimeEvidence is incomplete: ' + aggregate.ownerRoute.owner + '/' + aggregate.ownerRoute.stage);
     var world = JSON.parse(fs.readFileSync(path.join(outputDir, 'project-world.json'), 'utf8'));
     if (!world.semanticHash || world.worldVersion === undefined) {
       throw new Error('ProjectWorld does not contain a semantic version proof.');

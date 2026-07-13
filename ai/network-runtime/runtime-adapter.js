@@ -15,11 +15,13 @@ var GC_ADAPTER_KEY_MAP = {
   p1_move_left:  "ArrowLeft",
   p1_move_right: "ArrowRight",
   p1_shoot:      "Space",
+  p1_jump:       "Space",
   p2_move_up:    "KeyW",
   p2_move_down:  "KeyS",
   p2_move_left:  "KeyA",
   p2_move_right: "KeyD",
   p2_shoot:      "KeyF",
+  p2_jump:       "Space",
   jump:       "Space",
   start:      "Enter",
   restart:    "KeyR",
@@ -52,13 +54,16 @@ function GameCastleRuntimeAdapter(game) {
   this._rAFId = null;
   this._tickFn = null;
   this._running = false;
-  this._tickRate = 20;
-  this._tickIntervalMs = 50;
+  this._tickRate = 60;
+  this._tickIntervalMs = 1000 / 60;
   this._accumulator = 0;
   this._lastFrameTime = 0;
   this._totalTicks = 0;
+  this._performance = { frameCount: 0, simulatedTicks: 0, elapsedMs: 0, catchUpCount: 0, missedTickCount: 0, maxConsecutiveMissedTicks: 0, consecutiveMissedTicks: 0, stepDurationsMs: [], inputToStateTickLatency: 0, debt: null };
   this._rawPressedCodes = {};
   this._rawInputBound = false;
+  this._virtualInputs = {};
+  this._injectedCodes = {};
 }
 
 GameCastleRuntimeAdapter.prototype.init = function (config) {
@@ -68,8 +73,11 @@ GameCastleRuntimeAdapter.prototype.init = function (config) {
   this._renderer = this._game.getRenderer();
   this._declaredInputs = config.inputs || [];
   this._captureInputs = config.captureInputs || this._declaredInputs;
-  this._tickRate = config.tickRate || 20;
-  this._tickIntervalMs = Math.round(1000 / this._tickRate);
+  var policy = config.tickPolicy || null;
+  this._tickRate = policy ? policy.simulationHz : (config.tickRate || 60);
+  if (this._tickRate < 30) throw new Error('GameCastleRuntimeAdapter rejects cadence below 30 Hz');
+  this._tickIntervalMs = 1000 / this._tickRate;
+  this._maxCatchUpTicks = policy ? policy.maxCatchUpTicks : 5;
 
   this._inputMap = {};
   var map = config.keyMap || GC_ADAPTER_KEY_MAP;
@@ -106,24 +114,52 @@ GameCastleRuntimeAdapter.prototype.startLoop = function (tickFn) {
   this._lastFrameTime = performance.now();
   this._accumulator = 0;
   this._totalTicks = 0;
+  this._performance = { frameCount: 0, simulatedTicks: 0, elapsedMs: 0, catchUpCount: 0, missedTickCount: 0, maxConsecutiveMissedTicks: 0, consecutiveMissedTicks: 0, stepDurationsMs: [], inputToStateTickLatency: 0, debt: null };
   var self = this;
-  var maxCatchupMs = 200;
+  var maxCatchupMs = self._tickIntervalMs * self._maxCatchUpTicks;
 
   function frame(now) {
     if (!self._running) return;
     self._rAFId = requestAnimationFrame(frame);
-    var rawDelta = now - self._lastFrameTime;
+    var rawDelta = Math.max(0, now - self._lastFrameTime);
     self._lastFrameTime = now;
-    if (rawDelta > maxCatchupMs) rawDelta = maxCatchupMs;
-    self._accumulator += rawDelta;
-    while (self._accumulator >= self._tickIntervalMs) {
+    self._performance.elapsedMs += rawDelta;
+    // Preserve overload truth before applying the bounded catch-up budget. A
+    // long frame may not silently become a normal 5-tick frame.
+    var droppedMs = Math.max(0, rawDelta - maxCatchupMs);
+    if (droppedMs > 0) {
+      var droppedTicks = Math.floor(droppedMs / self._tickIntervalMs);
+      if (droppedTicks > 0) {
+        self._performance.missedTickCount += droppedTicks;
+        self._performance.consecutiveMissedTicks += droppedTicks;
+        self._performance.maxConsecutiveMissedTicks = Math.max(self._performance.maxConsecutiveMissedTicks, self._performance.consecutiveMissedTicks);
+        self._performance.debt = { code: 'TICK_CATCH_UP_BUDGET_EXCEEDED', missedTicks: droppedTicks, maxCatchUpTicks: self._maxCatchUpTicks, droppedMs: droppedMs };
+      }
+    }
+    self._accumulator += Math.min(rawDelta, maxCatchupMs);
+    var ticksThisFrame = 0;
+    self._performance.frameCount++;
+    while (self._accumulator >= self._tickIntervalMs && ticksThisFrame < self._maxCatchUpTicks) {
       self._accumulator -= self._tickIntervalMs;
       self._totalTicks++;
+      ticksThisFrame++;
+      var stepStarted = performance.now();
       if (self._tickFn) {
         var ok = self._tickFn(self._tickIntervalMs, self._totalTicks);
         if (ok === false) { self.stopLoop(); return; }
       }
+      self._performance.stepDurationsMs.push(performance.now() - stepStarted);
+      self._performance.simulatedTicks++;
     }
+    if (ticksThisFrame > 1) self._performance.catchUpCount++;
+    if (self._accumulator >= self._tickIntervalMs) {
+      var missed = Math.floor(self._accumulator / self._tickIntervalMs);
+      self._performance.missedTickCount += missed;
+      self._performance.consecutiveMissedTicks += missed;
+      self._performance.maxConsecutiveMissedTicks = Math.max(self._performance.maxConsecutiveMissedTicks, self._performance.consecutiveMissedTicks);
+      self._performance.debt = { code: 'TICK_CATCH_UP_BUDGET_EXCEEDED', missedTicks: missed, maxCatchUpTicks: self._maxCatchUpTicks };
+      self._accumulator = self._accumulator % self._tickIntervalMs;
+    } else if (!droppedMs) self._performance.consecutiveMissedTicks = 0;
     self.render();
   }
   this._rAFId = requestAnimationFrame(frame);
@@ -148,21 +184,40 @@ GameCastleRuntimeAdapter.prototype.captureInputs = function () {
     var name = this._captureInputs[i];
     var key = this._inputMap[name];
     var code = key ? _keyNameToCode(key) : null;
-    if (code !== null) frame[name] = useRawInput ? !!this._rawPressedCodes[code] : im.isKeyPressed(code);
+    if (code !== null) frame[name] = !!this._virtualInputs[name] || !!this._rawPressedCodes[code] || (!this._injectedCodes[code] && im.isKeyPressed(code));
   }
   return frame;
+};
+
+// Touch, accessibility and deterministic replay enter the same named frame as
+// physical input. The bridge captures this state before every simulation tick.
+GameCastleRuntimeAdapter.prototype.setVirtualInput = function (name, pressed) {
+  if (name) this._virtualInputs[name] = !!pressed;
+};
+
+GameCastleRuntimeAdapter.prototype.getInputSnapshot = function (names) {
+  var snapshot = {};
+  var requested = names || this._declaredInputs;
+  for (var i = 0; i < requested.length; i++) {
+    var name = requested[i];
+    var key = this._inputMap[name];
+    var code = key ? _keyNameToCode(key) : null;
+    snapshot[name] = code !== null && this._inputManager ? this._inputManager.isKeyPressed(code) : false;
+  }
+  return snapshot;
 };
 
 GameCastleRuntimeAdapter.prototype.injectInputs = function (frame, isLocal) {
   if (!this._inputManager || isLocal) return;
   var im = this._inputManager;
   im.releaseAllPressedKeys();
+  this._injectedCodes = {};
   for (var i = 0; i < this._declaredInputs.length; i++) {
     var name = this._declaredInputs[i];
     var key = this._inputMap[name];
     if (!key || !frame[name]) continue;
     var code = _keyNameToCode(key);
-    if (code !== null) im.onKeyPressed(code);
+    if (code !== null) { im.onKeyPressed(code); this._injectedCodes[code] = true; }
   }
 };
 
@@ -190,6 +245,12 @@ GameCastleRuntimeAdapter.prototype.getStateHash = function () {
 GameCastleRuntimeAdapter.prototype.getTickCount = function () { return this._totalTicks; };
 GameCastleRuntimeAdapter.prototype.isRunning = function () { return this._running; };
 GameCastleRuntimeAdapter.prototype.getTickIntervalMs = function () { return this._tickIntervalMs; };
+GameCastleRuntimeAdapter.prototype.getPerformanceReport = function () {
+  var durations = this._performance.stepDurationsMs.slice().sort(function(a, b) { return a - b; });
+  function percentile(p) { return durations.length ? durations[Math.min(durations.length - 1, Math.floor((durations.length - 1) * p))] : 0; }
+  var elapsedSeconds = this._performance.elapsedMs / 1000;
+  return { observedSimulationHz: elapsedSeconds ? this._performance.simulatedTicks / elapsedSeconds : 0, observedRenderHz: elapsedSeconds ? this._performance.frameCount / elapsedSeconds : 0, elapsedMs: this._performance.elapsedMs, p50StepDurationMs: percentile(0.5), p95StepDurationMs: percentile(0.95), missedTickCount: this._performance.missedTickCount, maximumConsecutiveMissedTicks: this._performance.maxConsecutiveMissedTicks, catchUpCount: this._performance.catchUpCount, inputToStateTickLatency: this._performance.inputToStateTickLatency, debt: this._performance.debt };
+};
 
 if (typeof module !== "undefined") {
   module.exports = { GameCastleRuntimeAdapter: GameCastleRuntimeAdapter, GC_ADAPTER_KEY_MAP: GC_ADAPTER_KEY_MAP };

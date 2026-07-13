@@ -17,7 +17,7 @@ var PROJECT_GRAPH_NODE_SEQUENCE = [
   'llm2-intent',
   'intent-compiler',
   'resolver',
-  'asset-weave',
+  'asset-production',
   'bridge',
   'runtime-linker',
   'runtime',
@@ -61,13 +61,13 @@ var PROJECT_GRAPH_NODE_DEFINITIONS = {
     reads: ['intentGraph.graph', 'projectWorld.world'],
     writes: ['resolver.placementPlan', 'resolver.summary'],
   },
-  'asset-weave': {
-    layer: 'asset-weave',
-    owner: 'RuntimeAssetResolver',
+  'asset-production': {
+    layer: 'asset-production',
+    owner: 'AssetEngine',
     status: 'wired-langgraph',
     reads: ['compiler.contracts', 'assetWorld.previous'],
     writes: ['assetResolver.manifest', 'assetResolver.summary', 'assetWorld.world', 'assetWorld.sanitizedForAgents'],
-    modules: ['ai/asset-engine-langgraph.js', 'ai/asset-weave-graph.js', 'ai/asset-world.js', 'ai/asset-model-ports.js', 'ai/cloud-asset-engine.js', 'ai/cloud-local-plan-runner.js', 'ai/runtime-animation-recipes.js', 'ai/asset-animation-state-machine.js'],
+    modules: ['ai/asset-engine-langgraph.js', 'ai/asset-production-planner.js', 'ai/asset-production-resolver.js', 'ai/asset-production-loop-graph.js', 'ai/asset-world.js', 'ai/asset-model-ports.js', 'ai/cloud-asset-engine.js', 'ai/cloud-local-plan-runner.js', 'ai/runtime-asset-binder.js', 'ai/runtime-animation-recipes.js', 'ai/asset-animation-state-machine.js'],
   },
   bridge: {
     layer: 'world-intent',
@@ -154,9 +154,9 @@ var PROJECT_GRAPH_LAYERS = [
     summary: 'Convert creative intent into structured world intent and target-code plans.',
   },
   {
-    id: 'asset-weave',
-    name: 'Asset Weave Layer',
-    summary: 'Resolve resource slots, asset reuse, generated-asset debt, and AssetWorld.',
+    id: 'asset-production',
+    name: 'Asset Production Layer',
+    summary: 'Plan, resolve, revise, accept and bind the complete required asset production set.',
   },
   {
     id: 'runtime-assembly',

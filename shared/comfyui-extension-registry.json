@@ -4,10 +4,10 @@
   "owner": "ComfyExtensionRegistry",
   "principles": ["id-only-caller-contract", "hash-and-license-required", "workflow-scoped", "no-runtime-download", "style-id-mapping-only"],
   "extensions": {
-    "gamecastle.style-1.sd15-lora.v1": {
+    "gamecastle.style-dna.v1.sd15-lora.v1": {
       "kind": "lora",
       "status": "reserved-not-installed",
-      "styleId": "gamecastle.style-1",
+      "styleId": "gamecastle.style-dna.v1",
       "source": "approved-artifact-required",
       "licenseId": "UNRESOLVED",
       "version": "v1",

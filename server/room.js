@@ -71,7 +71,7 @@ class Room {
     }
   }
 
-  // ── State Store ───────────────────────────────────────────────────��────
+  // -- State Store --------------------------------------------------------
 
   saveState(key, value)  { this._store.put(key, value); }
   loadState(key)          { return this._store.get(key); }

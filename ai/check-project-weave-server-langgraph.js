@@ -16,7 +16,7 @@ function makeTickRuntimeManifest() {
       realtime: {
         sync: 'server-authoritative',
         authority: 'server',
-        tickRate: 20,
+        tickRate: 60,
         deterministic: true,
         inputs: ['move_left', 'move_right', 'jump'],
         state: ['Player', 'Score'],

@@ -20,7 +20,7 @@ function main() {
   );
 
   [
-    'asset-weave',
+    'asset-production',
     'runtime-linker',
     'tick-runtime',
     'server-runtime',
@@ -39,9 +39,9 @@ function main() {
   });
 
   assert.deepStrictEqual(
-    projectPipelineGraph.getLayerNodes('asset-weave'),
-    ['asset-weave'],
-    'asset-weave layer should own resource lineup nodes'
+    projectPipelineGraph.getLayerNodes('asset-production'),
+    ['asset-production'],
+    'asset-production layer should own the canonical asset loop'
   );
   assert.deepStrictEqual(
     projectPipelineGraph.getLayerNodes('runtime-assembly'),
@@ -74,7 +74,7 @@ function main() {
   });
   [
     'ai/asset-world.js',
-    'ai/asset-weave-graph.js',
+    'ai/asset-production-loop-graph.js',
     'ai/asset-model-ports.js',
     'ai/cloud-asset-engine.js',
     'ai/cloud-local-plan-runner.js',

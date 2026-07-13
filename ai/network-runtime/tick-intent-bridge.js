@@ -36,8 +36,19 @@ function GameCastleTickIntentBridge(config) {
   config = config || {};
   this._captureInputs = config.captureInputs || config.inputs || [];
   this._declaredInputs = config.replayInputs || expandSlotInputs(this._captureInputs, config.playerSlots);
-  this._tickRate = config.tickRate || 20;
+  this._tickRate = config.tickRate || 60;
+  if (this._tickRate < 30) throw new Error('GameCastleTickIntentBridge rejects cadence below 30 Hz');
   this._sync = config.sync || "local";
+  this._tickPolicy = config.tickPolicy || {
+    schemaVersion: 1,
+    profile: this._sync === 'local' ? 'local-interactive' : this._sync,
+    simulationHz: this._tickRate,
+    fixedStepMs: 1000 / this._tickRate,
+    maxCatchUpTicks: 5,
+    renderPolicy: 'request-animation-frame'
+  };
+  if (this._tickPolicy.simulationHz !== this._tickRate) throw new Error('TickPolicy simulationHz must equal bridge tickRate');
+  this._tickPolicyHash = tickPolicyHash(this._tickPolicy);
   this._transport = config.transport || null;
   this._adapter = null;
   this._game = null;
@@ -62,6 +73,8 @@ function GameCastleTickIntentBridge(config) {
   });
   this._listeners = {};
   this._handlersSetup = false;
+  this._virtualReleases = {};
+  this._replayFrames = [];
 }
 
 // ── Event bus ──────────────────────────────────────────────────────────────
@@ -81,7 +94,7 @@ GameCastleTickIntentBridge.prototype._emit = function(event) {
 GameCastleTickIntentBridge.prototype.attach = function(game) {
   this._game = game;
   this._adapter = new GameCastleRuntimeAdapter(game);
-  this._adapter.init({ inputs: this._declaredInputs, captureInputs: this._captureInputs, tickRate: this._tickRate });
+  this._adapter.init({ inputs: this._declaredInputs, captureInputs: this._captureInputs, tickRate: this._tickRate, tickPolicy: this._tickPolicy });
   this._inputManager = game.getInputManager();
 };
 
@@ -116,6 +129,7 @@ GameCastleTickIntentBridge.prototype._startLocalLoop = function() {
 };
 
 GameCastleTickIntentBridge.prototype._onLocalTick = function(dt, adapterTick) {
+  this._applyDueVirtualReleases();
   this._session.captureLocalIntent(this._adapter.captureInputs());
   this._tick = this._session.getTick();
   this._advanceReadyTicks(this._session.nextLockstepTicks());
@@ -327,8 +341,11 @@ GameCastleTickIntentBridge.prototype._advanceReadyTicks = function(ticks) {
   for (var i = 0; i < ticks.length && this._running; i++) {
     var ready = ticks[i];
     this._adapter.injectInputs(ready.inputs, false);
+    var observedInputs = this._adapter.getInputSnapshot(Object.keys(ready.inputs || {}));
     this._adapter.stepSimulation(1000 / this._tickRate);
+    var stateHash = this._adapter.getStateHash();
     this._adapter.endFrame();
+    this._replayFrames.push({ tick: ready.tick, inputs: cloneValue(ready.inputs), observedInputs: observedInputs, events: cloneValue(ready.events || []), stateHash: stateHash });
     this._emit("advance", ready.tick, ready.inputs, {
       remoteIntents: ready.remoteIntents || null,
       orderedIntents: ready.orderedIntents || null,
@@ -338,6 +355,63 @@ GameCastleTickIntentBridge.prototype._advanceReadyTicks = function(ticks) {
     if (ready.events && ready.events.length) this._emit("events", ready.tick, ready.events);
     if (ready.snapshot) this._emit("snapshot", ready.snapshot);
   }
+};
+
+GameCastleTickIntentBridge.prototype.setVirtualInput = function(name, pressed) {
+  if (!this._adapter) return;
+  this._adapter.setVirtualInput(name, pressed);
+  if (pressed) delete this._virtualReleases[name];
+};
+
+GameCastleTickIntentBridge.prototype.releaseVirtualInputAfter = function(name, minimumHeldTicks) {
+  if (!name) return;
+  this._virtualReleases[name] = this._session.getTick() + Math.max(1, Number(minimumHeldTicks) || 1);
+};
+
+GameCastleTickIntentBridge.prototype._applyDueVirtualReleases = function() {
+  if (!this._adapter) return;
+  var tick = this._session.getTick();
+  for (var name in this._virtualReleases) {
+    if (this._virtualReleases.hasOwnProperty(name) && tick >= this._virtualReleases[name]) {
+      this._adapter.setVirtualInput(name, false);
+      delete this._virtualReleases[name];
+    }
+  }
+};
+
+GameCastleTickIntentBridge.prototype.exportReplayReceipt = function() {
+  var frames = this._replayFrames.map(cloneValue);
+  return {
+    schemaVersion: 1,
+    kind: 'gamecastle.tick-input-replay',
+    tickRate: this._tickRate,
+    tickPolicyHash: this._tickPolicyHash,
+    startTick: frames.length ? frames[0].tick : 0,
+    endTick: frames.length ? frames[frames.length - 1].tick : 0,
+    inputs: this._captureInputs.slice(),
+    frames: frames,
+    events: this._session.getEvents(),
+    snapshots: this._session.getSnapshots(),
+    finalStateHash: frames.length ? frames[frames.length - 1].stateHash : this._adapter ? this._adapter.getStateHash() : null
+  };
+};
+
+GameCastleTickIntentBridge.prototype.replayReceipt = function(receipt) {
+  if (!receipt || receipt.kind !== 'gamecastle.tick-input-replay' || !Array.isArray(receipt.frames) || !receipt.tickPolicyHash) throw new Error('Invalid tick input replay receipt');
+  if (!this._adapter) throw new Error('Tick bridge must attach a game before replay');
+  if (receipt.tickPolicyHash !== this._tickPolicyHash) throw new Error('Replay receipt TickPolicy does not match attached bridge');
+  var replayed = [];
+  for (var i = 0; i < receipt.frames.length; i++) {
+    var frame = receipt.frames[i];
+    this._adapter.injectInputs(frame.inputs || {}, false);
+    var observedInputs = this._adapter.getInputSnapshot(Object.keys(frame.inputs || {}));
+    this._adapter.stepSimulation(1000 / this._tickRate);
+    var stateHash = this._adapter.getStateHash();
+    this._adapter.endFrame();
+    replayed.push({ tick: frame.tick, inputs: cloneValue(frame.inputs || {}), observedInputs: observedInputs, events: cloneValue(frame.events || []), stateHash: stateHash });
+  }
+  if (receipt.finalStateHash !== undefined && replayed.length && replayed[replayed.length - 1].stateHash !== receipt.finalStateHash) throw new Error('Replay final state hash mismatch');
+  return replayed;
 };
 
 // ── Queries ───────────────────────────────────────────────────────────────
@@ -375,4 +449,13 @@ GameCastleTickIntentBridge.prototype.detach = function() {
 
 if (typeof module !== "undefined") {
   module.exports = { GameCastleTickIntentBridge: GameCastleTickIntentBridge, TICK_INTENT_CHANNEL: TICK_INTENT_CHANNEL };
+}
+
+function cloneValue(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
+
+function tickPolicyHash(policy) {
+  var json = JSON.stringify(policy, Object.keys(policy || {}).sort());
+  var hash = 5381;
+  for (var i = 0; i < json.length; i++) hash = ((hash << 5) + hash + json.charCodeAt(i)) | 0;
+  return 'djb2:' + (hash >>> 0).toString(16);
 }

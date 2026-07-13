@@ -23,7 +23,7 @@ CloudApprovedStore     明确授权且通过 Acceptance 的可复用记录；只
 {
   "schemaVersion": 1,
   "dictionaryId": "gamecastle.asset-style-dictionary",
-  "styleId": "gamecastle.style-1",
+  "styleId": "gamecastle.style-dna.v1",
   "operationId": "op.unique",
   "op": "sprite_sheet_split",
   "input": { "assetId": "asset.sheet", "contentHash": "sha256..." },
@@ -59,7 +59,7 @@ CloudApprovedStore     明确授权且通过 Acceptance 的可复用记录；只
 - Asset Studio：只提交 OperationSpec，不写文件、不调云、不调模型。
 - LocalDerivationKernel：只读项目本地输入，写新派生文件和 receipt。
 - LocalDerivationPort：把 kernel 的 RGBA 输出编码为项目本地透明 PNG，作为
-  `deterministicVariant` candidate 交给 AssetWeave；不得绕过 AssetSpec、验收或 Runtime binding。
+  `deterministicVariant` candidate 交给 AssetProductionLoopGraph；不得绕过 AssetSpec、验收或 Runtime binding。
 - AssetRevision：持久化 revision 链与 hash。
 - RuntimeAssetResolver：决定是否先派生；不能直接改像素。
 - CloudAssetEngine：只在明确晋升后读取 Acceptance，不执行 OperationSpec。

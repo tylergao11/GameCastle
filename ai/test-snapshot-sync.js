@@ -74,7 +74,7 @@ function testStrategyAuthorityPublishesSnapshots() {
 function testStrategyReceivesSnapshots() {
   var transport = makeTransport();
   transport._test.players.add("host");
-  var strategy = new SnapshotSyncStrategy(transport, { tickRate: 20, authority: "host" });
+  var strategy = new SnapshotSyncStrategy(transport, { tickRate: 60, authority: "host" });
   var received = null;
   strategy.on("snapshot", function(data, meta) {
     received = { data: data, meta: meta };

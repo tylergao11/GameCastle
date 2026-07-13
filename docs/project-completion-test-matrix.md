@@ -18,7 +18,7 @@
 | --- | --- | --- | --- | --- |
 | WP0 | create/continue 完整 Project Weave | 任一 owner 报错 | checkpoint resume、cancel rollback | 正式 graph trace + `check:project` |
 | WP1 | 每个 role 一次授权 live smoke | timeout、预算、无凭据、错误响应 | fail closed、重试上限、receipt | provider matrix |
-| WP1 Stage A — ComfyUI local | `check:comfyui-local` 的 loopback health、submit/history、临时候选→验收后 project-local 晋升与 receipt provenance；`smoke:comfyui-local` 的真实非 fixture PNG | endpoint 缺失/不可用、timeout、cancel、坏 PNG、预算耗尽、重复 request | interrupt、placeholder debt、同一 ledger 不重复提交 | 离线契约与一次真实 CPU smoke 已通过；CPU 证据只覆盖开发机闭环，不可声称生产能力或完整 WP1 |
+| WP1 Stage A — ComfyUI local | `check:comfyui-local` 的 loopback health、submit/history、临时候选→验收后 project-local 晋升与 receipt provenance；`smoke:comfyui-cpu-e2e` 由专属真实链路输出 shadow 报告 | endpoint 缺失/不可用、timeout、cancel、坏 PNG、预算耗尽、重复 request | interrupt、placeholder debt、同一 ledger 不重复提交 | 离线契约已通过；CPU E2E 由独立终端维护，CPU 证据不可声称生产性能或完整 WP1 |
 | WP2 | 获许可模板摄取→TemplateIR→模块候选→晋升；人工 Fun Blueprint→至少两种显著不同组合；五类历史回归集 | 未知许可、损坏模板、未知 extension、标准化丢失、不可切分耦合、蓝图禁配、模块冲突、缺槽、legacy target-plan 旁路 | 明确 owner debt、隔离/拒绝问题模板、上一 playable 保留、catalog/蓝图修正后重试；Foundry 不在线运行 | 两个独立模板源、确定性 TemplateIR、跨模板模块复用、每蓝图双组合、5 类回归、browser/playtest、独立测试与审计 |
 | WP3 | 两项目隔离、保存版本 | 崩溃、写入中断、版本冲突 | transaction rollback、restart continue | version/rollback receipts |
 | WP4 | 一句话到试玩再修改 | 取消、repair 耗尽、Runtime 失败 | 上一 release 继续可玩 | browser screenshots + API trace |

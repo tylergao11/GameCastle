@@ -68,7 +68,7 @@
     "default": {
       "sync": "local",
       "authority": "host",
-      "tickRate": 20,
+      "tickRate": 60,
       "seed": "auto"
     }
   },

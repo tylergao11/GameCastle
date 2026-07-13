@@ -114,7 +114,7 @@ function validateWp2Contracts(manifest) {
 function declareModuleSubjects(compositionPlan, catalog) {
   catalog = catalog || loadProductModuleCatalog(path.join(__dirname, 'product-modules'));
   var byId = indexCatalog(catalog);
-  var subjects = [], sharedArtifacts = [];
+  var subjects = [], sharedArtifacts = [], visualSlots = [];
   (compositionPlan.operations || []).forEach(function(operation) {
     if (operation.op === 'remove') return;
     var ref = operation.toModule || operation.fromModule;
@@ -124,8 +124,10 @@ function declareModuleSubjects(compositionPlan, catalog) {
       subjects.push(Object.assign({}, clone(subject), { moduleId: manifest.id, moduleRevision: manifest.revision }));
     });
     (manifest.declarationContract.sharedArtifacts || []).forEach(function(artifact) { sharedArtifacts.push(clone(artifact)); });
+    (manifest.declarationContract.visualSlots || []).forEach(function(slot) { var subject = (manifest.declarationContract.spatialSubjects || []).find(function(item) { return item.prototypeId === slot.targetObject; }); visualSlots.push(Object.assign({}, clone(slot), { collisionBounds: subject ? clone(subject.bounds) : null, moduleId: manifest.id, moduleRevision: manifest.revision })); });
   });
-  var declaration = { schemaVersion: 1, declarationPlanId: compositionPlan.planId + ':declaration', compositionPlanId: compositionPlan.planId, catalogFingerprint: compositionPlan.catalogFingerprint, subjects: subjects, sharedArtifacts: sharedArtifacts, declarationHash: '' };
+  var ids = {}; visualSlots.forEach(function(slot) { if (!slot.visualSlotId || !slot.scene || !slot.targetObject || !slot.role || !Array.isArray(slot.allowedBindingModes) || !slot.allowedBindingModes.length || !slot.requiredAssetKind || !Array.isArray(slot.preserve) || ids[slot.visualSlotId]) throw new Error('VisualSlotDeclaration is malformed or duplicated.'); ids[slot.visualSlotId] = true; });
+  var declaration = { schemaVersion: 1, declarationPlanId: compositionPlan.planId + ':declaration', compositionPlanId: compositionPlan.planId, catalogFingerprint: compositionPlan.catalogFingerprint, subjects: subjects, sharedArtifacts: sharedArtifacts, visualSlots: visualSlots, declarationHash: '' };
   declaration.declarationHash = require('crypto').createHash('sha256').update(JSON.stringify(declaration)).digest('hex').slice(0, 16);
   return declaration;
 }
@@ -480,7 +482,7 @@ function makeNetworkPlan(networkModules) {
         plan.realtime = {
           sync: sync,
           authority: policy.authority || 'host',
-          tickRate: Number(policy.tickRate) || 20,
+          tickRate: Number(policy.tickRate) || 60,
           seed: policy.seed,
           deterministic: !!mod.deterministic,
           inputs: [],
@@ -705,7 +707,14 @@ function compileCompositionPlan(compositionPlan, catalog, options) {
   });
   var compiled = compileModuleCommands(commands, catalog, Object.assign({}, options, { baseModules: baseModules }));
   function placementLines(moduleId) {
-    return ((options.placementPlan && options.placementPlan.placements) || []).filter(function(placement) { return placement.moduleId === moduleId; }).reduce(function(lines, placement) {
+    var manifest = (catalog.modules || []).find(function(candidate) { return candidate.id === moduleId; }) || {};
+    var templateOwned = ((manifest.declarationContract || {}).spatialSubjects || []).reduce(function(result, subject) {
+      if (subject && subject.cardinality === 'exclusive' && subject.prototypeId) result[subject.prototypeId] = true;
+      return result;
+    }, {});
+    return ((options.placementPlan && options.placementPlan.placements) || []).filter(function(placement) {
+      return placement.moduleId === moduleId && !templateOwned[placement.subject];
+    }).reduce(function(lines, placement) {
       var point = placement.resolved || (placement.points || [])[0];
       if (point) lines.push('set placement object=' + placement.subject + ' x=' + point.x + ' y=' + point.y + ' scene=' + (placement.scene || 'Game'));
       return lines;

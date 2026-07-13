@@ -57,7 +57,7 @@ function createLocalGameRuntimeServer(options) {
   var coordinator = options.coordinator;
   var artifactStore = options.artifactStore;
   var projectStore = options.projectStore;
-  var localAssetStore = options.localAssetStore;
+  var localAssetInputStore = options.localAssetInputStore;
   var cloudAssetEngine = options.cloudAssetEngine;
   var allowedUiOrigin = options.allowedUiOrigin || 'http://127.0.0.1:5173';
 
@@ -153,43 +153,14 @@ function createLocalGameRuntimeServer(options) {
       });
       return;
     }
-    if (req.method === 'POST' && pathname === '/api/runtime/assets/bindings') {
+    if (req.method === 'POST' && pathname === '/api/runtime/assets/inputs') {
       readJson(req, 6 * 1024 * 1024).then(function(body) {
-        return localAssetStore.bind(body).then(function(binding) { sendJson(res, 201, { binding: binding }); });
+        return localAssetInputStore.ingest(body).then(function(inputRecord) { sendJson(res, 201, { input: inputRecord }); });
       }).catch(function(error) {
         sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
       });
       return;
     }
-    if (req.method === 'POST' && pathname === '/api/runtime/assets/cloud/resolve') {
-      if (!cloudAssetEngine) {
-        sendJson(res, 503, { error: { code: 'ASSET_CLOUD_UNAVAILABLE', message: 'The shared asset library is not configured for this local runtime.' } });
-        return;
-      }
-      readJson(req).then(function(body) {
-        return localAssetStore.resolveCloud(body, cloudAssetEngine).then(function(binding) { sendJson(res, 201, { binding: binding }); });
-      }).catch(function(error) {
-        sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
-      });
-      return;
-    }
-    if (req.method === 'POST' && pathname === '/api/runtime/assets/simulated/generate') {
-      readJson(req).then(function(body) {
-        return localAssetStore.generate(body).then(function(binding) { sendJson(res, 201, { binding: binding, provider: 'simulated-local', simulated: true }); });
-      }).catch(function(error) {
-        sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
-      });
-      return;
-    }
-    if (req.method === 'POST' && pathname === '/api/runtime/assets/simulated/sheet') {
-      readJson(req).then(function(body) {
-        return localAssetStore.generateSheet(body).then(function(result) { sendJson(res, 201, Object.assign({ provider: 'simulated-local', simulated: true }, result)); });
-      }).catch(function(error) {
-        sendJson(res, errorStatus(error.code), { error: { code: error.code || 'RUNTIME_FAILED', message: error.message } });
-      });
-      return;
-    }
-
     var runMatch = pathname.match(/^\/api\/runtime\/runs\/([^/]+)$/);
     if (req.method === 'GET' && runMatch) {
       var runSnapshot = coordinator.snapshot();

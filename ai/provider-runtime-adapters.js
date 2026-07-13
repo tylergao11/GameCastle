@@ -2,10 +2,11 @@ var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
 var governance = require('./ai-provider-governance');
+var styleDNA = require('./style-dna');
 
 function assetPrompt(state) {
   var slot = state.slot || {}; var constraints = slot.constraints || {};
-  return [slot.kind || 'sprite', (slot.semanticTags || []).join(', '), (slot.styleTags || []).join(', '), constraints.transparent ? 'transparent background' : 'opaque background'].filter(Boolean).join('; ');
+  return styleDNA.generationPrompt(slot.styleId, [slot.kind || 'sprite', (slot.semanticTags || []).join(', ')].filter(Boolean).join(', '), { transparent: constraints.transparent === true });
 }
 function outputFile(state, bytes) {
   var digest = crypto.createHash('sha256').update(bytes).digest('hex'); var directory = state.projectAssetDir || path.join(process.cwd(), 'output', 'assets', 'provider');
@@ -21,7 +22,7 @@ function createAssetProviderPorts(runtime, options) {
   options = options || {};
   if (governance.asset({ provider: options.provider }).provider === 'comfyui-local') return require('./comfyui-local-provider').createAssetProviderPorts(runtime, options);
   if (governance.asset({ provider: options.provider }).provider === 'comfyui-worker') return require('./comfyui-worker-provider').createAssetProviderPorts(runtime, options);
-  function call(role, state, extra) { return runtime.invokeRole({ requestId: state.runId + ':' + state.slot.slotId + ':' + role, projectId: state.projectId || state.runId, role: role, provider: options.provider, estimatedCost: options.estimatedCost, timeoutMs: options.timeoutMs, maxAttempts: options.maxAttempts, input: Object.assign({ prompt: assetPrompt(state), size: options.size, transparent: !!((state.slot.constraints || {}).transparent) }, extra || {}) }); }
+  function call(role, state, extra) { return runtime.invokeRole({ requestId: state.runId + ':' + state.slot.slotId + ':' + role, projectId: state.projectId || state.runId, role: role, provider: options.provider, estimatedCost: options.estimatedCost, timeoutMs: options.timeoutMs, maxAttempts: options.maxAttempts, input: Object.assign({ prompt: assetPrompt(state), negativePrompt: styleDNA.negativePrompt(state.slot.styleId), size: options.size, transparent: !!((state.slot.constraints || {}).transparent) }, extra || {}) }); }
   return {
     generate: async function(state) { return candidate(state, await call('image-generate', state), 'imageGeneration'); },
     edit: async function(state) { return candidate(state, await call('image-edit', state, { imagePath: state.candidate && state.candidate.path }), 'imageEdit', state.source.parentRevisionId); },

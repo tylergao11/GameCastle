@@ -3,7 +3,7 @@ import styleDictionary from '../../../shared/asset-style-dictionary.json'
 import templateDictionary from '../../../shared/asset-template-dictionary.json'
 import { alphaBounds, cropToAlpha, removeLightEdgeBackground, solidifyClosedLineArt } from '../../../shared/local-asset-ops.mjs'
 import { upsertLocalAsset } from '../localAssetLibrary'
-import { generateSimulatedRuntimeSheet, resolveRuntimeCloudAsset, saveRuntimeAssetBinding, searchRuntimeCloudAssets } from '../runtime/client'
+import { saveRuntimeAssetInput, searchRuntimeCloudAssets } from '../runtime/client'
 
 type Revision = { id: string; label: string; png: string; createdAt: number }
 const STYLE_ID = styleDictionary.defaultStyleId as keyof typeof styleDictionary.styles
@@ -79,11 +79,11 @@ export default function AssetStudio({ onClose }: { onClose: () => void }) {
   function resize() { const canvas = canvasRef.current!; const factor = Math.max(0.1, scale / 100); const width = Math.max(1, Math.round(canvas.width * factor)), height = Math.max(1, Math.round(canvas.height * factor)); const temp = document.createElement('canvas'); temp.width = canvas.width; temp.height = canvas.height; temp.getContext('2d')!.drawImage(canvas, 0, 0); canvas.width = width; canvas.height = height; canvas.getContext('2d')!.drawImage(temp, 0, 0, width, height); commit(`缩放 ${scale}%`) }
   async function upload(file?: File) { if (!file) return; const url = URL.createObjectURL(file); const image = await loadImage(url); const canvas = canvasRef.current!; canvas.width = image.naturalWidth; canvas.height = image.naturalHeight; canvas.getContext('2d')!.drawImage(image, 0, 0); URL.revokeObjectURL(url); commit(`上传 ${file.name}`) }
   function download() { const canvas = canvasRef.current!; const a = document.createElement('a'); a.href = canvasPng(canvas); a.download = `${binding.replace(/[^a-z0-9]+/gi, '-')}.png`; a.click() }
-  async function bind() {
+  async function saveInput() {
     if (!current || restoring) return
     const asset = upsertLocalAsset({ revisionId: current.id, png: current.png, slotId: binding })
-    const record = { binding, revisionId: current.id, asset, assetSpec: { slotId: binding, kind: 'sprite', semanticTags: [binding], styleId: asset.styleId, styleTags: [asset.styleId], constraints: { transparent: true } }, visualIntent: { subject: binding, motion: motion as 'float' | 'bounce' | 'shake', anchor: 'bottom-center', states: ['idle', 'move', 'hit', 'death'] } }
-    try { await saveRuntimeAssetBinding(record); window.alert(`已存入项目本地库、Runtime manifest 与导出资产，并绑定到 ${binding}`) } catch { window.alert('本地 Runtime 未连接；没有创建半完成 binding，请连接后重试') }
+    const record = { projectId: 'asset-studio-draft', slotId: binding, asset }
+    try { await saveRuntimeAssetInput(record); window.alert(`已保存为 ${binding} 的不可变本地输入；下一次 ProjectWeave 将按完整生产集统一验收和绑定。`) } catch { window.alert('本地 Runtime 未连接；没有创建半完成绑定，请连接后重试。') }
   }
   async function reuseCloudAsset() {
     const tags = cloudTags.split(',').map((value) => value.trim()).filter(Boolean)
@@ -91,19 +91,18 @@ export default function AssetStudio({ onClose }: { onClose: () => void }) {
     try {
       const matches = await searchRuntimeCloudAssets(tags)
       if (!matches.length) { window.alert('云端没有已批准的匹配资产；保持本地优先，不会自动生图'); return }
-      await resolveRuntimeCloudAsset({ binding, assetSpec: { slotId: binding, kind: 'sprite', semanticTags: tags, styleId: STYLE_ID, styleTags: [STYLE_ID], constraints: { transparent: true } }, visualIntent: { subject: binding, motion, anchor: 'bottom-center', states: ['idle', 'move', 'hit', 'death'] } })
-      window.alert(`已复用云端已批准资产并绑定到 ${binding}`)
+      window.alert(`找到 ${matches.length} 个已批准候选；候选只会在下一次完整 AssetProductionRequest 中解析，不会直接绑定。`)
     } catch (error) { window.alert(error instanceof Error ? error.message : '云端资产复用失败') }
   }
-  async function generateThreeIcons() {
+  function generateThreeIcons() {
     const words = imagery.trim().split(/[^\p{L}\p{N}_-]+/u).filter(Boolean).slice(0, 3)
     const subjects = words.length ? words : ['sun', 'moon', 'key']
     try {
-      const icons = subjects.map((subject, iconIndex) => {
-        const slotId = `${binding}.simulated.${iconIndex + 1}`
+      void subjects.map((subject, iconIndex) => {
+        const slotId = `${binding}.assetkit-request.${iconIndex + 1}`
         return { binding: slotId, assetSpec: { slotId, kind: 'sprite', semanticTags: [subject], styleId: STYLE_ID, styleTags: [STYLE_ID], constraints: { transparent: true } } }
       })
-      await generateSimulatedRuntimeSheet({ icons, visualIntent: { subject: imagery || 'three icons', motion, anchor: 'bottom-center', states: ['idle', 'move', 'hit', 'death'] } })
+      throw new Error('Composite asset-kit generation is available only through ProjectWeave with a configured ComfyUI provider')
       window.alert('已生成 1 张 simulated-local sprite sheet，并由 Runtime 裁切为 3 张 STYLE 1 透明图标')
     } catch (error) { window.alert(error instanceof Error ? error.message : '离线意象生成失败') }
   }
@@ -111,6 +110,6 @@ export default function AssetStudio({ onClose }: { onClose: () => void }) {
   return <main className="asset-studio">
     <header><button onClick={onClose}>← 返回城堡</button><strong>本地资产工作台</strong><span>LOCAL · SIMULATED MODEL</span></header>
     <section className="asset-toolbar"><label className="upload">上传图片<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void upload(e.target.files?.[0])} /></label><label>意象 <input value={imagery} placeholder="太阳 月亮 钥匙" onChange={(e) => setImagery(e.target.value)} /></label><button onClick={() => void generateThreeIcons()}>离线生成 3 图标</button><button onClick={() => setMode('draw')} className={mode === 'draw' ? 'active' : ''}>画笔</button><button onClick={() => setMode('erase')} className={mode === 'erase' ? 'active' : ''}>擦除</button><label>笔刷 <input type="range" min="2" max="80" value={brush} onChange={(e) => setBrush(Number(e.target.value))} /></label><button disabled={restoring} onClick={clearCanvas}>清空</button><button disabled={restoring} onClick={removeWhiteBackground}>去白底</button><button disabled={restoring} onClick={cropTransparent}>自动裁切 PNG</button><label>改色 <input type="color" value={tint} onChange={(e) => setTint(e.target.value)} /></label><button disabled={restoring} onClick={recolor}>应用色板</button><button disabled={restoring} className="style-one" onClick={beautifyStyleOne}>STYLE 1 · 本地美化</button><label>缩放 <input type="number" min="10" max="400" value={scale} onChange={(e) => setScale(Number(e.target.value))} /></label><button disabled={restoring} onClick={resize}>缩放画布</button><button disabled={restoring || index <= 0} onClick={() => selectRevision(index - 1)}>撤销</button><button disabled={restoring || index >= revisions.length - 1} onClick={() => selectRevision(index + 1)}>重做</button></section>
-    <section className="asset-workbench"><div className="canvas-wrap"><canvas ref={canvasRef} width="640" height="480" onPointerDown={(e) => { if (restoring) return; lastPoint.current = null; drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); paint(e) }} onPointerMove={paint} onPointerUp={() => { if (drawing.current) { drawing.current = false; lastPoint.current = null; commit(mode === 'draw' ? '简笔画笔划' : '透明擦除') } }} /></div><aside><p>REVISION {Math.max(index + 1, 0)} / {revisions.length}{restoring ? ' · 恢复中' : ''}</p><div className="revision-list">{revisions.map((revision, itemIndex) => <button key={revision.id} disabled={restoring} className={itemIndex === index ? 'selected' : ''} onClick={() => selectRevision(itemIndex)}>{itemIndex + 1}. {revision.label}</button>)}</div><label htmlFor="asset-template">UI 模板</label><select id="asset-template" value={templateId} onChange={(e) => { const next = UI_TEMPLATES.find((template) => template.id === e.target.value)!; setTemplateId(next.id); setBinding(next.slots[0]) }}>{UI_TEMPLATES.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><label htmlFor="asset-slot">绑定槽位</label><select id="asset-slot" value={binding} onChange={(e) => setBinding(e.target.value)}>{(UI_TEMPLATES.find((template) => template.id === templateId)?.slots || ['asset.ui.custom']).map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select><label htmlFor="asset-motion">动态意象</label><select id="asset-motion" value={motion} onChange={(e) => setMotion(e.target.value)}><option value="float">漂浮</option><option value="bounce">弹跳</option><option value="shake">抖动</option></select><button disabled={!current || restoring} onClick={() => void bind()}>绑定到游戏 / UI</button><label htmlFor="asset-cloud-tags">云端标签（可选）</label><input id="asset-cloud-tags" value={cloudTags} placeholder="hero, arcade" onChange={(e) => setCloudTags(e.target.value)} /><button disabled={restoring || !cloudTags.trim()} onClick={() => void reuseCloudAsset()}>复用云端已批准资产</button><button disabled={!current || restoring} onClick={download}>导出透明 PNG</button></aside></section>
+    <section className="asset-workbench"><div className="canvas-wrap"><canvas ref={canvasRef} width="640" height="480" onPointerDown={(e) => { if (restoring) return; lastPoint.current = null; drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); paint(e) }} onPointerMove={paint} onPointerUp={() => { if (drawing.current) { drawing.current = false; lastPoint.current = null; commit(mode === 'draw' ? '简笔画笔划' : '透明擦除') } }} /></div><aside><p>REVISION {Math.max(index + 1, 0)} / {revisions.length}{restoring ? ' · 恢复中' : ''}</p><div className="revision-list">{revisions.map((revision, itemIndex) => <button key={revision.id} disabled={restoring} className={itemIndex === index ? 'selected' : ''} onClick={() => selectRevision(itemIndex)}>{itemIndex + 1}. {revision.label}</button>)}</div><label htmlFor="asset-template">UI 模板</label><select id="asset-template" value={templateId} onChange={(e) => { const next = UI_TEMPLATES.find((template) => template.id === e.target.value)!; setTemplateId(next.id); setBinding(next.slots[0]) }}>{UI_TEMPLATES.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><label htmlFor="asset-slot">生产输入槽位</label><select id="asset-slot" value={binding} onChange={(e) => setBinding(e.target.value)}>{(UI_TEMPLATES.find((template) => template.id === templateId)?.slots || ['asset.ui.custom']).map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select><label htmlFor="asset-motion">动态意象</label><select id="asset-motion" value={motion} onChange={(e) => setMotion(e.target.value)}><option value="float">漂浮</option><option value="bounce">弹跳</option><option value="shake">抖动</option></select><button disabled={!current || restoring} onClick={() => void saveInput()}>保存为下次生产输入</button><label htmlFor="asset-cloud-tags">云端标签（可选）</label><input id="asset-cloud-tags" value={cloudTags} placeholder="hero, arcade" onChange={(e) => setCloudTags(e.target.value)} /><button disabled={restoring || !cloudTags.trim()} onClick={() => void reuseCloudAsset()}>查看云端已批准候选</button><button disabled={!current || restoring} onClick={download}>导出透明 PNG</button></aside></section>
   </main>
 }

@@ -24,7 +24,7 @@
     "gamecastle.sprite-generate.dev-cpu.v1": {
       "role": "image-generate",
       "workflowFile": "ai/comfyui-workflows/sprite-generate.dev-cpu.v1.json",
-      "workflowSha256": "f47c08898aec00411245aee1cb59c2666bbcecd5fd108435ac0fe0e929cb870a",
+      "workflowSha256": "5b3e2bc29018ff13365d3d8facd7d71a7da1d546280a9533b0f54f27d87d6096",
       "outputNodeId": "7",
       "model": { "id": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors", "sha256Env": "COMFYUI_MODEL_SHA256", "pathEnv": "COMFYUI_MODEL_PATH", "licenseId": "CreativeML-OpenRAIL-M" },
       "customNodeAllowlist": [],

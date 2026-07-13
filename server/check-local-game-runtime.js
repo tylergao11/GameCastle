@@ -19,6 +19,7 @@ function writePlayableOutput(outputDir, marker, runNumber) {
   fs.writeFileSync(path.join(outputDir, 'project-world.json'), JSON.stringify({ worldVersion: runNumber, semanticHash: 'semantic-' + runNumber }), 'utf8');
   fs.writeFileSync(path.join(outputDir, 'asset-world.json'), JSON.stringify({ worldVersion: runNumber, semanticHash: 'asset-semantic-' + runNumber }), 'utf8');
   fs.writeFileSync(path.join(outputDir, 'execution-ledger.json'), JSON.stringify({ runs: [{ runId: 'fake-' + runNumber, summary: { nextAction: 'done' } }] }), 'utf8');
+  fs.writeFileSync(path.join(outputDir, 'project-run.json'), JSON.stringify({ lifecycle: 'playable', artifacts: { validationReport: { pass: true } } }), 'utf8');
   fs.writeFileSync(path.join(outputDir, 'html-export-manifest.json'), JSON.stringify({ schemaVersion: 1, target: 'html', scriptFiles: ['data.js'], assetFiles: [] }), 'utf8');
 }
 

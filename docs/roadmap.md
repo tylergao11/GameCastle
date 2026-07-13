@@ -23,9 +23,9 @@ This roadmap tracks the live AI-first Intent Engine.
 - Continue strengthening semantic playtest coverage for creation and follow-up iteration.
 - Expose current module, generation step, and playable version state in the platform UI.
 - Keep generated artifacts out of review noise unless the command explicitly asks to refresh them.
-- Build the Visual Asset Loop before wiring image providers: local drawing/upload, cloud reuse,
-  deterministic variants, controlled image edit/generation, and bounded vision review must use one
-  conditional Asset Weave graph. See [Visual Asset Loop](visual-asset-loop.md),
+- Build the Asset Production Loop before wiring image providers: local drawing/upload, cloud reuse,
+  deterministic variants, controlled image edit/generation, and bounded vision review must use the
+  sole Asset Production graph. See [Asset Production Loop](comfyui-asset-production-pipeline.md),
   [boundaries](visual-asset-boundaries.md), and the [test matrix](visual-asset-test-matrix.md).
 
 ## Boundary Rules

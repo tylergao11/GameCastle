@@ -54,7 +54,7 @@ var raf = installAnimationFrame();
 var game = makeFakeGame();
 var bridge = new GameCastleTickIntentBridge({
   inputs: ["move_right"],
-  tickRate: 20,
+  tickRate: 60,
   sync: "local",
 });
 
@@ -71,8 +71,8 @@ bridge.attach(game);
 bridge.start();
 raf.step(60);
 
-assert.strictEqual(game._test.steps(), 1, "local bridge should advance through tick runtime");
-assert.strictEqual(advances.length, 1, "local bridge should emit one ready tick");
+assert.strictEqual(game._test.steps(), 3, "60Hz local bridge should advance three ticks in 60ms");
+assert.strictEqual(advances.length, 3, "60Hz local bridge should emit every ready tick");
 assert.strictEqual(advances[0].tick, 0, "local ready tick should start at zero");
 assert.strictEqual(advances[0].inputs.p1_move_right, true, "local intent should be slotted through tick runtime");
 assert(events.length >= 1, "local bridge should expose tick runtime event log");

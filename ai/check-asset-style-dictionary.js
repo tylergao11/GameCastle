@@ -1,7 +1,7 @@
 var assert = require('assert');
 var styles = require('./asset-style-dictionary');
 var style = styles.getStyle();
-assert.equal(style.id, 'gamecastle.style-1');
+assert.equal(style.id, 'gamecastle.style-dna.v1');
 assert.equal(styles.paletteColor(style.id, 'ink'), '#141923');
 assert.equal(style.renderRecipe.output.transparent, true);
 assert.equal(style.animationPolicy.defaultFramesPerState, 1);

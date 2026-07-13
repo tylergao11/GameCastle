@@ -27,7 +27,10 @@
   "declarationContract": { "spatialSubjects": [
     { "subjectId": "player", "prototypeId": "Player1", "semanticRoleRefs": ["semantic-dictionary#/gameplayRoles/actor"], "bounds": { "width": 32, "height": 32, "anchor": "center" }, "layerRole": "world", "cardinality": "exclusive", "placementPolicy": "actor_spawn" },
     { "subjectId": "enemy", "prototypeId": "Enemy", "semanticRoleRefs": ["semantic-dictionary#/gameplayRoles/pressure"], "bounds": { "width": 32, "height": 32, "anchor": "center" }, "layerRole": "world", "cardinality": "composed", "placementPolicy": "pressure_zone" }
-  ], "sharedArtifacts": [] },
+  ], "sharedArtifacts": [], "visualSlots": [
+    { "visualSlotId": "shooter.player.visual", "scene": "Game", "targetObject": "Player1", "role": "player", "allowedBindingModes": ["object-resource"], "requiredAssetKind": "sprite", "preserve": ["behaviors", "collisionMask", "variables", "instanceIdentity", "layer", "zOrderPolicy"] },
+    { "visualSlotId": "shooter.enemy.visual", "scene": "Game", "targetObject": "Enemy", "role": "enemy", "allowedBindingModes": ["object-resource"], "requiredAssetKind": "sprite", "preserve": ["behaviors", "collisionMask", "variables", "instanceIdentity", "layer", "zOrderPolicy"] }
+  ] },
   "lifecycleContract": { "start": "required", "pause": "required", "failure": "provided", "restart": "provided", "continue": "provided" },
   "ownershipContract": { "artifacts": [], "cleanupOrder": [], "stateMigrationPolicy": "none" },
   "acceptanceContract": { "createFixture": "lightweight-shooter.arena", "continueFixture": "lightweight-shooter.continue", "failureFixtures": ["lightweight-shooter.failure"], "supportedLayoutFixtures": ["lightweight-shooter.arena", "lightweight-shooter.lanes"], "playGoals": [] },
@@ -137,7 +140,7 @@
     "default": {
       "sync": "local",
       "authority": "host",
-      "tickRate": 20,
+      "tickRate": 60,
       "seed": "auto"
     }
   },

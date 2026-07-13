@@ -13,13 +13,13 @@
       "id": "ui.hud.arcade",
       "name": "Arcade HUD",
       "templateKind": "ui-template",
-      "version": 1,
+      "version": 2,
       "status": "approved",
-      "styleId": "gamecastle.style-1",
+      "styleId": "gamecastle.style-dna.v1",
       "slots": [
-        { "id": "asset.ui.health", "kind": "ui", "constraints": { "transparent": true } },
-        { "id": "asset.ui.pause", "kind": "ui", "constraints": { "transparent": true } },
-        { "id": "asset.ui.custom", "kind": "ui", "constraints": { "transparent": true } }
+        { "id": "asset.ui.health", "kind": "ui", "productionFamily": "ui", "recipeId": "ui-element.v1", "constraints": { "transparent": true } },
+        { "id": "asset.ui.pause", "kind": "ui", "productionFamily": "ui", "recipeId": "ui-element.v1", "constraints": { "transparent": true } },
+        { "id": "asset.ui.custom", "kind": "ui", "productionFamily": "ui", "recipeId": "ui-element.v1", "constraints": { "transparent": true } }
       ],
       "uiTheme": { "accentRole": "red", "panelRole": "paper" }
     },
@@ -29,26 +29,132 @@
       "templateKind": "ui-template",
       "version": 1,
       "status": "approved",
-      "styleId": "gamecastle.style-1",
+      "styleId": "gamecastle.style-dna.v1",
       "slots": [
-        { "id": "asset.ui.logo", "kind": "ui", "constraints": { "transparent": true } },
-        { "id": "asset.ui.play", "kind": "ui", "constraints": { "transparent": true } },
-        { "id": "asset.ui.custom", "kind": "ui", "constraints": { "transparent": true } }
+        { "id": "asset.ui.logo", "kind": "ui", "productionFamily": "ui", "recipeId": "ui-element.v1", "constraints": { "transparent": true } },
+        { "id": "asset.ui.play", "kind": "ui", "productionFamily": "ui", "recipeId": "ui-element.v1", "constraints": { "transparent": true } },
+        { "id": "asset.ui.custom", "kind": "ui", "productionFamily": "ui", "recipeId": "ui-element.v1", "constraints": { "transparent": true } }
       ],
       "uiTheme": { "accentRole": "yellow", "panelRole": "paper" }
     },
     {
       "id": "game.runner.v1",
       "name": "Lightweight Runner",
+      "productModuleId": "core.platformer",
+      "templateKind": "game-template",
+      "version": 2,
+      "status": "approved",
+      "styleId": "gamecastle.style-dna.v1",
+      "slots": [
+        { "id": "hero", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "bottom-center" } },
+        { "id": "enemy", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "bottom-center" } },
+        { "id": "collectible", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
+      ]
+    },
+    {
+      "id": "game.route-dash.v1",
+      "name": "Route Dash Assets",
+      "productModuleId": "core.route_dash",
       "templateKind": "game-template",
       "version": 1,
       "status": "approved",
-      "styleId": "gamecastle.style-1",
+      "styleId": "gamecastle.style-dna.v1",
       "slots": [
-        { "id": "hero", "kind": "sprite", "constraints": { "transparent": true, "anchor": "bottom-center" } },
-        { "id": "enemy", "kind": "sprite", "constraints": { "transparent": true, "anchor": "bottom-center" } },
-        { "id": "background", "kind": "raster", "constraints": { "transparent": false } },
-        { "id": "hud", "kind": "ui", "constraints": { "transparent": true } }
+        { "id": "player", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "enemy", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "collectible", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
+      ]
+    },
+    {
+      "id": "game.interaction-puzzle.v1",
+      "name": "Interaction Puzzle Assets",
+      "productModuleId": "core.interaction_puzzle",
+      "templateKind": "game-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-dna.v1",
+      "slots": [
+        { "id": "puzzle-switch", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "puzzle-goal", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
+      ]
+    },
+    {
+      "id": "game.state-puzzle-grid.v1",
+      "name": "State Puzzle Grid Assets",
+      "productModuleId": "core.state_puzzle_grid",
+      "templateKind": "game-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-dna.v1",
+      "slots": [
+        { "id": "puzzle-switch-a", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "puzzle-switch-b", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
+      ]
+    },
+    {
+      "id": "game.survivor-arena.v1",
+      "name": "Survivor Arena Assets",
+      "productModuleId": "core.survivor_arena",
+      "templateKind": "game-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-dna.v1",
+      "slots": [
+        { "id": "player", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "enemy", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "collectible", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
+      ]
+    },
+    {
+      "id": "game.survivor-escape.v1",
+      "name": "Survivor Escape Assets",
+      "productModuleId": "core.survivor_escape",
+      "templateKind": "game-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-dna.v1",
+      "slots": [
+        { "id": "player", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "enemy", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "collectible", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
+      ]
+    },
+    {
+      "id": "game.top-down-collector.v1",
+      "name": "Top Down Collector Assets",
+      "productModuleId": "core.top_down_collector",
+      "templateKind": "game-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-dna.v1",
+      "slots": [
+        { "id": "player", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "collectible", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
+      ]
+    },
+    {
+      "id": "game.shooter.v1",
+      "name": "Shooter Assets",
+      "productModuleId": "core.shooter",
+      "templateKind": "game-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-dna.v1",
+      "slots": [
+        { "id": "player", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } },
+        { "id": "enemy", "kind": "sprite", "productionFamily": "character", "recipeId": "character-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
+      ]
+    },
+    {
+      "id": "game.idle-clicker.v1",
+      "name": "Idle Clicker Assets",
+      "productModuleId": "core.idle_clicker",
+      "templateKind": "game-template",
+      "version": 1,
+      "status": "approved",
+      "styleId": "gamecastle.style-dna.v1",
+      "slots": [
+        { "id": "idle-clicker", "kind": "sprite", "productionFamily": "prop", "recipeId": "prop-sprite.v1", "constraints": { "transparent": true, "anchor": "center" } }
       ]
     }
   ],

@@ -10,6 +10,7 @@
 
 var fs = require("fs");
 var path = require("path");
+var tickPolicyResolver = require('../tick-policy-resolver');
 
 var RUNTIME_DIR = __dirname;
 var DEFAULT_SIGNALING_URL = "ws://localhost:3001";
@@ -86,6 +87,19 @@ function resolveBridgeModule(modules, plan) {
       moduleIds: plan.realtime.moduleIds || []
     };
   }
+  // Single-player modules still have deterministic input frames. They use the
+  // same bridge as multiplayer; transport is simply absent.
+  if (plan && plan.allInputs && plan.allInputs.length) {
+    return {
+      id: "tick.local",
+      category: "tick-runtime-plan",
+      syncPolicy: { sync: "local", authority: "runtime", tickRate: 60, seed: null },
+      inputs: plan.allInputs,
+      state: plan.allState || [],
+      deterministic: true,
+      moduleIds: []
+    };
+  }
   for (var i = 0; i < modules.length; i++) {
     var policy = modules[i].syncPolicy;
     if (policy && policy.sync && BRIDGE_OWNED_SYNC[policy.sync]) return modules[i];
@@ -108,8 +122,8 @@ function resolveStrategies(modules, plan) {
         sync: channel.sync,
         file: entry.file,
         ctor: entry.ctor,
-        config: {
-          tickRate: channel.tickRate || 0,
+      config: {
+          tickRate: tickPolicyResolver.resolve({ sync: channel.sync, tickRate: channel.tickRate, authority: channel.authority }).simulationHz,
           authority: channel.authority || "host",
           inputs: channel.inputs || [],
           state: channel.state || [],
@@ -151,7 +165,7 @@ function resolveStrategies(modules, plan) {
 
 function collectSourceFiles(entries, bridgeModule) {
   var files = [];
-  if (entries.length > 0 || bridgeModule) files.push("transport.js");
+  if (entries.length > 0 || (bridgeModule && bridgeModule.syncPolicy.sync !== "local")) files.push("transport.js");
   entries.forEach(function (e) {
     if (files.indexOf(e.file) < 0) files.push(e.file);
   });
@@ -160,7 +174,7 @@ function collectSourceFiles(entries, bridgeModule) {
 
 function buildConfig(mod, policy) {
   var config = {
-    tickRate: policy.tickRate || 0,
+    tickRate: tickPolicyResolver.resolve(policy).simulationHz,
     authority: policy.authority || "host",
   };
   if (mod.inputs && mod.inputs.length) config.inputs = mod.inputs;
@@ -233,7 +247,7 @@ function readSourceFile(filename) {
   return finalLines.join("\n");
 }
 
-// ── Wiring generation ────────────────────────────────────────────��───────
+// -- Wiring generation -------------------------------------------------
 
 function generateWiring(signalingUrl, entries, modules, bridgeModule) {
   var lines = [];
@@ -257,7 +271,7 @@ function generateWiring(signalingUrl, entries, modules, bridgeModule) {
 
   // Section: Transport
   lines.push("  // ── Transport ──");
-  lines.push("  var transport = new GameCastleTransport(SIGNALING_URL);");
+  lines.push("  var transport = " + (bridgeModule && bridgeModule.syncPolicy && bridgeModule.syncPolicy.sync === "local" ? "null" : "new GameCastleTransport(SIGNALING_URL)") + ";");
   lines.push("");
 
   // Section: Strategies
@@ -447,13 +461,14 @@ function buildBridgeInitLines(bridgeModule, modules) {
 
   var policy = bridgeModule.syncPolicy;
   var config = buildConfig(bridgeModule, policy);
+  var resolvedTickPolicy = tickPolicyResolver.resolve(policy);
 
   return [
     "  // ── Tick Intent Bridge ──",
     "  // Creates the bridge instance that connects GDevelop to tick intent sources.",
     "  // Runs in the same scope as classes + strategies, so all symbols are visible.",
     "  (function () {",
-    "    if (!transport) {",
+    "    if (!transport && " + JSON.stringify(policy.sync) + " !== 'local') {",
     "      console.log('[GC:Bridge] No transport — running in local mode');",
     "      return;",
     "    }",
@@ -461,7 +476,8 @@ function buildBridgeInitLines(bridgeModule, modules) {
     "    var bridgeConfig = {",
     "      inputs: " + JSON.stringify(allInputs) + ",",
     "      state: " + JSON.stringify(allState) + ",",
-    "      tickRate: " + (config.tickRate || 20) + ",",
+    "      tickRate: " + (config.tickRate || 60) + ",",
+    "      tickPolicy: " + JSON.stringify(resolvedTickPolicy) + ",",
     "      sync: " + JSON.stringify(policy.sync) + ",",
     "      transport: transport,",
     "      autoHost: false,",

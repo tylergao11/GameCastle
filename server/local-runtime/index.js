@@ -6,8 +6,7 @@ var httpServerModule = require('./http-server');
 var projectWeaveRunnerModule = require('./project-weave-runner');
 var stateStoreModule = require('./state-store');
 var transactionModule = require('./workspace-transaction');
-var localAssetStoreModule = require('./local-asset-store');
-var simulatedPortsModule = require('../../ai/simulated-local-asset-ports');
+var localAssetInputStoreModule = require('./local-asset-input-store');
 var projectStoreModule = require('../../ai/project-store');
 
 function createRuntime(options) {
@@ -21,8 +20,7 @@ function createRuntime(options) {
   });
   var stateStore = options.stateStore || stateStoreModule.createStateStore(path.join(dataDir, 'local-runtime-state.json'));
   var projectStore = options.projectStore || projectStoreModule.createProjectStore({ rootDir: dataDir });
-  var simulatedPorts = options.simulatedPorts || simulatedPortsModule.createSimulatedLocalAssetPorts({ outputDir: outputDir });
-  var localAssetStore = options.localAssetStore || localAssetStoreModule.createLocalAssetStore({ outputDir: outputDir, ports: simulatedPorts });
+  var localAssetInputStore = options.localAssetInputStore || localAssetInputStoreModule.createLocalAssetInputStore({ outputDir: outputDir });
   // Shared-library truth is an explicitly injected service. Local creation must never recreate a file-system cloud library.
   var cloudAssetEngine = options.cloudAssetEngine || null;
   var transaction = options.transaction || transactionModule.createWorkspaceTransaction({
@@ -48,11 +46,11 @@ function createRuntime(options) {
     coordinator: coordinator,
     artifactStore: artifactStore,
     projectStore: projectStore,
-    localAssetStore: localAssetStore,
+    localAssetInputStore: localAssetInputStore,
     cloudAssetEngine: cloudAssetEngine,
     allowedUiOrigin: options.allowedUiOrigin || process.env.GAMECASTLE_UI_ORIGIN || 'http://127.0.0.1:5173',
   });
-  return { server: server, coordinator: coordinator, artifactStore: artifactStore, projectStore: projectStore, localAssetStore: localAssetStore, cloudAssetEngine: cloudAssetEngine, simulatedPorts: simulatedPorts };
+  return { server: server, coordinator: coordinator, artifactStore: artifactStore, projectStore: projectStore, localAssetInputStore: localAssetInputStore, cloudAssetEngine: cloudAssetEngine };
 }
 
 module.exports = {

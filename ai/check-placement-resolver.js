@@ -137,6 +137,16 @@ function run() {
   assert.strictEqual(unresolved.diagnostics.length, 1, 'missing anchor should produce a placement diagnostic');
   assert.strictEqual(unresolved.diagnostics[0].category, 'missing-anchor');
 
+  var forwardReference = placementResolver.resolvePlacements({
+    placements: [
+      { subject: 'EnemyGroup', anchor: 'PlatformsGroup', space: 'object_relative', direction: 'above' },
+      { subject: 'PlatformsGroup', anchor: 'screen', space: 'world', direction: 'center', pattern: 'line', count: 3 }
+    ]
+  }, { objectBounds: {} });
+  assert.strictEqual(forwardReference.diagnostics.length, 0, 'a later declared group anchor must resolve through the placement dependency graph');
+  assert.strictEqual(forwardReference.placements[0].anchor, 'PlatformsGroup', 'forward resolution must preserve original placement order');
+  assert(forwardReference.placements[0].resolved.y < forwardReference.placements[1].resolved.y, 'enemy should resolve above the later-declared platform group');
+
   var unresolvedEdit = placementResolver.resolvePlacements({
     edits: [{
       kind: 'editConstraint',

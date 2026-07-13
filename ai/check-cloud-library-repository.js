@@ -5,7 +5,7 @@ var client = { query: async function(sql, values) { calls.push({ sql: sql, value
 async function main() {
   var repo = repository.createCloudLibraryRepository({ client: client });
   assert.deepEqual(await repo.health(), { postgres: true, pgvector: true, pgvectorVersion: '0.test' });
-  var asset = await repo.putAssetRevision({ familyId: 'family.test', revisionId: 'revision.test', bytesSha256: 'a'.repeat(64), objectKey: 'assets/a.png', kind: 'raster', styleId: 'gamecastle.style-1', semanticTags: ['character'], provenanceReceipt: { source: 'internal' } });
+  var asset = await repo.putAssetRevision({ familyId: 'family.test', revisionId: 'revision.test', bytesSha256: 'a'.repeat(64), objectKey: 'assets/a.png', kind: 'raster', styleId: 'gamecastle.style-dna.v1', semanticTags: ['character'], provenanceReceipt: { source: 'internal' } });
   assert.equal(asset.revisionId, 'revision.test');
   var module = await repo.putModuleRevision({ moduleId: 'core.route_dash', revision: 'local-v1', manifest: { id: 'core.route_dash' }, originReceipt: { authorization: 'internal-original-module' }, promotionReceipt: { decision: 'approved-local' } });
   assert.equal(module.manifestSha256, repository.sha256({ id: 'core.route_dash' }));
