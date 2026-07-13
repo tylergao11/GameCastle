@@ -16,16 +16,17 @@ function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[k
 
 (async function() {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-comfy-check-'));
-  var saved = { ASSET_MODEL_PROVIDER: process.env.ASSET_MODEL_PROVIDER, COMFYUI_ALLOW_LOCAL: process.env.COMFYUI_ALLOW_LOCAL, COMFYUI_ENDPOINT: process.env.COMFYUI_ENDPOINT, COMFYUI_MODEL_PATH: process.env.COMFYUI_MODEL_PATH, COMFYUI_MODEL_SHA256: process.env.COMFYUI_MODEL_SHA256, COMFYUI_VISION_MODEL: process.env.COMFYUI_VISION_MODEL, COMFYUI_TRANSIT_DIR: process.env.COMFYUI_TRANSIT_DIR, COMFYUI_POLL_MS: process.env.COMFYUI_POLL_MS };
+  var saved = { ASSET_MODEL_PROVIDER: process.env.ASSET_MODEL_PROVIDER, ASSET_VISION_MODEL: process.env.ASSET_VISION_MODEL, COMFYUI_ALLOW_LOCAL: process.env.COMFYUI_ALLOW_LOCAL, COMFYUI_ENDPOINT: process.env.COMFYUI_ENDPOINT, COMFYUI_MODEL_PATH: process.env.COMFYUI_MODEL_PATH, COMFYUI_MODEL_SHA256: process.env.COMFYUI_MODEL_SHA256, COMFYUI_BACKGROUND_REMOVAL_MODEL_PATH: process.env.COMFYUI_BACKGROUND_REMOVAL_MODEL_PATH, COMFYUI_BACKGROUND_REMOVAL_MODEL_SHA256: process.env.COMFYUI_BACKGROUND_REMOVAL_MODEL_SHA256, COMFYUI_VISION_MODEL: process.env.COMFYUI_VISION_MODEL, COMFYUI_TRANSIT_DIR: process.env.COMFYUI_TRANSIT_DIR, COMFYUI_POLL_MS: process.env.COMFYUI_POLL_MS };
   try {
-    var model = path.join(root, 'model.safetensors'); fs.writeFileSync(model, Buffer.from('stage-a-test-model'));
-    process.env.ASSET_MODEL_PROVIDER = 'comfyui-local'; process.env.COMFYUI_ALLOW_LOCAL = 'true'; process.env.COMFYUI_ENDPOINT = 'http://127.0.0.1:8188'; process.env.COMFYUI_MODEL_PATH = model; process.env.COMFYUI_MODEL_SHA256 = crypto.createHash('sha256').update(fs.readFileSync(model)).digest('hex'); process.env.COMFYUI_VISION_MODEL = 'gamecastle.asset-review.dev-cpu.v1'; process.env.COMFYUI_TRANSIT_DIR = path.join(root, 'transit'); process.env.COMFYUI_POLL_MS = '1';
+    var model = path.join(root, 'model.safetensors'); fs.writeFileSync(model, Buffer.from('stage-a-test-model')); var backgroundModel = path.join(root, 'birefnet.safetensors'); fs.writeFileSync(backgroundModel, Buffer.from('stage-a-test-background-model'));
+    process.env.ASSET_MODEL_PROVIDER = 'comfyui-local'; process.env.ASSET_VISION_MODEL = 'gamecastle.asset-review.dev-cpu.v1'; process.env.COMFYUI_ALLOW_LOCAL = 'true'; process.env.COMFYUI_ENDPOINT = 'http://127.0.0.1:8188'; process.env.COMFYUI_MODEL_PATH = model; process.env.COMFYUI_MODEL_SHA256 = crypto.createHash('sha256').update(fs.readFileSync(model)).digest('hex'); process.env.COMFYUI_BACKGROUND_REMOVAL_MODEL_PATH = backgroundModel; process.env.COMFYUI_BACKGROUND_REMOVAL_MODEL_SHA256 = crypto.createHash('sha256').update(fs.readFileSync(backgroundModel)).digest('hex'); process.env.COMFYUI_VISION_MODEL = 'gamecastle.asset-review.dev-cpu.v1'; process.env.COMFYUI_TRANSIT_DIR = path.join(root, 'transit'); process.env.COMFYUI_POLL_MS = '1';
     var calls = [], submitted = 0;
     var fetchImpl = async function(url, init) {
       calls.push({ url: String(url), method: init && init.method });
       if (String(url).endsWith('/system_stats')) return response({ system: {} });
+      if (String(url).endsWith('/upload/image')) return response({ name: 'controlled-source.png' });
       if (String(url).endsWith('/prompt')) { submitted++; return response({ prompt_id: 'job-1' }); }
-      if (String(url).indexOf('/history/job-1') >= 0) return response({ 'job-1': { status: { status_str: 'success', completed: true }, outputs: { '7': { images: [{ filename: 'safe.png', type: 'output' }] } } } });
+      if (String(url).indexOf('/history/job-1') >= 0) return response({ 'job-1': { status: { status_str: 'success', completed: true }, outputs: { '7': { images: [{ filename: 'safe.png', type: 'output' }] }, '15': { images: [{ filename: 'safe.png', type: 'output' }] } } } });
       if (String(url).indexOf('/view?') >= 0) return response(png);
       if (String(url).endsWith('/interrupt')) return response({});
       return response({ error: 'missing' }, 404);
@@ -37,6 +38,16 @@ function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[k
     var denied = await runtimeModule.createProviderRuntime({ fetchImpl: fetchImpl }).invokeRole({ requestId: 'local-denied', projectId: 'p', role: 'image-generate', provider: 'comfyui-local', input: {} });
     assert.equal(denied.ok, true, 'explicit COMFYUI_ALLOW_LOCAL authorizes self-hosted ComfyUI without API key');
     require('./comfyui-local-provider')._blobs.clear(); assert.equal(require('./comfyui-local-provider')._findBlob(denied.output.assetBlobRef).sha256, denied.output.assetBlobRef.sha256, 'transit index restores an unexpired candidate after adapter restart');
+    var source = await runtime.invokeRole({ requestId: 'reference-source', projectId: 'reference-project', role: 'image-generate', provider: 'comfyui-local', input: { prompt: 'hero' } });
+    assert.equal(source.ok, true, 'reference contract needs a controlled source produced by the same adapter');
+    var missingReference = await runtime.invokeRole({ requestId: 'reference-missing', projectId: 'reference-project', role: 'image-generate', provider: 'comfyui-local', model: 'gamecastle.sprite-reference-generate.dev-cpu.v1', input: { prompt: 'enemy' } });
+    assert.equal(missingReference.ok, false); assert.equal(missingReference.debt.code, 'COMFYUI_REFERENCE_INPUT_MISSING');
+    var foreignReference = await runtime.invokeRole({ requestId: 'reference-foreign', projectId: 'other-project', role: 'image-generate', provider: 'comfyui-local', model: 'gamecastle.sprite-reference-generate.dev-cpu.v1', input: { prompt: 'enemy', referenceAssetBlobRef: source.output.assetBlobRef } });
+    assert.equal(foreignReference.ok, false); assert.equal(foreignReference.debt.code, 'COMFYUI_INPUT_SCOPE_DENIED');
+    var acceptedReference = await runtime.invokeRole({ requestId: 'reference-accepted', projectId: 'reference-project', role: 'image-generate', provider: 'comfyui-local', model: 'gamecastle.sprite-reference-generate.dev-cpu.v1', input: { prompt: 'enemy', referenceAssetBlobRef: source.output.assetBlobRef } });
+    assert.equal(acceptedReference.ok, true, 'same-project controlled reference must submit the registered reference workflow');
+    assert.equal(acceptedReference.receipt.provenance.workflowId, 'gamecastle.sprite-reference-generate.dev-cpu.v1');
+    assert(calls.some(function(call) { return call.url.endsWith('/upload/image'); }), 'reference workflow must upload its controlled source into ComfyUI input storage');
     var baselineSubmissions = submitted;
     var targets = { hero: 'game.player.visual', enemy: 'game.enemy.visual', collectible: 'game.collectible.visual' };
     var slots = ['hero', 'enemy', 'collectible'].map(function(slotId) { return { slotId: slotId, kind: 'sprite', targetVisualSlotId: targets[slotId], styleId: 'gamecastle.style-dna.v1', semanticTags: [slotId], styleTags: ['gamecastle.style-dna.v1'], constraints: { width: 6, height: 6, transparent: true } }; });

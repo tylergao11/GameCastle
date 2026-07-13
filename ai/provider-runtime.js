@@ -9,7 +9,7 @@ var providerContract = require('../shared/provider-runtime-contract.json');
 
 var ROLE_MODALITY = {
   'creative-text': 'text', 'intent-text': 'text',
-  'image-generate': 'image-generation', 'image-edit': 'image-edit', 'vision-review': 'vision-review'
+  'image-generate': 'image-generation', 'image-edit': 'image-edit', 'subject-segment': 'vision-review', 'vision-review': 'vision-review'
 };
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -104,7 +104,7 @@ function createProviderRuntime(options) {
   return { invokeRole: invokeRole, cancel: cancel, health: health, listReceipts: function() { return clone(receipts); } };
 }
 
-function selectModel(config, role, override) { if (override) return override; if (role === 'image-generate' || role === 'image-edit') return config.imageModel; if (role === 'vision-review') return config.visionModel || config.textModel; return config.textModel; }
+function selectModel(config, role, override) { if (override) return override; if (role === 'image-generate' || role === 'image-edit') return config.imageModel; if (role === 'subject-segment') return config.segmentModel || config.visionModel || config.textModel; if (role === 'vision-review') return config.visionModel || config.textModel; return config.textModel; }
 function retryable(error) { return !error || !error.code || ['AbortError', 'PROVIDER_CANCELLED', 'PROVIDER_KEY_UNAVAILABLE', 'PROVIDER_NOT_AUTHORIZED'].indexOf(error.code || error.name) < 0; }
 function failure(error) { return { code: error.code || error.name || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', message: String(error.message || error).replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]') }; }
 function debt(error) { return { code: error.code || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', recoveryStage: 'provider-runtime', blocksPublish: false }; }

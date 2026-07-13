@@ -23,9 +23,11 @@ function negativePrompt(styleId, extra) {
   return value.promptContract.negativePhrases.concat(extra || []).join(', ');
 }
 
-function reviewPolicy(styleId, semanticTags) {
+function reviewPolicy(styleId, semanticTags, options) {
+  options = options || {};
   var value = style(styleId);
-  return { requiredSemanticTags: (semanticTags || []).slice(), minConfidence: 0.35, styleDNA: value.id, requiredTraits: ['bold-outline', 'flat-color-blocks', 'low-detail-geometry', 'single-toon-shadow', 'western-cartoon-proportion'], forbiddenTraits: value.explicitlyNot.slice() };
+  var semanticReview = value.semanticReview || {}, transparentSubject = options.transparent === true && ['character', 'prop', 'effect'].indexOf(options.productionFamily) >= 0;
+  return { requiredSemanticTags: (semanticTags || []).slice(), requiredAliases: semanticReview.requiredAliases || {}, forbiddenSemanticGroups: transparentSubject ? (semanticReview.transparentSubjectForbiddenGroups || []).slice() : [], minConfidence: 0.35, styleDNA: value.id, requiredTraits: ['bold-outline', 'flat-color-blocks', 'low-detail-geometry', 'single-toon-shadow', 'western-cartoon-proportion'], forbiddenTraits: value.explicitlyNot.slice() };
 }
 
 module.exports = { style: style, generationPrompt: generationPrompt, negativePrompt: negativePrompt, reviewPolicy: reviewPolicy };

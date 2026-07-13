@@ -51,8 +51,10 @@ assert.equal(contract.acceptanceMatrix.blindIngestionCoverage.requiresPreAuditUn
 ['truth:extract', 'truth:check', 'capabilities:extract', 'capabilities:check', 'semantics:extract', 'semantics:check'].forEach(function(name) { assert(packageJson.scripts[name], 'missing reproducibility command: ' + name); });
 truth.sources.filter(function(item) { return item.path && item.truthKind !== 'project-state'; }).forEach(function(item) { assert(fs.existsSync(path.join(root, item.path)), 'truth source missing: ' + item.id); });
 var expectedSource = path.resolve(root, '..', 'GDevelop-master');
-assert.equal(path.resolve(runtimeTruth.source.dir), expectedSource, 'runtime truth points at stale source checkout');
-assert.equal(path.resolve(universe.source.dir), expectedSource, 'capability universe points at stale source checkout');
+assert.equal(path.resolve(root, runtimeTruth.source.dir), expectedSource, 'runtime truth points at stale source checkout');
+assert.equal(path.resolve(root, universe.source.dir), expectedSource, 'capability universe points at stale source checkout');
+assert(!/^[A-Za-z]:[\\/]/.test(runtimeTruth.source.dir), 'runtime truth must not store a workstation drive path');
+assert(!/^[A-Za-z]:[\\/]/.test(universe.source.dir), 'capability universe must not store a workstation drive path');
 var oldPathHits = [];
 ['README.md', 'ai/README.md', 'docs/architecture.md', 'scripts/extract-gdevelop-truth.js', 'scripts/extract-gdevelop-capability-universe.js', 'scripts/prepare-gdjs-runtime.js'].forEach(function(file) { if (fs.readFileSync(path.join(root, file), 'utf8').indexOf('C:\\Ai\\GDevelop-master') >= 0) oldPathHits.push(file); });
 assert.deepEqual(oldPathHits, [], 'stale GDevelop source path remains');

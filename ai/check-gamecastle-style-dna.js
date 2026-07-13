@@ -8,6 +8,7 @@ var prompt = style.generationPrompt(id, 'small playable hero', { transparent: tr
 ['bold rounded dark outline', 'flat vector color blocks', 'low-detail geometric mobile game asset', 'subtle single toon shadow', 'western cartoon proportions'].forEach(function(token) { assert(prompt.indexOf(token) >= 0, 'prompt must carry Style DNA token: ' + token); });
 var negative = style.negativePrompt(id);
 ['anime', 'pixel art', 'photorealistic', 'realistic texture', '3d render'].forEach(function(token) { assert(negative.indexOf(token) >= 0, 'negative prompt must reject: ' + token); });
-var review = style.reviewPolicy(id, ['hero']);
+var review = style.reviewPolicy(id, ['hero'], { transparent: true, productionFamily: 'character' });
 assert.deepStrictEqual(review.requiredTraits, ['bold-outline', 'flat-color-blocks', 'low-detail-geometry', 'single-toon-shadow', 'western-cartoon-proportion']);
+assert.deepStrictEqual(review.forbiddenSemanticGroups.map(function(group) { return group.id; }), ['background_contamination', 'multiple_subjects']);
 console.log('[GameCastleStyleDNA] one canonical vector-toon mobile-game style passed');

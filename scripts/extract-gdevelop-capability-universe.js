@@ -589,7 +589,8 @@ function buildUniverse(sourceDir) {
   });
   return {
     schemaVersion: 1,
-    source: { dir: sourceDir, roots: ['Core/GDCore/Extensions/Builtin', 'Extensions'], files: sources },
+    // Do not leak a workstation drive into a committed generated artifact.
+    source: { dir: path.relative(ROOT, sourceDir) || '.', roots: ['Core/GDCore/Extensions/Builtin', 'Extensions'], files: sources },
     model: { inheritance: 'Extension definition is the base record; JsExtension runtime metadata overrides execution fields.', parameterMacroKinds: ['standard-value', 'standard-operator', 'standard-relational-operator'] },
     summary: { sourceFiles: sources.length, extensions: Object.keys(extensions).length, declarations: sources.reduce(function(total, item) { return total + item.declarations; }, 0), families: families.length, capabilities: capabilities.length, declarationVariants: capabilities.reduce(function(total, item) { return total + (item.variants ? item.variants.length : 0); }, 0), unresolvedDeclarations: unresolved.length, runtimeOverrides: runtimeOverrides.length, unresolvedRuntimeBindings: sources.reduce(function(total, item) { return total + item.runtimeUnresolved; }, 0), unlinkedRuntimeOverrides: unlinkedRuntimeOverrides.length },
     extensions: extensions,

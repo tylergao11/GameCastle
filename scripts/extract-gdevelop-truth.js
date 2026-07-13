@@ -445,7 +445,9 @@ function buildTruth() {
   return {
     schemaVersion: 1,
     source: {
-      dir: SOURCE_DIR,
+      // Keep generated truth portable. The resolved source path is machine-local
+      // evidence; the snapshot stores only its relationship to this checkout.
+      dir: path.relative(ROOT, SOURCE_DIR) || '.',
       files: sourceFiles.map(function(file) {
         return { path: file, sha1: fileHash(file) };
       }),

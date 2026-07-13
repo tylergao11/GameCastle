@@ -1,30 +1,13 @@
-# Engine - GDJS HTML Runtime
+# GDJS Runtime
 
-`engine/gdevelop-runtime/` is the local cache of the official GDJS browser
-runtime built from `D:\GDevelop-master\GDJS`.
+`engine/gdevelop-runtime/` 是官方 GDJS 浏览器运行时的本地缓存，不维护自制 runtime shim。
 
-Prepare or refresh it with:
-
-```bash
+```powershell
 npm run runtime:prepare
+# 或：node scripts/prepare-gdjs-runtime.js --source <path-to-GDevelop-master>
 ```
 
-Use `GDEVELOP_SOURCE_DIR` or `scripts/prepare-gdjs-runtime.js --source <path>`
-when the GDevelop checkout is not at `D:\GDevelop-master`.
+准备脚本也支持 `GDEVELOP_SOURCE_DIR`。导出的 `output/index.html`、`output/game.html` 与 `output/html-export-manifest.json` 共同记录可运行 HTML 产物。
 
-GameCastle does not maintain a hand-written GDJS runtime shim. The pipeline
-emits a GDevelop-style HTML export:
-
-- `output/project.json` is the generated project truth for GDJS.
-- `output/data.js` exposes `gdjs.projectData`.
-- `output/code*.js` exposes scene functions such as `gdjs.GameCode.func`.
-- `output/html-export-manifest.json` records the HTML runtime files required by
-  the current project.
-- `output/index.html` and `output/game.html` load those files and start
-  `new gdjs.RuntimeGame(...)`.
-
-The HTML export manifest owns the boundary between GameCastle modules and the
-GDJS runtime. It keeps 2D Pixi runtime available by default, adds 3D runtime
-files only when the project uses 3D capabilities, and excludes non-HTML platform
-packages such as Cordova, Electron, Facebook Instant Games, debugger clients,
-and TypeScript declaration bundles.
+- [运行时准备脚本](../scripts/prepare-gdjs-runtime.js)
+- [GDevelop 官方仓库](https://github.com/GDevelopApp/GDevelop)

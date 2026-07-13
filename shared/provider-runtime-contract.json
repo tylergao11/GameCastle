@@ -8,6 +8,7 @@
     "intent-text": { "modality": "text", "owner": "IntentAgent", "defaultEstimatedCost": 0.01 },
     "image-generate": { "modality": "image-generation", "owner": "ImageAgent", "defaultEstimatedCost": 0.04 },
     "image-edit": { "modality": "image-edit", "owner": "ImageAgent", "defaultEstimatedCost": 0.04 },
+    "subject-segment": { "modality": "vision-review", "owner": "VisionAgent", "defaultEstimatedCost": 0.005 },
     "vision-review": { "modality": "vision-review", "owner": "VisionAgent", "defaultEstimatedCost": 0.005 }
   },
   "request": { "required": ["requestId", "projectId", "role", "input"], "forbidden": ["apiKey", "authorization", "secret"] },

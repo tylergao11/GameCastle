@@ -3,6 +3,7 @@ dist/
 .cache/
 *.log
 .env
+.env.local
 .DS_Store
 .gamecastle/
 .gamecastle-golden/

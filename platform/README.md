@@ -1,20 +1,12 @@
-# GameCastle Platform
+# Platform
 
-The React/Vite client owns creation input, runtime progress, cancellation, and
-the playable iframe. It calls only the Local Game Runtime HTTP/SSE contract.
+React/Vite 客户端负责创建输入、运行进度、取消与试玩 iframe；它只通过 Local Game Runtime 的 HTTP/SSE 合同工作。
 
-The product build path is singular:
-
-```text
-Platform -> Local Game Runtime -> ProjectWeaveRuntime -> immutable release
-```
-
-The UI does not read project files, parse engine logs, or invoke a build script.
-
-## Commands
-
-```bash
+```powershell
 npm run dev
 npm --prefix platform run build
 npm --prefix platform run lint
 ```
+
+- [本地运行时边界](../docs/local-game-runtime.md)
+- [Creator Experience](../docs/creator-experience.md)

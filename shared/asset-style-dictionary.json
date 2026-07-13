@@ -38,6 +38,19 @@
         "maxShadowLayers": 1,
         "maxHighlightLayers": 1
       },
+      "semanticReview": {
+        "requiredAliases": {
+          "hero": ["hero", "person", "character", "man", "woman", "girl", "boy"],
+          "character": ["character", "person", "man", "woman", "girl", "boy"],
+          "enemy": ["enemy", "monster", "creature", "animal"],
+          "coin": ["coin", "token", "medal"],
+          "flower": ["flower", "plant", "petal"]
+        },
+        "transparentSubjectForbiddenGroups": [
+          { "id": "background_contamination", "terms": ["background", "scene", "ground", "floor", "platform", "landscape"] },
+          { "id": "multiple_subjects", "terms": ["multiple characters", "two characters", "group of characters", "crowd"] }
+        ]
+      },
       "renderRecipe": {
         "outline": { "color": "ink", "widthRatio": 0.028, "minimumPx": 3, "join": "round" },
         "shadow": { "color": "ink", "opacity": 0.28, "offsetOutlineMultipler": 1.5, "layers": 1 },

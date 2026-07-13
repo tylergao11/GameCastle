@@ -160,7 +160,7 @@ async function runWorkItem(input) {
     if (!state.currentRevision) fail('ASSET_PRODUCTION_REVISION_REQUIRED', 'Observation requires a current immutable revision.');
     if (state.phase !== 'observing') transition(state, 'observing');
     if (typeof state.ports.review !== 'function') fail('ASSET_PRODUCTION_VISION_UNAVAILABLE', 'Vision review port is unavailable.', 'VisionInspector');
-    state.source.reviewPolicy = Object.assign(styleDNA.reviewPolicy(state.workItem.assetSpec.styleId, state.workItem.assetSpec.semanticTags), { familyChecks: state.workItem.familyChecks.slice() });
+    state.source.reviewPolicy = Object.assign(styleDNA.reviewPolicy(state.workItem.assetSpec.styleId, state.workItem.assetSpec.semanticTags, { transparent: state.workItem.assetSpec.constraints.transparent === true, productionFamily: state.workItem.productionFamily }), { familyChecks: state.workItem.familyChecks.slice() });
     state.review = await state.ports.review(portState(state));
     var observed = observation(state); state.observation = observed.observation; state.observations.push(observed.observation); state.visionReceipts.push(observed.vision); state.deterministicReceipts.push(observed.deterministic);
     transition(state, 'diagnosing');

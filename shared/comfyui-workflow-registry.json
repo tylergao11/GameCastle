@@ -8,12 +8,45 @@
       "repository": "https://github.com/kijai/ComfyUI-Florence2",
       "commit": "9ece3de914214c5f581d725167bc9d0eeb0d1120",
       "relativeDirectory": "custom_nodes/ComfyUI-Florence2",
-      "packageSha256": "36caace58dc3e220e7b8adb9831335447b311672ebccd7a204c8e0f682158d65",
+      "packageSha256": "1f5aedbd85b0f9ae7d86708eda867c36aaeb925f0c8012411f7514bc17a0bb78",
       "relativePath": "custom_nodes/ComfyUI-Florence2/nodes.py",
-      "sha256": "7d4140f0d993987118578e5cfab8b62e528a684298aa4ba8d6cadf585e83e950",
+      "sha256": "b59fd6d06c27601bf989ae396a40c9e6e913760740b86a214e7f417d9896a5b5",
       "licenseId": "Apache-2.0",
       "nodeClasses": ["Florence2ModelLoader", "Florence2Run"],
       "roles": ["vision-review"]
+    },
+    "pythongosssss.custom-scripts.v1": {
+      "repository": "https://github.com/pythongosssss/ComfyUI-Custom-Scripts",
+      "commit": "609f3afaa74b2f88ef9ce8d939626065e3247469",
+      "relativeDirectory": "custom_nodes/ComfyUI-Custom-Scripts",
+      "packageSha256": "45e273703e72d04c6a003956c0e9156341ad75daf3afc683fe90a5d8f76dbb0d",
+      "relativePath": "custom_nodes/ComfyUI-Custom-Scripts/py/show_text.py",
+      "sha256": "fb4182f541caed98621fd30cf4ad87d7a7deb2680cfafbcfbeb769355570cc8e",
+      "licenseId": "MIT",
+      "nodeClasses": ["ShowText|pysssss"],
+      "roles": ["vision-review"]
+    },
+    "cubiq.ipadapter.plus.v1": {
+      "repository": "https://github.com/cubiq/ComfyUI_IPAdapter_plus",
+      "commit": "a0f451a5113cf9becb0847b92884cb10cbdec0ef",
+      "relativeDirectory": "custom_nodes/ComfyUI_IPAdapter_plus",
+      "packageSha256": "d214fe5eacd5ef0eef37ca79cfa31c985cbd4658d3206b9385275e08eb25b3c2",
+      "relativePath": "custom_nodes/ComfyUI_IPAdapter_plus/IPAdapterPlus.py",
+      "sha256": "c10f4a8dd8e96b1c1733f513a22d2468c7687c2dd45a0d7ddf5a5b1f7e811c23",
+      "licenseId": "GPL-3.0",
+      "nodeClasses": ["IPAdapterUnifiedLoader", "IPAdapter"],
+      "roles": ["image-generate"]
+    },
+    "cubiq.essentials.v1": {
+      "repository": "https://github.com/cubiq/ComfyUI_essentials",
+      "commit": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+      "relativeDirectory": "custom_nodes/ComfyUI_essentials",
+      "packageSha256": "36512ad023c00d8d74390a69a4b887cd6be0c1e73a1d12f44508124d448e6a3c",
+      "relativePath": "custom_nodes/ComfyUI_essentials/__init__.py",
+      "sha256": "8c36d6046046a8e7ab063641085af5e1a16f3153928522299dc3823d55adc278",
+      "licenseId": "MIT",
+      "nodeClasses": ["MaskBoundingBox+", "ImageResize+", "ImageFlip+"],
+      "roles": ["image-generate"]
     }
   },
   "extensions": {
@@ -24,20 +57,71 @@
     "gamecastle.sprite-generate.dev-cpu.v1": {
       "role": "image-generate",
       "workflowFile": "ai/comfyui-workflows/sprite-generate.dev-cpu.v1.json",
-      "workflowSha256": "5b3e2bc29018ff13365d3d8facd7d71a7da1d546280a9533b0f54f27d87d6096",
+      "workflowSha256": "5ecf577e03382483396df83f0e43027237f6f9eec64173797ac76c5c58d40851",
       "outputNodeId": "7",
       "model": { "id": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors", "sha256Env": "COMFYUI_MODEL_SHA256", "pathEnv": "COMFYUI_MODEL_PATH", "licenseId": "CreativeML-OpenRAIL-M" },
-      "customNodeAllowlist": [],
-      "maxWidth": 512,
-      "maxHeight": 512,
+      "backgroundRemovalModel": { "id": "birefnet.safetensors", "sha256Env": "COMFYUI_BACKGROUND_REMOVAL_MODEL_SHA256", "pathEnv": "COMFYUI_BACKGROUND_REMOVAL_MODEL_PATH", "licenseId": "MIT" },
+      "customNodeAllowlist": ["cubiq.essentials.v1"],
+      "maxWidth": 256,
+      "maxHeight": 256,
+      "generationWidth": 512,
+      "generationHeight": 512,
       "maxOutputBytes": 16777216,
       "maxTimeoutMs": 600000,
-      "inputFields": ["prompt", "negativePrompt", "width", "height", "seed", "steps"]
+      "inputFields": ["prompt", "negativePrompt", "width", "height", "seed", "steps", "cfg", "samplerName", "scheduler", "alphaThreshold", "trimPadding", "filenamePrefix"],
+      "inputBindings": {
+        "prompt": { "nodeId": "2", "input": "text" },
+        "negativePrompt": { "nodeId": "3", "input": "text" },
+        "width": { "nodeId": "4", "input": "width" },
+        "height": { "nodeId": "4", "input": "height" },
+        "seed": { "nodeId": "5", "input": "seed" },
+        "steps": { "nodeId": "5", "input": "steps" },
+        "cfg": { "nodeId": "5", "input": "cfg" },
+        "samplerName": { "nodeId": "5", "input": "sampler_name" },
+        "scheduler": { "nodeId": "5", "input": "scheduler" },
+        "alphaThreshold": { "nodeId": "11", "input": "value" },
+        "trimPadding": { "nodeId": "14", "input": "padding" },
+        "filenamePrefix": { "nodeId": "7", "input": "filename_prefix" }
+      }
+    },
+    "gamecastle.sprite-anchored-lineart.dev-cpu.v1": {
+      "role": "image-generate",
+      "workflowFile": "ai/comfyui-workflows/sprite-anchored-lineart.dev-cpu.v1.json",
+      "workflowSha256": "d247d504ad1b925d7ba4bb1ca7bc2a3c98b69a90a9dbb63b07461a6b6d388f82",
+      "outputNodeId": "21",
+      "model": { "id": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors", "sha256Env": "COMFYUI_MODEL_SHA256", "pathEnv": "COMFYUI_MODEL_PATH", "licenseId": "CreativeML-OpenRAIL-M" },
+      "backgroundRemovalModel": { "id": "birefnet.safetensors", "sha256Env": "COMFYUI_BACKGROUND_REMOVAL_MODEL_SHA256", "pathEnv": "COMFYUI_BACKGROUND_REMOVAL_MODEL_PATH", "licenseId": "MIT" },
+      "supportingModels": {
+        "ipAdapter": { "id": "ip-adapter_sd15.safetensors", "pathEnv": "COMFYUI_IPADAPTER_MODEL_PATH", "sha256Env": "COMFYUI_IPADAPTER_MODEL_SHA256", "licenseId": "Apache-2.0" },
+        "clipVision": { "id": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors", "pathEnv": "COMFYUI_CLIP_VISION_MODEL_PATH", "sha256Env": "COMFYUI_CLIP_VISION_MODEL_SHA256", "licenseId": "Apache-2.0" },
+        "lineartControlNet": { "id": "control_v11p_sd15_lineart.fp16.safetensors", "pathEnv": "COMFYUI_LINEART_CONTROLNET_PATH", "sha256Env": "COMFYUI_LINEART_CONTROLNET_SHA256", "licenseId": "OpenRAIL", "source": "https://modelscope.cn/models/camenduru/control_v11p_sd15_lineart" }
+      },
+      "customNodeAllowlist": ["cubiq.ipadapter.plus.v1", "cubiq.essentials.v1"],
+      "maxWidth": 256,
+      "maxHeight": 256,
+      "maxOutputBytes": 16777216,
+      "maxTimeoutMs": 600000,
+      "dualAnchorInput": true,
+      "inputFields": ["styleName", "lineartName", "prompt", "negativePrompt", "seed", "steps", "cfg", "styleWeight", "lineartStrength", "alphaThreshold", "trimPadding", "filenamePrefix"],
+      "inputBindings": {
+        "styleName": { "nodeId": "2", "input": "image" },
+        "lineartName": { "nodeId": "3", "input": "image" },
+        "prompt": { "nodeId": "6", "input": "text" },
+        "negativePrompt": { "nodeId": "7", "input": "text" },
+        "seed": { "nodeId": "11", "input": "seed" },
+        "steps": { "nodeId": "11", "input": "steps" },
+        "cfg": { "nodeId": "11", "input": "cfg" },
+        "styleWeight": { "nodeId": "5", "input": "weight" },
+        "lineartStrength": { "nodeId": "9", "input": "strength" },
+        "alphaThreshold": { "nodeId": "24", "input": "value" },
+        "trimPadding": { "nodeId": "17", "input": "padding" },
+        "filenamePrefix": { "nodeId": "21", "input": "filename_prefix" }
+      }
     },
     "gamecastle.sprite-edit.dev-cpu.v1": {
       "role": "image-edit",
       "workflowFile": "ai/comfyui-workflows/sprite-edit.dev-cpu.v1.json",
-      "workflowSha256": "42c794ed98759df79d8cb0b05180925987b89d5d613f9e27ce53bcb2fbc63db2",
+      "workflowSha256": "579c2ad2e55cd8ac46fa4aa4f3b158b4db5e4ba81584db88db1dda0afc57f2cd",
       "outputNodeId": "8",
       "model": { "id": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors", "sha256Env": "COMFYUI_MODEL_SHA256", "pathEnv": "COMFYUI_MODEL_PATH", "licenseId": "CreativeML-OpenRAIL-M" },
       "customNodeAllowlist": [],
@@ -46,21 +130,78 @@
       "maxOutputBytes": 16777216,
       "maxTimeoutMs": 600000,
       "allowsPrivateLocal": true,
-      "inputFields": ["prompt", "sourceRevisionRef", "maskRef", "denoise", "seed", "steps"]
+      "inputFields": ["prompt", "sourceName", "maskName", "seed", "steps", "denoise", "filenamePrefix"],
+      "inputBindings": {
+        "sourceName": { "nodeId": "1", "input": "image" },
+        "maskName": { "nodeId": "6", "input": "image" },
+        "prompt": { "nodeId": "3", "input": "text" },
+        "seed": { "nodeId": "7", "input": "seed" },
+        "steps": { "nodeId": "7", "input": "steps" },
+        "denoise": { "nodeId": "7", "input": "denoise" },
+        "filenamePrefix": { "nodeId": "8", "input": "filename_prefix" }
+      }
+    },
+    "gamecastle.sprite-reference-generate.dev-cpu.v1": {
+      "role": "image-generate",
+      "workflowFile": "ai/comfyui-workflows/sprite-reference-generate.dev-cpu.v1.json",
+      "workflowSha256": "8da30888fe6a1e9be580901a8129a7aa72682e6c6e3a432d5659d1eddff72fc9",
+      "outputNodeId": "15",
+      "model": { "id": "stable-diffusion-v1-5-pruned-emaonly-fp16.safetensors", "sha256Env": "COMFYUI_MODEL_SHA256", "pathEnv": "COMFYUI_MODEL_PATH", "licenseId": "CreativeML-OpenRAIL-M" },
+      "backgroundRemovalModel": { "id": "birefnet.safetensors", "sha256Env": "COMFYUI_BACKGROUND_REMOVAL_MODEL_SHA256", "pathEnv": "COMFYUI_BACKGROUND_REMOVAL_MODEL_PATH", "licenseId": "MIT" },
+      "customNodeAllowlist": ["cubiq.essentials.v1"],
+      "maxWidth": 256,
+      "maxHeight": 256,
+      "maxOutputBytes": 16777216,
+      "maxTimeoutMs": 600000,
+      "referenceInput": true,
+      "inputFields": ["sourceName", "prompt", "negativePrompt", "seed", "steps", "cfg", "denoise", "alphaThreshold", "trimPadding", "filenamePrefix"],
+      "inputBindings": {
+        "sourceName": { "nodeId": "1", "input": "image" },
+        "prompt": { "nodeId": "3", "input": "text" },
+        "negativePrompt": { "nodeId": "4", "input": "text" },
+        "seed": { "nodeId": "6", "input": "seed" },
+        "steps": { "nodeId": "6", "input": "steps" },
+        "cfg": { "nodeId": "6", "input": "cfg" },
+        "denoise": { "nodeId": "6", "input": "denoise" },
+        "alphaThreshold": { "nodeId": "18", "input": "value" },
+        "trimPadding": { "nodeId": "11", "input": "padding" },
+        "filenamePrefix": { "nodeId": "15", "input": "filename_prefix" }
+      }
     },
     "gamecastle.florence2.review.cpu.v1": {
       "role": "vision-review",
       "workflowFile": "ai/comfyui-workflows/florence2-review.cpu.v1.json",
-      "workflowSha256": "f032ea218bec523764f37b151fa3cfb3cde03c2efd1e49ea3388b586e849bc97",
+      "workflowSha256": "e54e37b84eafab4a4f8835b86ab5da5458e3b628befaef060c63dbc349957c11",
       "outputNodeId": "4",
-      "model": { "id": "florence2-base", "sha256Env": "COMFYUI_FLORENCE2_MODEL_SHA256", "pathEnv": "COMFYUI_FLORENCE2_MODEL_PATH", "licenseId": "MIT" },
+      "model": { "id": "microsoft/Florence-2-base", "sha256Env": "COMFYUI_FLORENCE2_MODEL_SHA256", "pathEnv": "COMFYUI_FLORENCE2_MODEL_PATH", "licenseId": "MIT" },
+      "customNodeAllowlist": ["kijai.florence2.v1", "pythongosssss.custom-scripts.v1"],
+      "maxWidth": 512,
+      "maxHeight": 512,
+      "maxOutputBytes": 16777216,
+      "maxTimeoutMs": 600000,
+      "allowsPrivateLocal": true,
+      "inputFields": ["imageName"],
+      "inputBindings": {
+        "imageName": { "nodeId": "1", "input": "image" }
+      }
+    },
+    "gamecastle.florence2.segment.cpu.v1": {
+      "role": "subject-segment",
+      "workflowFile": "ai/comfyui-workflows/florence2-segment.cpu.v1.json",
+      "workflowSha256": "f8a2321221b544b06d94d49d77e9b48ff1de04a7c7b089441147bee2bac199f5",
+      "outputNodeId": "5",
+      "model": { "id": "microsoft/Florence-2-base", "sha256Env": "COMFYUI_FLORENCE2_MODEL_SHA256", "pathEnv": "COMFYUI_FLORENCE2_MODEL_PATH", "licenseId": "MIT" },
       "customNodeAllowlist": ["kijai.florence2.v1"],
       "maxWidth": 512,
       "maxHeight": 512,
       "maxOutputBytes": 16777216,
       "maxTimeoutMs": 600000,
       "allowsPrivateLocal": true,
-      "inputFields": ["assetBlobRef", "reviewPolicy"]
+      "inputFields": ["imageName", "subjectText"],
+      "inputBindings": {
+        "imageName": { "nodeId": "1", "input": "image" },
+        "subjectText": { "nodeId": "3", "input": "text_input" }
+      }
     }
   }
 }
