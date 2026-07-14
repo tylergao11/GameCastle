@@ -8,7 +8,7 @@ var chatCompletionsClient = require('./chat-completions-client');
 var providerContract = require('../shared/provider-runtime-contract.json');
 
 var ROLE_MODALITY = {
-  'creative-text': 'text', 'intent-text': 'text',
+  'creative-text': 'text', 'semantic-design': 'text',
   'image-generate': 'image-generation', 'image-edit': 'image-edit', 'subject-segment': 'vision-review', 'vision-review': 'vision-review'
 };
 
@@ -114,8 +114,8 @@ async function invokeHttpTransport(context) {
   if (context.config.simulated) throw makeError('SIMULATED_TRANSPORT_NOT_CONFIGURED', 'Simulated calls must use an injected local transport');
   if (context.config.provider === 'comfyui-local') return require('./comfyui-local-provider').invokeComfyUI(context);
   if (context.config.provider === 'comfyui-worker') return require('./comfyui-worker-provider').invokeWorker(context);
-  if ((role === 'creative-text' || role === 'intent-text') && context.config.provider === 'deepseek') return invokeDeepSeekChat(context);
-  if (role === 'creative-text' || role === 'intent-text' || role === 'vision-review') return invokeResponses(context);
+  if ((role === 'creative-text' || role === 'semantic-design') && context.config.provider === 'deepseek') return invokeDeepSeekChat(context);
+  if (role === 'creative-text' || role === 'semantic-design' || role === 'vision-review') return invokeResponses(context);
   if (role === 'image-generate') return invokeImageGeneration(context);
   if (role === 'image-edit') return invokeImageEdit(context);
   throw makeError('ROLE_UNSUPPORTED', 'Unsupported HTTP role');
@@ -128,6 +128,7 @@ async function invokeResponses(context) {
     messages = [{ role: 'user', content: [{ type: 'input_text', text: input.prompt || '' }, { type: 'input_image', image_url: 'data:image/png;base64,' + fs.readFileSync(input.imagePath).toString('base64') }] }];
   }
   var body = { model: context.model, input: messages, max_output_tokens: input.maxTokens || 4096, stream: true };
+  if (input.jsonSchema) body.text = { format: { type: 'json_schema', name: input.jsonSchema.name, strict: true, schema: input.jsonSchema.schema } };
   var result = await responsesClient.requestResponses({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
   return { output: context.request.role === 'vision-review' ? { text: result.text, events: result.events } : { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost };
 }
@@ -135,6 +136,7 @@ async function invokeDeepSeekChat(context) {
   var input = context.request.input || {};
   var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
   var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true }, thinking: { type: 'disabled' } };
+  if (input.jsonSchema) body.response_format = { type: 'json_object' };
   var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, fetchImpl: context.fetchImpl || undefined });
   return { output: { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: 'deepseek-chat-completions' } };
 }

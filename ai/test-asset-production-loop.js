@@ -24,12 +24,12 @@ function mutateCandidate(dir, base, name, source, mutate) {
   var raster = png.decodePng(fs.readFileSync(base.path)); mutate(raster); var bytes = png.encodePng(raster), digest = sha(bytes), file = path.join(dir, name + '-' + digest.slice(0, 8) + '.png'); fs.writeFileSync(file, bytes);
   return Object.assign({}, base, { assetId: name + '.' + digest.slice(0, 8), path: file, sha256: digest, source: source, status: 'variant', providerReceipt: { receiptId: 'provider.' + name + '.' + digest.slice(0, 8) } });
 }
-function request() { return { requestId: 'loop.runner', projectId: 'loop-project', templateId: 'game.runner.v1', templateVersion: 2, styleId: 'gamecastle.style-dna.v1', requiredSlotIds: ['hero', 'enemy', 'collectible'], targetVisualSlotIds: { hero: 'game.player.visual', enemy: 'game.enemy.visual', collectible: 'game.collectible.visual' } }; }
-function plan() { return planner.compile({ request: request(), assetSlots: [
-  { slotId: 'hero', semanticTags: ['hero'], constraints: { width: 12, height: 12 }, targetVisualSlotId: 'game.player.visual' },
-  { slotId: 'enemy', semanticTags: ['enemy'], constraints: { width: 12, height: 12 }, targetVisualSlotId: 'game.enemy.visual' },
-  { slotId: 'collectible', semanticTags: ['collectible'], constraints: { width: 12, height: 12 }, targetVisualSlotId: 'game.collectible.visual' }
-] }); }
+function request() { return { requestId: 'loop.semantic', projectId: 'loop-project', sourceHash: 'semantic.loop.fixture', requirements: [
+  { semanticId: 'hero', subject: 'hero', description: 'Hero sprite', roles: ['hero'], productionFamily: 'character', recipeId: 'character-sprite.v1', styleId: 'gamecastle.style-dna.v1', constraints: { width: 12, height: 12 }, gdjsBindings: [] },
+  { semanticId: 'enemy', subject: 'enemy', description: 'Enemy sprite', roles: ['enemy'], productionFamily: 'character', recipeId: 'character-sprite.v1', styleId: 'gamecastle.style-dna.v1', constraints: { width: 12, height: 12 }, gdjsBindings: [] },
+  { semanticId: 'collectible', subject: 'collectible', description: 'Collectible sprite', roles: ['collectible'], productionFamily: 'prop', recipeId: 'prop-sprite.v1', styleId: 'gamecastle.style-dna.v1', constraints: { width: 12, height: 12 }, gdjsBindings: [] }
+] }; }
+function plan() { return planner.compile({ request: request() }); }
 
 (async function() {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-production-loop-'));
@@ -107,7 +107,7 @@ function plan() { return planner.compile({ request: request(), assetSlots: [
     } });
     assert.strictEqual(denied.pass, false);
     assert.strictEqual(denied.acceptanceReceipt.requiredSlotCoverage.complete, false);
-    assert.deepStrictEqual(denied.acceptanceReceipt.requiredSlotCoverage.missingTargetVisualSlotIds, ['game.enemy.visual']);
+    assert.deepStrictEqual(denied.acceptanceReceipt.requiredSlotCoverage.missingTargetVisualSlotIds, ['semantic.enemy.enemy']);
     assert(denied.workItems.find(function(item) { return item.workItem.slotId === 'enemy'; }).debt);
 
     var invalidMask = await loop.runWorkItem({ runId: 'bad-mask', projectId: 'loop-project', productionSetId: plan().productionSetId, workItem: plan().workItems[0], projectAssetDir: root, ports: {

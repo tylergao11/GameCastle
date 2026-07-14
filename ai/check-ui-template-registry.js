@@ -1,2 +1,0 @@
-var assert = require('assert'); var registry = require('./ui-template-registry');
-assert(registry.listTemplates().length >= 2); assert.equal(registry.bindTemplateAsset('ui.hud.arcade', 'asset.ui.custom', 'local.test').owner, 'RuntimeLinker'); assert.throws(function() { registry.bindTemplateAsset('ui.hud.arcade', 'asset.ui.logo', 'local.test'); }); console.log('[UiTemplateRegistry] template slot ownership passed');

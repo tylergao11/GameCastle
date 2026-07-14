@@ -1,25 +1,38 @@
-# AI 引擎
+# AI and deterministic compilation
 
-`ai/` 将自然游戏意图转换为可执行项目，并用 semantic playtest evidence 驱动 owner-routed repair。
+The `ai/` directory contains the semantic compiler and asset engine. The name does not mean that every module calls a model: after LLM2 emits a semantic document, this layer is deterministic.
 
-The live LLM2 product surface is a closed Intent slot packet. LLM2 不接触坐标、组件 ID、GDJS 对象或 `project.json` 细节；这些由确定性 owner 处理。
+## Source of truth
 
-## 常用命令
+`scripts/` extracts the pinned GDevelop no-code declarations, official runtime bindings, event grammar, project defaults, and object configuration facts. `ai/capability-semantic-dictionary.js` compiles those snapshots into the generated semantic dictionary at `ai/semantic-mapping/capability-semantic-index.json`.
+
+No undocumented GDJS capability is inferred. A declaration is either executable, source-only, or rejected at validation time.
+
+## Main modules
+
+| Module | Purpose |
+| --- | --- |
+| `game-semantic-source.js` | Strict Source and Revision validation, structure projection, and relative-value revisions. |
+| `semantic-context-provider.js` | Explicit dictionary read operations for LLM2. |
+| `semantic-compiler.js` | Source to official GDJS events. |
+| `semantic-asset-compiler.js` | Source to source-bound asset requirements, including resource kind and accepted formats. |
+| `semantic-layout-compiler.js` | Source to declared layout realization. |
+| `semantic-runtime-linker.js` | Combines the three compilers and materializes a libGD-validated project seed. |
+| `gdjs-project-asset-binder.js` | Binds an accepted AssetWorld with an exact source hash. |
+| `semantic-product-executor.js` | Product-facing deterministic Source/Revision execution boundary. |
+| `asset-engine-langgraph.js` | Asset acceptance orchestration; image and non-image resource paths are explicit. |
+
+## Invariants
+
+- LLM2 writes Source, Revision, or an exact dictionary query.
+- Numeric values are legal Source values. Relative edits use the Source policy rather than hidden runtime state.
+- A semantic Source pins the complete dictionary fingerprint.
+- AssetWorld, project seed, and bound project share one source hash.
+- Feedback contains observed facts only and is returned to LLM2.
+- Missing capabilities, resource kinds, files, formats, hashes, or bindings fail closed.
+
+Run the complete semantic gate with:
 
 ```powershell
-set GAMECASTLE_GDEVELOP_SOURCE_DIR=<path-to-GDevelop-master>
-npm run check:ai
-npm run test:ai
-npm run check:project
+npm run check:semantic-engine
 ```
-
-## 入口链接
-
-- [Pipeline](pipeline.js)：创建、继续与产物写入。
-- [Intent slots](intent-slots.js)：LLM2 的封闭输入与 DSL 渲染。
-- [资产生产循环](asset-production-loop-graph.js)：生成、验收、分割、修复与接受。
-- [ComfyUI 适配器](comfyui-local-provider.js)：唯一的本地 ComfyUI 调用路径。
-- [资产调优说明](../docs/comfyui-tuning-direction.md)
-- [Intent 运行时桥](../docs/ai-first-intent-runtime-bridge.md)
-
-生成物在 `output/`；它们是运行证据，不是长期设计真相。

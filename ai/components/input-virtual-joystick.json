@@ -24,6 +24,7 @@
   },
   "compilerManifest": {
     "componentId": "input.virtual_joystick",
+    "extends": "ui.interactive_surface",
     "thingName": "Joystick",
     "thingArchetype": "ui",
     "role": "control",

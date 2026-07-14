@@ -4,7 +4,7 @@ var runtime = providerRuntime.createProviderRuntime();
 
 async function callTextModel(prompt, systemPrompt, opts, logger) {
   opts = opts || {}; logger = logger || function() {};
-  var role = opts.providerRole || (opts.agentRole === 'creative' || opts.agentRole === 'CreativeImagination' ? 'creative-text' : 'intent-text');
+  var role = opts.providerRole || (opts.agentRole === 'creative' || opts.agentRole === 'CreativeImagination' ? 'creative-text' : 'semantic-design');
   var requestId = opts.requestId || ('text.' + Date.now());
   var result = await runtime.invokeRole({
     requestId: requestId,

@@ -18,10 +18,10 @@ function main() {
   if (CHECK_MODE) {
     var current = fs.existsSync(OUT_PATH) ? fs.readFileSync(OUT_PATH, 'utf8') : '';
     if (current !== output) throw new Error('Capability semantic index is stale. Run `npm run semantic-universe:extract`.');
-    console.log('[CapabilitySemanticIndex] snapshot OK: ' + index.summary.covered_count + '/' + index.summary.capability_count);
+    console.log('[GDJSSemanticDictionary] snapshot OK: ' + index.summary.interpretableCapabilityCount + '/' + index.summary.capabilityCount);
     return;
   }
   fs.writeFileSync(OUT_PATH, output, 'utf8');
-  console.log('[CapabilitySemanticIndex] wrote ' + OUT_PATH + ': ' + index.summary.covered_count + '/' + index.summary.capability_count);
+  console.log('[GDJSSemanticDictionary] wrote ' + OUT_PATH + ': ' + index.summary.interpretableCapabilityCount + '/' + index.summary.capabilityCount + '; executable=' + index.summary.executableCapabilityCount);
 }
 main();

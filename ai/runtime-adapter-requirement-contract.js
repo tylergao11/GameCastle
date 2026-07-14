@@ -4,7 +4,10 @@ var ALLOWED_MECHANISMS = {
   'touch-axis-adapter': true,
   'touch-button-adapter': true,
   'inventory-storage-adapter': true,
-  'inventory-panel-adapter': true
+  'inventory-panel-adapter': true,
+  'ui-action-group-adapter': true,
+  'ui-choice-surface-adapter': true,
+  'ui-targeting-reticle-adapter': true
 };
 
 function assertConfigField(requirement, key) {
@@ -39,6 +42,15 @@ function assertAdapterConfig(requirement) {
     ['slots', 'persistence'].forEach(function(key) {
       assertConfigField(requirement, key);
     });
+  } else if (requirement.adapter === 'action-group') {
+    ['surfaceName', 'arrangement', 'buttonSize', 'width', 'height', 'shape', 'color'].forEach(function(key) { assertConfigField(requirement, key); });
+    assertConfigArray(requirement, 'actions');
+  } else if (requirement.adapter === 'choice-surface') {
+    ['surfaceName', 'optionCount', 'trigger', 'pausePolicy', 'selectionMode', 'width', 'height', 'shape', 'color'].forEach(function(key) { assertConfigField(requirement, key); });
+    var optionCount = Number((requirement.config || {}).optionCount);
+    if (!Number.isInteger(optionCount) || optionCount < 2 || optionCount > 12) throw new Error('Runtime adapter requirement has invalid choice optionCount');
+  } else if (requirement.adapter === 'targeting-reticle') {
+    ['surfaceName', 'trackingMode', 'width', 'height', 'shape', 'color'].forEach(function(key) { assertConfigField(requirement, key); });
   }
 }
 

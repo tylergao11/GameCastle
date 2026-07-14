@@ -1,94 +1,25 @@
 {
-  "schemaVersion": 1,
-  "contractId": "gamecastle.asset-production-pipeline",
-  "status": "designed",
+  "schemaVersion": 2,
+  "contractId": "gamecastle.semantic-asset-production",
   "owner": "AssetProductionPipeline",
-  "purpose": "Produce every declared visual slot through a reviewable draft, inspection, cutout, targeted repair, style normalization, acceptance, and binding-ready revision chain while preserving one shared Style DNA and one provenance truth.",
   "truthSources": {
     "self": "shared/asset-production-pipeline-contract.json",
-    "assetEngine": "shared/asset-engine-contract.json",
-    "assetTemplates": "shared/asset-template-dictionary.json",
     "assetStyles": "shared/asset-style-dictionary.json",
-    "localDerivation": "shared/local-derivation-contract.json",
-    "comfyWorkflows": "shared/comfyui-workflow-registry.json",
-    "providerGovernance": "shared/ai-provider-governance.json",
-    "playableRuntime": "shared/playable-runtime-contract.json"
+    "semanticSource": "ai/game-semantic-source.js"
   },
   "principles": [
-    "one-style-dna-many-role-specific-recipes",
-    "one-production-set-does-not-mean-one-generated-canvas",
-    "one-comfyui-service-many-versioned-workflows-and-stage-jobs",
-    "each-required-visual-slot-has-an-independent-revision-lineage",
-    "vision-produces-facts-and-never-acceptance",
-    "deterministic-pixel-facts-stay-in-local-derivation",
-    "repair-the-failed-region-or-stage-not-the-entire-production-set",
-    "only-accepted-same-family-assets-may-enter-deterministic-sheet-assembly",
-    "runtime-binding-consumes-only-accepted-final-revisions",
-    "no-compatibility-path-for-mixed-role-parent-sheet-generation"
+    "one GameSemanticSource owns every asset requirement",
+    "one semantic asset intent produces one independent revision lineage",
+    "production family and recipe come from this pinned contract",
+    "runtime binding consumes only accepted final revisions"
   ],
-  "owners": {
-    "AssetTemplateDictionary": {
-      "owns": ["stable template id and version", "required asset slots", "slot production family", "slot recipe reference", "slot constraints"],
-      "forbidden": ["ComfyUI node graph", "dynamic revision state", "model selection", "runtime binding execution"]
-    },
-    "AssetProductionPlanner": {
-      "owns": ["production set expansion", "work item plans", "dependency order", "stage policy", "required slot coverage policy"],
-      "forbidden": ["generate pixels", "invent target visual slots", "copy Style DNA text", "accept assets"]
-    },
-    "AssetEngine": {
-      "owns": ["pipeline orchestration", "AssetRevision lineage", "repair budget", "review aggregation", "asset acceptance", "debt"],
-      "forbidden": ["duplicate ComfyUI workflow graphs", "treat vision output as acceptance", "declare runtime binding success"]
-    },
-    "ComfyWorkflowRegistry": {
-      "owns": ["workflow id and revision", "pinned model and node allowlist", "workflow input contract", "output node", "deployment limits"],
-      "forbidden": ["asset semantics", "template slot identity", "acceptance policy", "revision storage"]
-    },
-    "ComfyUIProviderAdapter": {
-      "owns": ["one service connection", "stage job submission", "queue polling", "timeout and cancellation", "typed workflow result", "provider receipt"],
-      "forbidden": ["start a second domain pipeline", "select final asset", "persist project truth in ComfyUI history", "bind runtime targets"]
-    },
-    "VisionInspector": {
-      "owns": ["observable subject facts", "bbox and mask suggestions", "semantic mismatch evidence", "artifact and edge evidence", "confidence"],
-      "forbidden": ["final acceptance", "invent missing pixels", "silently rewrite prompts", "guess runtime targets"]
-    },
-    "LocalDerivationKernel": {
-      "owns": ["decode and hash", "alpha and dimension facts", "deterministic crop", "mask application", "edge cleanup", "trim and anchor normalization", "same-family sheet pack", "operation receipts"],
-      "forbidden": ["semantic acceptance", "probabilistic regeneration", "mixed-role generative layout"]
-    },
-    "AssetAcceptanceGate": {
-      "owns": ["final work item decision", "required slot coverage", "production set decision", "failure owner route"],
-      "forbidden": ["accept from file existence", "accept a draft or mask as final", "replace playable binding evidence"]
-    },
-    "RuntimeAssetBinder": {
-      "owns": ["targetVisualSlotId resolution", "project-local installation", "real object binding", "binding receipt"],
-      "forbidden": ["consume unaccepted revision", "bind intermediate workflow output", "use a detached overlay for world roles"]
-    }
-  },
   "productionFamilies": {
-    "character": {
-      "defaultRecipeId": "character-sprite.v1",
-      "requirements": ["one accepted master identity before pose variants", "transparent cutout", "bottom-center anchor", "silhouette and face readability", "pose variants derive from the accepted master revision"]
-    },
-    "world-geometry": {
-      "defaultRecipeId": "world-tile.v1",
-      "requirements": ["declared solid or alpha policy", "collision-readable silhouette", "tile edge or seam checks when repeatable", "no baked gameplay labels"]
-    },
-    "prop": {
-      "defaultRecipeId": "prop-sprite.v1",
-      "requirements": ["single readable subject", "transparent cutout", "declared center or bottom-center anchor", "small-size readability"]
-    },
-    "background": {
-      "defaultRecipeId": "scene-background.v1",
-      "requirements": ["separate declared depth layers when parallax is required", "no alpha requirement unless declared", "gameplay foreground contrast preserved", "no embedded UI"]
-    },
-    "ui": {
-      "defaultRecipeId": "ui-element.v1",
-      "requirements": ["safe padding", "state geometry consistency", "no generated text unless explicitly declared", "transparent or panel background policy"]
-    },
-    "effect": {
-      "defaultRecipeId": "effect-sprite.v1",
-      "requirements": ["transparent background", "effect bounds and pivot", "frame consistency when animated", "no unintended subject"]
-    }
+    "character": { "defaultRecipeId": "character-sprite.v1" },
+    "world-geometry": { "defaultRecipeId": "world-tile.v1" },
+    "prop": { "defaultRecipeId": "prop-sprite.v1" },
+    "background": { "defaultRecipeId": "scene-background.v1" },
+    "ui": { "defaultRecipeId": "ui-element.v1" },
+    "effect": { "defaultRecipeId": "effect-sprite.v1" }
   },
   "recipes": {
     "character-sprite.v1": { "minimumPath": ["draft-generate", "vision-inspect", "deterministic-validate", "final-review"], "conditionalCapabilities": ["subject-segment", "cutout-validate", "masked-repair", "color-plan", "color-apply", "style-normalize"], "familyChecks": ["identity", "silhouette", "face-readability", "pose", "transparent-edge", "bottom-center-anchor"] },
@@ -98,254 +29,25 @@
     "ui-element.v1": { "minimumPath": ["draft-generate", "vision-inspect", "deterministic-validate", "ui-state-validate", "final-review"], "conditionalCapabilities": ["subject-segment", "cutout-validate", "masked-repair", "color-plan", "color-apply", "style-normalize"], "familyChecks": ["safe-padding", "state-geometry", "text-policy", "touch-scale-readability"] },
     "effect-sprite.v1": { "minimumPath": ["draft-generate", "vision-inspect", "deterministic-validate", "frame-validate", "final-review"], "conditionalCapabilities": ["subject-segment", "cutout-validate", "masked-repair", "color-plan", "color-apply", "style-normalize"], "familyChecks": ["transparent-edge", "effect-bounds", "pivot", "frame-consistency"] }
   },
-  "stageContracts": {
-    "draft-generate": {
-      "executorRole": "image-generate",
-      "input": ["workItemPlanId", "compiledStylePrompt", "rolePrompt", "negativePrompt", "width", "height", "seedPolicy"],
-      "output": ["DraftAssetRevision", "ProviderExecutionReceipt"],
-      "rule": "Generate one subject or one coherent same-role scene for the work item. A draft is never binding-ready."
-    },
-    "vision-inspect": {
-      "executorRole": "vision-review",
-      "input": ["sourceRevisionId", "inspectionPolicy"],
-      "output": ["VisionInspectionReceipt"],
-      "rule": "Return factual evidence including detected subjects, semantic match, bbox or mask suggestion, artifacts, background and confidence; never return acceptance."
-    },
-    "subject-segment": {
-      "executorRole": "subject-segment",
-      "input": ["sourceRevisionId", "visionInspectionReceiptId", "segmentationPolicy"],
-      "output": ["MaskRevision", "SegmentationReceipt"],
-      "rule": "Use a pinned segmentation workflow such as detector plus SAM or an approved matting workflow. The mask is versioned and independently validated."
-    },
-    "masked-repair": {
-      "executorRole": "image-edit",
-      "input": ["parentRevisionId", "maskRevisionId", "RepairPlan", "denoisePolicy"],
-      "output": ["RepairAssetRevision", "ProviderExecutionReceipt"],
-      "rule": "Repair only declared failed regions. Every edit creates a child revision and returns to inspection."
-    },
-    "color-plan": {
-      "executorRole": "asset-engine",
-      "input": ["sourceRevisionId", "styleId", "AssetSpec", "VisionInspectionReceipt", "deterministicColorEvidence"],
-      "output": ["ColorPlan"],
-      "rule": "Select declared palette roles and protected regions. Never copy a free-form palette into the workflow or infer color from a screenshot alone."
-    },
-    "color-apply": {
-      "executorRole": "image-edit-or-local-derivation",
-      "input": ["parentRevisionId", "ColorPlan", "optionalMaskRevisionIds", "applicationMode"],
-      "output": ["ColorAssetRevision", "ProviderExecutionReceiptOrOperationReceipt"],
-      "rule": "Use deterministic recolor when region masks and palette mapping are sufficient; use a pinned image-edit workflow only when new shaded pixels are required. Every color result returns to inspection."
-    },
-    "style-normalize": {
-      "executorRole": "local-derivation",
-      "input": ["sourceRevisionId", "styleId", "familyPolicy"],
-      "output": ["NormalizedAssetRevision", "OperationReceipt"],
-      "rule": "Apply only deterministic alpha cleanup, dimensions, outline, shadow, palette limits, trim and anchor operations declared by the Style DNA and family policy."
-    },
-    "final-review": {
-      "executorRole": "asset-acceptance",
-      "input": ["normalizedRevisionId", "AssetSpec", "visionEvidence", "deterministicEvidence", "provenance"],
-      "output": ["WorkItemAcceptanceReceipt"],
-      "rule": "The AssetAcceptanceGate alone decides accepted, repairable, rejected or debt."
-    }
-  },
   "artifacts": {
-    "AssetProductionRequest": {
-      "required": ["requestId", "projectId", "templateId", "templateVersion", "styleId", "requiredSlotIds", "targetVisualSlotIds"]
-    },
-    "AssetProductionSetPlan": {
-      "owner": "AssetProductionPlanner",
-      "required": ["productionSetId", "templateId", "templateVersion", "styleId", "workItems", "dependencyGraph", "coveragePolicy", "contentHash"]
-    },
-    "AssetWorkItemPlan": {
-      "owner": "AssetProductionPlanner",
-      "required": ["workItemPlanId", "slotId", "targetVisualSlotId", "productionFamily", "recipeId", "assetSpec", "stageSequence", "stylePromptRef", "retryBudget"]
-    },
-    "AssetRevision": {
-      "owner": "AssetEngine",
-      "required": ["revisionId", "workItemPlanId", "revisionKind", "parentRevisionIds", "path", "sha256", "width", "height", "scope", "executionReceipts"]
-    },
-    "MaskRevision": {
-      "owner": "AssetEngine",
-      "required": ["maskRevisionId", "sourceRevisionId", "path", "sha256", "width", "height", "segmentationReceiptId", "validationReceiptId"]
-    },
-    "VisionInspectionReceipt": {
-      "owner": "VisionInspector",
-      "required": ["receiptId", "sourceRevisionId", "detectedSubjects", "semanticEvidence", "regionEvidence", "artifactEvidence", "confidence", "workflowReceiptId"]
-    },
-    "RepairPlan": {
-      "owner": "AssetEngine",
-      "required": ["repairPlanId", "sourceRevisionId", "failedChecks", "repairRegions", "repairPrompt", "maskRevisionId", "returnStage", "attempt"]
-    },
-    "ColorPlan": {
-      "owner": "AssetEngine",
-      "required": ["colorPlanId", "sourceRevisionId", "styleId", "paletteRoleMap", "protectedRegions", "applicationMode", "returnStage"]
-    },
-    "AssetProductionLoopState": {
-      "owner": "AssetEngine",
-      "required": ["loopId", "workItemPlanId", "currentRevisionId", "phase", "attempt", "budgets", "observationReceiptIds", "pendingAction", "historyHash"]
-    },
-    "AssetObservationReceipt": {
-      "owner": "AssetEngine",
-      "required": ["observationId", "sourceRevisionId", "visionInspectionReceiptId", "deterministicEvidenceIds", "defects", "satisfiedChecks", "contentHash"]
-    },
-    "AssetActionPlan": {
-      "owner": "AssetEngine",
-      "required": ["actionPlanId", "observationId", "action", "reasonCodes", "inputRevisionIds", "expectedChecks", "returnPhase", "budgetReservation"]
-    },
-    "AssetLoopAttemptReceipt": {
-      "owner": "AssetEngine",
-      "required": ["loopId", "attempt", "actionPlanId", "inputRevisionIds", "outputRevisionIds", "executionReceiptIds", "observationId", "decision", "nextPhase"]
-    },
-    "WorkItemAcceptanceReceipt": {
-      "owner": "AssetAcceptanceGate",
-      "required": ["workItemPlanId", "finalRevisionId", "targetVisualSlotId", "visionEvidenceIds", "deterministicEvidenceIds", "styleId", "decision", "ownerRoute"]
-    },
-    "AssetProductionSetAcceptanceReceipt": {
-      "owner": "AssetAcceptanceGate",
-      "required": ["productionSetId", "workItemAcceptanceReceiptIds", "requiredSlotCoverage", "acceptedRevisionByTargetVisualSlotId", "decision", "ownerRoute"]
-    },
-    "SameFamilyAssemblyReceipt": {
-      "owner": "LocalDerivationKernel",
-      "required": ["assemblyId", "productionFamily", "acceptedSourceRevisionIds", "layout", "outputRevisionId", "operationReceiptId"],
-      "rule": "Optional deterministic packaging after source acceptance; it is not a generation or acceptance shortcut."
-    }
-  },
-  "canonicalFlow": [
-    "validate AssetProductionRequest against the pinned template and visual slot declarations",
-    "compile one immutable AssetProductionSetPlan with one work item per required slot",
-    "resolve reusable accepted revisions before requesting new pixels",
-    "execute each work item through its declared role-specific recipe on one governed ComfyUI service queue",
-    "persist every draft, mask, repair and normalized result as an immutable revision or receipt",
-    "loop only the failed work item or masked region within its retry budget",
-    "accept every required work item independently",
-    "emit AssetProductionSetAcceptanceReceipt only when required target visual slot coverage is complete",
-    "optionally assemble accepted same-family assets or frames through LocalDerivationKernel",
-    "pass accepted final revisions to RuntimeAssetBinder by targetVisualSlotId"
-  ],
-  "playableVersionGate": {
-    "rule": "A newly created or continued project version is not playable, committable, or selectable until every required work item is accepted, every required targetVisualSlotId has a valid binding receipt, and aggregate runtime validation passes.",
-    "whileBuilding": "The previous immutable playable version may remain available, but no draft or partially completed new version may be presented as playable.",
-    "mutationModel": "A user change starts a new production set derived from the active immutable ProjectVersion. It never hot-swaps an intermediate asset into the running game.",
-    "commitModel": "After full asset coverage, binding and runtime validation, ProjectStore atomically commits a new immutable ProjectVersion and advances the active version pointer.",
-    "failureModel": "If any required asset ends rejected or debt, the new version is not committed and the previous active version remains unchanged.",
-    "forbidden": ["runtime hot swap of draft or candidate revisions", "partially generated game presented as playable", "preview binding used as release evidence", "active ProjectVersion changed before full aggregate acceptance"]
+    "AssetProductionRequest": { "required": ["requestId", "projectId", "sourceHash", "requirements"] },
+    "AssetProductionSetPlan": { "required": ["productionSetId", "sourceHash", "workItems", "dependencyGraph", "coveragePolicy", "contentHash"] },
+    "AssetWorkItemPlan": { "required": ["workItemPlanId", "semanticId", "slotId", "targetVisualSlotId", "productionFamily", "recipeId", "assetSpec", "stageSequence", "stylePromptRef", "retryBudget"] },
+    "AssetRevision": { "required": ["revisionId", "workItemPlanId", "revisionKind", "parentRevisionIds", "path", "sha256", "width", "height", "scope", "executionReceipts"] },
+    "MaskRevision": { "required": ["maskRevisionId", "sourceRevisionId", "path", "sha256", "width", "height", "segmentationReceiptId", "validationReceiptId"] },
+    "VisionInspectionReceipt": { "required": ["receiptId", "sourceRevisionId", "detectedSubjects", "semanticEvidence", "regionEvidence", "artifactEvidence", "confidence", "workflowReceiptId"] },
+    "RepairPlan": { "required": ["repairPlanId", "sourceRevisionId", "failedChecks", "repairRegions", "repairPrompt", "maskRevisionId", "returnStage", "attempt"] },
+    "ColorPlan": { "required": ["colorPlanId", "sourceRevisionId", "styleId", "paletteRoleMap", "protectedRegions", "applicationMode", "returnStage"] },
+    "AssetProductionLoopState": { "required": ["loopId", "workItemPlanId", "currentRevisionId", "phase", "attempt", "budgets", "observationReceiptIds", "pendingAction", "historyHash"] },
+    "AssetObservationReceipt": { "required": ["observationId", "sourceRevisionId", "visionInspectionReceiptId", "deterministicEvidenceIds", "defects", "satisfiedChecks", "contentHash"] },
+    "AssetActionPlan": { "required": ["actionPlanId", "observationId", "action", "reasonCodes", "inputRevisionIds", "expectedChecks", "returnPhase", "budgetReservation"] },
+    "AssetLoopAttemptReceipt": { "required": ["loopId", "attempt", "actionPlanId", "inputRevisionIds", "outputRevisionIds", "executionReceiptIds", "observationId", "decision", "nextPhase"] },
+    "WorkItemAcceptanceReceipt": { "required": ["workItemPlanId", "finalRevisionId", "targetVisualSlotId", "visionEvidenceIds", "deterministicEvidenceIds", "styleId", "decision"] },
+    "AssetProductionSetAcceptanceReceipt": { "required": ["productionSetId", "workItemAcceptanceReceiptIds", "requiredSlotCoverage", "acceptedRevisionByTargetVisualSlotId", "decision"] }
   },
   "closedLoop": {
-    "owner": "AssetEngine",
     "stateMachine": {
-      "planned": ["generating", "resolving"],
-      "resolving": ["observing", "generating", "debt"],
-      "generating": ["observing", "debt"],
-      "observing": ["diagnosing", "debt"],
-      "diagnosing": ["generating", "segmenting", "repairing", "color-planning", "normalizing", "final-reviewing", "rejected", "debt"],
-      "segmenting": ["observing", "repairing", "debt"],
-      "repairing": ["observing", "debt"],
-      "color-planning": ["color-applying", "debt"],
-      "color-applying": ["observing", "debt"],
-      "normalizing": ["observing", "debt"],
-      "final-reviewing": ["accepted", "diagnosing", "rejected", "debt"],
-      "accepted": [],
-      "rejected": [],
-      "debt": []
-    },
-    "iteration": [
-      "OBSERVE: run vision inspection and deterministic pixel checks against the current immutable revision",
-      "DIAGNOSE: compile typed defects and satisfied checks without mutating pixels",
-      "PLAN: choose exactly one next action and reserve its retry, time and provider budget",
-      "ACT: execute generation, segmentation, masked edit, color application or deterministic normalization",
-      "REVISE: persist the output as a child revision with all execution receipts",
-      "REOBSERVE: every pixel-changing action returns to OBSERVE; previous evidence cannot certify new pixels",
-      "DECIDE: accept only when all required checks pass, otherwise continue within budget or end in explicit rejected/debt"
-    ],
-    "actionCatalog": {
-      "GENERATE_DRAFT": { "executorRole": "image-generate", "pixelChanging": true, "returnPhase": "observing" },
-      "INSPECT": { "executorRole": "vision-review-and-deterministic-validation", "pixelChanging": false, "returnPhase": "diagnosing" },
-      "SEGMENT_SUBJECT": { "executorRole": "subject-segment", "pixelChanging": false, "returnPhase": "observing" },
-      "APPLY_CUTOUT": { "executorRole": "local-derivation", "pixelChanging": true, "returnPhase": "observing" },
-      "REPAIR_MASKED_REGION": { "executorRole": "image-edit", "pixelChanging": true, "returnPhase": "observing" },
-      "APPLY_DECLARED_COLOR": { "executorRole": "image-edit-or-local-derivation", "pixelChanging": true, "returnPhase": "observing" },
-      "NORMALIZE_STYLE": { "executorRole": "local-derivation", "pixelChanging": true, "returnPhase": "observing" },
-      "FINAL_REVIEW": { "executorRole": "asset-acceptance", "pixelChanging": false, "returnPhase": "accepted-or-diagnosing" }
-    },
-    "decisionPriority": [
-      "invalid provider output or corrupt pixels -> rejected/debt",
-      "wrong subject or unrecoverable composition -> regenerate draft within generation budget",
-      "multiple subjects or background contamination -> segment and cut out",
-      "localized anatomy, edge or artifact defect -> masked repair",
-      "palette or color-role mismatch -> color plan then deterministic recolor or masked image edit",
-      "outline, alpha, size, anchor or simple shadow mismatch -> deterministic style normalization",
-      "all required checks satisfied -> final review",
-      "budget exhausted -> explicit debt with recovery phase and owner"
-    ],
-    "invariants": [
-      "one action plan selects exactly one primary pixel-changing action",
-      "every pixel-changing output receives a new revision id and sha256",
-      "every pixel-changing output invalidates prior visual and deterministic acceptance evidence",
-      "segmentation masks are versioned artifacts and never hidden workflow state",
-      "repair and color operations declare their masks, prompts, palette roles and parent revisions",
-      "loop history is append-only and reconstructable from attempt receipts",
-      "ComfyUI queue retries do not increment semantic repair attempts unless new pixels are produced",
-      "accepted and rejected are terminal; debt resumes only by starting a new loop from its declared recovery phase"
-    ]
-  },
-  "comfyExecutionPolicy": {
-    "serviceTopology": "one governed ComfyUI service endpoint per worker deployment; multiple versioned workflow jobs share its queue",
-    "stageIsolation": "generation, inspection, segmentation and masked repair are separate workflow revisions with typed inputs and outputs",
-    "processScaling": "additional ComfyUI worker processes are a deployment scaling decision and never change domain artifacts or stage semantics",
-    "historyPolicy": "ComfyUI queue and history are ephemeral execution evidence, not revision or acceptance truth",
-    "requiredWorkflowRoles": ["image-generate", "vision-review", "subject-segment", "image-edit"],
-    "p0DependencyDecision": {
-      "nativeComfyUI": "required",
-      "Florence2": "retain for factual inspection only",
-      "ImpactPackAndSubpack": "preferred candidate for detector, SAM mask and targeted detail repair; must be commit, hash, node and license pinned before approval",
-      "SAM": "preferred candidate for subject mask generation; model artifact must be hash and license pinned",
-      "LayerStyle": "optional composition tooling only; not required by the canonical P0 runtime pipeline",
-      "largeExperimentalNodePacks": "not approved for P0"
+      "planned": ["generating", "resolving"], "resolving": ["observing", "generating", "debt"], "generating": ["observing", "debt"], "observing": ["diagnosing", "debt"], "diagnosing": ["generating", "segmenting", "repairing", "color-planning", "normalizing", "final-reviewing", "rejected", "debt"], "segmenting": ["observing", "repairing", "debt"], "repairing": ["observing", "debt"], "color-planning": ["color-applying", "debt"], "color-applying": ["observing", "debt"], "normalizing": ["observing", "debt"], "final-reviewing": ["accepted", "diagnosing", "rejected", "debt"], "accepted": [], "rejected": [], "debt": []
     }
-  },
-  "acceptanceGates": [
-    "every required slot has exactly one work item and targetVisualSlotId",
-    "every provider output identifies approved workflow, model, nodes and execution receipt",
-    "every edit has parent revision and mask lineage",
-    "vision evidence and deterministic evidence are both present where required",
-    "final revision passes semantic role, Style DNA, alpha or background, dimensions, edge, anchor and provenance checks",
-    "all required work items are accepted before production set acceptance",
-    "only accepted final revisions can enter same-family assembly or runtime binding",
-    "playable completion additionally requires real target binding evidence"
-  ],
-  "failureRoutes": {
-    "template-slot-or-family-invalid": "AssetTemplateDictionary",
-    "plan-recipe-or-coverage-invalid": "AssetProductionPlanner",
-    "provider-workflow-node-or-model-invalid": "ComfyWorkflowRegistry",
-    "generation-edit-timeout-or-output-invalid": "ComfyUIProviderAdapter",
-    "inspection-or-segmentation-invalid": "VisionInspector",
-    "pixel-mask-alpha-dimension-or-assembly-invalid": "LocalDerivationKernel",
-    "semantic-style-or-final-review-failed": "AssetAcceptanceGate",
-    "target-binding-failed": "RuntimeAssetBinder"
-  },
-  "forbidden": [
-    "mixed character platform prop background or UI roles generated as one parent sheet",
-    "fixed grid cell prompt used as the primary separation mechanism",
-    "one provider call presented as a completed production pipeline",
-    "one ComfyUI operating-system process required per domain stage",
-    "vision output treated as final acceptance",
-    "unversioned mask or repair output",
-    "full production set regeneration because one region failed",
-    "Style DNA prompt text copied into templates or workflow files as a second truth",
-    "accepted same-family sheet assembled from unaccepted source revisions",
-    "runtime binding from draft mask repair or temporary ComfyUI output",
-    "fallback to the retired composite parent sheet pipeline"
-  ],
-  "terraDefinitionOfDone": [
-    "remove the retired mixed-role parent-sheet planner, artifacts and layout fields without compatibility readers",
-    "implement AssetProductionPlanner and fail-closed validators for every canonical artifact",
-    "register separate pinned workflow revisions for generation, inspection, segmentation and masked repair",
-    "implement immutable draft, mask, repair, normalized and final revision lineage",
-    "implement per-work-item repair loops and required target visual slot coverage",
-    "keep same-family assembly optional, deterministic and downstream of acceptance",
-    "prove one real asset through draft, inspection, segmentation, repair, normalization, acceptance and real target binding",
-    "prove a three-slot production set uses three independent work items with one shared Style DNA and complete binding coverage",
-    "prove failed masks, failed repair, missing receipts, stale workflow revisions and mixed-role sheet requests fail closed",
-    "status remains designed until independent test and audit evidence exists"
-  ]
+  }
 }

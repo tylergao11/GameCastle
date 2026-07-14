@@ -1,6 +1,0 @@
-var styleDictionary = require('./asset-style-dictionary');
-var templateDictionary = require('../shared/asset-template-dictionary.json');
-var TEMPLATES = templateDictionary.templates.filter(function(template) { return template.templateKind === 'ui-template' && template.status === 'approved'; }).map(function(template) { var style = styleDictionary.getStyle(template.styleId || styleDictionary.dictionary.defaultStyleId); return { id: template.id, name: template.name, styleId: style.id, slots: template.slots.map(function(slot) { return slot.id; }), theme: { accent: style.palette[template.uiTheme.accentRole], panel: style.palette[template.uiTheme.panelRole] } }; });
-function getTemplate(id) { return TEMPLATES.find(function(template) { return template.id === id; }) || null; }
-function bindTemplateAsset(templateId, slotId, assetId) { var template = getTemplate(templateId); if (!template) throw new Error('Unknown UI template: ' + templateId); if (template.slots.indexOf(slotId) < 0) throw new Error('Slot is not owned by template: ' + slotId); return { templateId: templateId, slotId: slotId, assetId: assetId, owner: 'RuntimeLinker' }; }
-module.exports = { listTemplates: function() { return TEMPLATES.slice(); }, getTemplate: getTemplate, bindTemplateAsset: bindTemplateAsset };

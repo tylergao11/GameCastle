@@ -1,50 +1,59 @@
 var assert = require('assert');
-var path = require('path');
-var semanticFeedback = require('./semantic-feedback');
-var semanticDictionary = require('./capability-semantic-dictionary');
+var dictionary = require('./capability-semantic-dictionary');
+var index = dictionary.readJson(require('path').join(__dirname, 'semantic-mapping', 'capability-semantic-index.json'));
+var universe = dictionary.readJson(dictionary.UNIVERSE_PATH);
+var bindings = dictionary.readJson(dictionary.OFFICIAL_BINDINGS_PATH);
 
-var INDEX_PATH = path.join(__dirname, 'semantic-mapping', 'capability-semantic-index.json');
+var fresh = dictionary.buildIndex({ universe: universe, officialBindings: bindings });
+assert.strictEqual(index.schemaVersion, 2, 'GDJS Semantic Dictionary schemaVersion mismatch');
+assert.strictEqual(index.dictionaryKind, 'gdjs-semantic-dictionary', 'GDJS Semantic Dictionary kind mismatch');
+assert(dictionary.sameFingerprint(index.source, fresh.source), 'GDJS Semantic Dictionary is built from a different pinned source truth');
+assert.strictEqual(typeof index.source.layoutDictionaryHash, 'string', 'The source fingerprint must pin the semantic layout dictionary.');
+assert.strictEqual(typeof index.source.assetBindingDictionaryHash, 'string', 'The source fingerprint must pin the GDJS asset binding dictionary.');
+assert.strictEqual(index.summary.capabilityCount, universe.capabilities.length, 'every GDJS no-code declaration must be represented');
+assert.strictEqual(index.summary.interpretableCapabilityCount, universe.capabilities.length, 'every GDJS no-code declaration must have official explanatory text');
+assert.strictEqual(Object.keys(index.by_capability).length, universe.capabilities.length, 'dictionary capability coverage mismatch');
+assert.strictEqual(index.summary.executableCapabilityCount, Object.keys(bindings.bindings).length, 'runtime binding coverage mismatch');
+assert.strictEqual(index.summary.sourceOnlyCapabilityCount, universe.capabilities.length - Object.keys(bindings.bindings).length, 'source-only declaration count mismatch');
+assert.strictEqual(universe.unresolvedDeclarations.length, 0, 'dictionary source contains unresolved declarations');
+assert(index.event_grammar && Array.isArray(index.event_grammar.eventTypes) && index.event_grammar.eventTypes.length === index.summary.eventTypeCount, 'full GDJS event grammar is missing');
+index.event_grammar.eventTypes.forEach(function(eventType) {
+  assert(eventType.eventType && eventType.explanation.title && eventType.explanation.description, 'event grammar lacks explanatory source text');
+  assert(eventType.grammar && Object.prototype.hasOwnProperty.call(eventType.grammar, 'canHaveSubEvents'), eventType.eventType + ' lacks an explicit subevent grammar status');
+});
+(universe.semanticTypes || []).forEach(function(type) {
+  var collection = type.kind === 'object' ? index.by_object_type : index.by_behavior_type;
+  var entry = collection[type.id];
+  assert(entry, 'every declared GDJS ' + type.kind + ' type must be represented: ' + type.id);
+  assert(entry.semantic_id && entry.owner && entry.owner.id === type.id, type.id + ' lacks a deterministic type reference');
+  assert(entry.explanation && entry.explanation.title && entry.explanation.descriptionStatus, type.id + ' lacks declared or explicitly unavailable explanatory metadata');
+  assert(Array.isArray(entry.source) && entry.source.length, type.id + ' lacks source evidence');
+  assert(entry.runtime && (entry.runtime.status === 'executable' || entry.runtime.status === 'source-only'), type.id + ' lacks explicit materialization status');
+  if (type.kind === 'object' && entry.runtime.status === 'executable') {
+    assert(entry.configuration && entry.configuration.status === 'executable' && entry.configuration.configurationType && Array.isArray(entry.configuration.methods) && Object.prototype.hasOwnProperty.call(entry.configuration, 'defaultData'), type.id + ' lacks official object configuration truth');
+  }
+});
 
-function main() {
-  var mapping = semanticFeedback.loadSemanticMapping();
-  var index = semanticDictionary.readJson(INDEX_PATH);
-  var fresh = semanticDictionary.buildIndex({ mapping: mapping });
-  assert.strictEqual(index.schemaVersion, 1, 'capability semantic index schemaVersion mismatch');
-  assert(semanticDictionary.sameFingerprint(mapping.capability_semantic_policy.reviewed_universe, fresh.universe), 'semantic policy needs explicit review for the current capability universe');
-  assert(semanticDictionary.sameFingerprint(index.universe, fresh.universe), 'capability semantic index is built from a different universe');
-  assert.strictEqual(index.summary.capability_count, fresh.summary.capability_count, 'capability count mismatch');
-  assert.strictEqual(index.summary.covered_count, fresh.summary.covered_count, 'coverage count mismatch');
-  assert.strictEqual(index.summary.covered_count, index.summary.capability_count, 'capability semantic coverage must be complete');
-  assert.strictEqual(index.summary.uncovered_count, 0, 'capability semantic coverage has uncovered entries');
-  var changedUniverse = semanticDictionary.readJson(semanticDictionary.UNIVERSE_PATH);
-  changedUniverse.capabilities[0].runtime.functionName = '__semantic_contract_change_probe__';
-  assert(!semanticDictionary.sameFingerprint(mapping.capability_semantic_policy.reviewed_universe, semanticDictionary.universeFingerprint(changedUniverse)), 'capability contract drift must require semantic review');
-  Object.keys(index.by_capability).forEach(function(capabilityId) {
-    var entry = index.by_capability[capabilityId];
-    assert(entry.semantic_id && entry.abstract_semantic_ids.length, capabilityId + ' lacks semantic inheritance');
-    assert(entry.semantic_label && entry.semantic_meaning, capabilityId + ' lacks concrete semantic meaning');
-    assert(entry.inheritance && entry.inheritance.kind_semantic_id && entry.inheritance.extension_semantic_id && entry.inheritance.owner_semantic_id, capabilityId + ' lacks family extension owner inheritance');
-    assert(entry.parameter_contract && Array.isArray(entry.parameter_contract.parameters), capabilityId + ' lacks parameter contract');
-    assert(entry.implementation_route && entry.implementation_route.kind === 'gdjs_capability', capabilityId + ' lacks implementation route');
-    assert(entry.exposure && entry.exposure.llm2 === false, capabilityId + ' must remain outside LLM2');
-    assert(index.by_semantic[entry.semantic_id] && index.by_semantic[entry.semantic_id].indexOf(capabilityId) >= 0, capabilityId + ' missing reverse semantic lookup');
-    entry.abstract_semantic_ids.forEach(function(id) { assert(index.by_abstract_semantic[id] && index.by_abstract_semantic[id].indexOf(capabilityId) >= 0, capabilityId + ' missing reverse abstract lookup'); });
-  });
-  Object.keys(index.by_semantic).forEach(function(semanticId) {
-    assert(index.by_semantic[semanticId].length > 0, semanticId + ' has empty capability lookup');
-    index.by_semantic[semanticId].forEach(function(capabilityId) {
-      assert(index.by_capability[capabilityId] && index.by_capability[capabilityId].semantic_id === semanticId, semanticId + ' reverse lookup is inconsistent');
-    });
-  });
-  Object.keys(index.by_abstract_semantic).forEach(function(semanticId) {
-    assert(index.by_abstract_semantic[semanticId].length > 0, semanticId + ' has empty abstract capability lookup');
-    index.by_abstract_semantic[semanticId].forEach(function(capabilityId) {
-      assert(index.by_capability[capabilityId] && index.by_capability[capabilityId].abstract_semantic_ids.indexOf(semanticId) >= 0, semanticId + ' abstract reverse lookup is inconsistent');
-    });
-  });
-  var llmView = semanticFeedback.buildSemanticMappingLlmView(mapping);
-  var llmText = JSON.stringify(llmView);
-  assert(llmText.indexOf('gdjs_capability') < 0 && llmText.indexOf('capability_semantic_policy') < 0, 'LLM2 view must not expose internal capability semantics');
-  console.log('[CapabilitySemanticCoverage] ' + index.summary.covered_count + '/' + index.summary.capability_count + ' complete; semantic=' + index.summary.semantic_count);
-}
-main();
+Object.keys(index.by_capability).forEach(function(capabilityId) {
+  var entry = index.by_capability[capabilityId];
+  assert(entry.semantic_id && index.by_semantic[entry.semantic_id], capabilityId + ' lacks deterministic semantic reference');
+  assert(entry.explanation && entry.explanation.title && entry.explanation.description, capabilityId + ' lacks official explanatory text');
+  assert(entry.source && entry.source.path && entry.source.line, capabilityId + ' lacks source evidence');
+  assert(entry.parameter_contract && Array.isArray(entry.parameter_contract.parameters), capabilityId + ' lacks parameter semantics');
+  assert(entry.event_contract && entry.event_contract.eventSlot && entry.event_contract.role, capabilityId + ' lacks event grammar role');
+  assert(entry.event_contract.selectionEffect.status === 'not-declared-by-capability-metadata', capabilityId + ' must not invent object-selection semantics');
+  assert(entry.binding && (entry.binding.status === 'executable' || entry.binding.status === 'source-only'), capabilityId + ' lacks explicit execution status');
+  assert.strictEqual(dictionary.resolve(index, entry.semantic_id).capability_id, capabilityId, capabilityId + ' semantic resolution is not unique');
+});
+
+var keyboardResults = dictionary.search(index, 'key pressed', 20);
+assert(keyboardResults.length > 0, 'official explanatory-text search must discover keyboard semantics');
+assert(keyboardResults.every(function(entry) { return entry.explanation.description; }), 'search must return explainable semantics');
+assert(dictionary.listOwners(index).length === index.summary.ownerCount, 'owner query coverage mismatch');
+
+var appOpen = index.by_capability['AdMob::global::extension::action::LoadAppOpen'];
+assert(appOpen, 'pinned GDJS source fixture is missing AdMob.LoadAppOpen');
+assert.strictEqual(appOpen.parameter_contract.parameters[0].label, 'Android app open ID', 'parameter labels must preserve the official short label');
+assert(appOpen.parameter_contract.parameters[0].description.indexOf('AdMob account') >= 0, 'parameter long descriptions must preserve the official explanatory text');
+
+console.log('[GDJSSemanticDictionary] ' + index.summary.interpretableCapabilityCount + '/' + index.summary.capabilityCount + ' source declarations are explainable; executable=' + index.summary.executableCapabilityCount + '; sourceOnly=' + index.summary.sourceOnlyCapabilityCount + '; objectTypes=' + index.summary.objectTypeCount + '; behaviorTypes=' + index.summary.behaviorTypeCount);

@@ -175,7 +175,10 @@ function buildHtmlExportManifest(project, options) {
     });
   });
 
-  (options.codeFiles || []).forEach(function(file) { addUnique(scriptFiles, file.fileName || file); });
+  (options.codeFiles || []).forEach(function(file) {
+    addUnique(scriptFiles, file.fileName || file);
+    ((file && file.includes) || []).forEach(function(include) { addUnique(scriptFiles, include); });
+  });
   addUnique(scriptFiles, 'data.js');
   if (options.hasIntentRuntime) addUnique(scriptFiles, 'intent-runtime.js');
   if (options.hasAssetRuntime) addUnique(scriptFiles, 'asset-runtime.js');
@@ -202,10 +205,7 @@ function removeManagedRuntime(outputDir, runtimeDir) {
 function copyRuntimeFile(runtimeDir, outputDir, relativePath) {
   var source = path.join(runtimeDir, relativePath);
   var target = path.join(outputDir, relativePath);
-  if (!fs.existsSync(source)) {
-    console.warn('[HtmlExport] Missing runtime file: ' + relativePath + ' (skipped — extension may not be installed)');
-    return false;
-  }
+  if (!fs.existsSync(source)) throw new Error('Official GDJS runtime include is missing: ' + relativePath);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(source, target);
   return true;
@@ -216,16 +216,12 @@ function syncHtmlRuntime(runtimeDir, outputDir, manifest) {
     throw new Error('Official GDJS runtime is missing: ' + runtimeDir + '. Run `npm run runtime:prepare`, pass --source to scripts/prepare-gdjs-runtime.js, or set GAMECASTLE_GDJS_RUNTIME_DIR.');
   }
   removeManagedRuntime(outputDir, runtimeDir);
-  var copied = 0, skipped = 0, missing = [];
+  var copied = 0;
   manifest.scriptFiles.concat(manifest.assetFiles || []).forEach(function(file) {
     if (/^code\d+\.js$/.test(file) || file === 'data.js' || file === 'tick-runtime.js' || file === 'intent-runtime.js' || file === 'asset-runtime.js' || file === 'asset-runtime-bindings.json' || file.indexOf('assets/local/') === 0 || file.indexOf('assets/cloud/') === 0 || file.indexOf('assets/generated/') === 0) return;
-    if (copyRuntimeFile(runtimeDir, outputDir, file)) copied++; else { skipped++; missing.push(file); }
+    if (copyRuntimeFile(runtimeDir, outputDir, file)) copied++;
   });
-  if (skipped > 0) {
-    console.warn('[HtmlExport] ' + copied + ' copied, ' + skipped + ' skipped (missing from GDJS runtime):');
-    missing.slice(0, 5).forEach(function(f) { console.warn('  - ' + f); });
-    if (missing.length > 5) console.warn('  ... and ' + (missing.length - 5) + ' more');
-  }
+  return copied;
 }
 
 function renderHtml(manifest, options) {

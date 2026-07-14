@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "ui.group_surface",
+  "kind": "ui",
+  "name": "Grouped UI Surface Base",
+  "aiManifest": {
+    "summary": "Internal base for a UI surface that arranges related members in one viewport region.",
+    "aliases": [],
+    "actions": [],
+    "safeExamples": [],
+    "exposeToLlm2": false
+  },
+  "compilerManifest": {
+    "componentId": "ui.group_surface",
+    "extends": "ui.interactive_surface",
+    "abstract": true,
+    "defaultConfig": {
+      "members": ["action"],
+      "arrangement": "cluster",
+      "memberSize": 64
+    },
+    "inheritance": {
+      "contracts": ["ui.group_surface", "ui.group_layout"],
+      "defaultOwner": "component-manifest",
+      "exposedOverrides": ["members", "arrangement"],
+      "sealedDefaults": ["memberSize"]
+    },
+    "provides": ["ui.group_surface", "ui.group_layout"],
+    "requires": [],
+    "gdjsBridge": { "runtimeAdapters": [], "adapterRoutes": {}, "status": "abstract" }
+  }
+}

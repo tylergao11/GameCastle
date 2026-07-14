@@ -1,0 +1,11 @@
+var assert = require('assert');
+var cache = require('./semantic-asset-cache');
+var records = {};
+var store = cache.create({ get: function(key) { return records[key] || null; }, put: function(key, value) { records[key] = value; } });
+var requirement = { semanticId: 'player_visual', subject: 'player', description: 'Explorer avatar', roles: ['player'], productionFamily: 'character', recipeId: 'character-sprite.v1', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, gdjsBindings: [] };
+assert.strictEqual(store.lookup('semantic.source.a', requirement), null);
+var record = store.put('semantic.source.a', requirement, { revisionId: 'revision.a', path: 'assets/player.png', sha256: 'a'.repeat(64), format: 'png', width: 64, height: 64, transparent: true, styleId: 'gamecastle.style-dna.v1', semanticTags: ['player'], status: 'accepted', publishability: { playable: true, publishable: true, blocksFinalExport: false } });
+assert.strictEqual(store.lookup('semantic.source.a', requirement).cacheKey, record.cacheKey);
+assert.strictEqual(store.lookup('semantic.source.b', requirement), null, 'a changed semantic source must miss the cache');
+assert.throws(function() { records[record.cacheKey].acceptedRevision.path = null; store.lookup('semantic.source.a', requirement); }, function(error) { return error.code === 'SEMANTIC_ASSET_CACHE_RECORD_INVALID'; });
+console.log('[SemanticAssetCache] exact semantic requirement cache keys and invalid-record rejection passed');

@@ -1,137 +1,306 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
-var semanticFeedback = require('./semantic-feedback');
 
-var ROOT = path.join(__dirname, '..');
 var UNIVERSE_PATH = path.join(__dirname, 'gdevelop-truth', 'capability-universe.json');
+var OFFICIAL_BINDINGS_PATH = path.join(__dirname, 'gdevelop-truth', 'official-capability-bindings.json');
+var EVENT_GRAMMAR_PATH = path.join(__dirname, 'gdevelop-truth', 'event-grammar.json');
+var OBJECT_CONFIGURATION_TRUTH_PATH = path.join(__dirname, 'gdevelop-truth', 'object-configuration-truth.json');
+var LAYOUT_DICTIONARY_PATH = path.join(__dirname, '..', 'shared', 'semantic-layout-dictionary.json');
+var ASSET_BINDING_DICTIONARY_PATH = path.join(__dirname, '..', 'shared', 'gdjs-asset-binding-dictionary.json');
+var EVENT_ROLE_BY_CAPABILITY_KIND = {
+  action: { eventSlot: 'actions', role: 'effect', resultType: null },
+  condition: { eventSlot: 'conditions', role: 'predicate', resultType: 'boolean' },
+  'number-expression': { eventSlot: 'expression', role: 'value', resultType: 'number' },
+  'string-expression': { eventSlot: 'expression', role: 'value', resultType: 'string' }
+};
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
-function slug(value) { return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'unnamed'; }
-function humanize(value) {
-  return String(value || '').replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_:-]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Unnamed capability';
-}
 function stableStringify(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
   return '{' + Object.keys(value).sort().map(function(key) { return JSON.stringify(key) + ':' + stableStringify(value[key]); }).join(',') + '}';
 }
-function stableIds(universe) { return universe.capabilities.map(function(item) { return item.id; }).sort(); }
-function universeFingerprint(universe) {
-  var ids = stableIds(universe);
-  var contract = { capabilities: universe.capabilities, families: universe.families, runtime_overrides: universe.runtimeOverrides };
+function hash(value) { return crypto.createHash('sha256').update(stableStringify(value)).digest('hex'); }
+function parameterKey(parameter, index, used) { var base = String(parameter.label || parameter.type || 'value').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'value'; var key = base, suffix = 2; while (used[key]) key = base + '_' + suffix++; used[key] = true; return key; }
+function semanticId(capabilityId) { return 'gdjs://capability/' + capabilityId; }
+function eventSemanticId(eventType) { return 'gdjs://event/' + eventType; }
+function objectTypeSemanticId(ownerId) { return 'gdjs://object/' + ownerId; }
+function behaviorTypeSemanticId(ownerId) { return 'gdjs://behavior/' + ownerId; }
+function hasText(value) { return typeof value === 'string' && value.trim().length > 0; }
+
+function semanticTypes(universe, bindingsDocument, configurationTruth) {
+  function collect(ownerKind, semanticFactory, dictionaryKey) {
+    var grouped = {};
+    (universe.semanticTypes || []).forEach(function(type) {
+      if (type.kind !== ownerKind) return;
+      grouped[type.id] = { owner: { kind: ownerKind, id: type.id }, capabilityIds: [], source: clone(type.source || []), presentation: clone(type.presentation || {}) };
+    });
+    universe.capabilities.forEach(function(capability) {
+      if (!capability.owner || capability.owner.kind !== ownerKind || capability.owner.id.indexOf('::__' + ownerKind + '_metadata__') >= 0) return;
+      var id = capability.owner.id;
+      if (!grouped[id]) grouped[id] = { owner: clone(capability.owner), capabilityIds: [], source: [], presentation: {} };
+      grouped[id].capabilityIds.push(capability.id);
+      grouped[id].source.push(clone(capability.source));
+    });
+    var result = {};
+    Object.keys(grouped).sort().forEach(function(ownerId) {
+      var group = grouped[ownerId];
+      var officialTypeKey = ownerKind === 'object' ? 'objectTypes' : 'behaviorTypes';
+      var runtimeTypes = (bindingsDocument[officialTypeKey] || []).filter(function(item) {
+        return item.runtimeType === ownerId || ownerId === item.extension + '::' + item.runtimeType;
+      }).map(function(item) { return item.runtimeType; }).filter(function(value, index, values) { return values.indexOf(value) === index; });
+      if (!runtimeTypes.length) runtimeTypes = group.capabilityIds.map(function(capabilityId) { return (bindingsDocument.bindings[capabilityId] || {}).metadataOwnerId || null; }).filter(Boolean).filter(function(value, index, values) { return values.indexOf(value) === index; });
+      if (runtimeTypes.length > 1) throw new Error('GDJS semantic ' + ownerKind + ' has conflicting official runtime types: ' + ownerId);
+      var sources = {};
+      group.source.forEach(function(item) { sources[item.path + ':' + item.line] = item; });
+      result[ownerId] = {
+        semantic_id: semanticFactory(ownerId),
+        kind: dictionaryKey,
+        owner: group.owner,
+        explanation: {
+          title: group.presentation.title || ownerId,
+          description: group.presentation.description || 'The pinned no-code declaration exposes this ' + ownerKind + ' through the listed semantic members. Its human-readable type description is not declared by the capability metadata.',
+          descriptionStatus: group.presentation.description ? 'declared-by-no-code-metadata' : 'not-declared-by-capability-metadata'
+        },
+        memberCapabilityIds: group.capabilityIds.slice().sort(),
+        runtime: runtimeTypes.length ? { status: 'executable', gdevelopType: runtimeTypes[0] } : { status: 'source-only', reason: 'The pinned GDJS platform exposes no executable member binding for this type.' },
+        source: Object.keys(sources).sort().map(function(key) { return sources[key]; })
+      };
+      if (ownerKind === 'object' && runtimeTypes.length) {
+        var configuration = (configurationTruth.objects || []).filter(function(item) { return item.extension === group.owner.id.split('::')[0] && item.runtimeType === runtimeTypes[0]; })[0] || null;
+        if (!configuration || configuration.status !== 'executable') throw new Error('Official object configuration truth is missing for executable object type: ' + ownerId);
+        result[ownerId].configuration = clone(configuration);
+      }
+    });
+    return result;
+  }
+  return { objectTypes: collect('object', objectTypeSemanticId, 'object-type'), behaviorTypes: collect('behavior', behaviorTypeSemanticId, 'behavior-type') };
+}
+
+function universeFingerprint(universe, bindingsDocument, eventGrammar, configurationTruth) {
+  var bindingDocument = bindingsDocument || readJson(OFFICIAL_BINDINGS_PATH);
+  var grammar = eventGrammar || readJson(EVENT_GRAMMAR_PATH);
+  var configuration = configurationTruth || readJson(OBJECT_CONFIGURATION_TRUTH_PATH);
+  var layoutDictionary = readJson(LAYOUT_DICTIONARY_PATH);
+  var assetBindingDictionary = readJson(ASSET_BINDING_DICTIONARY_PATH);
+  var types = semanticTypes(universe, bindingDocument, configuration);
   return {
-    capability_count: ids.length,
-    capability_id_sha1: crypto.createHash('sha1').update(ids.join('\n')).digest('hex'),
-    capability_contract_sha1: crypto.createHash('sha1').update(stableStringify(contract)).digest('hex'),
+    sourceCommit: bindingDocument.sourceCommit,
+    universeHash: hash({ source: universe.source, capabilities: universe.capabilities, families: universe.families, runtimeOverrides: universe.runtimeOverrides }),
+    capabilityCount: universe.capabilities.length,
+    bindingCount: Object.keys(bindingDocument.bindings || {}).length,
+    eventGrammarHash: hash(grammar),
+    semanticTypesHash: hash(types),
+    objectConfigurationHash: hash(configuration),
+    layoutDictionaryHash: hash(layoutDictionary),
+    assetBindingDictionaryHash: hash(assetBindingDictionary)
   };
 }
+
 function sameFingerprint(left, right) {
-  return left && right && left.capability_count === right.capability_count && left.capability_id_sha1 === right.capability_id_sha1 && left.capability_contract_sha1 === right.capability_contract_sha1;
+  return !!left && !!right && left.sourceCommit === right.sourceCommit && left.universeHash === right.universeHash && left.capabilityCount === right.capabilityCount && left.bindingCount === right.bindingCount && left.eventGrammarHash === right.eventGrammarHash && left.semanticTypesHash === right.semanticTypesHash && left.objectConfigurationHash === right.objectConfigurationHash && left.layoutDictionaryHash === right.layoutDictionaryHash && left.assetBindingDictionaryHash === right.assetBindingDictionaryHash;
 }
-function effectiveContract(capability, families) {
+
+function sourceContract(capability, capabilityById, families, seen) {
+  seen = seen || {};
+  if (seen[capability.id]) throw new Error('GDJS semantic alias cycle: ' + capability.id);
+  seen[capability.id] = true;
+  if (capability.aliasOf) {
+    var localId = String(capability.aliasOf).split('::').pop();
+    var target = Object.keys(capabilityById).map(function(id) { return capabilityById[id]; }).filter(function(candidate) {
+      return candidate.extension === capability.extension && candidate.owner.kind === capability.owner.kind && candidate.owner.id === capability.owner.id && candidate.kind === capability.kind && candidate.localId === localId;
+    });
+    if (target.length !== 1) throw new Error('GDJS semantic alias target is not unique: ' + capability.id + ' -> ' + capability.aliasOf);
+    return sourceContract(target[0], capabilityById, families, seen);
+  }
   var family = capability.inherits ? families[capability.inherits] : null;
+  var used = {};
+  var parameters = clone(family ? family.parameters : capability.parameters) || [];
+  parameters.forEach(function(parameter, index) { parameter.semanticKey = parameter.kind === 'code-only' ? null : parameterKey(parameter, index, used); });
   return {
-    family_id: capability.inherits || null,
-    parameters: clone(family ? family.parameters : capability.parameters),
-    parameter_macros: clone(family ? family.parameterMacros : capability.parameterMacros),
-    flags: clone(family ? family.flags : capability.flags),
+    parameters: parameters,
+    parameterMacros: clone(family ? family.parameterMacros : capability.parameterMacros) || []
   };
 }
-function renderTemplate(template, values) {
-  return template.replace(/\{([a-z_]+)\}/g, function(_, key) { return values[key] || 'unnamed'; });
+
+function executableStatus(capabilityId, bindingsDocument) {
+  var binding = (bindingsDocument.bindings || {})[capabilityId];
+  if (binding) return { status: 'executable', binding: clone(binding) };
+  var inoperable = (bindingsDocument.codegenInoperableDeclarations || []).filter(function(item) { return item.id === capabilityId; })[0];
+  if (inoperable) return { status: 'source-only', reason: inoperable.reason };
+  var unavailable = (bindingsDocument.unavailableSourceDeclarations || []).indexOf(capabilityId) >= 0;
+  if (unavailable) return { status: 'source-only', reason: 'The pinned GDJS platform does not expose this source declaration as an executable runtime binding.' };
+  throw new Error('GDJS binding ledger has no status for source declaration: ' + capabilityId);
 }
-function semanticValues(capability) {
-  return { extension: slug(capability.extension), owner_kind: slug(capability.owner.kind), owner: slug(capability.owner.id), kind: slug(capability.kind), local: slug(capability.localId) };
+
+function capabilityEntry(capability, capabilityById, families, bindingsDocument) {
+  var presentation = capability.presentation || {};
+  if (!hasText(presentation.title) || !hasText(presentation.description)) throw new Error('GDJS source declaration lacks interpretable presentation: ' + capability.id);
+  var eventRole = EVENT_ROLE_BY_CAPABILITY_KIND[capability.kind];
+  if (!eventRole) throw new Error('Unsupported GDJS source capability kind: ' + capability.kind);
+  return {
+    semantic_id: semanticId(capability.id),
+    capability_id: capability.id,
+    explanation: {
+      title: presentation.title,
+      description: presentation.description,
+      sentence: presentation.sentence || null,
+      group: presentation.group || null,
+      aliasOf: presentation.aliasOf || null
+    },
+    owner: clone(capability.owner),
+    kind: capability.kind,
+    event_contract: {
+      eventSlot: eventRole.eventSlot,
+      role: eventRole.role,
+      resultType: eventRole.resultType,
+      executionScope: capability.owner.kind,
+      selectionEffect: { status: 'not-declared-by-capability-metadata', compilerRequirement: 'selection proof is required before a compiler may assert a picking effect' },
+      reads: { status: 'not-declared-by-capability-metadata' },
+      writes: { status: 'not-declared-by-capability-metadata' },
+      sideEffects: { status: 'not-declared-by-capability-metadata' },
+      orderingRequirements: { status: 'event-order-defined-by-parent-event-grammar' },
+      subeventCompatibility: { status: 'event-type-defined-by-parent-event-grammar' }
+    },
+    parameter_contract: sourceContract(capability, capabilityById, families),
+    binding: executableStatus(capability.id, bindingsDocument),
+    source: clone(capability.source)
+  };
 }
-function concreteSemantic(policy, capability) {
-  return renderTemplate(policy.derivation.concrete_semantic, semanticValues(capability));
+
+function addIndex(index, key, capabilityId) {
+  if (!index[key]) index[key] = [];
+  index[key].push(capabilityId);
 }
-function abstractSemantics(policy, capability) {
-  var values = semanticValues(capability);
-  return [
-    'gdjs_capability',
-    renderTemplate(policy.derivation.kind_parent, values),
-    renderTemplate(policy.derivation.extension_parent, values),
-    renderTemplate(policy.derivation.owner_parent, values),
-  ];
-}
-function productProofIds(mapping) {
-  var ids = {};
-  Object.keys(mapping.implementation_bindings || {}).forEach(function(bindingId) {
-    ((mapping.implementation_bindings[bindingId] || {}).gdjs_capability_ids || []).forEach(function(id) { ids[id] = true; });
-  });
-  return ids;
-}
+
 function buildIndex(options) {
   options = options || {};
-  var mapping = options.mapping || semanticFeedback.loadSemanticMapping();
-  var universe = options.universe || readJson(UNIVERSE_PATH);
-  var policy = mapping.capability_semantic_policy;
-  if (!policy || policy.schemaVersion !== 1) throw new Error('capability_semantic_policy schemaVersion 1 is required');
-  if (!policy.derivation || !policy.derivation.concrete_semantic || !policy.derivation.kind_parent || !policy.derivation.extension_parent || !policy.derivation.owner_parent) {
-    throw new Error('capability_semantic_policy derivation templates are required');
-  }
-  var fingerprint = universeFingerprint(universe);
+  var universe = clone(options.universe || readJson(UNIVERSE_PATH));
+  var bindingsDocument = clone(options.officialBindings || readJson(OFFICIAL_BINDINGS_PATH));
+  var eventGrammar = clone(options.eventGrammar || readJson(EVENT_GRAMMAR_PATH));
+  var configurationTruth = clone(options.objectConfigurationTruth || readJson(OBJECT_CONFIGURATION_TRUTH_PATH));
+  if (!Array.isArray(universe.unresolvedDeclarations) || universe.unresolvedDeclarations.length) throw new Error('GDJS source universe has unresolved declarations');
+  if (eventGrammar.grammarKind !== 'gdjs-event-grammar' || !Array.isArray(eventGrammar.eventTypes) || !eventGrammar.eventTypes.length) throw new Error('GDJS event grammar is incomplete');
+  var capabilityById = {};
   var families = {};
   (universe.families || []).forEach(function(family) { families[family.id] = family; });
-  var proofIds = productProofIds(mapping);
+  universe.capabilities.forEach(function(capability) {
+    if (capabilityById[capability.id]) throw new Error('Duplicate GDJS source capability: ' + capability.id);
+    capabilityById[capability.id] = capability;
+  });
   var byCapability = {};
   var bySemantic = {};
-  var byAbstractSemantic = {};
-
-  universe.capabilities.forEach(function(capability) {
-    var semanticId = concreteSemantic(policy, capability);
-    var abstractIds = abstractSemantics(policy, capability);
-    var exposure = proofIds[capability.id] ? 'internal_product_proof' : policy.default_exposure;
-    var entry = {
-      capability_id: capability.id,
-      abstract_semantic_ids: abstractIds,
-      semantic_id: semanticId,
-      semantic_label: humanize(capability.localId),
-      semantic_meaning: [humanize(capability.kind), humanize(capability.localId), 'for', humanize(capability.owner.id)].join(' '),
-      inheritance: {
-        family_id: capability.inherits || null,
-        kind_semantic_id: abstractIds[1],
-        extension_semantic_id: abstractIds[2],
-        owner_semantic_id: abstractIds[3],
-      },
-      parameter_contract: effectiveContract(capability, families),
-      implementation_route: {
-        kind: 'gdjs_capability',
-        extension: capability.extension,
-        owner: clone(capability.owner),
-        runtime: clone(capability.runtime),
-        source: clone(capability.source),
-      },
-      exposure: { status: exposure, llm2: false },
-    };
+  var byOwner = {};
+  var byEventType = {};
+  var types = semanticTypes(universe, bindingsDocument, configurationTruth);
+  universe.capabilities.slice().sort(function(left, right) { return left.id.localeCompare(right.id); }).forEach(function(capability) {
+    var entry = capabilityEntry(capability, capabilityById, families, bindingsDocument);
     byCapability[capability.id] = entry;
-    if (!bySemantic[semanticId]) bySemantic[semanticId] = [];
-    bySemantic[semanticId].push(capability.id);
-    abstractIds.forEach(function(id) {
-      if (!byAbstractSemantic[id]) byAbstractSemantic[id] = [];
-      byAbstractSemantic[id].push(capability.id);
-    });
+    addIndex(bySemantic, entry.semantic_id, capability.id);
+    addIndex(byOwner, [capability.owner.kind, capability.owner.id].join('::'), capability.id);
   });
-  Object.keys(bySemantic).forEach(function(id) { bySemantic[id].sort(); });
-  Object.keys(byAbstractSemantic).forEach(function(id) { byAbstractSemantic[id].sort(); });
+  Object.keys(bySemantic).forEach(function(key) { bySemantic[key].sort(); });
+  Object.keys(byOwner).forEach(function(key) { byOwner[key].sort(); });
+  eventGrammar.eventTypes.forEach(function(eventType) {
+    var entry = clone(eventType);
+    entry.semantic_id = eventSemanticId(entry.eventType);
+    byEventType[entry.eventType] = entry;
+    byEventType[entry.semantic_id] = entry;
+  });
+  var executableCount = Object.keys(byCapability).filter(function(id) { return byCapability[id].binding.status === 'executable'; }).length;
   return {
-    schemaVersion: 1,
-    policy: { reviewed_universe: clone(policy.reviewed_universe), default_exposure: policy.default_exposure },
-    universe: fingerprint,
+    schemaVersion: 2,
+    dictionaryKind: 'gdjs-semantic-dictionary',
+    source: universeFingerprint(universe, bindingsDocument, eventGrammar, configurationTruth),
     summary: {
-      capability_count: universe.capabilities.length,
-      covered_count: Object.keys(byCapability).length,
-      uncovered_count: universe.capabilities.length - Object.keys(byCapability).length,
-      semantic_count: Object.keys(bySemantic).length,
-      abstract_semantic_count: Object.keys(byAbstractSemantic).length,
+      capabilityCount: universe.capabilities.length,
+      interpretableCapabilityCount: Object.keys(byCapability).length,
+      executableCapabilityCount: executableCount,
+      sourceOnlyCapabilityCount: universe.capabilities.length - executableCount,
+      ownerCount: Object.keys(byOwner).length,
+      eventTypeCount: eventGrammar.eventTypes.length,
+      objectTypeCount: Object.keys(types.objectTypes).length,
+      behaviorTypeCount: Object.keys(types.behaviorTypes).length
     },
     by_capability: byCapability,
     by_semantic: bySemantic,
-    by_abstract_semantic: byAbstractSemantic,
+    by_owner: byOwner,
+    by_event_type: byEventType,
+    by_object_type: types.objectTypes,
+    by_behavior_type: types.behaviorTypes,
+    event_grammar: eventGrammar
   };
 }
 
-module.exports = { UNIVERSE_PATH: UNIVERSE_PATH, readJson: readJson, universeFingerprint: universeFingerprint, sameFingerprint: sameFingerprint, buildIndex: buildIndex };
+function resolve(index, reference) {
+  var ids = index.by_capability[reference] ? [reference] : (index.by_semantic[reference] || []);
+  if (ids.length !== 1) throw new Error(ids.length ? 'GDJS semantic reference is ambiguous: ' + reference : 'Unknown GDJS semantic reference: ' + reference);
+  return clone(index.by_capability[ids[0]]);
+}
+
+function resolveEventType(index, reference) {
+  var entry = index.by_event_type && index.by_event_type[reference];
+  if (!entry) throw new Error('Unknown GDJS event type reference: ' + reference);
+  return clone(entry);
+}
+
+function resolveType(index, reference, collection, kind) {
+  var values = index[collection] || {};
+  var entry = values[reference] || Object.keys(values).map(function(key) { return values[key]; }).filter(function(candidate) { return candidate.semantic_id === reference; })[0];
+  if (!entry) throw new Error('Unknown GDJS ' + kind + ' reference: ' + reference);
+  return clone(entry);
+}
+function resolveObjectType(index, reference) { return resolveType(index, reference, 'by_object_type', 'object type'); }
+function resolveBehaviorType(index, reference) { return resolveType(index, reference, 'by_behavior_type', 'behavior type'); }
+
+function listOwners(index) {
+  return Object.keys(index.by_owner).sort().map(function(ownerKey) {
+    var ids = index.by_owner[ownerKey];
+    var sample = index.by_capability[ids[0]];
+    return { owner: clone(sample.owner), capabilityCount: ids.length };
+  });
+}
+
+function listMembers(index, owner) {
+  var ownerKey = [owner.kind, owner.id].join('::');
+  return (index.by_owner[ownerKey] || []).map(function(id) { return clone(index.by_capability[id]); });
+}
+function listObjectTypes(index) { return Object.keys(index.by_object_type || {}).sort().map(function(key) { return clone(index.by_object_type[key]); }); }
+function listBehaviorTypes(index) { return Object.keys(index.by_behavior_type || {}).sort().map(function(key) { return clone(index.by_behavior_type[key]); }); }
+
+function searchableText(entry) {
+  return [entry.explanation.title, entry.explanation.description, entry.explanation.sentence, entry.explanation.group].concat(entry.parameter_contract.parameters.map(function(parameter) { return [parameter.label, parameter.description].join(' '); })).join(' ').toLocaleLowerCase();
+}
+
+function search(index, query, limit) {
+  if (!hasText(query)) throw new Error('GDJS semantic search query is required');
+  var terms = query.toLocaleLowerCase().trim().split(/\s+/);
+  return Object.keys(index.by_capability).map(function(id) { return index.by_capability[id]; }).filter(function(entry) {
+    var text = searchableText(entry);
+    return terms.every(function(term) { return text.indexOf(term) >= 0; });
+  }).sort(function(left, right) { return left.semantic_id.localeCompare(right.semantic_id); }).slice(0, limit === undefined ? 20 : limit).map(clone);
+}
+
+module.exports = {
+  UNIVERSE_PATH: UNIVERSE_PATH,
+  OFFICIAL_BINDINGS_PATH: OFFICIAL_BINDINGS_PATH,
+  EVENT_GRAMMAR_PATH: EVENT_GRAMMAR_PATH,
+  OBJECT_CONFIGURATION_TRUTH_PATH: OBJECT_CONFIGURATION_TRUTH_PATH,
+  LAYOUT_DICTIONARY_PATH: LAYOUT_DICTIONARY_PATH,
+  ASSET_BINDING_DICTIONARY_PATH: ASSET_BINDING_DICTIONARY_PATH,
+  readJson: readJson,
+  universeFingerprint: universeFingerprint,
+  sameFingerprint: sameFingerprint,
+  buildIndex: buildIndex,
+  resolve: resolve,
+  resolveEventType: resolveEventType,
+  resolveObjectType: resolveObjectType,
+  resolveBehaviorType: resolveBehaviorType,
+  listOwners: listOwners,
+  listMembers: listMembers,
+  listObjectTypes: listObjectTypes,
+  listBehaviorTypes: listBehaviorTypes,
+  search: search
+};

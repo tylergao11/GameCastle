@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "ui.choice_surface",
+  "kind": "ui",
+  "name": "Choice Surface",
+  "aiManifest": {
+    "summary": "A transient interface surface that presents mutually exclusive choices after a semantic trigger.",
+    "aliases": ["choice surface", "choice overlay", "choice screen", "selection panel", "choice dialog"],
+    "actions": ["choose one", "select option"],
+    "safeExamples": ["add choice surface UpgradeChoice with 3 options triggered by level up near screen center"]
+  },
+  "compilerManifest": {
+    "componentId": "ui.choice_surface",
+    "extends": ["ui.group_surface", "ui.transient_surface"],
+    "thingName": "ChoiceSurface",
+    "thingArchetype": "ui",
+    "role": "decision_surface",
+    "defaultConfig": {
+      "surfaceName": "Choice",
+      "optionCount": 3,
+      "trigger": "semantic_event",
+      "shape": "rectangle",
+      "color": "rgba(20,20,28,0.94)",
+      "width": 520,
+      "height": 300
+    },
+    "inheritance": {
+      "contracts": ["ui.choice_surface", "ui.transient_surface", "ui.mutually_exclusive_choice"],
+      "defaultOwner": "component-manifest",
+      "exposedOverrides": ["optionCount", "trigger"],
+      "sealedDefaults": []
+    },
+    "provides": ["ui.choice_surface", "ui.mutually_exclusive_choice"],
+    "requires": [],
+    "binding": { "inputKind": "exclusive_choice" },
+    "relations": [{ "type": "triggered_by", "from": "componentThing", "to": "trigger" }],
+    "placement": { "space": "ui", "preferredAnchor": "screen", "preferredDirection": "center" },
+    "gdjsBridge": {
+      "runtimeAdapters": ["choice-surface"],
+      "adapterRoutes": {
+        "choice-surface": {
+          "owner": "runtime-adapter",
+          "mechanism": "ui-choice-surface-adapter",
+          "routeId": "ui-transient-choice-lifecycle",
+          "routeOwner": "runtime-adapter",
+          "routeMechanism": "ui-runtime-state-machine"
+        }
+      },
+      "status": "implemented"
+    }
+  }
+}

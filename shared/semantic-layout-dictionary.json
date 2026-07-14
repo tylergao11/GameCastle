@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "dictionaryId": "gamecastle.semantic-layout",
+  "relations": {
+    "gc-layout://world/origin": { "title": "World origin", "description": "Place the subject at the upper-left origin of the playable world.", "placement": { "xFraction": 0, "yFraction": 0, "layer": "", "zOrder": 0 } },
+    "gc-layout://world/center": { "title": "World center", "description": "Place the subject at the center of the playable world.", "placement": { "xFraction": 0.5, "yFraction": 0.5, "layer": "", "zOrder": 0 } },
+    "gc-layout://world/left-middle": { "title": "World left middle", "description": "Place the subject at the middle of the world left edge.", "placement": { "xFraction": 0, "yFraction": 0.5, "layer": "", "zOrder": 0 } },
+    "gc-layout://world/right-middle": { "title": "World right middle", "description": "Place the subject at the middle of the world right edge.", "placement": { "xFraction": 1, "yFraction": 0.5, "layer": "", "zOrder": 0 } },
+    "gc-layout://world/top-center": { "title": "World top center", "description": "Place the subject at the center of the world top edge.", "placement": { "xFraction": 0.5, "yFraction": 0, "layer": "", "zOrder": 0 } },
+    "gc-layout://world/bottom-center": { "title": "World bottom center", "description": "Place the subject at the center of the world bottom edge.", "placement": { "xFraction": 0.5, "yFraction": 1, "layer": "", "zOrder": 0 } },
+    "gc-layout://screen/top-left": { "title": "Screen top left", "description": "Place a screen-facing subject at the upper-left screen anchor.", "placement": { "xFraction": 0, "yFraction": 0, "layer": "", "zOrder": 100 } },
+    "gc-layout://screen/top-right": { "title": "Screen top right", "description": "Place a screen-facing subject at the upper-right screen anchor.", "placement": { "xFraction": 1, "yFraction": 0, "layer": "", "zOrder": 100 } },
+    "gc-layout://screen/bottom-left": { "title": "Screen bottom left", "description": "Place a screen-facing subject at the lower-left screen anchor.", "placement": { "xFraction": 0, "yFraction": 1, "layer": "", "zOrder": 100 } },
+    "gc-layout://screen/bottom-right": { "title": "Screen bottom right", "description": "Place a screen-facing subject at the lower-right screen anchor.", "placement": { "xFraction": 1, "yFraction": 1, "layer": "", "zOrder": 100 } }
+  }
+}

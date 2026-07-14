@@ -14,14 +14,9 @@ function required(name, value) {
 function unique(values, code, message) { if (new Set(values).size !== values.length) fail(code, message); }
 function validateRequest(value) {
   required('AssetProductionRequest', value);
-  if (!Array.isArray(value.requiredSlotIds) || !value.requiredSlotIds.length) fail('ASSET_PRODUCTION_REQUIRED_SLOTS_INVALID', 'AssetProductionRequest requires at least one requiredSlotId.', 'AssetProductionPlanner');
-  unique(value.requiredSlotIds, 'ASSET_PRODUCTION_SLOT_DUPLICATE', 'AssetProductionRequest requiredSlotIds must be unique.');
-  object(value.targetVisualSlotIds, 'AssetProductionRequest.targetVisualSlotIds');
-  var keys = Object.keys(value.targetVisualSlotIds).sort(), requiredIds = value.requiredSlotIds.slice().sort();
-  if (JSON.stringify(keys) !== JSON.stringify(requiredIds)) fail('ASSET_PRODUCTION_TARGET_COVERAGE_INVALID', 'targetVisualSlotIds keys must exactly equal requiredSlotIds.', 'AssetProductionPlanner');
-  var targets = keys.map(function(key) { return value.targetVisualSlotIds[key]; });
-  if (targets.some(function(target) { return typeof target !== 'string' || !target; })) fail('ASSET_PRODUCTION_TARGET_INVALID', 'Every targetVisualSlotId must be a non-empty string.', 'AssetProductionPlanner');
-  unique(targets, 'ASSET_PRODUCTION_TARGET_DUPLICATE', 'targetVisualSlotIds must be unique.');
+  if (typeof value.sourceHash !== 'string' || !value.sourceHash) fail('ASSET_PRODUCTION_SOURCE_HASH_INVALID', 'AssetProductionRequest requires a GameSemanticSource hash.', 'AssetProductionPlanner');
+  if (!Array.isArray(value.requirements) || !value.requirements.length) fail('ASSET_PRODUCTION_REQUIREMENTS_INVALID', 'AssetProductionRequest requires semantic asset requirements.', 'AssetProductionPlanner');
+  unique(value.requirements.map(function(item) { return item && item.semanticId; }), 'ASSET_PRODUCTION_REQUIREMENT_DUPLICATE', 'AssetProductionRequest semantic asset requirements must be unique.');
   return value;
 }
 function validatePlan(value) {
@@ -29,7 +24,7 @@ function validatePlan(value) {
   if (!Array.isArray(value.workItems) || !value.workItems.length) fail('ASSET_PRODUCTION_WORK_ITEMS_INVALID', 'AssetProductionSetPlan requires workItems.', 'AssetProductionPlanner');
   value.workItems.forEach(function(item) { required('AssetWorkItemPlan', item); });
   unique(value.workItems.map(function(item) { return item.workItemPlanId; }), 'ASSET_PRODUCTION_WORK_ITEM_DUPLICATE', 'workItemPlanId must be unique.');
-  unique(value.workItems.map(function(item) { return item.slotId; }), 'ASSET_PRODUCTION_SLOT_DUPLICATE', 'AssetProductionSetPlan slotId must be unique.');
+  unique(value.workItems.map(function(item) { return item.semanticId; }), 'ASSET_PRODUCTION_REQUIREMENT_DUPLICATE', 'AssetProductionSetPlan semantic ids must be unique.');
   unique(value.workItems.map(function(item) { return item.targetVisualSlotId; }), 'ASSET_PRODUCTION_TARGET_DUPLICATE', 'AssetProductionSetPlan targetVisualSlotId must be unique.');
   return value;
 }

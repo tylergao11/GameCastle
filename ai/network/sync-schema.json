@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Network sync policy schema for product modules. This is metadata only until runtime networking is implemented.",
+  "description": "Network sync policy schema. This is metadata only until runtime networking is implemented.",
   "modes": ["local", "lockstep", "snapshot", "event"],
   "authorities": ["client", "host", "server"],
   "fields": {

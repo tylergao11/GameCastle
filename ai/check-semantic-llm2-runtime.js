@@ -1,0 +1,27 @@
+var assert = require('assert');
+var dictionary = require('./capability-semantic-dictionary');
+var runtime = require('./semantic-llm2-runtime');
+var sourceContract = require('./game-semantic-source');
+var index = dictionary.buildIndex();
+var source = { schemaVersion: 2, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'demo', name: 'Demo' }, entities: [], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+var captured;
+var fake = { invokeRole: async function(request) { captured = request; return { ok: true, output: { text: JSON.stringify(source) }, receipt: { receiptId: 'provider.test' } }; } };
+(async function() {
+  var feedbackBatch = { schemaVersion: 2, documentKind: 'semantic-feedback-batch', baseSourceHash: null, baseStructureHash: null, entries: [{ feedbackId: 'idea_feedback', kind: 'user-observation', subjectSemanticIds: [], observation: { code: 'request_focus', description: 'Keep the first loop readable.', evidence: { priority: 1 } } }] };
+  var result = await runtime.create({ providerRuntime: fake }).invoke({ requestId: 'semantic.test', projectId: 'demo', userRequest: 'make a game', creativeVision: 'clear rules', world: { mode: 'baseline', world: { sourceHash: 'semantic.base', payload: {} } }, feedbackBatch: feedbackBatch, index: index });
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.document.source.documentKind, 'game-semantic-source');
+  assert.strictEqual(result.document.assembly.documentKind, 'semantic-runtime-assembly');
+  assert.strictEqual(captured.role, 'semantic-design');
+  assert.strictEqual(captured.input.jsonSchema.name, 'game_semantic_document');
+  assert.strictEqual(captured.input.jsonSchema.schema.properties.documentKind.enum.length, 3);
+  assert(captured.input.messages[1].content.indexOf('semantic-feedback-batch') >= 0, 'LLM2 must receive validated semantic feedback, not an owner route');
+  var editable = { schemaVersion: 2, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'edit_demo', name: 'Edit Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [{ semanticId: 'jump_height', roles: ['movement'], value: 100, bindings: [] }] }], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+  var revision = { schemaVersion: 2, documentKind: 'game-semantic-revision', baseSourceHash: sourceContract.sourceHash(editable), operations: [{ op: 'adjust_member_value', target: { entity: 'player', member: 'jump_height' }, direction: 'increase', degree: 'slight' }] };
+  var edited = await runtime.create({ providerRuntime: { invokeRole: async function() { return { ok: true, output: { text: JSON.stringify(revision) }, receipt: { receiptId: 'provider.revision' } }; } } }).invoke({ requestId: 'semantic.revision', projectId: 'edit-demo', userRequest: 'jump higher', creativeVision: '', source: editable, world: sourceContract.structureView(editable, { index: index }), index: index });
+  assert.strictEqual(edited.document.source.entities[0].members[0].value, 110, 'LLM2 revision must apply to the complete local source, not a hidden downstream owner route');
+  assert.strictEqual(edited.document.assembly.projectSeed.generatedCode.length, 1, 'The edited source must rebuild an official GDJS project seed.');
+  await assert.rejects(function() { return runtime.create({ providerRuntime: fake }).invoke({ userRequest: 'legacy feedback', creativeVision: '', world: {}, feedback: [] }); }, function(error) { return error.code === 'SEMANTIC_LLM2_LEGACY_FEEDBACK_FIELD'; });
+  assert.throws(function() { runtime.parse('not json'); }, function(error) { return error.code === 'SEMANTIC_LLM2_JSON_INVALID'; });
+  console.log('[SemanticLLM2Runtime] forced JSON schema, fail-closed parsing, and semantic source validation passed');
+})().catch(function(error) { console.error(error); process.exit(1); });

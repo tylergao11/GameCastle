@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "ui.transient_surface",
+  "kind": "ui",
+  "name": "Transient UI Surface Base",
+  "aiManifest": {
+    "summary": "Internal base for a UI surface with explicit closed, open, and selected lifecycle states.",
+    "aliases": [],
+    "actions": [],
+    "safeExamples": [],
+    "exposeToLlm2": false
+  },
+  "compilerManifest": {
+    "componentId": "ui.transient_surface",
+    "extends": "ui.interactive_surface",
+    "abstract": true,
+    "defaultConfig": {
+      "lifecycle": "transient",
+      "visibility": "hidden",
+      "pausePolicy": "capture-input"
+    },
+    "inheritance": {
+      "contracts": ["ui.transient_surface", "ui.stateful_surface"],
+      "defaultOwner": "component-manifest",
+      "exposedOverrides": [],
+      "sealedDefaults": ["pausePolicy"]
+    },
+    "provides": ["ui.transient_surface", "ui.stateful_surface"],
+    "requires": [],
+    "gdjsBridge": { "runtimeAdapters": [], "adapterRoutes": {}, "status": "abstract" }
+  }
+}

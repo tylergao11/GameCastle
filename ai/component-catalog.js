@@ -60,7 +60,8 @@ function mergeGdjsBridge(parent, child) {
   merged.runtimeAdapters = mergeUnique(parent.runtimeAdapters, child.runtimeAdapters);
   merged.adapterRoutes = mergeObject(parent.adapterRoutes, child.adapterRoutes);
   merged.configExpansions = mergeUnique(parent.configExpansions, child.configExpansions);
-  merged.objectSpec = mergeObject(parent.objectSpec, child.objectSpec);
+  if (parent.objectSpec || child.objectSpec) merged.objectSpec = mergeObject(parent.objectSpec, child.objectSpec);
+  else delete merged.objectSpec;
   return merged;
 }
 
@@ -305,6 +306,10 @@ function findSystemComponent(catalog, systemName) {
   return findByIntent(catalog, systemName, { kind: 'system' });
 }
 
+function findUiComponent(catalog, surfaceName) {
+  return findByIntent(catalog, surfaceName, { kind: 'ui' });
+}
+
 function compilerView(manifest) {
   return clone(manifest.compilerManifest);
 }
@@ -330,6 +335,7 @@ module.exports = {
   findControlComponent: findControlComponent,
   findAbilityComponent: findAbilityComponent,
   findSystemComponent: findSystemComponent,
+  findUiComponent: findUiComponent,
   compilerView: compilerView,
   isLlm2Exposed: isLlm2Exposed,
   aiView: aiView

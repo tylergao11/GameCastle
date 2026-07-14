@@ -1,0 +1,139 @@
+{
+  "kind": "gdevelop-project-defaults",
+  "project": {
+    "eventsFunctionsExtensions": [],
+    "externalEvents": [],
+    "externalLayouts": [],
+    "firstLayout": "",
+    "gdVersion": {
+      "build": 273,
+      "major": 5,
+      "minor": 6,
+      "revision": 0
+    },
+    "initialGDVersion": "5.6.273",
+    "layouts": [
+      {
+        "b": 255,
+        "behaviorsSharedData": [],
+        "disableInputWhenNotFocused": true,
+        "events": [],
+        "instances": [],
+        "layers": [
+          {
+            "ambientLightColorB": 200,
+            "ambientLightColorG": 200,
+            "ambientLightColorR": 200,
+            "camera2DPlaneMaxDrawingDistance": 5000,
+            "camera3DFarPlaneDistance": 10000,
+            "camera3DFieldOfView": 45,
+            "camera3DNearPlaneDistance": 3,
+            "cameraType": "",
+            "cameras": [
+              {
+                "defaultSize": true,
+                "defaultViewport": true,
+                "height": 0,
+                "viewportBottom": 1,
+                "viewportLeft": 0,
+                "viewportRight": 1,
+                "viewportTop": 0,
+                "width": 0
+              }
+            ],
+            "effects": [],
+            "followBaseLayerCamera": false,
+            "isLightingLayer": false,
+            "isLocked": false,
+            "name": "",
+            "renderingType": "",
+            "visibility": true
+          }
+        ],
+        "mangledName": "Scene",
+        "name": "Scene",
+        "objects": [],
+        "objectsFolderStructure": {
+          "folderName": "__ROOT"
+        },
+        "objectsGroups": [],
+        "r": 247,
+        "standardSortMethod": true,
+        "stopSoundsOnStartup": true,
+        "title": "",
+        "uiSettings": {},
+        "v": 249,
+        "variables": []
+      }
+    ],
+    "objects": [],
+    "objectsFolderStructure": {
+      "folderName": "__ROOT"
+    },
+    "objectsGroups": [],
+    "properties": {
+      "adaptGameResolutionAtRuntime": true,
+      "antialiasingMode": "MSAA",
+      "antialisingEnabledOnMobile": false,
+      "author": "",
+      "authorIds": [],
+      "authorUsernames": [],
+      "categories": [],
+      "currentPlatform": "GDevelop JS platform",
+      "description": "",
+      "extensionProperties": [],
+      "folderProject": false,
+      "latestCompilationDirectory": "",
+      "loadingScreen": {
+        "backgroundColor": 0,
+        "backgroundFadeInDuration": 0.2,
+        "backgroundImageResourceName": "",
+        "gdevelopLogoStyle": "light",
+        "logoAndProgressFadeInDuration": 0.2,
+        "logoAndProgressLogoFadeInDelay": 0,
+        "minDuration": 1.5,
+        "progressBarColor": 16777215,
+        "progressBarHeight": 20,
+        "progressBarMaxWidth": 200,
+        "progressBarMinWidth": 40,
+        "progressBarWidthPercent": 30,
+        "showGDevelopSplash": true,
+        "showProgressBar": true
+      },
+      "maxFPS": 60,
+      "minFPS": 20,
+      "name": "Project",
+      "orientation": "landscape",
+      "packageName": "com.example.gamename",
+      "pixelsRounding": false,
+      "platformSpecificAssets": {},
+      "platforms": [
+        {
+          "name": "GDevelop JS platform"
+        }
+      ],
+      "playableDevices": [],
+      "projectUuid": "",
+      "scaleMode": "linear",
+      "sizeOnStartupMode": "adaptWidth",
+      "templateSlug": "",
+      "version": "1.0.0",
+      "verticalSync": false,
+      "watermark": {
+        "placement": "bottom-left",
+        "showWatermark": true
+      },
+      "windowHeight": 600,
+      "windowWidth": 800
+    },
+    "resources": {
+      "resources": []
+    },
+    "variables": []
+  },
+  "schemaVersion": 1,
+  "source": {
+    "extensionCommit": "a8c4ad81802ff35eef64c0f68ef01445556eb0ba",
+    "libGD": "a79feb4afb1b5ec64d288fb7f7847da2adced7533a538e98d52a5aa67e28ffde"
+  }
+}

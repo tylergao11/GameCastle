@@ -18,10 +18,11 @@
   "fieldNotes": {
     "aiManifest": "Natural component card for LLM2 when exposeToLlm2 is not false and compilerManifest.abstract is not true. Use aliases and game-world language only; do not teach module ids, component ids, runtime adapter names, coordinates, event indexes, or key=value command shapes.",
     "compilerManifest": "Internal compiler target. Owns component id selection, inheritance defaults, required/provided capabilities, input bindings, relation templates, placement policy, runtime adapters, and bridge target hints.",
+    "uiSurfaceInheritance": "ui.surface is the viewport-owned base; ui.interactive_surface adds input ownership; concrete action groups, transient choices, and targeting indicators inherit rather than defining parallel layout systems.",
     "extends": "Compiler-only parent component id or parent id array. Used for internal component families such as touch buttons and inventory storage/panel composition; abstract parents must not be exposed to LLM2.",
     "adapterRoutes": "Required for each gdjsBridge.runtimeAdapters entry. Owns runtime adapter owner/mechanism/route evidence in compiler manifests instead of hard-coding adapter metadata in the bridge.",
     "objectSpec": "Optional GDJS object emission contract. When present, it owns target object type plus object/layer/placement emission route evidence; required visual defaults must come from inherited defaultConfig.",
-    "inheritance": "Required when defaultConfig exists. contracts names inherited internal capability contracts, defaultOwner must be component-manifest, exposedOverrides lists natural values the Intent compiler may override, and sealedDefaults lists default keys that must stay internal.",
+    "inheritance": "Required when defaultConfig exists. contracts names inherited internal capability contracts, defaultOwner must be component-manifest, exposedOverrides lists values the Semantic Compiler may consume, and sealedDefaults lists default keys that remain internal.",
     "overrides": "Only exposedOverrides may be changed from natural Intent AST values. LLM2 must never write compiler config keys or key=value fields."
   }
 }

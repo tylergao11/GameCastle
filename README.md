@@ -1,33 +1,65 @@
 # GameCastle
 
-AI-first 的可持续游戏项目生成与迭代系统。它把自然语言意图编译为可运行的 GDevelop/GDJS 项目，并通过 semantic evidence 和 owner-routed repair 持续修正。
+GameCastle turns an LLM2 design decision into a deterministic, source-bound GDevelop/GDJS project. It does not use game templates, downstream design routing, placeholder assets, or compatibility readers.
 
-Current AI-first boundary: LLM2 fills a closed Intent slot packet only. LLM1 负责开放创意；确定性编译、运行时和验证层负责坐标、组件、GDJS 与项目文件事实。
+## What runs where
 
-## 开始
+| Area | Responsibility |
+| --- | --- |
+| Semantic engine | Validates `GameSemanticSource` or `GameSemanticRevision` against the generated GDJS dictionary, then compiles events, assets, layout, and a libGD-validated project seed. |
+| Asset engine | Produces accepted image assets through the image review loop, or accepts type-checked local resources such as fonts, video, models, Spine data, and JSON. |
+| Product API | `POST /semantic/execute` deterministically returns a project seed or a fully bound GDJS project. |
+| Platform | Small Vite/React shell. It does not emulate a deleted local runtime. |
+| Multiplayer server | Separate WebSocket signaling and room synchronization service. It is not part of semantic compilation. |
 
-```powershell
-npm run dev
-set GAMECASTLE_GDEVELOP_SOURCE_DIR=<path-to-GDevelop-master>
-npm run check:ai
+## Core flow
+
+```text
+LLM1 creative language
+  -> LLM2 complete Source or Revision
+  -> generated GDJS Semantic Dictionary
+  -> deterministic event + asset + layout compilation
+  -> libGD project seed
+  -> accepted AssetWorld (optional)
+  -> source-hash-checked bound GDJS project
 ```
 
-`GAMECASTLE_GDEVELOP_SOURCE_DIR` 未设置时默认使用相邻目录 `../GDevelop-master`。
+LLM2 owns all deterministic design choices. Later stages compile, validate, or report facts only. Feedback is a source-bound fact batch returned to LLM2; it never selects an owner or repair route.
 
-## 主要入口
+## Quick start
 
-| 目录 | 用途 |
-| --- | --- |
-| [ai/](ai/README.md) | 意图、资产、语义 playtest 与检查。 |
-| [platform/](platform/README.md) | React/Vite 创建与试玩界面。 |
-| [engine/](engine/README.md) | 官方 GDJS 浏览器运行时缓存。 |
-| [docs/](docs/) | 需要深入了解时的设计说明。 |
+```powershell
+npm run check:semantic-engine
+npm run check:provider
+npm run build
+```
 
-## 有用链接
+Start the deterministic execution API:
 
-- [系统架构](docs/architecture.md)
-- [本地运行时边界](docs/local-game-runtime.md)
-- [资产链与 ComfyUI 调优](docs/comfyui-tuning-direction.md)
-- [资产生产闭环合同](shared/asset-production-pipeline-contract.json)
-- [产品模块](ai/product-modules/)
-- [GDevelop 官方仓库](https://github.com/GDevelopApp/GDevelop)
+```powershell
+npm run semantic:serve
+```
+
+It listens on port `3030` by default. Send `POST /semantic/execute` with a complete `GameSemanticSource`, an optional source-hash-checked `GameSemanticRevision`, and optionally an accepted `semantic-asset-world`.
+
+The platform shell can be built with `npm run build` or developed with `npm --prefix platform run dev`.
+
+## Documentation
+
+- [Architecture and contracts](docs/architecture.md)
+- [Semantic engine handoff and invariants](docs/semantic-engine-terra-handoff.md)
+- [Asset and provider operations](docs/asset-operations.md)
+- [Local deterministic derivation](docs/local-derivation-kernel.md)
+- [Network synchronization boundary](docs/network-sync-model.md)
+- [Pinned GDJS runtime assets](engine/README.md)
+
+## Repository layout
+
+```text
+ai/       semantic compiler, dictionary extraction, asset engine, providers
+server/   semantic HTTP API and independent multiplayer WebSocket server
+shared/   pinned contracts and dictionaries
+engine/   pinned GDevelop/GDJS runtime and libGD preparation artifacts
+platform/ React/Vite shell
+docs/     current architecture and operations documentation
+```

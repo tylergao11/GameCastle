@@ -1,0 +1,25 @@
+var assert = require('assert');
+var dictionary = require('./capability-semantic-dictionary');
+var ledgerApi = require('./semantic-session-ledger');
+var sourceContract = require('./game-semantic-source');
+var prompt = require('./semantic-llm2-prompt');
+var index = dictionary.buildIndex();
+var source = { schemaVersion: 2, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'demo', name: 'Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [{ semanticId: 'jump_height', roles: ['movement'], value: 100, bindings: [] }] }], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+var ledger = ledgerApi.create(source, { index: index, worldVersion: 1 });
+var revision = { schemaVersion: 2, documentKind: 'game-semantic-revision', baseSourceHash: sourceContract.sourceHash(source), operations: [{ op: 'adjust_member_value', target: { entity: 'player', member: 'jump_height' }, direction: 'increase', degree: 'slight' }] };
+var committed = ledgerApi.commit(ledger, source, revision, { index: index, worldVersion: 2 });
+assert.strictEqual(committed.entry.structuralDiff.collections.entities.changed.length, 0, 'numeric tuning must not create a world structure diff');
+var baseline = ledgerApi.context(committed.ledger, committed.source, { index: index, worldVersion: 2 });
+assert.strictEqual(baseline.mode, 'baseline');
+assert.strictEqual(baseline.world.payload.entities[0].members[0].value, undefined, 'baseline world must omit concrete values');
+var context = ledgerApi.context(committed.ledger, committed.source, { index: index, worldVersion: 2, knownStructureHash: committed.ledger.latest.structureHash });
+assert.strictEqual(context.mode, 'no-structure-change');
+var userPrompt = prompt.buildUserPrompt({ userRequest: 'jump a little higher', creativeVision: 'precise responsive movement', world: committed.ledger.latest.payload, revisionLedger: committed.ledger.revisions });
+assert.strictEqual(userPrompt.indexOf('110'), -1, 'prompt world context must not disclose current values');
+var systemPrompt = prompt.buildSystemPrompt();
+['GameCastle Semantic Commander', 'Role', 'Output', 'WORLD', 'SEMANTIC FEEDBACK', 'READ CONTRACT', 'WRITE CONTRACT', 'REVISION BATCH', 'Values'].forEach(function(section) {
+  assert(systemPrompt.indexOf(section) >= 0, 'LLM2 prompt must retain Comdr-style fill-in section: ' + section);
+});
+assert(systemPrompt.indexOf('game-design numbers') >= 0, 'LLM2 must be allowed to write design numbers');
+assert(!/\bnever\b|don't|\btemplate\b|\bexample\b/i.test(systemPrompt), 'LLM2 prompt must use positive fill-in guidance without template cases or prohibitive phrasing');
+console.log('[SemanticSessionLedger] no-value baseline, structural diff, and numeric-design prompt policy passed');

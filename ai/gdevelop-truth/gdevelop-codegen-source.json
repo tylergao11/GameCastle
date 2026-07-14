@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "repository": "4ian/GDevelop",
+  "commit": "a8c4ad81802ff35eef64c0f68ef01445556eb0ba",
+  "files": [
+    {
+      "path": "Extensions/3D/JsExtension.js",
+      "sha256": "2b4533caa92e2f59b41d8be4d20171015a7b2d8c58a0975f6558d49875af3d2b"
+    },
+    {
+      "path": "Extensions/AdMob/JsExtension.js",
+      "sha256": "c6c3fdf361f51b844d3ed13639f99fbfdcdf0805e2a9f0f711f0b0789dfaac42"
+    },
+    {
+      "path": "Extensions/AdvancedWindow/JsExtension.js",
+      "sha256": "e07be536ace6dadfe794ec83a81dbc72288d6017c64f765b792af1b71874444a"
+    },
+    {
+      "path": "Extensions/BBText/JsExtension.js",
+      "sha256": "4b4ac54ad7e807b7b19b170fa19fcdc74df7e92226d1959a27ebe8ca6343a22c"
+    },
+    {
+      "path": "Extensions/BitmapText/JsExtension.js",
+      "sha256": "580563c51dceb56ac8c2ac0f8d77503284764a9b9831f941ccdb670cca2e3c64"
+    },
+    {
+      "path": "Extensions/DebuggerTools/JsExtension.js",
+      "sha256": "84d31ee01cb54eada71c545f548bc32fee9d54f31f301378b444fbf601207c45"
+    },
+    {
+      "path": "Extensions/DeviceSensors/JsExtension.js",
+      "sha256": "efb99c7d30ff15b4a88405837f814e700f0f1f67b1ad949b2f4b05853802e88c"
+    },
+    {
+      "path": "Extensions/DeviceVibration/JsExtension.js",
+      "sha256": "fc1dcc076dec2593bab3c528eb9303f3c93c72ed0d429265572b85ddf34e24da"
+    },
+    {
+      "path": "Extensions/DialogueTree/JsExtension.js",
+      "sha256": "1e6ab1d2940c700050ac5f1ec66e6df6dc12784466cec8d4fe4fe632b81b72cb"
+    },
+    {
+      "path": "Extensions/Effects/JsExtension.js",
+      "sha256": "5c6c914f068fa17f3ca5ba45ea86ba682ed2ae0f70bb8f2fb836d4295a1b04e5"
+    },
+    {
+      "path": "Extensions/ExampleJsExtension/JsExtension.js",
+      "sha256": "c660809967a7ab8966246b6d9a145c14d624abd5b1609a0d8a70d350832fe100"
+    },
+    {
+      "path": "Extensions/FacebookInstantGames/JsExtension.js",
+      "sha256": "2f6085a7a6b911aaf8d634c40d5a00a3c9ac4b2bfdfc25ebf136509635a3b662"
+    },
+    {
+      "path": "Extensions/FileSystem/JsExtension.js",
+      "sha256": "34555755a0e3f0a135ab33284cfd57bb63689bebacf20c5429a649608db37cb2"
+    },
+    {
+      "path": "Extensions/Firebase/JsExtension.js",
+      "sha256": "fff4765c8b5f372909b343a52bc70d35d0b4ca3d468870de7fe738d70287058c"
+    },
+    {
+      "path": "Extensions/Leaderboards/JsExtension.js",
+      "sha256": "94de8bee6d3fe2c0ad8d0221b3e1eb13161479a26ec63643506f25a7ef14336b"
+    },
+    {
+      "path": "Extensions/Lighting/JsExtension.js",
+      "sha256": "14cbe7f25ca976632955984fbcb45066f5193949a41fab6bf356cb03cd0d119f"
+    },
+    {
+      "path": "Extensions/Multiplayer/JsExtension.js",
+      "sha256": "9ef4a5e4567fdc2556b14a2e15c38ee3c6610911453ed3564dcf9a722a232ad7"
+    },
+    {
+      "path": "Extensions/P2P/JsExtension.js",
+      "sha256": "333f865064c01dd2a0d2755aec3d530ff5a3277feaf966401a884526cbd87cc1"
+    },
+    {
+      "path": "Extensions/Physics2Behavior/JsExtension.js",
+      "sha256": "b1d4add7952a4dde5276c286488d37c6ce6572c09d61233d9c908136f2ddca72"
+    },
+    {
+      "path": "Extensions/Physics3DBehavior/JsExtension.js",
+      "sha256": "2b4eba69805f10e9d9de8efd1bd44edd0d6799783627abb49a0fe2c84194ab7d"
+    },
+    {
+      "path": "Extensions/PlayerAuthentication/JsExtension.js",
+      "sha256": "621a334eabd4dfce9098baaaf462afdfe00804b277649be9f45ca00766279552"
+    },
+    {
+      "path": "Extensions/SaveState/JsExtension.js",
+      "sha256": "5449adf0059b2b244ec1ab3b615804545cb345e205d5f122a075af4eb8756b8c"
+    },
+    {
+      "path": "Extensions/Screenshot/JsExtension.js",
+      "sha256": "7100681b4d5306e82cbd96ce818cb318008fc7768de58889ddf07d773aed33a8"
+    },
+    {
+      "path": "Extensions/SpatialSound/JsExtension.js",
+      "sha256": "c287b419849bbded12f7e39afc1507f1c72fce47e9f2b4719c03bf3779001683"
+    },
+    {
+      "path": "Extensions/Spine/JsExtension.js",
+      "sha256": "4f21ef53b5f0a6e467e999239d71952cd0febb1dc8ccede8dd0dfd21fd020f19"
+    },
+    {
+      "path": "Extensions/Steamworks/JsExtension.js",
+      "sha256": "51345dd2ef1e02df31e8d3f77deca593e378921e9bd4bb9963aa07100e1db9b3"
+    },
+    {
+      "path": "Extensions/TextInput/JsExtension.js",
+      "sha256": "fdc6ec4f2fbb4b19b8335f89c8d2d321bbe72e81b506d42c544fce48b90f766d"
+    },
+    {
+      "path": "Extensions/TileMap/JsExtension.js",
+      "sha256": "7779bdc6dfeca171a9bed145ab71cef557089f1514a00ff60e4c186c6c29ec11"
+    },
+    {
+      "path": "Extensions/TweenBehavior/JsExtension.js",
+      "sha256": "ffb824a2709f05dc6abcddafd17b1ebc4217566532cf32bbf33294aef24b5b05"
+    },
+    {
+      "path": "Extensions/Video/JsExtension.js",
+      "sha256": "93fbe3d78883052f13e4b3c6194fb82e38619150dbcf6896a1c6152b41c5bdd7"
+    }
+  ]
+}

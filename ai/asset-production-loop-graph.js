@@ -28,7 +28,7 @@ async function materialize(context, candidate) {
   }
   var facts = rasterFacts(candidate);
   if (candidate.sha256 && candidate.sha256 !== facts.sha256) fail('ASSET_PRODUCTION_OUTPUT_HASH_MISMATCH', 'Candidate hash does not match materialized PNG.', 'AssetEngine');
-  return Object.assign({}, candidate, { sha256: facts.sha256, width: facts.width, height: facts.height, format: 'png', transparent: facts.hasTransparency });
+  return Object.assign({}, candidate, { sha256: facts.sha256, resourceKind: 'image', width: facts.width, height: facts.height, format: 'png', transparent: facts.hasTransparency });
 }
 function executionReceipts(candidate, fallback) {
   var values = [];
@@ -138,7 +138,52 @@ function createContext(input) {
   };
 }
 function portState(context, candidate) { return { runId: context.runId, projectId: context.projectId, slot: context.workItem.assetSpec, source: context.source, candidate: candidate || context.candidate, projectAssetDir: context.projectAssetDir, workItemPlan: context.workItem, productionSetId: context.productionSetId }; }
+function externalResourceLoopState(context) {
+  context.historyHash = digest(context.history || []);
+  context.loopState = { loopId: context.loopId, workItemPlanId: context.workItem.workItemPlanId, currentRevisionId: context.currentRevision ? context.currentRevision.revisionId : null, phase: context.phase, attempt: context.attemptReceipts.length, budgets: clone(context.workItem.retryBudget), observationReceiptIds: context.observations.map(function(item) { return item.observationId; }), pendingAction: null, historyHash: context.historyHash };
+  validator.validateArtifact('AssetProductionLoopState', context.loopState);
+  return context;
+}
+async function runAcceptedExternalResource(input) {
+  var context = input.restored ? Object.assign(createContext(input), clone(input.restored)) : createContext(input);
+  context.ports = input.ports || {}; context.revisionInputs = input.revisionInputs || {};
+  if (context.accepted || context.phase === 'debt') return externalResourceLoopState(context);
+  try {
+    if (!context.candidate) fail('ASSET_PRODUCTION_EXTERNAL_RESOURCE_REQUIRED', 'This official resource kind requires an accepted local resource; no image-model fallback exists.', 'AssetEngine');
+    var validation = assetValidator.validateAssetCandidate(context.workItem.assetSpec, context.candidate);
+    if (!validation.pass) fail('ASSET_PRODUCTION_EXTERNAL_RESOURCE_INVALID', 'Accepted external resource failed deterministic validation: ' + validation.errors.join(', '), 'AssetAcceptanceGate');
+    var value = {
+      revisionId: 'revision.' + digest([context.workItem.workItemPlanId, 'accepted-external', context.candidate.sha256]).slice(0, 24),
+      workItemPlanId: context.workItem.workItemPlanId,
+      revisionKind: 'accepted-external',
+      parentRevisionIds: [],
+      path: context.candidate.path,
+      sha256: context.candidate.sha256,
+      width: null,
+      height: null,
+      scope: context.candidate.privacyScope || 'project-local',
+      executionReceipts: executionReceipts(context.candidate, { receiptId: receiptId('accepted-external-resource', [context.workItem.slotId, context.candidate.sha256]), operation: 'deterministic-resource-intake' })
+    };
+    validator.validateRevision(value);
+    context.currentRevision = value; context.revisions.push(value);
+    context.revisionInputs[value.revisionId] = { refId: value.revisionId, revisionId: value.revisionId, path: value.path, sha256: value.sha256, scope: value.scope, projectId: context.projectId, consent: true };
+    var evidence = { receiptId: receiptId('resource', [value.revisionId, context.candidate.resourceKind, context.candidate.format]), sourceRevisionId: value.revisionId, sha256: value.sha256, resourceKind: context.candidate.resourceKind, format: context.candidate.format, validation: validation };
+    var observed = { observationId: receiptId('observation', evidence), sourceRevisionId: value.revisionId, visionInspectionReceiptId: null, deterministicEvidenceIds: [evidence.receiptId], defects: [], satisfiedChecks: ['resource-kind', 'format', 'hash', 'semantic-role', 'style', 'provenance'], contentHash: digest(evidence) };
+    validator.validateArtifact('AssetObservationReceipt', observed);
+    context.observation = observed; context.observations.push(observed); context.deterministicReceipts.push(evidence);
+    context.acceptanceReceipt = { workItemPlanId: context.workItem.workItemPlanId, finalRevisionId: value.revisionId, targetVisualSlotId: context.workItem.targetVisualSlotId, visionEvidenceIds: [], deterministicEvidenceIds: observed.deterministicEvidenceIds.slice(), styleId: context.workItem.assetSpec.styleId, decision: 'accepted' };
+    validator.validateArtifact('WorkItemAcceptanceReceipt', context.acceptanceReceipt);
+    context.accepted = true; context.phase = 'accepted'; context.history = ['accepted-external-resource'];
+  } catch (error) {
+    context.debt = { code: error.code || 'ASSET_PRODUCTION_EXTERNAL_RESOURCE_FAILED', owner: error.owner || 'AssetEngine', message: error.message, recoveryPhase: context.phase };
+    context.phase = 'debt'; context.history = ['external-resource-debt'];
+  }
+  externalResourceLoopState(context);
+  if (input.onCheckpoint) input.onCheckpoint(checkpointSnapshot(context));
+  return context;
+}
 async function runWorkItem(input) {
+  if ((input.workItem && input.workItem.assetSpec && input.workItem.assetSpec.resourceKind || 'image') !== 'image') return runAcceptedExternalResource(input);
   var lg = await import('@langchain/langgraph'), context = input.restored ? Object.assign(createContext(input), clone(input.restored)) : createContext(input);
   context.ports = input.ports || {}; context.revisionInputs = input.revisionInputs || {}; context.portState = function(candidate) { return portState(context, candidate); };
   (context.revisions || []).concat(context.maskRevisions || []).forEach(function(item) { if (item && item.revisionId || item && item.maskRevisionId) { var id = item.revisionId || item.maskRevisionId; context.revisionInputs[id] = { refId: id, revisionId: id, path: item.path, sha256: item.sha256, scope: item.scope || 'project-local', projectId: context.projectId, consent: true }; } });
@@ -201,7 +246,7 @@ async function runWorkItem(input) {
       state.revisions[state.revisions.length - 1] = state.currentRevision;
       state.revisionInputs[state.currentRevision.revisionId] = { refId: state.currentRevision.revisionId, revisionId: state.currentRevision.revisionId, path: state.currentRevision.path, sha256: state.currentRevision.sha256, scope: state.currentRevision.scope, projectId: state.projectId, consent: true };
     }
-    var receipt = { workItemPlanId: state.workItem.workItemPlanId, finalRevisionId: state.currentRevision.revisionId, targetVisualSlotId: state.workItem.targetVisualSlotId, visionEvidenceIds: [state.visionReceipts[state.visionReceipts.length - 1].receiptId], deterministicEvidenceIds: state.observation.deterministicEvidenceIds.slice(), styleId: state.workItem.assetSpec.styleId, decision: 'accepted', ownerRoute: null };
+    var receipt = { workItemPlanId: state.workItem.workItemPlanId, finalRevisionId: state.currentRevision.revisionId, targetVisualSlotId: state.workItem.targetVisualSlotId, visionEvidenceIds: [state.visionReceipts[state.visionReceipts.length - 1].receiptId], deterministicEvidenceIds: state.observation.deterministicEvidenceIds.slice(), styleId: state.workItem.assetSpec.styleId, decision: 'accepted' };
     validator.validateArtifact('WorkItemAcceptanceReceipt', receipt); state.acceptanceReceipt = receipt; state.accepted = true; transition(state, 'accepted'); actionReceipt(state, state.actionPlan, [], [], 'accepted');
   }
   var graph = new lg.StateGraph(State)
@@ -239,7 +284,7 @@ async function runProductionSet(input) {
   for (var index = 0; index < input.plan.workItems.length; index++) { var workItem = input.plan.workItems[index]; results.push(await runWorkItem({ runId: input.runId, projectId: input.projectId, productionSetId: input.plan.productionSetId, workItem: workItem, ports: input.ports, revisionInputs: revisionInputs, source: (input.sources || {})[workItem.slotId], candidate: (input.candidates || {})[workItem.slotId], projectAssetDir: input.projectAssetDir, restored: ledger.workItems[workItem.workItemPlanId] || null, onCheckpoint: function(snapshot) { ledger.workItems[snapshot.workItem.workItemPlanId] = snapshot; writeLedger(input.ledgerPath, ledger); if (input.onCheckpoint) input.onCheckpoint(snapshot); } })); }
   var accepted = results.filter(function(result) { return result.accepted; }), expectedTargets = input.plan.coveragePolicy.requiredTargetVisualSlotIds.slice().sort(), acceptedTargets = accepted.map(function(result) { return result.workItem.targetVisualSlotId; }).sort(), complete = JSON.stringify(expectedTargets) === JSON.stringify(acceptedTargets);
   var byTarget = {}; accepted.forEach(function(result) { byTarget[result.workItem.targetVisualSlotId] = result.currentRevision.revisionId; });
-  var receipt = { productionSetId: input.plan.productionSetId, workItemAcceptanceReceiptIds: accepted.map(function(result) { return receiptId('work-acceptance', result.acceptanceReceipt); }), requiredSlotCoverage: { expectedTargetVisualSlotIds: expectedTargets, acceptedTargetVisualSlotIds: acceptedTargets, missingTargetVisualSlotIds: expectedTargets.filter(function(target) { return acceptedTargets.indexOf(target) < 0; }), complete: complete }, acceptedRevisionByTargetVisualSlotId: byTarget, decision: complete ? 'accepted' : 'debt', ownerRoute: complete ? null : { owner: 'AssetAcceptanceGate', stage: 'required-slot-coverage' } };
+  var receipt = { productionSetId: input.plan.productionSetId, workItemAcceptanceReceiptIds: accepted.map(function(result) { return receiptId('work-acceptance', result.acceptanceReceipt); }), requiredSlotCoverage: { expectedTargetVisualSlotIds: expectedTargets, acceptedTargetVisualSlotIds: acceptedTargets, missingTargetVisualSlotIds: expectedTargets.filter(function(target) { return acceptedTargets.indexOf(target) < 0; }), complete: complete }, acceptedRevisionByTargetVisualSlotId: byTarget, decision: complete ? 'accepted' : 'debt' };
   validator.validateSetAcceptance(receipt);
   return { plan: input.plan, workItems: results, acceptanceReceipt: receipt, pass: complete, decision: complete ? 'pass' : 'blocked', debts: results.filter(function(result) { return result.debt; }).map(function(result) { return result.debt; }) };
 }

@@ -64,7 +64,7 @@
         "runtimeTransformFirst": true,
         "maxGeneratedKeyframesPerAction": 2
       },
-      "templateRoles": {
+      "semanticRoleTokens": {
         "sprite.character": ["ink", "flat-fill", "single-shadow", "single-highlight", "face"],
         "sprite.enemy": ["ink", "flat-fill", "single-shadow", "single-highlight"],
         "sprite.prop": ["ink", "flat-fill", "single-shadow", "single-highlight"],

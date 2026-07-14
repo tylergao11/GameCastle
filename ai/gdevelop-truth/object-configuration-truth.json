@@ -1,0 +1,674 @@
+{
+  "kind": "gdevelop-object-configuration-truth",
+  "objects": [
+    {
+      "configurationType": "BBText::BBText",
+      "defaultData": {
+        "content": {
+          "align": "left",
+          "color": "0;0;0",
+          "fontFamily": "Arial",
+          "fontSize": 20,
+          "opacity": 255,
+          "text": "[b]bold[/b] [i]italic[/i] [size=15]smaller[/size] [font=times]times[/font] font\n[spacing=12]spaced out[/spacing]\n[outline=yellow]outlined[/outline] [shadow=red]DropShadow[/shadow] ",
+          "verticalTextAlignment": "top",
+          "visible": true
+        }
+      },
+      "extension": "BBText",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "BBText::BBText",
+      "status": "executable"
+    },
+    {
+      "configurationType": "BitmapText::BitmapTextObject",
+      "defaultData": {
+        "content": {
+          "align": "left",
+          "bitmapFontResourceName": "",
+          "fontSize": 20,
+          "opacity": 255,
+          "scale": 1,
+          "text": "This text use the default bitmap font.\nUse a custom Bitmap Font to create your own texts.",
+          "textureAtlasResourceName": "",
+          "tint": "255;255;255",
+          "verticalTextAlignment": "top"
+        }
+      },
+      "extension": "BitmapText",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "BitmapText::BitmapTextObject",
+      "status": "executable"
+    },
+    {
+      "configurationType": "Lighting::LightObject",
+      "defaultData": {
+        "content": {
+          "color": "255;255;255",
+          "debugMode": false,
+          "radius": 50,
+          "texture": ""
+        }
+      },
+      "extension": "Lighting",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "Lighting::LightObject",
+      "status": "executable"
+    },
+    {
+      "configurationType": "MyDummyExtension::DummyObject",
+      "defaultData": {
+        "content": {
+          "myImage": "",
+          "property1": "Hello world",
+          "property2": true,
+          "property3": 123
+        }
+      },
+      "extension": "MyDummyExtension",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "MyDummyExtension::DummyObject",
+      "status": "executable"
+    },
+    {
+      "configurationType": "PanelSpriteObject::PanelSprite",
+      "defaultData": {
+        "bottomMargin": 0,
+        "height": 32,
+        "leftMargin": 0,
+        "rightMargin": 0,
+        "texture": "",
+        "tiled": false,
+        "topMargin": 0,
+        "width": 32
+      },
+      "extension": "PanelSpriteObject",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "PanelSpriteObject::PanelSprite",
+      "status": "executable"
+    },
+    {
+      "configurationType": "ParticleSystem::ParticleEmitter",
+      "defaultData": {
+        "additive": false,
+        "destroyWhenNoParticles": true,
+        "emitterAngleA": 0,
+        "emitterAngleB": 90,
+        "emitterForceMax": 85,
+        "emitterForceMin": 45,
+        "flow": 45,
+        "jumpForwardInTimeOnCreation": 0,
+        "maxParticleNb": 300,
+        "particleAlpha1": 204,
+        "particleAlpha2": 0,
+        "particleAlphaRandomness1": 0,
+        "particleAlphaRandomness2": 0,
+        "particleAngle1": 0,
+        "particleAngle2": 0,
+        "particleAngleRandomness1": 0,
+        "particleAngleRandomness2": 0,
+        "particleBlue1": 51,
+        "particleBlue2": 0,
+        "particleColor1": "255;51;51",
+        "particleColor2": "255;255;0",
+        "particleGravityX": 0,
+        "particleGravityY": 0,
+        "particleGreen1": 51,
+        "particleGreen2": 255,
+        "particleLifeTimeMax": 2.5,
+        "particleLifeTimeMin": 0.5,
+        "particleRed1": 255,
+        "particleRed2": 255,
+        "particleSize1": 100,
+        "particleSize2": 100,
+        "particleSizeRandomness1": 0,
+        "particleSizeRandomness2": 0,
+        "rendererParam1": 3,
+        "rendererParam2": 1,
+        "rendererType": "Point",
+        "tank": -1,
+        "textureParticleName": "",
+        "zoneRadius": 3
+      },
+      "extension": "ParticleSystem",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "ParticleSystem::ParticleEmitter",
+      "status": "executable"
+    },
+    {
+      "configurationType": "PrimitiveDrawing::Drawer",
+      "defaultData": {
+        "absoluteCoordinates": false,
+        "antialiasing": "none",
+        "clearBetweenFrames": true,
+        "fillColor": {
+          "b": 255,
+          "g": 255,
+          "r": 255
+        },
+        "fillOpacity": 255,
+        "outlineColor": {
+          "b": 0,
+          "g": 0,
+          "r": 0
+        },
+        "outlineOpacity": 255,
+        "outlineSize": 1
+      },
+      "extension": "PrimitiveDrawing",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "PrimitiveDrawing::Drawer",
+      "status": "executable"
+    },
+    {
+      "configurationType": "Scene3D::Cube3DObject",
+      "defaultData": {
+        "content": {
+          "backFaceResourceName": "",
+          "backFaceResourceRepeat": false,
+          "backFaceUpThroughWhichAxisRotation": "X",
+          "backFaceVisible": true,
+          "bottomFaceResourceName": "",
+          "bottomFaceResourceRepeat": false,
+          "bottomFaceVisible": true,
+          "depth": 100,
+          "enableTextureTransparency": false,
+          "facesOrientation": "Y",
+          "frontFaceResourceName": "",
+          "frontFaceResourceRepeat": false,
+          "frontFaceVisible": true,
+          "height": 100,
+          "isCastingShadow": true,
+          "isReceivingShadow": true,
+          "leftFaceResourceName": "",
+          "leftFaceResourceRepeat": false,
+          "leftFaceVisible": true,
+          "materialType": "StandardWithoutMetalness",
+          "rightFaceResourceName": "",
+          "rightFaceResourceRepeat": false,
+          "rightFaceVisible": true,
+          "tileScale": 1,
+          "tint": "255;255;255",
+          "topFaceResourceName": "",
+          "topFaceResourceRepeat": false,
+          "topFaceVisible": true,
+          "width": 100
+        }
+      },
+      "extension": "Scene3D",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "Scene3D::Cube3DObject",
+      "status": "executable"
+    },
+    {
+      "configurationType": "Scene3D::Model3DObject",
+      "defaultData": {
+        "content": {
+          "animations": [],
+          "centerLocation": "CenteredOnZ",
+          "crossfadeDuration": 0.10000000149011612,
+          "depth": 100,
+          "height": 100,
+          "isCastingShadow": true,
+          "isReceivingShadow": true,
+          "keepAspectRatio": true,
+          "materialType": "StandardWithoutMetalness",
+          "modelResourceName": "",
+          "originLocation": "ModelOrigin",
+          "rotationX": 90,
+          "rotationY": 0,
+          "rotationZ": 90,
+          "width": 100
+        }
+      },
+      "extension": "Scene3D",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "Scene3D::Model3DObject",
+      "status": "executable"
+    },
+    {
+      "configurationType": "SpineObject::SpineObject",
+      "defaultData": {
+        "content": {
+          "animations": [],
+          "scale": 1,
+          "skinName": "",
+          "spineResourceName": ""
+        }
+      },
+      "extension": "SpineObject",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "SpineObject::SpineObject",
+      "status": "executable"
+    },
+    {
+      "configurationType": "Sprite",
+      "defaultData": {
+        "adaptCollisionMaskAutomatically": true,
+        "animations": [],
+        "updateIfNotVisible": false
+      },
+      "extension": "Sprite",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "Sprite",
+      "status": "executable"
+    },
+    {
+      "configurationType": "TextEntryObject::TextEntry",
+      "defaultData": {},
+      "extension": "TextEntryObject",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "TextEntryObject::TextEntry",
+      "status": "executable"
+    },
+    {
+      "configurationType": "TextInput::TextInputObject",
+      "defaultData": {
+        "content": {
+          "borderColor": "0;0;0",
+          "borderOpacity": 255,
+          "borderWidth": 1,
+          "disabled": false,
+          "fillColor": "255;255;255",
+          "fillOpacity": 255,
+          "fontResourceName": "",
+          "fontSize": 20,
+          "initialValue": "",
+          "inputType": "text",
+          "maxLength": 0,
+          "paddingX": 2,
+          "paddingY": 1,
+          "placeholder": "Touch to start typing",
+          "readOnly": false,
+          "spellCheck": false,
+          "textAlign": "left",
+          "textColor": "0;0;0"
+        }
+      },
+      "extension": "TextInput",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "TextInput::TextInputObject",
+      "status": "executable"
+    },
+    {
+      "configurationType": "TextObject::Text",
+      "defaultData": {
+        "bold": false,
+        "characterSize": 20,
+        "color": {
+          "b": 0,
+          "g": 0,
+          "r": 0
+        },
+        "content": {
+          "bold": false,
+          "characterSize": 20,
+          "color": "0;0;0",
+          "font": "",
+          "isOutlineEnabled": false,
+          "isShadowEnabled": false,
+          "italic": false,
+          "lineHeight": 0,
+          "outlineColor": "255;255;255",
+          "outlineThickness": 2,
+          "shadowAngle": 90,
+          "shadowBlurRadius": 2,
+          "shadowColor": "0;0;0",
+          "shadowDistance": 4,
+          "shadowOpacity": 127,
+          "smoothed": true,
+          "text": "Text",
+          "textAlignment": "left",
+          "underlined": false,
+          "verticalTextAlignment": "top"
+        },
+        "font": "",
+        "italic": false,
+        "smoothed": true,
+        "string": "Text",
+        "textAlignment": "left",
+        "underlined": false
+      },
+      "extension": "TextObject",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "TextObject::Text",
+      "status": "executable"
+    },
+    {
+      "configurationType": "TiledSpriteObject::TiledSprite",
+      "defaultData": {
+        "height": 32,
+        "texture": "",
+        "width": 32
+      },
+      "extension": "TiledSpriteObject",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "TiledSpriteObject::TiledSprite",
+      "status": "executable"
+    },
+    {
+      "configurationType": "TileMap::CollisionMask",
+      "defaultData": {
+        "content": {
+          "collisionMaskTag": "",
+          "debugMode": false,
+          "fillColor": "255;255;255",
+          "fillOpacity": 64,
+          "layerIndex": 1,
+          "outlineColor": "255;255;255",
+          "outlineOpacity": 128,
+          "outlineSize": 1,
+          "tilemapJsonFile": "",
+          "tilesetJsonFile": "",
+          "useAllLayers": true
+        }
+      },
+      "extension": "TileMap",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "TileMap::CollisionMask",
+      "status": "executable"
+    },
+    {
+      "configurationType": "TileMap::SimpleTileMap",
+      "defaultData": {
+        "content": {
+          "atlasImage": "",
+          "columnCount": 1,
+          "rowCount": 1,
+          "tileSize": 8,
+          "tilesWithHitBox": ""
+        }
+      },
+      "extension": "TileMap",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "TileMap::SimpleTileMap",
+      "status": "executable"
+    },
+    {
+      "configurationType": "TileMap::TileMap",
+      "defaultData": {
+        "content": {
+          "animationFps": 4,
+          "animationSpeedScale": 1,
+          "displayMode": "visible",
+          "layerIndex": 0,
+          "levelIndex": 0,
+          "tilemapAtlasImage": "",
+          "tilemapJsonFile": "",
+          "tilesetJsonFile": ""
+        }
+      },
+      "extension": "TileMap",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "TileMap::TileMap",
+      "status": "executable"
+    },
+    {
+      "configurationType": "Video::VideoObject",
+      "defaultData": {
+        "content": {
+          "loop": false,
+          "opacity": 255,
+          "videoResource": "",
+          "volume": 100
+        }
+      },
+      "extension": "Video",
+      "methods": [
+        "clone",
+        "exposeResources",
+        "getAnimationName",
+        "getAnimationsCount",
+        "getInitialInstanceProperties",
+        "getProperties",
+        "getType",
+        "serializeTo",
+        "setType",
+        "unserializeFrom",
+        "updateInitialInstanceProperty",
+        "updateProperty"
+      ],
+      "runtimeType": "Video::VideoObject",
+      "status": "executable"
+    }
+  ],
+  "schemaVersion": 1,
+  "source": {
+    "extensionCommit": "a8c4ad81802ff35eef64c0f68ef01445556eb0ba",
+    "libGD": "a79feb4afb1b5ec64d288fb7f7847da2adced7533a538e98d52a5aa67e28ffde"
+  }
+}

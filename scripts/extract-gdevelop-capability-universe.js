@@ -139,6 +139,53 @@ function stringArguments(text) {
   return values;
 }
 
+function declarationPresentation(argumentsList, declarationKind) {
+  if (declarationKind && declarationKind.indexOf('-alias') >= 0) {
+    return { title: null, description: null, sentence: null, group: null };
+  }
+  var isFamily = declarationKind && declarationKind.indexOf('-family') >= 0;
+  var isExpression = declarationKind === 'number-expression' || declarationKind === 'string-expression';
+  var offset = isFamily ? 1 : 0;
+  return {
+    title: argumentsList[offset + 1] || null,
+    description: argumentsList[offset + 2] || null,
+    sentence: isExpression ? null : (argumentsList[offset + 3] || null),
+    group: isExpression ? (argumentsList[offset + 3] || null) : (argumentsList[offset + 4] || null)
+  };
+}
+
+function typeDeclarations(sourceDir, file, sourceText) {
+  var text = stripComments(sourceText);
+  var relativePath = normalizePath(path.relative(sourceDir, file));
+  var extension = extensionName(text, relativePath);
+  var records = [];
+  function add(kind, id, title, description, index) {
+    if (!id) return;
+    records.push({ kind: kind, id: id, presentation: { title: title || null, description: description || null }, source: sourceRef(sourceDir, file, sourceText, index) });
+  }
+  var metadataPattern = /Get(Object|Behavior)Metadata\s*\(\s*["']([^"']+)["']\s*\)/g;
+  var match;
+  while ((match = metadataPattern.exec(text))) add(match[1] === 'Object' ? 'object' : 'behavior', match[2], null, null, match.index);
+  var methodPattern = /(?:\.|->)(addObject|AddObject|addBehavior|AddBehavior)\s*\(/g;
+  while ((match = methodPattern.exec(text))) {
+    var open = text.indexOf('(', match.index), end = balancedEnd(text, open, '(', ')');
+    if (end < 0) continue;
+    var values = stringArguments(text.slice(open + 1, end));
+    if (!values.length) continue;
+    var kind = /Object$/.test(match[1]) ? 'object' : 'behavior';
+    add(kind, extension + '::' + values[0], values[1] || null, values[2] || null, match.index);
+    methodPattern.lastIndex = end;
+  }
+  return records;
+}
+
+function parameterPresentation(argumentsList) {
+  return {
+    label: argumentsList[1] || null,
+    description: null
+  };
+}
+
 function firstCallArgument(chain, method) {
   var pattern = new RegExp('(?:\\.|->)' + method + '\\s*\\(', 'g');
   var match = pattern.exec(chain);
@@ -158,7 +205,7 @@ function findAllCalls(chain, methodPattern) {
     var open = chain.indexOf('(', match.index);
     var end = balancedEnd(chain, open, '(', ')');
     if (end < 0) break;
-    found.push({ method: match[1], argumentsText: chain.slice(open + 1, end) });
+    found.push({ method: match[1], index: match.index, argumentsText: chain.slice(open + 1, end) });
     pattern.lastIndex = end + 1;
   }
   return found;
@@ -244,8 +291,9 @@ function parseExecutableJsDeclarations(sourceDir, file, sourceText) {
       get: function(_, property) {
         return function() {
           var args = Array.prototype.slice.call(arguments);
-          if (property === 'addParameter' || property === 'AddParameter') record.parameters.push({ kind: 'visible', type: args[0] == null ? null : String(args[0]), extra: args[2] == null ? null : String(args[2]) });
-          else if (property === 'addCodeOnlyParameter' || property === 'AddCodeOnlyParameter') record.parameters.push({ kind: 'code-only', type: args[0] == null ? null : String(args[0]), extra: args[2] == null ? null : String(args[2]) });
+          if (property === 'addParameter' || property === 'AddParameter') record.parameters.push({ kind: 'visible', type: args[0] == null ? null : String(args[0]), label: args[1] == null ? null : String(args[1]), description: null, extra: args[2] == null ? null : String(args[2]) });
+          else if (property === 'addCodeOnlyParameter' || property === 'AddCodeOnlyParameter') record.parameters.push({ kind: 'code-only', type: args[0] == null ? null : String(args[0]), label: args[1] == null ? null : String(args[1]), description: null, extra: args[2] == null ? null : String(args[2]) });
+          else if (property === 'setParameterLongDescription' || property === 'SetParameterLongDescription') { var parameter = record.parameters[record.parameters.length - 1]; if (!parameter) throw new Error('Parameter long description has no preceding parameter'); parameter.description = args[0] == null ? null : String(args[0]); }
           else if (PARAMETER_MACROS[property]) record.parameterMacros.push({ kind: PARAMETER_MACROS[property], valueType: args[0] == null ? null : String(args[0]) });
           else if (property === 'setFunctionName' || property === 'SetFunctionName') record.runtime.functionName = args[0] == null ? null : String(args[0]);
           else if (property === 'setGetter' || property === 'SetGetter') record.runtime.getter = args[0] == null ? null : String(args[0]);
@@ -270,7 +318,7 @@ function parseExecutableJsDeclarations(sourceDir, file, sourceText) {
     else if (declarationKind === 'expression-condition-action-family') members = [{ kind: expressionKind, localId: localId }, { kind: 'condition', localId: localId }, { kind: 'action', localId: 'Set' + localId }];
     else if (declarationKind === 'expression-alias') members = [{ kind: 'number-expression', localId: localId }];
     else members = [{ kind: declarationKind.replace('-alias', ''), localId: localId }];
-    var shared = { parameters: [], parameterMacros: [], runtime: { functionName: null, getter: null }, flags: { hidden: false, advanced: false } };
+    var shared = { parameters: [], parameterMacros: [], runtime: { functionName: null, getter: null }, flags: { hidden: false, advanced: false }, presentation: declarationPresentation(args, declarationKind) };
     var source = { path: relativePath, line: declarationCallLine(method) };
     members.forEach(function(member) {
       records.push({
@@ -282,6 +330,7 @@ function parseExecutableJsDeclarations(sourceDir, file, sourceText) {
         inherits: isFamily ? 'pending-family' : null,
         familyValueType: isFamily ? String(args[0]) : null,
         aliasOf: isAlias ? String(args[1]) : null,
+        presentation: shared.presentation,
         parameters: shared.parameters,
         parameterMacros: shared.parameterMacros,
         runtime: shared.runtime,
@@ -380,9 +429,17 @@ function parseDeclarations(sourceDir, file, sourceText) {
     var receiver = receiverBefore(text, match.index - (text[match.index] === '-' ? 0 : 0));
     var typedOwner = receiver && new RegExp('(Object|Behavior)Metadata\\s*&\\s*' + receiver + '\\b').exec(text);
     var owner = ownerAt(owners, receiver, match.index) || (typedOwner ? { kind: typedOwner[1].toLowerCase(), id: extension + '::__' + typedOwner[1].toLowerCase() + '_metadata__', symbol: receiver, inferred: true } : { kind: receiver && /extension/i.test(receiver) ? 'global' : 'symbol', id: receiver || 'unknown', symbol: receiver || null });
-    var parameters = findAllCalls(chain, 'AddParameter|addParameter|AddCodeOnlyParameter|addCodeOnlyParameter').map(function(call) {
+    var parameterCalls = findAllCalls(chain, 'AddParameter|addParameter|AddCodeOnlyParameter|addCodeOnlyParameter|SetParameterLongDescription|setParameterLongDescription');
+    var parameters = [];
+    parameterCalls.forEach(function(call) {
       var values = stringArguments(call.argumentsText);
-      return { kind: /CodeOnly/.test(call.method) ? 'code-only' : 'visible', type: values[0] || null, extra: values[2] || null };
+      if (/^SetParameterLongDescription|^setParameterLongDescription/.test(call.method)) {
+        var parameter = parameters[parameters.length - 1];
+        if (!parameter) { unresolved.push({ source: source, method: call.method, reason: 'parameter long description has no preceding parameter' }); return; }
+        parameter.description = values[0] || null;
+        return;
+      }
+      parameters.push(Object.assign({ kind: /CodeOnly/.test(call.method) ? 'code-only' : 'visible', type: values[0] || null, extra: values[2] || null }, parameterPresentation(values)));
     });
     var parameterMacros = [];
     Object.keys(PARAMETER_MACROS).forEach(function(macro) {
@@ -415,6 +472,7 @@ function parseDeclarations(sourceDir, file, sourceText) {
         inherits: isFamily ? familyId : null,
         familyValueType: isFamily ? strings[0] : null,
         aliasOf: isAlias ? strings[1] : null,
+        presentation: declarationPresentation(strings, declarationKind),
         parameters: parameters,
         parameterMacros: parameterMacros,
         runtime: runtime,
@@ -469,14 +527,42 @@ function deduplicate(records) {
     if (record.inherits && !canonical.inherits) {
       var previousVariants = canonical.variants || [];
       delete canonical.variants;
-      record.variants = previousVariants.concat([{ source: canonical.source, inherits: canonical.inherits, aliasOf: canonical.aliasOf, parameters: canonical.parameters, parameterMacros: canonical.parameterMacros, runtime: canonical.runtime, flags: canonical.flags }]);
+      record.variants = previousVariants.concat([{ source: canonical.source, inherits: canonical.inherits, aliasOf: canonical.aliasOf, parameters: canonical.parameters, parameterMacros: canonical.parameterMacros, runtime: canonical.runtime, flags: canonical.flags, presentation: canonical.presentation }]);
       byId[id] = record;
       return;
     }
     if (!canonical.variants) canonical.variants = [];
-    canonical.variants.push({ source: record.source, inherits: record.inherits, aliasOf: record.aliasOf, parameters: record.parameters, parameterMacros: record.parameterMacros, runtime: record.runtime, flags: record.flags });
+    canonical.variants.push({ source: record.source, inherits: record.inherits, aliasOf: record.aliasOf, parameters: record.parameters, parameterMacros: record.parameterMacros, runtime: record.runtime, flags: record.flags, presentation: record.presentation });
   });
   return Object.keys(byId).sort().map(function(id) { return byId[id]; });
+}
+
+function missingPresentation(presentation) {
+  return !presentation || !presentation.title || !presentation.description;
+}
+
+function resolveAliasPresentation(records) {
+  var unresolved = [];
+  var pending = records.filter(function(record) { return record.aliasOf && missingPresentation(record.presentation); });
+  var progressed = true;
+  while (pending.length && progressed) {
+    progressed = false;
+    pending = pending.filter(function(record) {
+      var suffix = '::' + record.aliasOf;
+      var aliasLocalId = String(record.aliasOf).split('::').pop();
+      var candidates = records.filter(function(candidate) {
+        return candidate !== record && candidate.extension === record.extension && candidate.owner.kind === record.owner.kind && candidate.owner.id === record.owner.id && candidate.kind === record.kind && (candidate.localId === aliasLocalId || candidate.id.slice(-suffix.length) === suffix) && !missingPresentation(candidate.presentation);
+      });
+      if (candidates.length !== 1) return true;
+      record.presentation = Object.assign({}, candidates[0].presentation, { aliasOf: candidates[0].id });
+      progressed = true;
+      return false;
+    });
+  }
+  pending.forEach(function(record) {
+    unresolved.push({ source: record.source, method: 'alias-presentation', capabilityId: record.id, reason: 'Alias has no uniquely resolvable official presentation source: ' + record.aliasOf });
+  });
+  return unresolved;
 }
 
 function resolveCrossFileOwners(records, ownerHints) {
@@ -515,8 +601,10 @@ function buildUniverse(sourceDir) {
   var ownerHints = [];
   var unresolved = [];
   var runtimeOverrides = [];
+  var semanticTypes = [];
   var sources = files.map(function(file) {
     var text = fs.readFileSync(file, 'utf8');
+    semanticTypes = semanticTypes.concat(typeDeclarations(sourceDir, file, text));
     var parsed = parseDeclarations(sourceDir, file, text);
     var staticDeclarations = parsed.declarations;
     var enumeration = 'static-source';
@@ -534,6 +622,22 @@ function buildUniverse(sourceDir) {
     return { path: normalizePath(path.relative(sourceDir, file)), sha1: sha1(text), enumeration: enumeration, staticDeclarations: staticDeclarations, declarations: parsed.declarations, capabilities: parsed.records.length, unresolved: parsed.unresolved.length, runtimeMarkers: runtimeMarkers, runtimeBindings: fileRuntimeOverrides.length, runtimeUnresolved: Math.max(0, runtimeMarkers - fileRuntimeOverrides.length) };
   });
   capabilities = deduplicate(resolveCrossFileOwners(capabilities, ownerHints));
+  var semanticTypeMap = {};
+  semanticTypes.forEach(function(record) {
+    var key = record.kind + '|' + record.id;
+    if (!semanticTypeMap[key]) semanticTypeMap[key] = { kind: record.kind, id: record.id, presentation: record.presentation, source: [] };
+    var target = semanticTypeMap[key];
+    if (!target.presentation.title && record.presentation.title) target.presentation.title = record.presentation.title;
+    if (!target.presentation.description && record.presentation.description) target.presentation.description = record.presentation.description;
+    target.source.push(record.source);
+  });
+  semanticTypes = Object.keys(semanticTypeMap).sort().map(function(key) {
+    var record = semanticTypeMap[key], sources = {};
+    record.source.forEach(function(source) { sources[source.path + ':' + source.line] = source; });
+    record.source = Object.keys(sources).sort().map(function(sourceKey) { return sources[sourceKey]; });
+    return record;
+  });
+  unresolved = unresolved.concat(resolveAliasPresentation(capabilities));
   var familyMap = {};
   capabilities.forEach(function(item) {
     if (!item.inherits) return;
@@ -592,9 +696,10 @@ function buildUniverse(sourceDir) {
     // Do not leak a workstation drive into a committed generated artifact.
     source: { dir: path.relative(ROOT, sourceDir) || '.', roots: ['Core/GDCore/Extensions/Builtin', 'Extensions'], files: sources },
     model: { inheritance: 'Extension definition is the base record; JsExtension runtime metadata overrides execution fields.', parameterMacroKinds: ['standard-value', 'standard-operator', 'standard-relational-operator'] },
-    summary: { sourceFiles: sources.length, extensions: Object.keys(extensions).length, declarations: sources.reduce(function(total, item) { return total + item.declarations; }, 0), families: families.length, capabilities: capabilities.length, declarationVariants: capabilities.reduce(function(total, item) { return total + (item.variants ? item.variants.length : 0); }, 0), unresolvedDeclarations: unresolved.length, runtimeOverrides: runtimeOverrides.length, unresolvedRuntimeBindings: sources.reduce(function(total, item) { return total + item.runtimeUnresolved; }, 0), unlinkedRuntimeOverrides: unlinkedRuntimeOverrides.length },
+    summary: { sourceFiles: sources.length, extensions: Object.keys(extensions).length, declarations: sources.reduce(function(total, item) { return total + item.declarations; }, 0), families: families.length, capabilities: capabilities.length, objectTypes: semanticTypes.filter(function(item) { return item.kind === 'object'; }).length, behaviorTypes: semanticTypes.filter(function(item) { return item.kind === 'behavior'; }).length, declarationVariants: capabilities.reduce(function(total, item) { return total + (item.variants ? item.variants.length : 0); }, 0), unresolvedDeclarations: unresolved.length, runtimeOverrides: runtimeOverrides.length, unresolvedRuntimeBindings: sources.reduce(function(total, item) { return total + item.runtimeUnresolved; }, 0), unlinkedRuntimeOverrides: unlinkedRuntimeOverrides.length },
     extensions: extensions,
     families: families,
+    semanticTypes: semanticTypes,
     capabilities: capabilities,
     runtimeOverrides: runtimeOverrides,
     unresolvedDeclarations: unresolved

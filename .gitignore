@@ -13,7 +13,8 @@ artifacts/
 
 # Local official GDJS runtime cache. Rebuild with `npm run runtime:prepare`.
 engine/gdevelop-runtime/
+engine/gdevelop-codegen/
 
 # Generated projects, local asset candidates, playtest evidence, and HTML runtime output.
-# Rebuild through ProjectWeave; never commit local production artifacts.
+# Rebuild through the semantic product execution path; never commit local production artifacts.
 output/

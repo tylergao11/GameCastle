@@ -1,0 +1,268 @@
+{
+  "eventTypes": [
+    {
+      "className": "CommentEvent",
+      "eventType": "BuiltinCommonInstructions::Comment",
+      "explanation": {
+        "description": "Event displaying a text in the events editor.",
+        "sentence": null,
+        "title": "Comment"
+      },
+      "grammar": {
+        "canHaveSubEvents": null,
+        "canHaveVariables": null,
+        "executable": null,
+        "hasActions": false,
+        "hasConditions": false,
+        "hasExpressions": false
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/CommentEvent.h",
+          "sha1": "0b26a744a9a53f0ce2e6affd35d4bfd700aa99af"
+        },
+        "registration": {
+          "line": 188,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    },
+    {
+      "className": "ElseEvent",
+      "eventType": "BuiltinCommonInstructions::Else",
+      "explanation": {
+        "description": "Else event: Actions are run if previous events in the chain were not fulfilled.",
+        "sentence": null,
+        "title": "Else"
+      },
+      "grammar": {
+        "canHaveSubEvents": true,
+        "canHaveVariables": true,
+        "executable": true,
+        "hasActions": true,
+        "hasConditions": true,
+        "hasExpressions": false
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/ElseEvent.h",
+          "sha1": "1f499ede7637c40e0042eb97e1634a81cf5ee909"
+        },
+        "registration": {
+          "line": 174,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    },
+    {
+      "className": "ForEachEvent",
+      "eventType": "BuiltinCommonInstructions::ForEach",
+      "explanation": {
+        "description": "Repeat the event for each specified object.",
+        "sentence": null,
+        "title": "For each object"
+      },
+      "grammar": {
+        "canHaveSubEvents": true,
+        "canHaveVariables": true,
+        "executable": true,
+        "hasActions": true,
+        "hasConditions": true,
+        "hasExpressions": true
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/ForEachEvent.h",
+          "sha1": "50ca4ba49c81598dd18f6ac69f447a9302966f7f"
+        },
+        "registration": {
+          "line": 209,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    },
+    {
+      "className": "ForEachChildVariableEvent",
+      "eventType": "BuiltinCommonInstructions::ForEachChildVariable",
+      "explanation": {
+        "description": "Repeat the event for each child variable of a structure or array.",
+        "sentence": null,
+        "title": "For each child variable (of a structure or array)"
+      },
+      "grammar": {
+        "canHaveSubEvents": true,
+        "canHaveVariables": true,
+        "executable": true,
+        "hasActions": true,
+        "hasConditions": true,
+        "hasExpressions": true
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/ForEachChildVariableEvent.h",
+          "sha1": "1f2afa0defcdf61421e3878d899d4dbe0e9b39f6"
+        },
+        "registration": {
+          "line": 216,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    },
+    {
+      "className": "GroupEvent",
+      "eventType": "BuiltinCommonInstructions::Group",
+      "explanation": {
+        "description": "Group containing events.",
+        "sentence": null,
+        "title": "Event group"
+      },
+      "grammar": {
+        "canHaveSubEvents": true,
+        "canHaveVariables": null,
+        "executable": true,
+        "hasActions": false,
+        "hasConditions": false,
+        "hasExpressions": false
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/GroupEvent.h",
+          "sha1": "4d709b777870bf1edfddc355872c870a240a9574"
+        },
+        "registration": {
+          "line": 224,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    },
+    {
+      "className": "LinkEvent",
+      "eventType": "BuiltinCommonInstructions::Link",
+      "explanation": {
+        "description": "Link to external events.",
+        "sentence": null,
+        "title": "Link external events"
+      },
+      "grammar": {
+        "canHaveSubEvents": null,
+        "canHaveVariables": null,
+        "executable": true,
+        "hasActions": false,
+        "hasConditions": false,
+        "hasExpressions": false
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/LinkEvent.h",
+          "sha1": "48041fb64d83a14d46c25fc975dfe979cddffc2a"
+        },
+        "registration": {
+          "line": 181,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    },
+    {
+      "className": "RepeatEvent",
+      "eventType": "BuiltinCommonInstructions::Repeat",
+      "explanation": {
+        "description": "Repeat the event for a specified number of times.",
+        "sentence": null,
+        "title": "Repeat"
+      },
+      "grammar": {
+        "canHaveSubEvents": true,
+        "canHaveVariables": true,
+        "executable": true,
+        "hasActions": true,
+        "hasConditions": true,
+        "hasExpressions": true
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/RepeatEvent.h",
+          "sha1": "66815b2adb1f922207e960ec056067e0d1bcc3af"
+        },
+        "registration": {
+          "line": 202,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    },
+    {
+      "className": "StandardEvent",
+      "eventType": "BuiltinCommonInstructions::Standard",
+      "explanation": {
+        "description": "Standard event: Actions are run if conditions are fulfilled.",
+        "sentence": null,
+        "title": "Standard event"
+      },
+      "grammar": {
+        "canHaveSubEvents": true,
+        "canHaveVariables": true,
+        "executable": true,
+        "hasActions": true,
+        "hasConditions": true,
+        "hasExpressions": false
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/StandardEvent.h",
+          "sha1": "04a704936991f17e04daa64e8fe38d597e8342ab"
+        },
+        "registration": {
+          "line": 166,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    },
+    {
+      "className": "WhileEvent",
+      "eventType": "BuiltinCommonInstructions::While",
+      "explanation": {
+        "description": "Repeat the event while the conditions are true.",
+        "sentence": null,
+        "title": "While"
+      },
+      "grammar": {
+        "canHaveSubEvents": true,
+        "canHaveVariables": true,
+        "executable": true,
+        "hasActions": true,
+        "hasConditions": true,
+        "hasExpressions": false
+      },
+      "source": {
+        "definition": {
+          "path": "Core/GDCore/Events/Builtin/WhileEvent.h",
+          "sha1": "d98da7ef9b12607c15185007beb5471786709ce5"
+        },
+        "registration": {
+          "line": 195,
+          "path": "Core/GDCore/Extensions/Builtin/CommonInstructionsExtension.cpp",
+          "sha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1"
+        }
+      }
+    }
+  ],
+  "grammarKind": "gdjs-event-grammar",
+  "schemaVersion": 1,
+  "source": {
+    "registrationSha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1",
+    "root": [
+      "Core/GDCore/Extensions/Builtin",
+      "Core/GDCore/Events/Builtin"
+    ]
+  },
+  "summary": {
+    "eventTypeCount": 9
+  }
+}
