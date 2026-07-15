@@ -76,6 +76,7 @@ library miss
 Background removal uses the MIT-licensed `vendor/rembg` submodule pinned to tag `v2.0.75` and commit `7b8de60ef9fc225af1768d81aa09da29db22a355`. `birefnet-general-lite.onnx` is accepted only when its SHA-256 matches `shared/background-removal-contract.json`.
 
 ```powershell
+git submodule update --init --recursive
 powershell -ExecutionPolicy Bypass -File scripts/setup-rembg.ps1
 ```
 

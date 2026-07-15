@@ -16,7 +16,9 @@ The semantic engine is rebuilt from a pinned GDevelop source checkout. There is 
 
 ## Architecture boundary
 
-LLM1 owns creative direction. LLM2 is the final design decision maker and writes plain-text semantic DSL from positive fill-in forms. The LLM2 provider request has no JSON schema or JSON response format. The local runtime incrementally applies `>DSL` and materializes either a complete `GameSemanticSource` or an incremental `GameSemanticRevision`.
+LLM1 owns creative direction. LLM2 is the final design decision maker and writes plain-text semantic DSL from positive fill-in forms. The prompt contains no examples. The LLM2 provider request has no JSON schema or JSON response format. The local runtime incrementally applies `>DSL` and materializes either a complete `GameSemanticSource` or an incremental `GameSemanticRevision`.
+
+Both roles use DeepSeek V4 Flash with medium thinking. LLM1 uses temperature `1.5`; LLM2 uses temperature `0`. Production LLM2 allows at most eight rounds and 120 seconds. `scripts/debug-snake-real-llm.js` uses three rounds and 30 seconds as evaluation limits only.
 
 The generated GDJS Semantic Dictionary is the total runtime truth. `ai/semantic-event-algebra.js` is a dictionary-validated semantic projection: it owns names and composition such as `object.collides`, `state.number.add`, and `text.display-number`, while the dictionary alone decides whether each exact capability, kind, parameter contract, object type, behavior type, and event type exists and is executable.
 
@@ -50,7 +52,7 @@ The contract rejects routing and repair-decision fields. Feedback is provided to
 
 ## Incremental semantic boundary
 
-`ai/semantic-event-algebra.js` is the single owner of foundation game semantics. Its stable entity kinds, behavior kinds, event kinds, conditions, actions, and expressions generate the foundation prompt. A semantic action may expand into multiple ordered dictionary invocations; for example, displaying a labelled number expands to replace-text plus append-number-expression.
+`ai/semantic-event-algebra.js` is the single owner of foundation game semantics. Its stable entity kinds, behavior kinds, event kinds, conditions, actions, and expressions generate the foundation prompt. One semantic action may expand into multiple ordered dictionary invocations; `text.display-number` is defined as replace-text followed by append-number-expression. This composition is an executable algebra definition, not a prompt example.
 
 `ai/semantic-reference-runtime.js` resolves that algebra through the generated dictionary, normalizes entity/member/behavior references, routes state members to scene variables or object variables, serializes semantic text and numbers into the correct GDJS expression forms, lowers booleans/operators into official tokens, and expands selected extension groups. Compact `x*`, `xo*`, `xb*`, and `xe*` handles expose exact retrieved operations and types; foundation forms remain the direct vocabulary. Layout, asset-family, style, and extension-group slots retain compact handles. Internal references remain runtime-only.
 

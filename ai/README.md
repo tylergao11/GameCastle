@@ -13,10 +13,14 @@ No undocumented GDJS capability is inferred. A declaration is either executable,
 | Module | Purpose |
 | --- | --- |
 | `game-semantic-source.js` | Strict Source and Revision validation, event-operation provenance, recursive GDJS variable values, structure projection, and relative-value revisions. |
+| `semantic-llm2-prompt.js` | Comdr-structured, zero-example system prompt plus current WORLD sections. |
+| `semantic-dsl-syntax.js` / `semantic-dsl-parser.js` | Positive fill-in command grammar and strict plain-text DSL parsing. |
 | `semantic-event-algebra.js` | Defines the stable game-event constructors and validates every exact expansion against the generated GDJS Semantic Dictionary. |
 | `semantic-reference-runtime.js` | Resolves event algebra through the dictionary, expands selected extension groups, and normalizes internal references plus dictionary-typed parameter values. |
+| `semantic-commander-context.js` | Builds foundation operations, parameter context, Draft, retrieve results, and task-ledger WORLD state. |
 | `semantic-draft.js` | Executes open event DSL locally, builds nested event trees, expands one semantic operation into ordered invocations, allocates runtime slots, and materializes strict Source/Revision documents. |
 | `semantic-run-ledger.js` | Records the completed DSL boundary and drives incremental continuation, repair, and fuse feedback. |
+| `semantic-run-pipeline.js` | Applies one parsed batch left to right and returns runtime feedback plus remaining work. |
 | `semantic-llm2-runtime.js` | Runs extension-read, Draft-write, and commit rounds against DeepSeek V4 Flash. |
 | `semantic-compiler.js` | Source to official GDJS events. |
 | `semantic-asset-compiler.js` | Source to source-bound asset requirements, including resource kind and accepted formats. |
@@ -29,7 +33,9 @@ No undocumented GDJS capability is inferred. A declaration is either executable,
 
 ## Invariants
 
-- LLM2 writes plain-text semantic DSL through positive fill-in forms. Its provider call has no JSON schema or JSON response format; runtime parses and executes `>DSL` batches.
+- LLM2 writes plain-text semantic DSL through positive fill-in forms. The prompt contains no examples. Its provider call has no JSON schema or JSON response format; runtime parses and executes `>DSL` batches.
+- LLM1 and LLM2 use DeepSeek V4 Flash with medium thinking. LLM1 temperature is `1.5`; LLM2 temperature is `0`.
+- Production LLM2 is bounded to eight rounds and 120 seconds. The Snake live probe overrides those values to three rounds and 30 seconds for evaluation only.
 - Foundation event operations are stable prompt constructors derived from one event algebra. `retrieve` exposes exact dictionary operations from a selected extension when the design needs semantic space beyond those direct forms.
 - The generated GDJS Semantic Dictionary is the total production truth for capabilities, official runtime parameter order/type/optionality/defaults, generated normalization/value domains, object types, behavior types, event grammar, and runtime availability.
 - The event algebra owns semantic composition only. Initialization validates structural expansion variants, so an exact binding, kind, parameter, fixed operator, ordering rule, or nested expression drift fails closed.

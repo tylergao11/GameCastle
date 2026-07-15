@@ -10,7 +10,9 @@ Runtime owns deterministic mechanics: dictionary binding, official parameter ord
 
 The semantic runtime follows Comdr's incremental control model: semantic DSL → local incremental execution → runtime feedback → remaining work. Stable foundation event operations are present in the prompt before the first write. `retrieve` reads one selected extension kind and exposes its exact dictionary operations when the design extends beyond the direct foundation forms. Successful commands and failures enter `task-ledger`; the next round receives the updated semantic Draft and completes the remaining work. The same normalized failure fuses on its second occurrence.
 
-LLM2 receives positive fill-in syntax and returns plain-text `>DSL` commands. Its provider request does not set a JSON schema or JSON response format. JSON-compatible quoting is used only inside DSL values that are strings, arrays, objects, or nested expression slots.
+LLM2 receives rules, slot meanings, current WORLD state, and positive fill-in syntax, then returns plain-text `>DSL` commands. The prompt contains no examples. Its provider request does not set a JSON schema or JSON response format. JSON-compatible quoting is used only inside DSL values that are strings, arrays, objects, or nested expression slots.
+
+Production LLM2 is bounded to eight rounds and 120 seconds. The real Snake evaluation script deliberately overrides these values to three rounds and 30 seconds; those probe limits are not semantic-engine boundaries.
 
 ## Deterministic graph
 
@@ -19,6 +21,10 @@ Pinned GDevelop source
   -> capability universe + official bindings + event grammar + object configuration truth
   -> GDJS Semantic Dictionary
   -> stable Event Algebra (dictionary-validated semantic composition)
+
+LLM1 creative direction + task + Event Algebra + current WORLD
+  -> LLM2 plain-text semantic DSL batch
+  -> parser -> local incremental runtime -> feedback / remaining work
   -> GameSemanticSource / GameSemanticRevision
   -> event compiler + asset requirement compiler + layout compiler
   -> RuntimeLinker + official libGD project seed
