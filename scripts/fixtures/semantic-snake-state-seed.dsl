@@ -1,0 +1,8 @@
+game(semanticId=snakeProbe,name="Snake Probe")
+entity(semanticId=snakeHead,roles=["player","snake-head"],kind=sprite,behaviors=["topdown"])
+entity(semanticId=food,roles=["food"],kind=sprite,behaviors=[])
+entity(semanticId=GameState,roles=["state"],kind=state,behaviors=[])
+entity(semanticId=scoreText,roles=["ui","score"],kind=text,behaviors=[])
+member(entity=GameState,semanticId=score,roles=["score"],value=0,bindings=[])
+member(entity=GameState,semanticId=direction,roles=["movement-direction"],value="right",bindings=[])
+member(entity=GameState,semanticId=step,roles=["grid-step"],value=32,bindings=[])

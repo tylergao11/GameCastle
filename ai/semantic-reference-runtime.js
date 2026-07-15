@@ -19,11 +19,13 @@ function table(items, prefix, identity) {
 }
 function extensionId(entry) { return entry.capability_id.split('::')[0]; }
 function visibleParameters(entry) { return entry.parameter_contract.parameters.filter(function(parameter) { return parameter.kind !== 'code-only'; }); }
-function parameterPromptType(parameter) { return parameter.runtimeNormalization === 'dictionary-token' ? parameter.runtimeValues.join('|') : parameter.promptType; }
-function argumentText(entry) { return visibleParameters(entry).map(function(parameter) { return parameter.semanticKey + ':' + parameterPromptType(parameter) + (parameter.optional ? '?' : ''); }).join(','); }
+function promptToken(value) { return JSON.stringify(value).replace(/\|/g, '\\u007c'); }
+function parameterPromptType(parameter) { return parameter.runtimeNormalization === 'dictionary-token' ? 'oneOf(' + parameter.runtimeValues.map(promptToken).join(',') + ')' : parameter.promptType; }
+function parameterText(parameter) { return parameter.semanticKey + '=' + parameterPromptType(parameter) + (parameter.optional ? ' optional' : ''); }
+function argumentText(entry) { return visibleParameters(entry).map(parameterText).join(','); }
 function ownerText(entry) { return entry.owner.kind === 'global' ? 'global' : entry.owner.kind + ':' + entry.owner.id.split('::').pop(); }
 function capabilityLine(entryHandle, entry) { return [entryHandle, entry.kind, ownerText(entry), clean(entry.explanation.title), argumentText(entry)].join('|'); }
-function eventLine(entryHandle, entry) { return [entryHandle, 'event', clean(entry.explanation.title), (entry.serialization.parameters || []).map(function(parameter) { return parameter.semanticKey + ':' + parameterPromptType(parameter) + (parameter.optional ? '?' : ''); }).join(',')].join('|'); }
+function eventLine(entryHandle, entry) { return [entryHandle, 'event', clean(entry.explanation.title), (entry.serialization.parameters || []).map(parameterText).join(',')].join('|'); }
 function allowed(command, fields, label) { Object.keys(command).forEach(function(key) { if (fields.indexOf(key) < 0) fail('SEMANTIC_REFERENCE_FIELD_INVALID', label + ' contains unknown field: ' + key); }); }
 function handle(value, tableValue, label) {
   if (typeof value !== 'string' || !Object.prototype.hasOwnProperty.call(tableValue.byHandle, value)) fail('SEMANTIC_REFERENCE_HANDLE_INVALID', label + ' requires a handle from [param-context] or [retrieve]: ' + String(value));
@@ -70,7 +72,7 @@ function create(index) {
 
   function resolveExtension(value, expectedKind) {
     var entry = handle(value, extensions, 'extension operation');
-    if (expectedKind && entry.kind !== expectedKind) fail('SEMANTIC_CAPABILITY_KIND_INVALID', value + ' is ' + entry.kind + ', while this slot requires ' + expectedKind + '.');
+    if (expectedKind && entry.kind !== expectedKind) fail('SEMANTIC_CAPABILITY_KIND_INVALID', value + ' is ' + entry.kind + ', while this parameter requires ' + expectedKind + '.');
     return entry;
   }
   function validateArguments(entry, value) {
@@ -89,7 +91,7 @@ function create(index) {
       if (!Object.prototype.hasOwnProperty.call(value, parameter.semanticKey)) return;
       var raw = value[parameter.semanticKey];
       if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-        if (parameter.runtimeValueKind !== 'number-expression' && parameter.runtimeValueKind !== 'string-expression') fail('SEMANTIC_EXPRESSION_KIND_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' is not an expression slot.');
+        if (parameter.runtimeValueKind !== 'number-expression' && parameter.runtimeValueKind !== 'string-expression') fail('SEMANTIC_EXPRESSION_KIND_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' is not an expression parameter.');
         allowed(raw, ['semanticRef', 'arguments'], entry.explanation.title + '.' + parameter.semanticKey + ' expression');
         var expressionEntry = dictionary.resolve(index, raw.semanticRef);
         if (expressionEntry.kind !== 'number-expression' && expressionEntry.kind !== 'string-expression') fail('SEMANTIC_EXPRESSION_KIND_INVALID', raw.semanticRef + ' is ' + expressionEntry.kind + '; an expression is required.');
@@ -104,7 +106,7 @@ function create(index) {
         normalized[parameter.semanticKey] = context.objectName(raw);
       } else if (normalization === 'entity-behavior-name') {
         var entityParameter = visibleParameters(entry).filter(function(candidate) { return candidate.runtimeNormalization === 'entity-object-name'; })[0];
-        if (!entityParameter || !Object.prototype.hasOwnProperty.call(value, entityParameter.semanticKey)) fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' requires an entity slot in the same dictionary contract.');
+        if (!entityParameter || !Object.prototype.hasOwnProperty.call(value, entityParameter.semanticKey)) fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' requires an entity parameter in the same dictionary contract.');
         normalized[parameter.semanticKey] = context.behaviorName(value[entityParameter.semanticKey], raw);
       } else if (normalization === 'object-member-name') {
         normalized[parameter.semanticKey] = context.memberVariableName(raw);
@@ -164,8 +166,8 @@ function create(index) {
     var counts = Object.create(null);
     entry.capabilities.forEach(function(capability) { counts[capability.kind] = (counts[capability.kind] || 0) + 1; });
     counts.object = entry.objectTypes.length; counts.behavior = entry.behaviorTypes.length; counts.event = entry.eventTypes.length;
-    var countText = EXTENSION_KINDS.map(function(kind) { return kind + ':' + (counts[kind] || 0); }).join(',');
-    return [groups.handleByIdentity[entry.extension], entry.extension, countText].join('|');
+    var availableKinds = EXTENSION_KINDS.filter(function(kind) { return counts[kind] > 0; });
+    return [groups.handleByIdentity[entry.extension], entry.extension, availableKinds.join(',')].join('|');
   }
   function resolveBindings(values, label) {
     var out = [];
@@ -187,7 +189,6 @@ function create(index) {
   }
   function parameterContext() {
     return {
-      slotMeanings: ['entity.kind=foundation kind or retrieved xo*', 'behaviors=[foundation kinds or retrieved xb*]', 'event.kind=foundation kind or retrieved xe*', 'use=foundation operation or retrieved x*', 'layout=l*', 'family=f*', 'style=s*', 'extensionGroup=g*'],
       entityKinds: Object.keys(algebra.ENTITY_KINDS),
       behaviorKinds: Object.keys(algebra.BEHAVIOR_KINDS),
       eventKinds: algebra.eventKindLines(index),

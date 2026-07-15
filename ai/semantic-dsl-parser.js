@@ -47,18 +47,19 @@ function separatorIndex(part) {
 }
 function parseArgs(text) {
   var args = Object.create(null);
-  split(text, ',').forEach(function(part) { var index = separatorIndex(part); if (index < 1) { var error = new Error('Semantic DSL arguments use key=value slots: ' + part); error.code = 'SEMANTIC_DSL_ARG_INVALID'; throw error; } var key = part.slice(0, index).trim(); if (Object.prototype.hasOwnProperty.call(args, key)) { var duplicate = new Error('Duplicate semantic DSL argument: ' + key); duplicate.code = 'SEMANTIC_DSL_ARG_DUPLICATE'; throw duplicate; } args[key] = coerce(part.slice(index + 1)); });
+  split(text, ',').forEach(function(part) { var index = separatorIndex(part); if (index < 1) { var error = new Error('Semantic DSL arguments use key=value fields: ' + part); error.code = 'SEMANTIC_DSL_ARG_INVALID'; throw error; } var key = part.slice(0, index).trim(); if (Object.prototype.hasOwnProperty.call(args, key)) { var duplicate = new Error('Duplicate semantic DSL argument: ' + key); duplicate.code = 'SEMANTIC_DSL_ARG_DUPLICATE'; throw duplicate; } args[key] = coerce(part.slice(index + 1)); });
   return args;
 }
 function parse(text) {
   var commands = [], warnings = [];
   split(text, ';').forEach(function(token) {
-    var clean = token.replace(/^>+/, '').trim();
-    var match = clean.match(/^([A-Za-z][\w-]*)(?:\((.*)\))?$/s);
+    if (token[0] === '>') { warnings.push('Semantic DSL uses bare command names: ' + token.slice(0, 160)); return; }
+    var clean = token.trim();
+    var match = clean.match(/^([A-Za-z][\w-]*)\((.*)\)$/s);
     if (!match) { warnings.push('Unparsed semantic DSL: ' + token.slice(0, 160)); return; }
-    if (syntax.ALL_COMMANDS.indexOf(match[1]) < 0) { warnings.push('Unknown semantic DSL command: >' + match[1]); return; }
+    if (syntax.ALL_COMMANDS.indexOf(match[1]) < 0) { warnings.push('Unknown semantic DSL command: ' + match[1]); return; }
     var command = Object.create(null); command.type = match[1];
-    var parsedArgs = match[2] === undefined ? Object.create(null) : parseArgs(match[2]);
+    var parsedArgs = parseArgs(match[2]);
     Object.keys(parsedArgs).forEach(function(key) { command[key] = parsedArgs[key]; });
     commands.push(command);
   });

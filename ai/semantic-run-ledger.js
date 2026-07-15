@@ -7,7 +7,15 @@ function completedSummaryFor(ledger, command) { var item = ledger.completed[sign
 function recordSuccess(ledger, command, result, round) { var key = signature(command); var item = { round: round, type: command.type, command: clone(command), summary: result.summary || command.type + ' completed' }; ledger.completed[key] = item; delete ledger.failed[key]; ledger.status = 'running'; return item; }
 function recordFailure(ledger, command, error, round) { var key = signature(command || { type: 'runtime' }); var errorSignature = [command && command.type || 'runtime', error.code || 'ERROR', normalize(error.message)].join('|'); var count = (ledger.failureCounts[errorSignature] || 0) + 1; ledger.failureCounts[errorSignature] = count; var item = { round: round, type: command && command.type || 'runtime', command: clone(command || null), code: error.code || 'ERROR', message: error.message, attempts: count }; ledger.failed[key] = item; ledger.status = count >= 2 ? 'fused' : 'repairing'; return item; }
 function recordRound(ledger, round, mode, progress, summaries) { ledger.rounds.push({ round: round, mode: mode, progress: progress, summaries: clone(summaries || []) }); }
-function markCompleted(ledger, round) { ledger.status = 'completed'; ledger.failed = {}; recordRound(ledger, round, 'commit', true, ['source committed']); }
-function context(ledger) { return { schemaVersion: 1, ledgerKind: ledger.ledgerKind, goal: ledger.request, status: ledger.status, completed: Object.keys(ledger.completed).map(function(key) { var item = ledger.completed[key]; return { round: item.round, type: item.type, command: clone(item.command), summary: item.summary }; }).slice(-24), failed: Object.keys(ledger.failed).map(function(key) { return clone(ledger.failed[key]); }).slice(-8), rounds: clone(ledger.rounds.slice(-12)) }; }
+function markCompleted(ledger, round) { ledger.status = 'completed'; ledger.failed = {}; recordRound(ledger, round, 'completion', true, ['source assembled']); }
+function context(ledger) {
+  var items = Object.keys(ledger.completed).map(function(key) { return ledger.completed[key]; });
+  var latestRound = items.reduce(function(maximum, item) { return Math.max(maximum, item.round); }, 0);
+  return {
+    applied: items.filter(function(item) { return item.round === latestRound; }).map(function(item) { return { round: item.round, command: clone(item.command), result: item.summary }; }),
+    completed: items.filter(function(item) { return item.round !== latestRound; }).map(function(item) { return { round: item.round, type: item.type, summary: item.summary }; }).slice(-24),
+    failed: Object.keys(ledger.failed).map(function(key) { return clone(ledger.failed[key]); }).slice(-8)
+  };
+}
 function snapshot(ledger) { return clone(ledger); }
 module.exports = { create: create, signature: signature, completedSummaryFor: completedSummaryFor, recordSuccess: recordSuccess, recordFailure: recordFailure, recordRound: recordRound, markCompleted: markCompleted, context: context, snapshot: snapshot };

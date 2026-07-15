@@ -29,7 +29,7 @@ LLM1 creative direction
   -> source-hash-checked bound GDJS project
 ```
 
-LLM2 owns all semantic design choices. Its prompt contains rules, slot meanings, and positive fill-in forms, with no examples. The runtime owns dictionary binding, reference and parameter normalization, local execution, Source materialization, compilation, and factual feedback. Feedback is a source-bound fact batch returned to LLM2; it never selects an owner or repair route.
+LLM2 owns all semantic design choices. Its prompt contains field meanings, current Draft facts, and positive fill-in forms, with no examples. The runtime owns dictionary binding, reference and parameter normalization, local execution, Source materialization, compilation, and factual feedback. Feedback is a source-bound fact batch returned to LLM2; it never selects an owner or repair route.
 
 Asset production follows one official LangGraph path: semantic asset requirements → optional `AssetLibrary` lookup → core-node ComfyUI master candidates → deterministic candidate selection → pinned BiRefNet background removal when transparency is required → deterministic trim/fit/FrameSet derivation → accepted AssetWorld → GDJS binding → publication outbox. Its nine stages and every required module export are declared in `shared/asset-engine-contract.json` and resolved before graph invocation. Master images are transient and are never published.
 
@@ -61,7 +61,7 @@ Run the real DeepSeek Snake probe with a configured local `DEEPSEEK_API_KEY`:
 npm run debug:snake:live
 ```
 
-The probe runs LLM1 creative direction, at most three LLM2 semantic-DSL rounds within 30 seconds, incremental runtime feedback, and libGD project-seed assembly. These are probe limits, not production semantic boundaries. Production LLM2 allows at most eight rounds within 120 seconds. The probe writes the run ledger and trace to `output/semantic-live/`.
+The probe defaults to one LLM2 semantic-DSL round within 120 seconds for atomic inspection. Pass `-- --max-rounds=2` for a direct WRITE plus `complete()`, or `-- --max-rounds=3` for extension lookup, WRITE, and `complete()`. Production LLM2 allows at most eight rounds within 120 seconds. Every probe round prints raw DeepSeek output and writes the run ledger and trace to `output/semantic-live/`.
 
 The platform shell can be built with `npm run build` or developed with `npm --prefix platform run dev`.
 

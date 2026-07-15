@@ -16,9 +16,9 @@ The semantic engine is rebuilt from a pinned GDevelop source checkout. There is 
 
 ## Architecture boundary
 
-LLM1 owns creative direction. LLM2 is the final design decision maker and writes plain-text semantic DSL from positive fill-in forms. The prompt contains no examples. The LLM2 provider request has no JSON schema or JSON response format. The local runtime incrementally applies `>DSL` and materializes either a complete `GameSemanticSource` or an incremental `GameSemanticRevision`.
+LLM1 owns creative direction. LLM2 is the final design decision maker and writes one batch of canonical function-shaped semantic DSL from positive fill-in forms. The prompt contains no examples. The LLM2 provider request has no JSON schema or JSON response format. The local runtime incrementally applies `name(...)` commands and materializes either a complete `GameSemanticSource` or an incremental `GameSemanticRevision`.
 
-Both roles use DeepSeek V4 Flash with medium thinking. LLM1 uses temperature `1.5`; LLM2 uses temperature `0`. Production LLM2 allows at most eight rounds and 120 seconds. `scripts/debug-snake-real-llm.js` uses three rounds and 30 seconds as evaluation limits only.
+Both roles use DeepSeek V4 Flash with medium thinking. LLM1 uses temperature `1.5`; LLM2 uses temperature `0`. Production LLM2 allows at most eight rounds and 120 seconds. `scripts/debug-snake-real-llm.js` defaults to one round and 120 seconds for atomic inspection; callers explicitly select the phase count needed by the test.
 
 The generated GDJS Semantic Dictionary is the total runtime truth. `ai/semantic-event-algebra.js` is a dictionary-validated semantic projection: it owns names and composition such as `object.collides`, `state.number.add`, and `text.display-number`, while the dictionary alone decides whether each exact capability, kind, parameter contract, object type, behavior type, and event type exists and is executable.
 
@@ -60,9 +60,9 @@ The contract rejects routing and repair-decision fields. Feedback is provided to
 
 The event compiler emits serializer-derived event envelopes, instruction-list channels including `whileConditions`, exact event parameter defaults/emission, local-variable keys, and subevent emission. Source v4 rejects raw capability IDs, malformed expansion groups, unnormalized parameter values, expression-kind mismatches, and legacy event shapes rather than translating them.
 
-`ai/semantic-run-ledger.js` owns incremental feedback. Every successful command records its applied boundary in `[task-ledger]`; extension results accumulate in `[retrieve]`; parse, validation, assembly, parameter, and commit failures become value-safe `[errs]` facts. The next LLM2 round receives the same task plus the updated Draft and completes the remaining work. A repeated normalized failure fuses on its second occurrence.
+`ai/semantic-run-ledger.js` owns incremental feedback. Every successful command records a compact applied boundary in `[task-ledger]`; the updated Draft owns the applied semantic structure. Extension results accumulate in `[retrieve]`; parse, validation, assembly, parameter, and `complete()` failures become value-safe `[errs]` facts. Empty WORLD sections are omitted. The next LLM2 round receives the same task plus the updated Draft and completes the remaining work. A repeated normalized failure fuses on its second occurrence.
 
-`ai/semantic-llm2-runtime.js` enforces separate extension-read, Draft-write, and commit batches, keeps the complete existing Source server-side, and emits ordered `runTrace` entries through `onSemanticRound` for durable diagnosis.
+`ai/semantic-llm2-runtime.js` enforces separate extension-read, Draft-write, and `complete()` batches, keeps the complete existing Source server-side, and emits ordered `runTrace` entries through `onSemanticRound` for durable diagnosis.
 
 ## Product execution boundary
 

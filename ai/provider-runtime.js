@@ -107,7 +107,7 @@ function createProviderRuntime(options) {
 
 function selectModel(config, role, override) { if (override) return override; if (role === 'image-generate') return config.imageModel; if (role === 'vision-review') return config.visionModel || config.textModel; return config.textModel; }
 function retryable(error) { return !error || !error.code || ['AbortError', 'PROVIDER_CANCELLED', 'PROVIDER_KEY_UNAVAILABLE', 'PROVIDER_NOT_AUTHORIZED'].indexOf(error.code || error.name) < 0; }
-function failure(error) { return { code: error.code || error.name || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', message: String(error.message || error).replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]') }; }
+function failure(error) { var value = { code: error.code || error.name || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', message: String(error.message || error).replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]') }; if (error.streamDiagnostics) value.streamDiagnostics = clone(error.streamDiagnostics); if (error.partialContent) value.partialContent = String(error.partialContent); return value; }
 function debt(error) { return { code: error.code || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', recoveryStage: 'provider-runtime', blocksPublish: false }; }
 
 async function invokeHttpTransport(context) {
@@ -142,7 +142,7 @@ async function invokeDeepSeekChat(context) {
   body.temperature = input.temperature === undefined ? profile.temperature : input.temperature;
   if (input.jsonSchema) body.response_format = { type: 'json_object' };
   var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
-  return { output: { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: 'deepseek-chat-completions' } };
+  return { output: { text: result.text, reasoningText: result.reasoningText, finishReason: result.finishReason, diagnostics: result.diagnostics, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: 'deepseek-chat-completions' } };
 }
 async function invokeImageGeneration(context) {
   var input = context.request.input || {}; var requestFetch = context.fetchImpl || fetch; var response = await requestFetch(String(context.config.endpoint).replace(/\/$/, '') + '/images/generations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + context.config.apiKey }, body: JSON.stringify({ model: context.model, prompt: input.prompt, size: input.size || '1024x1024', background: input.transparent ? 'transparent' : undefined, response_format: 'b64_json' }), signal: context.signal });

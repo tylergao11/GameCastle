@@ -10,9 +10,9 @@ Runtime owns deterministic mechanics: dictionary binding, official parameter ord
 
 The semantic runtime follows Comdr's incremental control model: semantic DSL → local incremental execution → runtime feedback → remaining work. Stable foundation event operations are present in the prompt before the first write. `retrieve` reads one selected extension kind and exposes its exact dictionary operations when the design extends beyond the direct foundation forms. Successful commands and failures enter `task-ledger`; the next round receives the updated semantic Draft and completes the remaining work. The same normalized failure fuses on its second occurrence.
 
-LLM2 receives rules, slot meanings, current WORLD state, and positive fill-in syntax, then returns plain-text `>DSL` commands. The prompt contains no examples. Its provider request does not set a JSON schema or JSON response format. JSON-compatible quoting is used only inside DSL values that are strings, arrays, objects, or nested expression slots.
+LLM2 receives field meanings, current Draft facts, the previous applied batch, and positive fill-in syntax, then returns one batch of canonical `name(...)` commands. The prompt contains no examples. Its provider request does not set a JSON schema or JSON response format. JSON-compatible quoting is used inside DSL strings, arrays, objects, and nested expression parameters. Draft event operations expose `operationId`; updates use that identifier through `replace`.
 
-Production LLM2 is bounded to eight rounds and 120 seconds. The real Snake evaluation script deliberately overrides these values to three rounds and 30 seconds; those probe limits are not semantic-engine boundaries.
+Production LLM2 is bounded to eight rounds and 120 seconds. The real Snake probe defaults to one round and 120 seconds for atomic inspection; tests explicitly select two rounds for direct WRITE plus `complete()` or three for extension lookup plus WRITE plus `complete()`.
 
 ## Deterministic graph
 

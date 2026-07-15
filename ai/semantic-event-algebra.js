@@ -287,8 +287,8 @@ OPERATIONS.forEach(function(item) {
 
 function requiredFields(item) { return Object.keys(item.fields || {}).filter(function(key) { return !/ optional$/.test(item.fields[key]); }); }
 function validateFields(item, args) {
-  Object.keys(args).forEach(function(key) { if (!Object.prototype.hasOwnProperty.call(item.fields, key)) fail('SEMANTIC_ALGEBRA_FIELD_INVALID', item.key + ' has no slot named ' + key + '. Fill: ' + Object.keys(item.fields).join(', ')); });
-  requiredFields(item).forEach(function(key) { if (!Object.prototype.hasOwnProperty.call(args, key)) fail('SEMANTIC_ALGEBRA_FIELD_MISSING', item.key + ' requires slot ' + key + '. Fill: ' + Object.keys(item.fields).join(', ')); });
+  Object.keys(args).forEach(function(key) { if (!Object.prototype.hasOwnProperty.call(item.fields, key)) fail('SEMANTIC_ALGEBRA_FIELD_INVALID', item.key + ' has no parameter named ' + key + '. Fill: ' + Object.keys(item.fields).join(', ')); });
+  requiredFields(item).forEach(function(key) { if (!Object.prototype.hasOwnProperty.call(args, key)) fail('SEMANTIC_ALGEBRA_FIELD_MISSING', item.key + ' requires parameter ' + key + '. Fill: ' + Object.keys(item.fields).join(', ')); });
 }
 function resolveEntry(index, capabilityId, expectedKind) {
   var entry = index.by_capability[capabilityId];
@@ -305,7 +305,7 @@ function assertAdapterContract(entry, args, label) {
 }
 function compileNested(value, runtime) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return clone(value);
-  if (typeof value.use !== 'string') fail('SEMANTIC_ALGEBRA_EXPRESSION_INVALID', 'Nested expression requires a use slot.');
+  if (typeof value.use !== 'string') fail('SEMANTIC_ALGEBRA_EXPRESSION_INVALID', 'Nested expression requires a use field.');
   var args = clone(value); delete args.use;
   var invocations = compile(value.use, null, args, runtime);
   if (invocations.length !== 1 || (invocations[0].kind !== 'number-expression' && invocations[0].kind !== 'string-expression')) fail('SEMANTIC_ALGEBRA_EXPRESSION_INVALID', value.use + ' does not produce one expression.');
@@ -378,7 +378,13 @@ function probeExpansion(index, item, scope, variant, presentOptional, booleanVal
   return compile(item.key, item.kind, probeArguments(item, variant, presentOptional, booleanValues), {
     index: index,
     memberScope: function() { return scope; },
-    normalize: function(_entry, values) { return clone(values); }
+    normalize: function(entry, values) {
+      var normalized = clone(values);
+      entry.parameter_contract.parameters.filter(function(parameter) { return parameter.kind !== 'code-only'; }).forEach(function(parameter) {
+        if (parameter.runtimeNormalization === 'boolean-token' && typeof normalized[parameter.semanticKey] === 'boolean') normalized[parameter.semanticKey] = parameter.runtimeValues[normalized[parameter.semanticKey] ? 0 : 1];
+      });
+      return normalized;
+    }
   });
 }
 function expansionPattern(left, right) {
@@ -502,19 +508,27 @@ function initialize(index) {
   Object.keys(EVENT_KINDS).forEach(function(key) { dictionary.resolveEventType(index, EVENT_KINDS[key]); });
   return index;
 }
-function fieldText(index, item) { return Object.keys(item.fields).map(function(key) { var shape = item.fields[key] === 'dictionary-token' ? openTokenDomain(index, item, key).join('|') : item.fields[key]; return key + ':' + clean(shape); }).join(','); }
+function promptToken(value) { return JSON.stringify(value).replace(/\|/g, '\\u007c'); }
+function tokenDomain(values) { return 'oneOf(' + values.map(promptToken).join(',') + ')'; }
+function fieldText(index, item) { return Object.keys(item.fields).map(function(key) { var raw = item.fields[key]; var shape = raw === 'dictionary-token' ? tokenDomain(openTokenDomain(index, item, key)) : raw === 'true|false' ? 'oneOf(true,false)' : clean(raw); return key + '=' + shape; }).join(','); }
 function promptLines(index) {
   index = initialize(index || dictionary.loadIndex());
   return OPERATIONS.map(function(item) { return [item.kind, item.key, fieldText(index, item), item.summary].join('|'); });
 }
 function eventParameterText(parameter) {
-  var type = parameter.runtimeNormalization === 'dictionary-token' ? parameter.runtimeValues.join('|') : parameter.promptType;
-  return parameter.semanticKey + ':' + type + (parameter.optional ? ' optional' : '');
+  var type = parameter.runtimeNormalization === 'dictionary-token' ? tokenDomain(parameter.runtimeValues) : parameter.promptType;
+  return parameter.semanticKey + '=' + type + (parameter.optional ? ' optional' : '');
 }
 function eventKindLines(index) {
   return Object.keys(EVENT_KINDS).map(function(kind) {
     var entry = dictionary.resolveEventType(index, EVENT_KINDS[kind]);
-    return kind + '|' + (entry.serialization.parameters || []).map(eventParameterText).join(',');
+    var grammar = entry.grammar || {};
+    var channels = [
+      grammar.hasConditions ? 'when' : null,
+      grammar.hasActions ? 'then' : null,
+      grammar.canHaveSubEvents ? 'child-event' : null
+    ].filter(Boolean).join('+') || 'structure-only';
+    return kind + '|commands:' + channels + '|parameters:' + (entry.serialization.parameters || []).map(eventParameterText).join(',');
   });
 }
 function normalizeEventValue(parameter, value, runtime) {
@@ -536,8 +550,8 @@ function normalizeEventValue(parameter, value, runtime) {
 function compileEventEntry(entry, args, runtime) {
   var parameters = entry.serialization.parameters || [];
   var byKey = Object.create(null); parameters.forEach(function(parameter) { byKey[parameter.semanticKey] = parameter; });
-  Object.keys(args).forEach(function(key) { if (!byKey[key]) fail('SEMANTIC_EVENT_FIELD_INVALID', entry.explanation.title + ' has no slot named ' + key + '. Fill: ' + parameters.map(function(parameter) { return parameter.semanticKey; }).join(', ')); });
-  parameters.filter(function(parameter) { return !parameter.optional; }).forEach(function(parameter) { if (!Object.prototype.hasOwnProperty.call(args, parameter.semanticKey)) fail('SEMANTIC_EVENT_FIELD_MISSING', entry.explanation.title + ' requires slot ' + parameter.semanticKey + '.'); });
+  Object.keys(args).forEach(function(key) { if (!byKey[key]) fail('SEMANTIC_EVENT_FIELD_INVALID', entry.explanation.title + ' has no parameter named ' + key + '. Fill: ' + parameters.map(function(parameter) { return parameter.semanticKey; }).join(', ')); });
+  parameters.filter(function(parameter) { return !parameter.optional; }).forEach(function(parameter) { if (!Object.prototype.hasOwnProperty.call(args, parameter.semanticKey)) fail('SEMANTIC_EVENT_FIELD_MISSING', entry.explanation.title + ' requires parameter ' + parameter.semanticKey + '.'); });
   var normalized = Object.create(null);
   parameters.forEach(function(parameter) {
     var present = Object.prototype.hasOwnProperty.call(args, parameter.semanticKey);

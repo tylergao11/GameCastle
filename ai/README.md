@@ -21,7 +21,7 @@ No undocumented GDJS capability is inferred. A declaration is either executable,
 | `semantic-draft.js` | Executes open event DSL locally, builds nested event trees, expands one semantic operation into ordered invocations, allocates runtime slots, and materializes strict Source/Revision documents. |
 | `semantic-run-ledger.js` | Records the completed DSL boundary and drives incremental continuation, repair, and fuse feedback. |
 | `semantic-run-pipeline.js` | Applies one parsed batch left to right and returns runtime feedback plus remaining work. |
-| `semantic-llm2-runtime.js` | Runs extension-read, Draft-write, and commit rounds against DeepSeek V4 Flash. |
+| `semantic-llm2-runtime.js` | Runs extension-read, Draft-write, and `complete()` rounds against DeepSeek V4 Flash. |
 | `semantic-compiler.js` | Source to official GDJS events. |
 | `semantic-asset-compiler.js` | Source to source-bound asset requirements, including resource kind and accepted formats. |
 | `semantic-layout-compiler.js` | Source to declared layout realization. |
@@ -33,9 +33,9 @@ No undocumented GDJS capability is inferred. A declaration is either executable,
 
 ## Invariants
 
-- LLM2 writes plain-text semantic DSL through positive fill-in forms. The prompt contains no examples. Its provider call has no JSON schema or JSON response format; runtime parses and executes `>DSL` batches.
+- LLM2 writes one function-shaped semantic DSL batch through positive fill-in forms. The prompt contains no examples. Its provider call has no JSON schema or JSON response format; runtime parses and executes canonical `name(...)` commands.
 - LLM1 and LLM2 use DeepSeek V4 Flash with medium thinking. LLM1 temperature is `1.5`; LLM2 temperature is `0`.
-- Production LLM2 is bounded to eight rounds and 120 seconds. The Snake live probe overrides those values to three rounds and 30 seconds for evaluation only.
+- Production LLM2 is bounded to eight rounds and 120 seconds. The Snake live probe defaults to one round and 120 seconds; atomic tests explicitly select two rounds for WRITE plus `complete()` or three for extension lookup plus WRITE plus `complete()`.
 - Foundation event operations are stable prompt constructors derived from one event algebra. `retrieve` exposes exact dictionary operations from a selected extension when the design needs semantic space beyond those direct forms.
 - The generated GDJS Semantic Dictionary is the total production truth for capabilities, official runtime parameter order/type/optionality/defaults, generated normalization/value domains, object types, behavior types, event grammar, and runtime availability.
 - The event algebra owns semantic composition only. Initialization validates structural expansion variants, so an exact binding, kind, parameter, fixed operator, ordering rule, or nested expression drift fails closed.

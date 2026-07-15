@@ -26,12 +26,64 @@ var userPrompt = prompt.buildUserPrompt({ userRequest: 'jump a little higher', c
 assert.strictEqual(userPrompt.indexOf('"value":110'), -1, 'prompt world context must not disclose current values');
 assert.strictEqual(/gdjs:\/\//.test(userPrompt), false, 'prompt context must expose runtime handles rather than internal references');
 var systemPrompt = prompt.buildSystemPrompt();
-['GameCastle Semantic Commander', 'Role', 'Output', 'WORLD', 'Slot Meanings', 'Foundation Operations', 'Extension Reads', 'DSL', 'Batch Shape', 'Values'].forEach(function(section) {
-  assert(systemPrompt.indexOf(section) >= 0, 'LLM2 prompt must retain Comdr-style fill-in section: ' + section);
+['GameCastle Semantic Commander', 'RESPONSE|one DSL batch; prose=0; command separator:semicolon or line break', 'OWNER|', 'RUNTIME|', 'DRAFT|', 'SELECT|', 'WORK_COMMANDS', 'FIELD_RULES'].forEach(function(section) {
+  assert(systemPrompt.indexOf(section) >= 0, 'LLM2 prompt must retain compact executable protocol: ' + section);
 });
-assert(systemPrompt.indexOf('Design values come from [task] and [creative-vision]') >= 0, 'LLM2 must be allowed to write design values for a new source');
+assert(systemPrompt.indexOf('DESIGN_VALUE|fill from [task] and [creative-vision]') >= 0, 'LLM2 must be allowed to write design values for a new source');
 assert.strictEqual(/search_semantic_members|list_object_types|semantic-context-request|semantic-parameter-request/.test(systemPrompt), false, 'retired query and JSON request protocols stay absent from the prompt');
 assert(!/\bnever\b|don't|\btemplate\b|\bexample\b/i.test(systemPrompt), 'LLM2 prompt must use positive fill-in guidance without template cases or prohibitive phrasing');
-assert(userPrompt.indexOf('condition|input.key.just-pressed|') >= 0, 'foundation event algebra must be task-independent prompt context');
+assert(userPrompt.indexOf('[condition-uses]') >= 0 && userPrompt.indexOf('\ninput.key.just-pressed|') >= 0, 'condition use must be the first field in its own table');
+assert(userPrompt.indexOf('[action-uses]') >= 0 && userPrompt.indexOf('\nobject.create|') >= 0, 'action use must be the first field in its own table');
+assert.strictEqual(/operator:=\|/.test(userPrompt), false, 'dictionary token domains must not collide with DSL key=value syntax or table separators');
+assert(/operator=oneOf\("="/.test(userPrompt), 'foundation dictionary operators must expose one unambiguous quoted value domain');
+var audioGroup = references.parameterContext().extensionGroups.filter(function(row) { return row.split('|')[1] === 'BuiltinAudio'; })[0].split('|')[0];
+var audioOperations = references.retrieve({ type: 'retrieve', group: audioGroup, kind: 'action' }).operations.join('\n');
+assert(audioOperations.indexOf('operator=oneOf("=","+","-","*","/")') >= 0 && audioOperations.indexOf('operator:=|') < 0, 'retrieved extension operators must preserve DSL field and value boundaries');
+assert(userPrompt.indexOf('[condition-uses]') < userPrompt.indexOf('[task]') && userPrompt.indexOf('[extension-groups]') < userPrompt.indexOf('[task]'), 'stable capability tables must form the cacheable prefix before dynamic task state');
+assert.strictEqual(userPrompt.indexOf('condition|input.key.just-pressed|'), -1, 'operation kind must not prefix the selectable use');
+assert(userPrompt.indexOf('group|commands:child-event|parameters:') >= 0, 'event-kind context must expose the group child-event command');
+assert(userPrompt.indexOf('rule|commands:when+then+child-event|parameters:') >= 0, 'event-kind context must expose rule logic commands');
+assert(systemPrompt.indexOf('APPLIED|[applied] contains the previous batch commands accepted by runtime and their results') >= 0, 'LLM2 must receive exact runtime application receipts');
+assert(systemPrompt.indexOf('DRAFT|[draft] is read-only runtime-applied facts') >= 0 && systemPrompt.indexOf('WRITE|fill command fields from WORK_COMMANDS') >= 0, 'Draft facts and writable command fields must have distinct owners');
+assert(systemPrompt.indexOf('USES|entries in the four *-uses tables are directly executable') >= 0, 'foundation uses must be identified as directly executable');
+assert(systemPrompt.indexOf('EXTENSION_LOOKUP|capability absent from four *-uses tables=>output retrieve(group=gHandle,kind=') >= 0 && systemPrompt.indexOf('alone; results appear in [retrieve] next response') >= 0, 'extension lookup must expose its independent response boundary and next-response result');
+assert.strictEqual(/^RETRIEVE\|/m.test(systemPrompt), false, 'instruction labels must not reuse the retrieve DSL command name');
+assert(systemPrompt.indexOf('SELECT|[draft]+[applied] agree with [task]=>output complete() alone; otherwise=>output one command batch from WORK_COMMANDS') >= 0, 'LLM2 must compare Draft truth and applied plan with the task');
+assert.strictEqual((systemPrompt.match(/complete\(\)/g) || []).length, 1, 'complete() must stay outside the work command table');
+assert.strictEqual(/\bcommit\b/i.test(systemPrompt), false, 'transactional commit wording must stay outside the LLM2 completion protocol');
+assert(systemPrompt.indexOf('CHANGE_RESULT|runtime applies change commands after this response; results appear in [draft] on the next response') >= 0, 'write results must belong to the next response Draft');
+assert(systemPrompt.indexOf('REPAIR|preserve current [draft]') >= 0, 'repair must preserve applied incremental facts');
+assert(systemPrompt.indexOf('OPTIONAL|omit unfilled optional parameters') >= 0, 'optional parameters must be omitted instead of filled with null');
+assert(systemPrompt.indexOf('STRING_ARRAY|nonEmptyStringArray=>JSON array with at least one JSON string;stringArray=>JSON array of JSON strings') >= 0, 'required roles and optional lists must expose their different cardinality');
+assert.strictEqual(systemPrompt.indexOf('roles=[...roles]'), -1, 'pseudo-array placeholders must not compete with the JSON string-array slot');
+assert(systemPrompt.indexOf('UPDATE_OPERATION|replace=>operationId from [draft]') >= 0, 'event operation revision must identify the Draft operation without shadowing its DSL field');
+assert.strictEqual(/^(SLOT|REPLACE)\|/m.test(systemPrompt), false, 'instruction labels must not shadow Draft or DSL field names');
+assert.strictEqual(/slot/i.test(systemPrompt), false, 'slot terminology must stay outside LLM2 because parameters and operation identifiers are different concepts');
+assert(systemPrompt.indexOf('VALUE|text=>one JSON string and runtime builds its string expression') >= 0, 'plain text must have one owner before runtime expression construction');
+assert(systemPrompt.indexOf('ROOT_EVENT|omit parent') >= 0, 'root event form must omit parent');
+assert(systemPrompt.indexOf('CHILD_EVENT|parent=>existing event semanticId') >= 0, 'child event form must require an existing parent');
+assert.strictEqual(/READ DSL|WRITE DSL|COMMIT DSL|\[current-round\]/.test(systemPrompt + userPrompt), false, 'response-shaped round labels stay absent');
+var emptyOptionalPrompt = prompt.buildUserPrompt({ userRequest: 'jump', creativeVision: '', context: commanderContext.build(references, draft, 'jump', '', [], runLedger), feedbackBatch: null });
+assert.strictEqual(emptyOptionalPrompt.indexOf('[creative-vision]'), -1, 'empty WORLD sections stay absent');
+assert.strictEqual(userPrompt.indexOf('[retrieve]'), -1, 'empty retrieve facts stay absent');
+assert.strictEqual(userPrompt.indexOf('[errs]'), -1, 'empty errors stay absent');
 assert.strictEqual(/\bc\d+\|/.test(userPrompt), false, 'foundation prompt must not expose raw capability handles');
-console.log('[SemanticSessionLedger] no-value baseline, structural diff, and event-algebra prompt policy passed');
+var touchedDraft = draftApi.create(references, committed.source);
+draftApi.execute(touchedDraft, { type: 'member', entity: 'player', semanticId: 'jump_height', roles: ['movement'], value: 125, bindings: [] });
+assert.strictEqual(draftApi.structure(touchedDraft).entities[0].members[0].value, 125, 'runtime-applied member values must return through the next Draft');
+var booleanDraft = draftApi.create(references, null);
+[
+  { type: 'game', semanticId: 'boolean_demo', name: 'Boolean Demo' },
+  { type: 'entity', semanticId: 'GameState', roles: ['state'], kind: 'state', behaviors: [] },
+  { type: 'member', entity: 'GameState', semanticId: 'gameOver', roles: ['game-state'], value: false, bindings: [] },
+  { type: 'event', semanticId: 'set_game_over', kind: 'rule' },
+  { type: 'when', event: 'set_game_over', use: 'always' },
+  { type: 'then', event: 'set_game_over', use: 'state.boolean.set', target: 'GameState.gameOver', value: true }
+].forEach(function(command) { draftApi.execute(booleanDraft, command); });
+var booleanStructure = draftApi.structure(booleanDraft);
+assert.deepStrictEqual(booleanStructure.events[0].actions[0].arguments, { target: 'GameState.gameOver', value: true }, 'Draft completion facts retain the accepted semantic action values');
+assert.strictEqual(JSON.stringify(draftApi.materialize(booleanDraft)).indexOf('_semanticArguments'), -1, 'runtime-only semantic feedback metadata stays outside GameSemanticSource');
+assert.throws(function() { draftApi.execute(draftApi.create(references, null), { type: 'entity', semanticId: 'empty_role', roles: [], kind: 'sprite', behaviors: [] }); }, function(error) { return error.code === 'SEMANTIC_DRAFT_VALUE_INVALID' && /at least one item/.test(error.message); }, 'Draft must reject an empty required role list in the WRITE round');
+assert.doesNotThrow(function() { sourceContract.validateSource(draftApi.materialize(booleanDraft), { index: index }); }, 'boolean-token expansion validation must share dictionary normalization with Draft compilation');
+assert.throws(function() { draftApi.execute(draftApi.create(references, null), { type: 'event', semanticId: 'root', kind: 'rule', parent: null }); }, function(error) { return error.code === 'SEMANTIC_DRAFT_VALUE_INVALID' && /root events omit parent/.test(error.message); }, 'null parent feedback must state the root-event slot fact');
+console.log('[SemanticSessionLedger] compact WORLD, no-value baseline, structural diff, and event-algebra prompt policy passed');

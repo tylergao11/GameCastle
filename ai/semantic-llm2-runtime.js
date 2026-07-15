@@ -50,24 +50,24 @@ function create(options) {
       try { parsed = parser.parse(output); } catch (error) { parsed = { commands: [], warnings: [error.message], parseError: error }; }
       var validation = pipeline.validate(parsed.commands, parsed.warnings);
       var mode = validation.ok ? validation.mode : 'invalid';
-      var progress = false, summaries = [], roundEntry = { kind: mode, round: round, requestId: result.receipt && result.receipt.receiptId || null, output: output, commands: clone(parsed.commands), warnings: clone(parsed.warnings || []), results: [] };
+      var progress = false, summaries = [], roundEntry = { kind: mode, round: round, requestId: result.receipt && result.receipt.receiptId || null, output: output, provider: { finishReason: result.output && result.output.finishReason || null, diagnostics: clone(result.output && result.output.diagnostics || null), usage: clone(result.receipt && result.receipt.usage || {}) }, commands: clone(parsed.commands), warnings: clone(parsed.warnings || []), results: [] };
 
       if (!validation.ok) {
         var invalidError = parsed.parseError || new Error(validation.message); invalidError.code = invalidError.code || validation.code; invalidError.owner = invalidError.owner || 'SemanticRunPipeline';
         var invalidLedger = ledgerApi.recordFailure(ledger, { type: 'batch' }, invalidError, round);
         roundEntry.results.push({ ok: false, code: invalidLedger.code, message: invalidLedger.message });
-      } else if (mode === 'commit') {
+      } else if (mode === 'completion') {
         try {
           var source, revision = null;
           if (draft.baseSource) { revision = draftApi.revision(draft); source = sourceContract.applyRevision(draft.baseSource, revision, { index: index }); }
           else source = sourceContract.validateSource(draftApi.materialize(draft), { index: index });
           var assembly = runtimeLinker.assemble(source, { index: index });
-          ledgerApi.recordSuccess(ledger, parsed.commands[0], { summary: 'semantic source committed and assembled' }, round);
+          ledgerApi.recordSuccess(ledger, parsed.commands[0], { summary: 'semantic source validated and assembled' }, round);
           ledgerApi.markCompleted(ledger, round);
-          roundEntry.results.push({ ok: true, summary: 'semantic source committed and assembled' });
+          roundEntry.results.push({ ok: true, summary: 'semantic source validated and assembled' });
           trace.push(roundEntry); report(input, roundEntry);
           return { ok: true, document: revision ? { source: source, revision: revision, assembly: assembly } : { source: source, assembly: assembly }, receipt: result.receipt, runTrace: trace, runLedger: ledgerApi.snapshot(ledger), rounds: round };
-        } catch (error) { var commitFailure = ledgerApi.recordFailure(ledger, parsed.commands[0], error, round); roundEntry.results.push({ ok: false, code: commitFailure.code, message: commitFailure.message }); }
+        } catch (error) { var completionFailure = ledgerApi.recordFailure(ledger, parsed.commands[0], error, round); roundEntry.results.push({ ok: false, code: completionFailure.code, message: completionFailure.message }); }
       } else {
         for (var i = 0; i < parsed.commands.length; i++) {
           var command = parsed.commands[i];
