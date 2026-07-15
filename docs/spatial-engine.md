@@ -11,7 +11,9 @@ The first assembly coordinate space is the selected GDJS scene canvas: project w
 | Spatial intent | `GameSemanticSource` + semantic layout dictionary | Roles, legal regions, percentage safe areas, anchor preferences, overlap policy, layer/z-order bounds, and reservation. No resolved coordinates. |
 | Component facts | Source component instances + `semantic-component-expansion` | Component purpose, config, bindings, and generated semantic members/entities/layouts/events. |
 | Resource acceptance | Asset Engine / `semantic-asset-world` | Accepted resources. Spatial planning does not rate, replace, or generate them. |
-| Native geometry | canonical geometry-fact producer | Native size, drawable boundary, object origin, and pinned GDJS coordinate evidence. |
+| Native geometry | canonical geometry-fact producer | Native size, drawable boundary, and object origin. |
+| GDJS spatial semantics | generated `gdevelop-spatial-coordinate-truth` | Fixed-version coordinates, initial camera mapping, layer order, and z-order scope. |
+| Planning space | Spatial Runtime | Exact coordinate frame, layer stack, and dictionary-derived legal pixel regions for the selected scene. |
 | First layout candidate | Spatial Planner visual LLM | Direct GDJS object-origin positions, display sizes, angle, and legal layer/z-order choices. |
 | Final spatial truth | `spatial-layout-resolution` | The only accepted spatial result. |
 | Projection, preview, trace | GDJS Spatial Adapter / Spatial Planner Trace | Derived execution and diagnostic evidence; none is another layout truth. |
@@ -22,10 +24,12 @@ The first assembly coordinate space is the selected GDJS scene canvas: project w
 flowchart LR
   S["Semantic source + component/layout facts"] --> I["Spatial assembly input\nfrozen facts + GDJS scene canvas"]
   A["Accepted AssetWorld + native geometry"] --> I
-  I --> C["Spatial Planner\nvisual LLM emits direct DSL"]
+  G["Pinned GDevelop source\ncoordinate/camera/layer evidence"] --> P["Spatial Planning Space\nframe + layers + legal pixels"]
+  I --> P
+  P --> C["Spatial Planner\nvisual LLM emits spatial DSL"]
   C --> V["Spatial Runtime\nvalidate candidate"]
-  V --> P["Candidate GDJS projection"]
-  P --> R["Same-path preview"]
+  V --> J["Candidate GDJS projection"]
+  J --> R["Same-path preview"]
   R --> C
   R --> X["Later-round ACCEPT"]
   X --> T["spatial-layout-resolution\nonly spatial truth"]
@@ -36,7 +40,17 @@ The graph is implemented in `ai/spatial-planner-langgraph.js`. Contract-declared
 
 ## Planner input and output
 
-The visual LLM receives one frozen, hash-bound semantic view: entity roles/state, asset descriptions, component config and expansion, interaction facts, layout relations, ordered accepted-image references, and exact GDJS scene/camera facts. Every round declares the complete provider image order with explicit `imageRef` values; after a candidate, the same list also names that candidate's GDJS-derived preview.
+The visual LLM receives one frozen, hash-bound semantic view: entity roles/state, asset descriptions, component config and expansion, interaction facts, ordered accepted-image references, and `spatial-planning-space`. Every round declares the complete provider image order with explicit `imageRef` values; after a candidate, the same list also names that candidate's GDJS-derived preview.
+
+`spatial-planning-space` is deterministically derived from three inputs only: the generated fixed-version GDJS spatial truth, the selected scene canvas, and the frozen layout-dictionary snapshot. For the supported initial default camera it states explicitly:
+
+- `(0, 0)` is the initial visible top-left; positive X points right and positive Y points down;
+- `x` and `y` address the object's GDevelop origin, while `width` and `height` are display size; positive angles are clockwise degrees;
+- project layers are ordered back-to-front, so a higher layer index draws in front;
+- `zOrder` is scoped to one layer; a higher value draws in front and equal values retain stable instance order;
+- each subject's legal pixel rectangle is resolved from the dictionary-owned percentage safe area and the selected design resolution.
+
+The Planner therefore chooses real coordinates inside an explicit frame. It does not infer a screen from images, invent legal regions, or calculate safe-area pixels itself.
 
 It returns only `spatial-dsl-v1`:
 
@@ -46,6 +60,8 @@ ACCEPT
 ```
 
 A PLACE program contains every scene-instance subject. `ACCEPT` is a standalone later-round response for an already projected and previewed candidate.
+
+`spatial-dsl-v1` and LLM2's `semantic-dsl-v1` are separate languages with separate parsers, runtimes, errors, and traces. Their prompts share the same concise slot-oriented discipline, not commands or parser paths. The Spatial Planner never emits GDJS JSON: the GDJS Spatial Adapter alone projects an accepted spatial resolution into `layout.instances`.
 
 ## External-round trace
 
@@ -58,8 +74,9 @@ These files exist for diagnosis and later training provenance. They are evidence
 `runtime/spatial/` never generates the first draft. It validates:
 
 - source, dictionary, component expansion, AssetWorld, asset-bound project, and assembly-input identity;
+- the exact seed-owned spatial request, layout plan, reconstructed intent snapshot, and scene canvas at every Planner/Adapter boundary that holds the asset-bound seed;
 - declared subjects, GDJS object names, object origins, native drawable bounds, display sizes, layers, and camera facts;
-- semantic reservations, safe-area percentages or grid scope, declared layers, z-order ranges, and reject-overlap groups;
+- the generated coordinate truth, exact planning-space derivation, legal pixel regions, declared layers, z-order ranges, grid scope, and reject-overlap groups;
 - the actual candidate projection and preview documents supplied to a later acceptance round.
 
 Dictionary anchor preferences guide the visual model. Runtime does not turn those preferences into exact coordinates, so the model remains the layout authority while hard legality remains deterministic.

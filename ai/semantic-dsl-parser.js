@@ -66,4 +66,4 @@ function parse(text) {
   return { commands: commands, warnings: warnings };
 }
 
-module.exports = { parse: parse, parseArgs: parseArgs, split: split };
+module.exports = { LANGUAGE_ID: syntax.LANGUAGE_ID, parse: parse, parseArgs: parseArgs, split: split };

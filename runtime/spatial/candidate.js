@@ -24,24 +24,15 @@ function verifyContentHash(value, prefix, label, code) {
 function sha256(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }
 
 function indexInput(input) {
-  var intents = Object.create(null), subjects = Object.create(null), geometry = Object.create(null);
+  var intents = Object.create(null), subjects = Object.create(null), geometry = Object.create(null), planning = Object.create(null);
   input.layoutIntentSnapshot.intents.forEach(function(intent) { intents[intent.subject] = intent; });
   input.sceneSubjects.forEach(function(subject) { subjects[subject.subject] = subject; });
   input.geometryFacts.facts.forEach(function(fact) {
     if (!geometry[fact.subject]) geometry[fact.subject] = Object.create(null);
     geometry[fact.subject][fact.kind] = fact;
   });
-  return { intents: intents, subjects: subjects, geometry: geometry };
-}
-function safeRect(input, intent, code) {
-  var placement = intent.relation.placement, safeArea = input.layoutIntentSnapshot.coordinateContract.safeAreas[placement.safeArea];
-  if (!safeArea || typeof safeArea !== 'object') fail(code, 'Dictionary relation references an unavailable safe area: ' + placement.safeArea);
-  ['leftFraction', 'topFraction', 'rightFraction', 'bottomFraction'].forEach(function(field) {
-    if (typeof safeArea[field] !== 'number' || !Number.isFinite(safeArea[field]) || safeArea[field] < 0 || safeArea[field] >= 1) fail(code, 'Dictionary safe area has an invalid fraction: ' + placement.safeArea + '.' + field);
-  });
-  var canvas = input.sceneCanvas, left = canvas.width * safeArea.leftFraction, top = canvas.height * safeArea.topFraction, right = canvas.width * (1 - safeArea.rightFraction), bottom = canvas.height * (1 - safeArea.bottomFraction);
-  if (right <= left || bottom <= top) fail(code, 'Dictionary safe area has no drawable area: ' + placement.safeArea);
-  return { left: left, top: top, right: right, bottom: bottom, width: right - left, height: bottom - top };
+  input.planningSpace.subjects.forEach(function(subject) { planning[subject.subject] = subject; });
+  return { intents: intents, subjects: subjects, geometry: geometry, planning: planning };
 }
 function renderRect(placement, renderGeometry) {
   var scaleX = placement.width / renderGeometry.nativeSize.width, scaleY = placement.height / renderGeometry.nativeSize.height, drawable = renderGeometry.drawableBounds, radians = placement.angle * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians);
@@ -87,17 +78,17 @@ function validatePlacementSet(inputValue, placements, options) {
   array(placements, options && options.label || 'Spatial placements', code);
   var normalized = placements.map(function(raw, index) {
     var placement = normalizePlacement(raw, (options && options.label || 'Spatial placements') + '[' + index + ']', code, !!(options && options.includeObjectName));
-    var sceneSubject = indexed.subjects[placement.subject], intent = indexed.intents[placement.subject], geometry = indexed.geometry[placement.subject] && indexed.geometry[placement.subject]['render-geometry'];
-    if (!sceneSubject || !intent) fail('SPATIAL_CANDIDATE_SCOPE_INVALID', 'Spatial placement targets a subject outside the scene-instance declaration: ' + placement.subject);
+    var sceneSubject = indexed.subjects[placement.subject], intent = indexed.intents[placement.subject], planning = indexed.planning[placement.subject], geometry = indexed.geometry[placement.subject] && indexed.geometry[placement.subject]['render-geometry'];
+    if (!sceneSubject || !intent || !planning) fail('SPATIAL_CANDIDATE_SCOPE_INVALID', 'Spatial placement targets a subject outside the scene-instance declaration: ' + placement.subject);
     if (!geometry) fail('SPATIAL_CANDIDATE_GEOMETRY_MISSING', 'Spatial placement is missing native render geometry: ' + placement.subject);
     if (seen[placement.subject]) fail('SPATIAL_CANDIDATE_DUPLICATE', 'Spatial placement duplicates subject: ' + placement.subject); seen[placement.subject] = true;
-    if (placement.layer !== intent.relation.placement.layer) fail('SPATIAL_CANDIDATE_LAYER_INVALID', 'Spatial placement must use the dictionary-declared layer for ' + placement.subject);
+    if (placement.layer !== planning.layer.name) fail('SPATIAL_CANDIDATE_LAYER_INVALID', 'Spatial placement must use the dictionary-derived planning layer for ' + placement.subject);
     if (!input.sceneCanvas.layers.some(function(layer) { return layer.name === placement.layer; })) fail('SPATIAL_CANDIDATE_LAYER_INVALID', 'Spatial placement targets a missing GDJS layer: ' + placement.layer);
-    var zOrderRange = intent.relation.placement.zOrderRange;
+    var zOrderRange = planning.zOrderRange;
     if (!zOrderRange || placement.zOrder < zOrderRange.minimum || placement.zOrder > zOrderRange.maximum) fail('SPATIAL_CANDIDATE_ZORDER_INVALID', 'Spatial placement zOrder must remain in the dictionary-declared range for ' + placement.subject);
-    if (placement.width < intent.reservation.width || placement.height < intent.reservation.height) fail('SPATIAL_CANDIDATE_RESERVATION_INVALID', 'Spatial placement display size must reserve the semantic layout bounds for ' + placement.subject);
+    if (placement.width < planning.reservation.width || placement.height < planning.reservation.height) fail('SPATIAL_CANDIDATE_RESERVATION_INVALID', 'Spatial placement display size must reserve the semantic layout bounds for ' + placement.subject);
     if (options && options.includeObjectName && placement.objectName !== sceneSubject.objectName) fail('SPATIAL_CANDIDATE_OBJECT_INVALID', 'Spatial placement objectName does not match the declared GDJS object for ' + placement.subject);
-    var rect = renderRect(placement, geometry), safe = safeRect(input, intent, code), relation = intent.relation.placement;
+    var rect = renderRect(placement, geometry), safe = planning.legalRegion.rect, relation = planning;
     if (!inRect(rect, safe, tolerance)) fail('SPATIAL_CANDIDATE_BOUNDS_INVALID', 'Spatial placement drawable bounds leave its dictionary safe area: ' + placement.subject);
     var gridCell = null;
     if (relation.mode === 'region') {
@@ -110,12 +101,12 @@ function validatePlacementSet(inputValue, placements, options) {
     } else {
       fail(code, 'Spatial planner does not materialize unknown placement mode: ' + relation.mode);
     }
-    return { placement: placement, intent: intent, objectName: sceneSubject.objectName, visualRect: rect, safeRect: safe, gridCell: gridCell };
+    return { placement: placement, intent: intent, planning: planning, objectName: sceneSubject.objectName, visualRect: rect, safeRect: safe, gridCell: gridCell };
   });
   if (normalized.length !== expected.length || expected.some(function(subject) { return !seen[subject.subject]; })) fail('SPATIAL_CANDIDATE_COMPLETENESS_INVALID', 'Spatial candidate must contain all and only declared scene-instance subjects');
   for (var left = 0; left < normalized.length; left++) {
     for (var right = left + 1; right < normalized.length; right++) {
-      var leftPolicy = normalized[left].intent.relation.placement.overlap, rightPolicy = normalized[right].intent.relation.placement.overlap;
+      var leftPolicy = normalized[left].planning.overlap, rightPolicy = normalized[right].planning.overlap;
       if (leftPolicy && rightPolicy && leftPolicy.group === rightPolicy.group && (leftPolicy.policy === 'reject' || rightPolicy.policy === 'reject') && overlaps(normalized[left].visualRect, normalized[right].visualRect)) fail('SPATIAL_CANDIDATE_OVERLAP_INVALID', 'Spatial candidate overlaps two subjects in a reject-overlap group: ' + normalized[left].placement.subject + ', ' + normalized[right].placement.subject);
     }
   }

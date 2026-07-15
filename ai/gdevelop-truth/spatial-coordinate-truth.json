@@ -1,0 +1,95 @@
+{
+  "cameraModel": {
+    "initialCenterX": "game-resolution-width-half",
+    "initialCenterY": "game-resolution-height-half",
+    "initialRotationDegrees": 0,
+    "initialZoom": 1,
+    "supportedDefaultBehavior": "top-left-anchored-if-never-moved"
+  },
+  "coordinateModel": {
+    "angleUnit": "degree",
+    "layerSemantic": "layer",
+    "origin": "initial-visible-top-left",
+    "positionSemantic": "object-origin",
+    "positiveAngle": "clockwise",
+    "positiveX": "right",
+    "positiveY": "down",
+    "sceneSpace": "initial-default-camera-2d",
+    "sizeSemantic": "display-size",
+    "visibleRect": {
+      "bottom": "game-resolution-height",
+      "left": "zero",
+      "right": "game-resolution-width",
+      "top": "zero"
+    }
+  },
+  "documentKind": "gdevelop-spatial-coordinate-truth",
+  "layerModel": {
+    "equalZOrder": "stable-instance-order",
+    "higherLayerIndex": "in-front",
+    "higherZOrder": "in-front",
+    "projectOrder": "back-to-front",
+    "zOrderScope": "within-layer"
+  },
+  "schemaVersion": 1,
+  "source": {
+    "commit": "a8c4ad81802ff35eef64c0f68ef01445556eb0ba",
+    "files": [
+      {
+        "path": "GDJS/package.json",
+        "sha256": "471cc91080956421e1bc6204140f8545a8b1c08ef2d6f9e1185fea933e6eee62"
+      },
+      {
+        "path": "GDJS/package-lock.json",
+        "sha256": "9dc8075a8fb9b4d1ad9a463c442b31ef771b7e8ae8830d1b69d501204c70d77b"
+      },
+      {
+        "path": "GDJS/Runtime/RuntimeLayer.ts",
+        "sha256": "2a18528113d55271711535c9a4207cb39496732e3659c2ad875af76411a2c70f"
+      },
+      {
+        "path": "GDJS/Runtime/layer.ts",
+        "sha256": "a854add00853d10c843951fcdd2abbfa26685142fe186eb245f99f7d5530f312"
+      },
+      {
+        "path": "GDJS/Runtime/runtimescene.ts",
+        "sha256": "fc437d5daa2c545b797458301ee179e823adcadc4f74581c9065aa34a95747ab"
+      },
+      {
+        "path": "GDJS/Runtime/RuntimeInstanceContainer.ts",
+        "sha256": "be59997b99fb5467fc4a28b0a701dc8058aa754bd7f0c4106014e826ca3b0e0d"
+      },
+      {
+        "path": "GDJS/Runtime/runtimeobject.ts",
+        "sha256": "f69436e2f5a193baaaa12389451efa2986a8fa6a235464dc2386f825e50ac77d"
+      },
+      {
+        "path": "GDJS/Runtime/spriteruntimeobject.ts",
+        "sha256": "226ecb7086a7a81b00df8b32bb8484070da73c41d40858f2f6c4bd8243a715bd"
+      },
+      {
+        "path": "GDJS/Runtime/pixi-renderers/runtimescene-pixi-renderer.ts",
+        "sha256": "1447be8d8e4972c1c4551ea0a65eb73cff5ad8e449d23d31b6b30f0711de9b41"
+      },
+      {
+        "path": "GDJS/Runtime/pixi-renderers/layer-pixi-renderer.ts",
+        "sha256": "561610eefe6743d28af1bf56513064fc268230dddba274c043f7e16fe2342871"
+      },
+      {
+        "path": "GDJS/Runtime/pixi-renderers/spriteruntimeobject-pixi-renderer.ts",
+        "sha256": "077a0069d7063a8ab21444be5ea85969ba7c3632e85bc13c12641fcd1d14ca06"
+      }
+    ],
+    "gdVersion": "5.6.273",
+    "pixiVersion": "7.4.2",
+    "repository": "4ian/GDevelop",
+    "runtimeDependency": {
+      "file": "GDJS/node_modules/@pixi/display/lib/Container.js",
+      "integrity": "sha512-b5m2dAaoNAVdxz1oDaxl3XZ059NEOcNtGkxTOZ4EYCw/jcp9sZXkgSROHRzsGn4k+NugH7+9MP4Id2Z0kkdUhw==",
+      "package": "@pixi/display",
+      "sha256": "cde621b5de5fed1fec06d423a982a1b17214f124204739e331469ae227ca8ef2",
+      "version": "7.4.3"
+    }
+  },
+  "contentHash": "gdevelop-spatial-coordinate-truth.d0f75458c46a4621a03b670e"
+}

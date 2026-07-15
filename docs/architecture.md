@@ -33,12 +33,15 @@ LLM1 creative direction + task + Event Algebra + current WORLD
 Async asset path
   -> accepted AssetWorld
   -> GDJS resource binder + asset-bound project seed
-  -> Spatial Planner input (accepted assets + native geometry + GDJS scene canvas)
-  -> visual LLM candidate -> Runtime validation -> candidate GDJS projection + preview
+  -> Spatial Planner input (accepted assets + native geometry + generated GDJS spatial truth + scene canvas)
+  -> derived coordinate frame/layer stack/legal pixels
+  -> visual LLM spatial-dsl-v1 candidate -> Runtime validation -> candidate GDJS projection + preview
   -> later ACCEPT -> canonical spatial resolution -> final GDJS projection
 ```
 
 The dictionary records every declaration with source evidence and runtime availability and is the total production GDJS truth. Extractors compose the pinned component snapshots into this one artifact; production prompt, parser, Source validation, and compiler load only the generated dictionary. Parameter contracts are reordered by official runtime metadata and carry type class, optionality, exact default, generated normalization, and token vocabulary. Its event grammar records source-verified envelope fields, instruction channels, serialization parameters, emission rules, defaults, local variables, subevents, condition inversion, and action await. Source-only declarations remain queryable but cannot be emitted into a project. The event algebra does not duplicate declaration metadata: it names semantic operations, maps their open slots, and validates exact expansion structure against the dictionary.
+
+Spatial semantics follow the same single-truth rule without entering the semantic dictionary. `ai/gdevelop-truth/spatial-coordinate-truth.json` is generated from the pinned GDevelop/GDJS revision and owns coordinate, initial-camera, layer-stack, and z-order semantics. Spatial Runtime combines it with the selected scene canvas and the frozen dictionary layout snapshot to derive `spatial-planning-space`. Every Planner or Adapter boundary that holds the asset-bound seed re-derives and compares the seed-owned request, layout snapshot, and scene canvas, so a caller cannot re-sign a second scene or intent truth. The planning-space document gives the Planner an explicit `(0,0)` frame, axes, object-origin and display-size meaning, ordered layers, and legal pixel regions. The visual model chooses coordinates in `spatial-dsl-v1`; its parser, runtime, errors, and trace remain independent from LLM2's `semantic-dsl-v1`. Only the GDJS Spatial Adapter serializes an accepted resolution into project instances.
 
 ## Source and feedback contracts
 

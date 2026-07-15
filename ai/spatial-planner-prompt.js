@@ -1,11 +1,11 @@
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function compactContext(context) {
   return {
-    sceneCanvas: context.sceneCanvas,
+    planningSpace: context.planningSpace,
     semanticView: context.semanticView,
     imageRefs: context.imageInputs.map(function(input) { return { imageRef: input.imageRef, semanticId: input.semanticId, contentHash: input.contentHash, source: input.source }; }),
     subjects: context.subjects.map(function(subject) {
-      return { layoutIntentId: subject.layoutIntentId, subject: subject.subject, objectName: subject.objectName, roles: subject.roles, reservation: subject.reservation, relation: subject.relation, renderGeometry: subject.renderGeometry, acceptedVisuals: subject.acceptedVisuals.map(function(visual) { return { semanticId: visual.semanticId, imageRef: visual.imageRef, contentHash: visual.contentHash, resourceKind: visual.resourceKind, source: visual.source }; }) };
+      return { layoutIntentId: subject.layoutIntentId, subject: subject.subject, objectName: subject.objectName, roles: subject.roles, designGuidance: subject.designGuidance, renderGeometry: subject.renderGeometry, acceptedVisuals: subject.acceptedVisuals.map(function(visual) { return { semanticId: visual.semanticId, imageRef: visual.imageRef, contentHash: visual.contentHash, resourceKind: visual.resourceKind, source: visual.source }; }) };
     })
   };
 }
@@ -28,10 +28,10 @@ function buildPrompt(context, feedback, round, imageInputs) {
   return {
     systemPrompt: [
       'Role: Spatial Planner.',
-      'Goal: arrange declared scene and UI subjects in the supplied GDJS scene canvas.',
+      'Goal: arrange declared scene and UI subjects in the supplied planningSpace.',
       'Output: one spatial-dsl-v1 program.',
-      'PLACE uses direct GDJS object-origin coordinates and direct display size.',
-      'Scope: declared subjects, accepted assets, semantic/component facts, and scene-canvas facts.',
+      'PLACE uses planningSpace coordinateFrame object-origin coordinates and direct display size.',
+      'Layout: place every planningSpace subject inside its legalRegion with its declared layer and zOrderRange.',
       'Image role: match supplied images to the orderedImageInputs list and preserve accepted resource identities.',
       'Acceptance: issue standalone ACCEPT after a prior preview is ready.'
     ].join('\n'),

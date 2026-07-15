@@ -1,11 +1,11 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "contractId": "gamecastle.spatial-engine",
   "owner": "SpatialEngine",
   "principles": [
     "GameSemanticSource and the semantic layout dictionary own spatial intent; neither owns resolved coordinates.",
     "Accepted AssetWorld owns resource acceptance. Spatial planning consumes accepted resources without judging, replacing, or regenerating them.",
-    "SpatialPlanner receives one hash-bound semantic view, component-expansion facts, ordered accepted-image references, and GDJS scene facts, then emits a direct GDJS-coordinate candidate.",
+    "SpatialPlanner receives one hash-bound semantic view, component-expansion facts, ordered accepted-image references, and a GDevelop-evidence-derived planning space, then emits a direct GDJS-coordinate candidate.",
     "Spatial Runtime validates candidates against hash-bound intent, native geometry, scene-canvas facts, and GDJS coordinate facts. It does not generate a first layout.",
     "Accepted spatial-layout-resolution is the only canonical spatial result. GDJS projection and preview are derived evidence only.",
     "The GDJS scene canvas is a project fact used for first assembly. It is neither a device profile nor another layout source.",
@@ -19,7 +19,8 @@
     "componentFacts": "semantic-component-expansion derived from the same GameSemanticSource",
     "assetGeometry": "spatial-geometry-fact-set bound to accepted AssetWorld",
     "gdjsSceneCanvas": "asset-bound GDJS project properties, selected scene, layers, and camera facts",
-    "gdjsCoordinateModel": "pinned GDevelop runtime adapter evidence",
+    "gdjsCoordinateModel": "ai/gdevelop-truth/spatial-coordinate-truth.json generated from the pinned GDevelop runtime revision",
+    "planningSpace": "deterministic projection of pinned GDevelop coordinate truth, the selected GDJS scene canvas, and the semantic layout dictionary",
     "plannerCandidate": "spatial-layout-candidate proposal bound to one spatial-assembly-input",
     "acceptedSpatialResolution": "spatial-layout-resolution",
     "plannerTraceEvidence": "spatial-planner-model-output, spatial-planner-round-trace, and spatial-planner-run-trace"
@@ -34,11 +35,6 @@
     "gdjs-coordinate-contract": {
       "requiredFields": ["subject", "positionSemantic", "sizeSemantic", "layerSemantic", "evidence"]
     }
-  },
-  "gdjsCoordinateModel": {
-    "positionSemantic": "object-origin",
-    "sizeSemantic": "display-size",
-    "layerSemantic": "layer"
   },
   "candidateProgram": {
     "language": "spatial-dsl-v1",
@@ -69,9 +65,9 @@
     {
       "id": "assembly-input",
       "owner": "SpatialAssemblyStage",
-      "inputs": ["spatial-assembly-request", "gdjs-asset-bound-project-seed", "accepted-asset-world", "semantic-component-expansion", "spatial-geometry-fact-set"],
+      "inputs": ["spatial-assembly-request", "gdjs-asset-bound-project-seed", "accepted-asset-world", "semantic-component-expansion", "spatial-geometry-fact-set", "gdevelop-spatial-coordinate-truth"],
       "output": "spatial-assembly-input",
-      "authority": "derive-one-frozen-planner-context-without-designing"
+      "authority": "derive-one-frozen-coordinate-frame-layer-stack-and-legal-region-context-without-designing"
     },
     {
       "id": "spatial-planner",
@@ -131,8 +127,10 @@
     "spatial-assembly-request": "semantic-stage request with dictionary intent, reservation, and required facts only",
     "spatial-geometry-fact-set": "accepted native drawable and GDevelop coordinate-model facts for one source hash",
     "spatial-layout-intent-snapshot": "immutable, hash-bound planner view derived from exactly one semantic layout plan",
-    "spatial-assembly-input": "fully hash-bound input containing scene-canvas facts and planner subjects",
-    "spatial-planner-context": "hash-bound projection of source semantics, component expansion, ordered accepted-image references, and GDJS scene facts",
+    "gdevelop-spatial-coordinate-truth": "generated fixed-version evidence for GDJS coordinates, initial camera mapping, layer stacking, and z-order scope",
+    "spatial-planning-space": "derived coordinate frame, layer stack, resolved camera view, and dictionary legal pixel regions for one selected scene",
+    "spatial-assembly-input": "fully hash-bound input containing scene-canvas facts, planning space, and planner subjects",
+    "spatial-planner-context": "hash-bound projection of source semantics, component expansion, ordered accepted-image references, and the derived GDJS planning space",
     "spatial-layout-candidate": "one direct-coordinate proposal from SpatialPlanner",
     "gdjs-spatial-projection": "GDevelop instance projection derived from either a validated candidate for preview evidence or the accepted resolution for final assembly",
     "gdjs-spatial-preview": "rendered evidence derived only from gdjs-spatial-projection",
@@ -149,8 +147,8 @@
     },
     "gdjsCoordinateEvidence": {
       "blocks": ["spatial-planner", "spatial-runtime-validation", "candidate-gdjs-projection", "accepted-gdjs-projection", "acceptance"],
-      "requires": ["A pinned GDJS adapter must emit evidence for object-origin, display-size, and layer semantics from the selected GDevelop runtime revision.", "The adapter evidence must be hash-bound to every gdjs-coordinate-contract fact."],
-      "status": "required-before-plan"
+      "requires": ["The generated GDevelop spatial coordinate truth must bind the selected GDevelop commit and every source file used for coordinate, camera, layer, and z-order semantics.", "Every gdjs-coordinate-contract fact and planning space must bind that exact generated truth."],
+      "status": "implemented"
     },
     "acceptanceOrdering": {
       "blocks": ["spatial-layout-resolution"],

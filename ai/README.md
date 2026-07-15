@@ -29,11 +29,11 @@ No undocumented GDJS capability is inferred. A declaration is either executable,
 | `semantic-layout-compiler.js` | Source to dictionary layout intent plus derived reservation. |
 | `semantic-runtime-linker.js` | Combines the three compilers, emits a spatial assembly request, and materializes an instance-free libGD project seed. |
 | `gdjs-project-asset-binder.js` | Binds an accepted AssetWorld with an exact source hash and returns an asset-bound project seed. |
-| `spatial-assembly-stage.js` | Derives one frozen assembly input from the asset-bound seed, native geometry facts, and GDJS scene-canvas facts. |
+| `spatial-assembly-stage.js` | Derives one frozen assembly input from the asset-bound seed, native geometry facts, generated GDJS spatial truth, and scene-canvas facts. |
 | `spatial-planner-langgraph.js` | Contract-declared LangGraph: visual LLM DSL candidate, Runtime validation, same-path GDJS preview feedback, later acceptance, and final projection. |
 | `spatial-planner-context.js` / `spatial-planner-prompt.js` / `spatial-planner-dsl.js` | Frozen visual-planner slots, concise positive prompt, and strict `PLACE` / standalone `ACCEPT` grammar. |
 | `spatial-product-pipeline.js` | Explicit accepted-asset-to-final-spatial-product bridge. |
-| `runtime/spatial/` | Independent candidate validation, acceptance, and GDJS projection boundary; it does not design a first layout. |
+| `runtime/spatial/` | Derives the exact planning space, validates candidates and acceptance, and projects GDJS; it does not design a first layout. |
 | `semantic-product-executor.js` | Product-facing deterministic Source/Revision execution boundary. |
 | `asset-engine-langgraph.js` | Official LangGraph asset orchestration; exports `describeGraph()` so every contract-declared stage module and callable is resolved before invocation. |
 | `semantic-asset-product-pipeline.js` | Sanctioned asset path: RuntimeLinker assembly -> Asset LangGraph -> debt gate -> source-bound GDJS resource-binding seed. |
@@ -60,7 +60,8 @@ No undocumented GDJS capability is inferred. A declaration is either executable,
 - A semantic Source pins the complete dictionary fingerprint.
 - AssetWorld, project seed, asset-bound project seed, and all later spatial artifacts share one source hash. A final spatial input additionally pins the exact AssetWorld hash.
 - Semantic layout bounds are reservations. Resolved rectangles, object-origin positions, and GDJS instance coordinates are forbidden before asset-aware spatial assembly.
-- Spatial Planner receives ordered accepted-image references, source/component facts, and a frozen GDJS scene/camera canvas, then proposes direct coordinates. Each external round is persisted for inspection. Candidate, projection, preview, and trace are evidence; `spatial-layout-resolution` is the only accepted spatial truth.
+- Spatial Planner receives ordered accepted-image references, source/component facts, and `spatial-planning-space`: an explicit coordinate frame, layer stack, and dictionary-derived legal pixel regions bound to the generated fixed-version GDJS spatial truth. It then proposes direct coordinates. Each external round is persisted for inspection. Candidate, projection, preview, and trace are evidence; `spatial-layout-resolution` is the only accepted spatial truth.
+- `spatial-dsl-v1` and LLM2's `semantic-dsl-v1` have distinct language identifiers, parsers, runtimes, errors, and traces. The GDJS Spatial Adapter, not either model, serializes accepted coordinates into GDJS instances.
 - Feedback contains observed facts only and is returned to LLM2.
 - Missing capabilities, resource kinds, files, formats, hashes, or bindings fail closed.
 

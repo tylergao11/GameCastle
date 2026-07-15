@@ -1,3 +1,4 @@
+var LANGUAGE_ID = 'spatial-dsl-v1';
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SpatialPlannerDSL'; throw error; }
 var number = '([-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][-+]?\\d+)?)';
 var quoted = '("(?:[^"\\\\]|\\\\.)*")';
@@ -18,4 +19,4 @@ function parseProgram(program) {
   return { kind: 'candidate', placements: lines.map(parsePlace) };
 }
 
-module.exports = { parseProgram: parseProgram, parsePlace: parsePlace };
+module.exports = { LANGUAGE_ID: LANGUAGE_ID, parseProgram: parseProgram, parsePlace: parsePlace };

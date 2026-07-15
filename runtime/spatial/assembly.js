@@ -1,6 +1,7 @@
 var crypto = require('crypto');
 var engineContract = require('../../shared/spatial-engine-contract.json');
 var layoutDictionary = require('../../shared/semantic-layout-dictionary.json');
+var planningSpace = require('./planning-space');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
@@ -157,7 +158,8 @@ function validateGeometryFactSet(value, request, assetWorldHash) {
       normalized.positionSemantic = text(fact.positionSemantic, label + '.positionSemantic', code);
       normalized.sizeSemantic = text(fact.sizeSemantic, label + '.sizeSemantic', code);
       normalized.layerSemantic = text(fact.layerSemantic, label + '.layerSemantic', code);
-      if (normalized.positionSemantic !== engineContract.gdjsCoordinateModel.positionSemantic || normalized.sizeSemantic !== engineContract.gdjsCoordinateModel.sizeSemantic || normalized.layerSemantic !== engineContract.gdjsCoordinateModel.layerSemantic) fail(code, 'GDJS coordinate fact must match the Spatial Engine GDevelop coordinate model');
+      if (normalized.positionSemantic !== planningSpace.coordinateTruth.coordinateModel.positionSemantic || normalized.sizeSemantic !== planningSpace.coordinateTruth.coordinateModel.sizeSemantic || normalized.layerSemantic !== planningSpace.coordinateTruth.coordinateModel.layerSemantic) fail(code, 'GDJS coordinate fact must match the pinned GDevelop spatial coordinate truth');
+      if (normalized.evidence.documentKind !== planningSpace.coordinateTruth.documentKind || normalized.evidence.contentHash !== planningSpace.coordinateTruth.contentHash || normalized.evidence.producerRevision !== planningSpace.coordinateTruth.source.commit) fail(code, 'GDJS coordinate fact evidence must bind the exact pinned GDevelop spatial coordinate truth');
     }
     facts[subject][kind] = normalized;
   });
@@ -229,14 +231,15 @@ function validateSceneCanvas(value, code) {
   var sceneName = text(value.sceneName, 'SpatialAssemblyInput.sceneCanvas.sceneName', code), width = positive(value.width, 'SpatialAssemblyInput.sceneCanvas.width', code), height = positive(value.height, 'SpatialAssemblyInput.sceneCanvas.height', code);
   array(value.layers, 'SpatialAssemblyInput.sceneCanvas.layers', code);
   var names = Object.create(null), layers = value.layers.map(function(layer, index) {
-    var label = 'SpatialAssemblyInput.sceneCanvas.layers[' + index + ']'; object(layer, label, code); allowed(layer, ['name', 'cameraType', 'followBaseLayerCamera', 'cameras'], label, code);
+    var label = 'SpatialAssemblyInput.sceneCanvas.layers[' + index + ']'; object(layer, label, code); allowed(layer, ['name', 'renderingType', 'cameraType', 'defaultCameraBehavior', 'visibility', 'followBaseLayerCamera', 'cameras'], label, code);
     var name = typeof layer.name === 'string' ? layer.name : null;
     if (name === null) fail(code, label + '.name must be text');
     if (names[name]) fail(code, 'SpatialAssemblyInput.sceneCanvas has duplicate layer: ' + name); names[name] = true;
-    if (typeof layer.cameraType !== 'string' || typeof layer.followBaseLayerCamera !== 'boolean') fail(code, label + ' has invalid camera scope');
+    if (typeof layer.renderingType !== 'string' || typeof layer.cameraType !== 'string' || typeof layer.defaultCameraBehavior !== 'string' || typeof layer.visibility !== 'boolean' || typeof layer.followBaseLayerCamera !== 'boolean') fail(code, label + ' has invalid layer or camera scope');
+    if (layer.defaultCameraBehavior !== planningSpace.coordinateTruth.cameraModel.supportedDefaultBehavior) fail('SPATIAL_SCENE_CAMERA_UNSUPPORTED', 'Spatial Planner requires the pinned top-left-anchored default camera behavior for first assembly.');
     array(layer.cameras, label + '.cameras', code);
     if (layer.cameras.length !== 1) fail('SPATIAL_SCENE_CAMERA_UNSUPPORTED', 'Spatial Planner currently requires exactly one camera per GDJS layer; multi-camera scenes are blocked before planning.');
-    return { name: name, cameraType: layer.cameraType, followBaseLayerCamera: layer.followBaseLayerCamera, cameras: layer.cameras.map(function(camera, cameraIndex) { return validatePlanningCamera(camera, label + '.cameras[' + cameraIndex + ']', code); }) };
+    return { name: name, renderingType: layer.renderingType, cameraType: layer.cameraType, defaultCameraBehavior: layer.defaultCameraBehavior, visibility: layer.visibility, followBaseLayerCamera: layer.followBaseLayerCamera, cameras: layer.cameras.map(function(camera, cameraIndex) { return validatePlanningCamera(camera, label + '.cameras[' + cameraIndex + ']', code); }) };
   });
   if (!layers.length) fail(code, 'SpatialAssemblyInput.sceneCanvas must declare at least one GDJS layer');
   return { sceneName: sceneName, width: width, height: height, layers: layers };
@@ -269,8 +272,8 @@ function deriveSceneCanvas(assetBoundSeed, code) {
     height: positive(project.properties.windowHeight, 'GDJS asset-bound project.properties.windowHeight', code),
     layers: layout.layers.map(function(layer, index) {
       object(layer, 'GDJS selected scene.layers[' + index + ']', code);
-      if (typeof layer.name !== 'string' || typeof layer.cameraType !== 'string' || typeof layer.followBaseLayerCamera !== 'boolean' || !Array.isArray(layer.cameras)) fail(code, 'GDJS selected scene has incomplete layer camera facts');
-      return { name: layer.name, cameraType: layer.cameraType, followBaseLayerCamera: layer.followBaseLayerCamera, cameras: layer.cameras.map(function(camera) { return { defaultSize: camera.defaultSize, defaultViewport: camera.defaultViewport, width: camera.width, height: camera.height, viewportLeft: camera.viewportLeft, viewportTop: camera.viewportTop, viewportRight: camera.viewportRight, viewportBottom: camera.viewportBottom }; }) };
+      if (typeof layer.name !== 'string' || typeof layer.renderingType !== 'string' || typeof layer.cameraType !== 'string' || typeof layer.visibility !== 'boolean' || typeof layer.followBaseLayerCamera !== 'boolean' || !Array.isArray(layer.cameras)) fail(code, 'GDJS selected scene has incomplete layer camera facts');
+      return { name: layer.name, renderingType: layer.renderingType, cameraType: layer.cameraType, defaultCameraBehavior: layer.defaultCameraBehavior || planningSpace.coordinateTruth.cameraModel.supportedDefaultBehavior, visibility: layer.visibility, followBaseLayerCamera: layer.followBaseLayerCamera, cameras: layer.cameras.map(function(camera) { return { defaultSize: camera.defaultSize, defaultViewport: camera.defaultViewport, width: camera.width, height: camera.height, viewportLeft: camera.viewportLeft, viewportTop: camera.viewportTop, viewportRight: camera.viewportRight, viewportBottom: camera.viewportBottom }; }) };
     })
   }, code);
 }
@@ -302,8 +305,8 @@ function validateAssetBoundSeed(value, request, code) {
 function validateAssemblyInput(value) {
   var code = 'SPATIAL_ASSEMBLY_INPUT_INVALID';
   object(value, 'SpatialAssemblyInput', code);
-  allowed(value, ['schemaVersion', 'documentKind', 'engineContract', 'sourceHash', 'realizedSourceHash', 'dictionarySource', 'spatialAssemblyRequestHash', 'layoutPlanHash', 'layoutIntentSnapshot', 'assetWorldHash', 'assetBoundProjectSeedHash', 'sceneCanvas', 'sceneSubjects', 'componentExpansion', 'geometryFacts', 'contentHash'], 'SpatialAssemblyInput', code);
-  if (value.schemaVersion !== 3 || value.documentKind !== 'spatial-assembly-input') fail(code, 'SpatialAssemblyInput has an invalid kind or version');
+  allowed(value, ['schemaVersion', 'documentKind', 'engineContract', 'sourceHash', 'realizedSourceHash', 'dictionarySource', 'spatialAssemblyRequestHash', 'layoutPlanHash', 'layoutIntentSnapshot', 'assetWorldHash', 'assetBoundProjectSeedHash', 'sceneCanvas', 'planningSpace', 'sceneSubjects', 'componentExpansion', 'geometryFacts', 'contentHash'], 'SpatialAssemblyInput', code);
+  if (value.schemaVersion !== 4 || value.documentKind !== 'spatial-assembly-input') fail(code, 'SpatialAssemblyInput has an invalid kind or version');
   object(value.engineContract, 'SpatialAssemblyInput.engineContract', code);
   if (value.engineContract.contractId !== engineContract.contractId || value.engineContract.schemaVersion !== engineContract.schemaVersion) fail(code, 'SpatialAssemblyInput references a different Spatial Engine contract');
   var sourceHash = text(value.sourceHash, 'SpatialAssemblyInput.sourceHash', code), realizedSourceHash = text(value.realizedSourceHash, 'SpatialAssemblyInput.realizedSourceHash', code), requestHash = text(value.spatialAssemblyRequestHash, 'SpatialAssemblyInput.spatialAssemblyRequestHash', code), layoutPlanHash = text(value.layoutPlanHash, 'SpatialAssemblyInput.layoutPlanHash', code), assetWorldHash = text(value.assetWorldHash, 'SpatialAssemblyInput.assetWorldHash', code), assetBoundProjectSeedHash = text(value.assetBoundProjectSeedHash, 'SpatialAssemblyInput.assetBoundProjectSeedHash', code);
@@ -312,9 +315,21 @@ function validateAssemblyInput(value) {
   if (snapshot.sourceHash !== sourceHash || snapshot.realizedSourceHash !== realizedSourceHash || snapshot.layoutPlanHash !== layoutPlanHash || !same(snapshot.dictionarySource, value.dictionarySource)) fail(code, 'SpatialAssemblyInput intent snapshot does not match its outer identity');
   var subjects = Object.create(null);
   snapshot.intents.forEach(function(intent) { subjects[intent.subject] = { layoutIntentId: intent.semanticId, subject: intent.subject, reservation: intent.reservation }; });
-  var canvas = validateSceneCanvas(value.sceneCanvas, code), sceneSubjects = validateSceneSubjects(value.sceneSubjects, snapshot, canvas, code), componentExpansion = validateComponentExpansion(value.componentExpansion, { sourceHash: sourceHash, realizedSourceHash: realizedSourceHash, dictionarySource: value.dictionarySource }, code), facts = validateGeometryFactSet(value.geometryFacts, { sourceHash: sourceHash, subjects: subjects }, assetWorldHash);
+  var canvas = validateSceneCanvas(value.sceneCanvas, code); planningSpace.validatePlanningSpace(value.planningSpace, canvas, snapshot);
+  var sceneSubjects = validateSceneSubjects(value.sceneSubjects, snapshot, canvas, code), componentExpansion = validateComponentExpansion(value.componentExpansion, { sourceHash: sourceHash, realizedSourceHash: realizedSourceHash, dictionarySource: value.dictionarySource }, code), facts = validateGeometryFactSet(value.geometryFacts, { sourceHash: sourceHash, subjects: subjects }, assetWorldHash);
   verifyContentHash(value, 'spatial-assembly-input.', 'SpatialAssemblyInput', code);
   return clone(value);
+}
+function validateAssemblyInputAgainstSeed(inputValue, assetBoundSeedValue) {
+  var input = validateAssemblyInput(inputValue), code = 'SPATIAL_ASSEMBLY_SEED_MISMATCH';
+  var seed = validateAssetBoundSeed(assetBoundSeedValue, { sourceHash: input.sourceHash }, code);
+  if (text(seed.assetWorldHash, 'GDJS asset-bound project seed.assetWorldHash', code) !== input.assetWorldHash || text(seed.contentHash, 'GDJS asset-bound project seed.contentHash', code) !== input.assetBoundProjectSeedHash) fail(code, 'Spatial Assembly Input does not bind the supplied asset-bound GDJS seed');
+  var request = validateRequest(seed.spatialAssemblyRequest), plan = validateLayoutPlan(seed.layoutPlan), expectedSnapshot = createLayoutIntentSnapshot(plan);
+  if (request.contentHash !== input.spatialAssemblyRequestHash) fail(code, 'Spatial Assembly Input must bind the exact spatial request carried by the asset-bound GDJS seed');
+  if (plan.contentHash !== input.layoutPlanHash || !same(input.layoutIntentSnapshot, expectedSnapshot)) fail(code, 'Spatial Assembly Input layout intent must be derived from the exact layout plan carried by the asset-bound GDJS seed');
+  var expectedCanvas = deriveSceneCanvas(seed, code);
+  if (!same(input.sceneCanvas, expectedCanvas)) fail(code, 'Spatial Assembly Input sceneCanvas must be derived from the exact asset-bound GDJS seed');
+  return clone(input);
 }
 function createAssemblyInput(requestValue, input) {
   var request = validateRequest(requestValue), code = 'SPATIAL_ASSEMBLY_INPUT_INVALID';
@@ -330,7 +345,7 @@ function createAssemblyInput(requestValue, input) {
   validateSceneSubjects(sceneSubjects, layoutIntentSnapshot, canvas, code);
   var facts = validateGeometryFactSet(input.geometryFacts, request, text(assetWorld.contentHash, 'accepted AssetWorld.contentHash', code));
   var result = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     documentKind: 'spatial-assembly-input',
     engineContract: { contractId: engineContract.contractId, schemaVersion: engineContract.schemaVersion },
     sourceHash: request.sourceHash,
@@ -342,6 +357,7 @@ function createAssemblyInput(requestValue, input) {
     assetWorldHash: assetWorld.contentHash,
     assetBoundProjectSeedHash: assetBoundSeed.contentHash,
     sceneCanvas: canvas,
+    planningSpace: planningSpace.createPlanningSpace(canvas, layoutIntentSnapshot),
     sceneSubjects: sceneSubjects,
     componentExpansion: componentExpansion,
     geometryFacts: facts
@@ -356,6 +372,7 @@ module.exports = {
   validateAssemblyRequest: validateRequest,
   createAssemblyInput: createAssemblyInput,
   validateAssemblyInput: validateAssemblyInput,
+  validateAssemblyInputAgainstSeed: validateAssemblyInputAgainstSeed,
   validateLayoutPlan: validateLayoutPlan,
   stable: stable,
   hash: hash,

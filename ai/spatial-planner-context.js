@@ -75,6 +75,8 @@ function createContext(inputValue, assetBoundSeed, assetWorld, semanticSource) {
   var input = spatialEngine.validateAssemblyInput(inputValue);
   object(assetBoundSeed, 'GDJS asset-bound project seed'); object(assetWorld, 'accepted AssetWorld'); object(semanticSource, 'GameSemanticSource');
   if (assetBoundSeed.documentKind !== 'gdjs-asset-bound-project-seed' || text(assetBoundSeed.sourceHash, 'GDJS asset-bound project seed.sourceHash') !== input.sourceHash || text(assetBoundSeed.assetWorldHash, 'GDJS asset-bound project seed.assetWorldHash') !== input.assetWorldHash || text(assetBoundSeed.contentHash, 'GDJS asset-bound project seed.contentHash') !== input.assetBoundProjectSeedHash) fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext requires the exact asset-bound GDJS seed recorded by Spatial Assembly Input.');
+  try { input = spatialEngine.validateAssemblyInputAgainstSeed(input, assetBoundSeed); }
+  catch (error) { fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext requires scene facts derived from the exact asset-bound GDJS seed: ' + String(error && error.message || error)); }
   if (assetWorld.documentKind !== 'semantic-asset-world' || text(assetWorld.sourceHash, 'accepted AssetWorld.sourceHash') !== input.sourceHash || text(assetWorld.contentHash, 'accepted AssetWorld.contentHash') !== input.assetWorldHash) fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext requires the exact accepted AssetWorld recorded by Spatial Assembly Input.');
   var source = sourceContract.validateSource(semanticSource);
   if (sourceContract.sourceHash(source) !== input.sourceHash) fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext semantic design does not match Spatial Assembly Input.');
@@ -102,20 +104,19 @@ function createContext(inputValue, assetBoundSeed, assetWorld, semanticSource) {
       subject: sceneSubject.subject,
       objectName: sceneSubject.objectName,
       roles: clone(intent.roles),
-      reservation: clone(intent.reservation),
-      relation: clone(intent.relation),
+      designGuidance: { title: intent.relation.title, description: intent.relation.description, anchorPreference: clone(intent.relation.placement.anchorPreference || null) },
       renderGeometry: { nativeSize: clone(renderGeometry.nativeSize), drawableBounds: clone(renderGeometry.drawableBounds), objectOrigin: clone(renderGeometry.objectOrigin) },
       acceptedVisuals: visuals
     };
   });
   var imageInputs = Object.keys(imageInputsBySemanticId).sort().map(function(semanticId) { return imageInputsBySemanticId[semanticId]; });
   var result = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     documentKind: 'spatial-planner-context',
     sourceHash: input.sourceHash,
     assetWorldHash: input.assetWorldHash,
     spatialAssemblyInputHash: input.contentHash,
-    sceneCanvas: clone(input.sceneCanvas),
+    planningSpace: clone(input.planningSpace),
     semanticView: createSemanticView(source, input.componentExpansion),
     subjects: subjects,
     imageInputs: imageInputs

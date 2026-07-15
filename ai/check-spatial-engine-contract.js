@@ -9,11 +9,14 @@ var linker = require('./semantic-runtime-linker');
 var binder = require('./gdjs-project-asset-binder');
 var assemblyStage = require('./spatial-assembly-stage');
 var plannerDsl = require('./spatial-planner-dsl');
+var semanticDsl = require('./semantic-dsl-parser');
+var semanticRun = require('./semantic-run-pipeline');
 var plannerGraph = require('./spatial-planner-langgraph');
 var spatialProduct = require('./spatial-product-pipeline');
 var png = require('./local-derivation-port');
 var spatialEngine = require('../runtime/spatial');
 var layoutDictionary = require('../shared/semantic-layout-dictionary.json');
+var coordinateTruth = require('./gdevelop-truth/spatial-coordinate-truth.json');
 
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
 function seal(value, prefix) { var core = JSON.parse(JSON.stringify(value)); delete core.contentHash; value.contentHash = prefix + crypto.createHash('sha256').update(JSON.stringify(stable(core))).digest('hex').slice(0, 24); return value; }
@@ -27,6 +30,10 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
   assert.strictEqual(noRawCoordinates(layoutDictionary), false, 'Spatial dictionary records relations and constraints, not resolved coordinates.');
   ['runtime/spatial/assembly.js', 'ai/spatial-assembly-stage.js', 'shared/spatial-engine-contract.json'].forEach(function(file) { assert.strictEqual(fs.readFileSync(path.join(__dirname, '..', file), 'utf8').indexOf('environment') < 0, true, file + ' contains no legacy environment path.'); });
   assert.throws(function() { plannerDsl.parseProgram('PLACE subject="player" x=1 y=1 width=1 height=1 angle=0 layer="" zOrder=0\nACCEPT'); }, function(error) { return error.code === 'SPATIAL_DSL_ACCEPTANCE_MIXED'; }, 'PLACE and ACCEPT cannot share a model response.');
+  assert.notStrictEqual(plannerDsl.LANGUAGE_ID, semanticDsl.LANGUAGE_ID, 'Semantic and spatial model protocols have distinct language identities.');
+  assert.throws(function() { plannerDsl.parseProgram('game(semanticId=demo, name="Demo")'); }, function(error) { return error.code === 'SPATIAL_DSL_INVALID'; }, 'Spatial parser rejects semantic-dsl-v1 commands.');
+  var semanticParseOfSpatial = semanticDsl.parse('PLACE subject="player" x=1 y=1 width=1 height=1 angle=0 layer="" zOrder=0');
+  assert.strictEqual(semanticRun.validate(semanticParseOfSpatial.commands, semanticParseOfSpatial.warnings).code, 'SEMANTIC_DSL_PARSE_INCOMPLETE', 'Semantic parser pipeline rejects spatial-dsl-v1 commands.');
   assert.deepStrictEqual(plannerGraph.describeGraph().stages.map(function(stage) { return stage.stage; }), spatialEngine.contract.graph, 'LangGraph stages are declared by the one Spatial Engine contract.');
 
   var index = dictionary.buildIndex();
@@ -78,9 +85,9 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
       assetWorldHash: assetWorld.contentHash,
       facts: [
         { subject: 'player', kind: 'render-geometry', drawableBounds: { left: -1, top: -1, right: 1, bottom: 1 }, nativeSize: { width: 2, height: 2 }, objectOrigin: { x: 1, y: 1 }, evidence: { documentKind: 'accepted-asset-geometry', contentHash: assetWorld.contentHash, producerRevision: 'fixture.v1' } },
-        { subject: 'player', kind: 'gdjs-coordinate-contract', positionSemantic: 'object-origin', sizeSemantic: 'display-size', layerSemantic: 'layer', evidence: { documentKind: 'pinned-gdevelop-coordinate-fact', contentHash: 'gdevelop.coordinate.fixture', producerRevision: 'fixture.v1' } },
+        { subject: 'player', kind: 'gdjs-coordinate-contract', positionSemantic: 'object-origin', sizeSemantic: 'display-size', layerSemantic: 'layer', evidence: { documentKind: coordinateTruth.documentKind, contentHash: coordinateTruth.contentHash, producerRevision: coordinateTruth.source.commit } },
         { subject: 'hud', kind: 'render-geometry', drawableBounds: { left: 0, top: 0, right: 2, bottom: 2 }, nativeSize: { width: 2, height: 2 }, objectOrigin: { x: 0, y: 0 }, evidence: { documentKind: 'accepted-asset-geometry', contentHash: assetWorld.contentHash, producerRevision: 'fixture.v1' } },
-        { subject: 'hud', kind: 'gdjs-coordinate-contract', positionSemantic: 'object-origin', sizeSemantic: 'display-size', layerSemantic: 'layer', evidence: { documentKind: 'pinned-gdevelop-coordinate-fact', contentHash: 'gdevelop.coordinate.fixture', producerRevision: 'fixture.v1' } }
+        { subject: 'hud', kind: 'gdjs-coordinate-contract', positionSemantic: 'object-origin', sizeSemantic: 'display-size', layerSemantic: 'layer', evidence: { documentKind: coordinateTruth.documentKind, contentHash: coordinateTruth.contentHash, producerRevision: coordinateTruth.source.commit } }
       ]
     }, 'spatial-geometry-fact-set.');
     var spatialInput = assemblyStage.prepare(assetBound, assetWorld, { componentExpansion: assembly.componentExpansion, geometryFacts: geometryFacts });
@@ -89,6 +96,21 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
     assert.strictEqual(spatialInput.sceneCanvas.width, 800);
     assert(spatialInput.sceneCanvas.layers.some(function(layer) { return layer.name === 'ui'; }), 'Planner receives the real GDJS UI layer fact.');
     assert.strictEqual(spatialInput.sceneCanvas.layers[0].cameras[0].defaultViewport, true, 'Planner receives actual GDJS camera viewport facts instead of a camera count.');
+    assert.deepStrictEqual(spatialInput.planningSpace.coordinateFrame.visibleRect, { left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 }, 'Planning space resolves the pinned initial GDJS visible rectangle.');
+    assert.deepStrictEqual(spatialInput.planningSpace.coordinateFrame.axes, { positiveX: 'right', positiveY: 'down' }, 'Planning space states the GDJS axis directions explicitly.');
+    assert.strictEqual(spatialInput.planningSpace.layerStack.order, 'back-to-front');
+    assert.strictEqual(spatialInput.planningSpace.layerStack.layers.filter(function(layer) { return layer.name === 'ui'; })[0].index, 1, 'Planning space preserves the GDJS project layer index.');
+    assert.deepStrictEqual(spatialInput.planningSpace.subjects.filter(function(subject) { return subject.subject === 'hud'; })[0].legalRegion.rect, { left: 32, top: 24, right: 768, bottom: 576, width: 736, height: 552 }, 'Dictionary safe-area fractions resolve to the active GDJS canvas pixel region.');
+    var forgedPlanningSpace = JSON.parse(JSON.stringify(spatialInput)); forgedPlanningSpace.planningSpace.coordinateFrame.origin.x = 10; seal(forgedPlanningSpace, 'spatial-assembly-input.');
+    assert.throws(function() { spatialEngine.validateAssemblyInput(forgedPlanningSpace); }, function(error) { return error.code === 'SPATIAL_PLANNING_SPACE_INVALID'; }, 'Planning-space coordinates cannot become a caller-authored second truth.');
+    var forgedCanvasInput = JSON.parse(JSON.stringify(spatialInput)); forgedCanvasInput.sceneCanvas.width = 1000; forgedCanvasInput.planningSpace = spatialEngine.createPlanningSpace(forgedCanvasInput.sceneCanvas, forgedCanvasInput.layoutIntentSnapshot); seal(forgedCanvasInput, 'spatial-assembly-input.');
+    assert.doesNotThrow(function() { spatialEngine.validateAssemblyInput(forgedCanvasInput); }, 'The isolated assembly document is internally consistent before its seed ownership boundary is checked.');
+    assert.throws(function() { spatialEngine.validateAssemblyInputAgainstSeed(forgedCanvasInput, assetBound); }, function(error) { return error.code === 'SPATIAL_ASSEMBLY_SEED_MISMATCH'; }, 'A re-signed sceneCanvas and planningSpace cannot replace the exact asset-bound GDJS scene truth.');
+    var forgedRequestBinding = JSON.parse(JSON.stringify(spatialInput)); forgedRequestBinding.spatialAssemblyRequestHash = 'spatial-assembly-request.forged'; seal(forgedRequestBinding, 'spatial-assembly-input.');
+    assert.doesNotThrow(function() { spatialEngine.validateAssemblyInput(forgedRequestBinding); }, 'The isolated assembly document cannot prove its external spatial request owner.');
+    assert.throws(function() { spatialEngine.validateAssemblyInputAgainstSeed(forgedRequestBinding, assetBound); }, function(error) { return error.code === 'SPATIAL_ASSEMBLY_SEED_MISMATCH'; }, 'A re-signed assembly input cannot replace the seed-owned spatial request or layout intent.');
+    var wrongCoordinateEvidence = JSON.parse(JSON.stringify(geometryFacts)); wrongCoordinateEvidence.facts[1].evidence.contentHash = 'gdevelop-spatial-coordinate-truth.forged'; seal(wrongCoordinateEvidence, 'spatial-geometry-fact-set.');
+    assert.throws(function() { assemblyStage.prepare(assetBound, assetWorld, { componentExpansion: assembly.componentExpansion, geometryFacts: wrongCoordinateEvidence }); }, function(error) { return error.code === 'SPATIAL_ASSEMBLY_GEOMETRY_INVALID'; }, 'Spatial assembly rejects GDJS coordinate evidence not bound to the pinned generated truth.');
     var customCameraInput = JSON.parse(JSON.stringify(spatialInput)); customCameraInput.sceneCanvas.layers[0].cameras[0].defaultViewport = false;
     assert.throws(function() { spatialEngine.validateAssemblyInput(customCameraInput); }, function(error) { return error.code === 'SPATIAL_SCENE_CAMERA_UNSUPPORTED'; }, 'Custom camera framing fails before planning until its coordinate mapping is implemented.');
     assert.throws(function() { assemblyStage.prepare(assetBound, assetWorld, { componentExpansion: assembly.componentExpansion, geometryFacts: geometryFacts, environment: { viewport: { width: 800, height: 600 } } }); }, function(error) { return error.code === 'SPATIAL_ASSEMBLY_STAGE_INVALID'; }, 'Legacy environment injection is rejected instead of silently retained.');
@@ -133,6 +155,7 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
     assert(plannerCalls[0].prompt.indexOf('accepted-asset:hud_visual') >= 0 && plannerCalls[0].prompt.indexOf('accepted-asset:player_visual') >= 0, 'Prompt maps each accepted image to an explicit imageRef.');
     assert(plannerCalls[1].prompt.indexOf('orderedImageInputs (provider image order):') >= 0 && plannerCalls[1].prompt.indexOf('candidate-preview:' + run.preview.contentHash) >= 0, 'Every visual-planner round declares the complete ordered imageRef list, including the candidate preview.');
     assert(plannerCalls[0].prompt.indexOf('A readable score panel sprite.') >= 0 && plannerCalls[0].prompt.indexOf(assembly.componentExpansion.contentHash) >= 0, 'Planner receives the frozen semantic design and component-expansion identity.');
+    assert(plannerCalls[0].prompt.indexOf('"positiveX":"right"') >= 0 && plannerCalls[0].prompt.indexOf('"left":32,"top":24,"right":768,"bottom":576') >= 0, 'Planner prompt receives the explicit coordinate frame and dictionary-derived legal pixel region.');
     assert(plannerCalls[1].imagePaths.indexOf(run.preview.imagePath) >= 0, 'The later visual-planner call receives the exact candidate preview.');
     assert.deepStrictEqual(run.trace.filter(function(entry) { return entry.stage === 'planner-invoke'; }).map(function(entry) { return entry.dsl; }), [
       'PLACE subject="player" x=362 y=286 width=64 height=64 angle=0 layer="" zOrder=31\nPLACE subject="hud" x=82 y=46 width=100 height=24 angle=0 layer="ui" zOrder=106',

@@ -37,6 +37,8 @@ function validateAssetBoundSeed(input, value, code) {
   var core = clone(value);
   delete core.contentHash;
   if (value.contentHash !== 'asset-bound-project-seed.' + hash(core)) fail(code, 'GDJS asset-bound project seed.contentHash does not bind its document content');
+  try { assembly.validateAssemblyInputAgainstSeed(input, value); }
+  catch (error) { fail(code, 'GDJS Spatial Adapter requires scene facts derived from the exact asset-bound seed: ' + String(error && error.message || error)); }
   return { seed: value, layout: layout };
 }
 function projectedInstance(item) {
