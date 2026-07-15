@@ -50,6 +50,7 @@ function subjectsFromSource(source) {
   var subjects = Object.create(null);
   if (source.game && source.game.semanticId) subjects[source.game.semanticId] = true;
   (source.entities || []).forEach(function(entity) { subjects[entity.semanticId] = true; });
+  (source.components || []).forEach(function(component) { subjects[component.semanticId] = true; });
   return subjects;
 }
 

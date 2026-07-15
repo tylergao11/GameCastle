@@ -12,11 +12,14 @@ function world() { return { mode: 'baseline', world: { sourceHash: 'semantic.bas
 function invoke(outputs, captured, extra) { return runtime.create({ providerRuntime: fakeSequence(outputs, captured) }).invoke(Object.assign({ requestId: 'semantic.check', projectId: 'check', userRequest: 'make a compact game', creativeVision: 'clear readable play', world: world(), index: index }, extra || {})); }
 
 (async function() {
+  var worldCenterHandle = references.parameterContext().layouts.filter(function(row) { return row.indexOf('|World center|') >= 0; })[0].split('|')[0];
+  var screenTopLeftHandle = references.parameterContext().layouts.filter(function(row) { return row.indexOf('|Screen top left|') >= 0; })[0].split('|')[0];
   var write = [
     'game(semanticId=demo,name="Demo")',
     'entity(semanticId=GameState,roles=["state"],kind=state,behaviors=[])',
     'member(entity=GameState,semanticId=score,roles=["score"],value=0,bindings=["state.number","text.display-number"])',
     'entity(semanticId=ScoreText,roles=["ui","score"],kind=text,behaviors=[])',
+    'layout(semanticId=score_layout,roles=["ui"],subject=ScoreText,bounds={"width":240,"height":48},relations=[{"semanticId":"score_anchor","layout":"' + screenTopLeftHandle + '","subjects":["ScoreText"]}],bindings=[])',
     'event(semanticId=update_score,kind=rule)',
     'when(event=update_score,use=always)',
     'then(event=update_score,use=text.display-number,target=ScoreText,prefix="Score: ",value={"use":"state.number","target":"GameState.score"})',
@@ -41,7 +44,7 @@ function invoke(outputs, captured, extra) { return runtime.create({ providerRunt
   assert.strictEqual(directCalls[0].provider, 'deepseek');
   assert.strictEqual(directCalls[0].model, 'deepseek-v4-flash');
   assert.deepStrictEqual(directCalls[0].input.thinking, { type: 'enabled' });
-  assert.strictEqual(directCalls[0].input.reasoningEffort, 'medium');
+  assert.strictEqual(directCalls[0].input.reasoningEffort, 'high');
   assert.strictEqual(directCalls[0].input.temperature, 0);
 
   var systemPrompt = directCalls[0].input.messages[0].content;
@@ -59,6 +62,33 @@ function invoke(outputs, captured, extra) { return runtime.create({ providerRunt
   assert(secondUserPrompt.indexOf('"type":"game"') >= 0, 'runtime ledger returns the compact successful boundary');
   assert(secondUserPrompt.indexOf('"semanticId":"demo"') >= 0, 'runtime returns the locally applied Draft structure');
   assert.strictEqual(/\bnever\b|don't|\btemplate\b|\bexample\b/i.test(systemPrompt), false, 'system prompt uses positive fill-in guidance');
+
+  var componentRows = references.parameterContext().components;
+  var joystickHandle = componentRows.filter(function(row) { return row.indexOf('|Virtual Joystick|') >= 0; })[0].split('|')[0];
+  var buttonHandle = componentRows.filter(function(row) { return row.indexOf('|Action Button|') >= 0; })[0].split('|')[0];
+  var componentWrite = [
+    'game(semanticId=controls,name="Controls")',
+    'entity(semanticId=Player,roles=["player"],kind=sprite,behaviors=[])',
+    'layout(semanticId=player_layout,roles=["world"],subject=Player,bounds={"width":64,"height":64},relations=[{"semanticId":"player_anchor","layout":"' + worldCenterHandle + '","subjects":["Player"]}],bindings=[])',
+    'component(semanticId=MoveControl,kind=' + joystickHandle + ',target=Player,config={"direction":"horizontal"},bindings={})',
+    'component(semanticId=HideControl,kind=' + buttonHandle + ',target=Player,config={"pressMode":"pressed"},bindings={"action":{"use":"object.hide","arguments":{"target":"Player"}}})'
+  ].join(';');
+  var componentCalls = [];
+  var componentRun = await invoke([componentWrite, 'complete()'], componentCalls, { userRequest: 'create a movable player with a joystick and one action button' });
+  assert.strictEqual(componentRun.ok, true, 'LLM2 component batch completes in one write plus complete');
+  assert.strictEqual(componentRun.document.source.components.length, 2, 'component instances remain visible in source truth');
+  assert.strictEqual(componentRun.document.assembly.componentExpansion.components.length, 2, 'Runtime reports two deterministic component expansions');
+  assert.strictEqual(componentRun.document.assembly.eventGraph.events.length, 5, 'joystick and button expand into five selected GDJS event branches');
+  assert(componentCalls[0].input.messages[0].content.indexOf('COMPONENT_LIBRARY|[component-library] rows are selectable components') >= 0, 'system prompt identifies the component library without exposing internal architecture terms');
+  assert(componentCalls[0].input.messages[1].content.indexOf('[component-library]') >= 0, 'LLM2 receives the compact component library table');
+  assert(componentCalls[0].input.messages[1].content.indexOf('|Virtual Joystick|') >= 0 && componentCalls[0].input.messages[1].content.indexOf('|Action Button|') >= 0, 'component selection exposes complete abilities');
+  assert.strictEqual(/gc-component:\/\/|input\.virtual_joystick|input\.action_button/.test(componentCalls[0].input.messages[1].content), false, 'component dictionary ids stay Runtime-only');
+  assert.strictEqual(componentRun.runTrace[0].output, componentWrite, 'round trace retains the raw LLM2 component DSL');
+  assert.strictEqual(componentRun.runTrace[0].commands.filter(function(command) { return command.type === 'component'; }).length, 2, 'round trace retains parsed component commands');
+  assert(componentRun.runTrace[0].results.every(function(result) { return result.ok; }), 'round trace retains every component execution result');
+  assert(componentRun.runTrace[0].inputContext && componentRun.runTrace[0].inputContext.task.indexOf('joystick') >= 0, 'round trace retains the exact semantic input context');
+  assert.strictEqual(componentRun.runTrace[0].draft.components.length, 2, 'round trace retains the Runtime-applied Draft facts');
+  assert.strictEqual(componentRun.runTrace[1].results[0].componentExpansion.length, 2, 'completion round exposes component expansion facts for diagnosis');
 
   var multiRoundCalls = [];
   var firstPlan = write.split(';').slice(0, -1).join(';');
@@ -85,7 +115,7 @@ function invoke(outputs, captured, extra) { return runtime.create({ providerRunt
   var fusedCalls = [];
   await assert.rejects(function() { return invoke(['entity(semanticId=player,roles=["player"],kind=bad,behaviors=[])', 'entity(semanticId=player,roles=["player"],kind=bad,behaviors=[])'], fusedCalls, { maxRounds: 3 }); }, function(error) { return error.code === 'SEMANTIC_RUN_FUSED' && error.runLedger.status === 'fused'; });
 
-  var editable = { schemaVersion: 4, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'edit_demo', name: 'Edit Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: references.resolveEntityKind('sprite'), behaviorTypeRefs: [], members: [{ semanticId: 'speed', roles: ['movement'], value: 100, bindings: [] }] }], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+  var editable = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'edit_demo', name: 'Edit Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: references.resolveEntityKind('sprite'), behaviorTypeRefs: [], members: [{ semanticId: 'speed', roles: ['movement'], value: 100, bindings: [] }] }], components: [], events: [], assetIntents: [], layoutIntents: [{ semanticId: 'player_layout', roles: ['world'], subject: 'player', bounds: { width: 64, height: 64 }, relations: [{ semanticId: 'player_anchor', layoutRef: references.resolveLayout(worldCenterHandle), subjects: ['player'] }], bindings: [] }], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
   var revisionCalls = [];
   var edited = await invoke(['member(entity=player,semanticId=speed,roles=["movement"],value=110,bindings=[])', 'complete()'], revisionCalls, { source: editable, world: sourceContract.structureView(editable, { index: index }) });
   assert.strictEqual(edited.document.source.entities[0].members[0].value, 110);

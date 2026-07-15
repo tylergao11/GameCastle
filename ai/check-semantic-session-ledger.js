@@ -8,9 +8,9 @@ var draftApi = require('./semantic-draft');
 var runLedgerApi = require('./semantic-run-ledger');
 var commanderContext = require('./semantic-commander-context');
 var index = dictionary.buildIndex();
-var source = { schemaVersion: 4, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'demo', name: 'Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [{ semanticId: 'jump_height', roles: ['movement'], value: 100, bindings: [] }] }], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+var source = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'demo', name: 'Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [{ semanticId: 'jump_height', roles: ['movement'], value: 100, bindings: [] }] }], components: [], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
 var ledger = ledgerApi.create(source, { index: index, worldVersion: 1 });
-var revision = { schemaVersion: 4, documentKind: 'game-semantic-revision', baseSourceHash: sourceContract.sourceHash(source), operations: [{ op: 'adjust_member_value', target: { entity: 'player', member: 'jump_height' }, direction: 'increase', degree: 'slight' }] };
+var revision = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-revision', baseSourceHash: sourceContract.sourceHash(source), operations: [{ op: 'adjust_member_value', target: { entity: 'player', member: 'jump_height' }, direction: 'increase', degree: 'slight' }] };
 var committed = ledgerApi.commit(ledger, source, revision, { index: index, worldVersion: 2 });
 assert.strictEqual(committed.entry.structuralDiff.collections.entities.changed.length, 0, 'numeric tuning must not create a world structure diff');
 var baseline = ledgerApi.context(committed.ledger, committed.source, { index: index, worldVersion: 2 });
@@ -26,7 +26,7 @@ var userPrompt = prompt.buildUserPrompt({ userRequest: 'jump a little higher', c
 assert.strictEqual(userPrompt.indexOf('"value":110'), -1, 'prompt world context must not disclose current values');
 assert.strictEqual(/gdjs:\/\//.test(userPrompt), false, 'prompt context must expose runtime handles rather than internal references');
 var systemPrompt = prompt.buildSystemPrompt();
-['GameCastle Semantic Commander', 'RESPONSE|one DSL batch; prose=0; command separator:semicolon or line break', 'OWNER|', 'RUNTIME|', 'DRAFT|', 'SELECT|', 'WORK_COMMANDS', 'FIELD_RULES'].forEach(function(section) {
+['GameCastle Semantic Commander', 'RESPONSE|one DSL batch; prose=0; command separator:semicolon or line break', 'OWNER|', 'RUNTIME|', 'DRAFT|', 'NEXT|', 'COMPLETE_COMMAND|complete()', 'game(semanticId='].forEach(function(section) {
   assert(systemPrompt.indexOf(section) >= 0, 'LLM2 prompt must retain compact executable protocol: ' + section);
 });
 assert(systemPrompt.indexOf('DESIGN_VALUE|fill from [task] and [creative-vision]') >= 0, 'LLM2 must be allowed to write design values for a new source');
@@ -44,11 +44,16 @@ assert.strictEqual(userPrompt.indexOf('condition|input.key.just-pressed|'), -1, 
 assert(userPrompt.indexOf('group|commands:child-event|parameters:') >= 0, 'event-kind context must expose the group child-event command');
 assert(userPrompt.indexOf('rule|commands:when+then+child-event|parameters:') >= 0, 'event-kind context must expose rule logic commands');
 assert(systemPrompt.indexOf('APPLIED|[applied] contains the previous batch commands accepted by runtime and their results') >= 0, 'LLM2 must receive exact runtime application receipts');
-assert(systemPrompt.indexOf('DRAFT|[draft] is read-only runtime-applied facts') >= 0 && systemPrompt.indexOf('WRITE|fill command fields from WORK_COMMANDS') >= 0, 'Draft facts and writable command fields must have distinct owners');
+assert(systemPrompt.indexOf('DRAFT|[draft] is read-only runtime-applied facts') >= 0 && systemPrompt.indexOf('WRITE|fill command fields from the command forms below') >= 0, 'Draft facts and writable command fields must have distinct owners');
+assert(systemPrompt.indexOf('GAME_ROOT|[draft].game=null=>fill game(...) in this WRITE') >= 0, 'new Source drafts must expose the required game root as one positive fill rule');
 assert(systemPrompt.indexOf('USES|entries in the four *-uses tables are directly executable') >= 0, 'foundation uses must be identified as directly executable');
 assert(systemPrompt.indexOf('EXTENSION_LOOKUP|capability absent from four *-uses tables=>output retrieve(group=gHandle,kind=') >= 0 && systemPrompt.indexOf('alone; results appear in [retrieve] next response') >= 0, 'extension lookup must expose its independent response boundary and next-response result');
+assert(systemPrompt.indexOf('COMPONENT_LIBRARY|[component-library] rows are selectable components:handle|name|meaning|target|config|bindings') >= 0, 'LLM2 must receive an explicit component-library contract');
+assert.strictEqual(systemPrompt.indexOf('COMPONENT_ROW|'), -1, 'one component-library line owns the row meaning');
 assert.strictEqual(/^RETRIEVE\|/m.test(systemPrompt), false, 'instruction labels must not reuse the retrieve DSL command name');
-assert(systemPrompt.indexOf('SELECT|[draft]+[applied] agree with [task]=>output complete() alone; otherwise=>output one command batch from WORK_COMMANDS') >= 0, 'LLM2 must compare Draft truth and applied plan with the task');
+assert(systemPrompt.indexOf('NEXT|[draft]+[applied] agree with [task]=>COMPLETE_COMMAND; remaining work=>one batch from the command forms') >= 0, 'LLM2 must compare Draft truth and applied plan with the task');
+assert(systemPrompt.indexOf('COMPLETE_COMMAND|complete()') > systemPrompt.indexOf('component(semanticId='), 'completion syntax stays adjacent to the command grammar');
+assert.strictEqual(/^WORK_COMMANDS$|^FIELD_RULES$/m.test(systemPrompt), false, 'bare prompt section labels stay outside model output vocabulary');
 assert.strictEqual((systemPrompt.match(/complete\(\)/g) || []).length, 1, 'complete() must stay outside the work command table');
 assert.strictEqual(/\bcommit\b/i.test(systemPrompt), false, 'transactional commit wording must stay outside the LLM2 completion protocol');
 assert(systemPrompt.indexOf('CHANGE_RESULT|runtime applies change commands after this response; results appear in [draft] on the next response') >= 0, 'write results must belong to the next response Draft');

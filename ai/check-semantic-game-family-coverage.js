@@ -1,6 +1,7 @@
 var assert = require('assert');
 var dictionary = require('./capability-semantic-dictionary');
 var linker = require('./semantic-runtime-linker');
+var sourceContract = require('./game-semantic-source');
 
 var index = dictionary.buildIndex();
 var families = [
@@ -15,20 +16,22 @@ var families = [
 
 families.forEach(function(family) {
   var source = {
-    schemaVersion: 4,
+    schemaVersion: sourceContract.SCHEMA_VERSION,
     documentKind: 'game-semantic-source',
     dictionarySource: index.source,
     game: { semanticId: family.id, name: family.name },
     entities: [{ semanticId: 'player', roles: family.roles, objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [{ semanticId: 'primary_value', roles: ['gameplay'], value: 1, bindings: [] }] }],
+    components: [],
     events: [],
     assetIntents: [{ semanticId: 'player_visual', roles: family.roles.concat(['visual']), subject: 'player', description: family.name + ' primary readable visual.', productionFamily: family.assetFamily, styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, bindings: [] }],
-    layoutIntents: [{ semanticId: 'player_layout', roles: family.roles, subject: 'player', relations: [{ semanticId: 'primary_anchor', layoutRef: family.layoutRef, subjects: ['player'] }], bindings: [] }],
+    layoutIntents: [{ semanticId: 'player_layout', roles: family.roles, subject: 'player', bounds: { width: 64, height: 64 }, relations: [{ semanticId: 'primary_anchor', layoutRef: family.layoutRef, subjects: ['player'] }], bindings: [] }],
     tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } }
   };
   var assembly = linker.assemble(source, { index: index });
   assert.strictEqual(assembly.projectSeed.project.properties.name, family.name, family.id + ' project seed must preserve game source identity');
   assert.strictEqual(assembly.projectSeed.assetBindingRequirements[0].productionFamily, family.assetFamily, family.id + ' asset intent must remain source-bound');
-  assert.strictEqual(assembly.projectSeed.project.layouts[0].instances.length, 1, family.id + ' layout must materialize one source-bound instance');
+  assert.strictEqual(assembly.projectSeed.project.layouts[0].instances.length, 0, family.id + ' seed must defer spatial instances until the asset-aware assembly stage');
+  assert.strictEqual(assembly.projectSeed.spatialAssemblyRequest.subjects.length, 1, family.id + ' preserves one spatial assembly request subject');
   assert.strictEqual(assembly.projectSeed.generatedCode.length, 1, family.id + ' project seed must compile through official libGD');
 });
 

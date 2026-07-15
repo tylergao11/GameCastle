@@ -11,14 +11,15 @@ function compile(source, options) {
   var valid = sourceContract.validateSource(source, options);
   var intents = valid.layoutIntents.map(function(intent) {
     var relation = layoutDictionary.resolve(intent.relations[0].layoutRef);
-    return { semanticId: intent.semanticId, subject: intent.subject, roles: clone(intent.roles), gdjsBindings: bindingRefs(intent.bindings), relation: { semanticId: intent.relations[0].semanticId, semanticRef: relation.semanticRef, title: relation.title, description: relation.description, placement: relation.placement } };
+    return { semanticId: intent.semanticId, subject: intent.subject, roles: clone(intent.roles), reservation: clone(intent.bounds), gdjsBindings: bindingRefs(intent.bindings), relation: { semanticId: intent.relations[0].semanticId, semanticRef: relation.semanticRef, title: relation.title, description: relation.description, subjects: clone(intent.relations[0].subjects), placement: clone(relation.placement) } };
   });
   var document = {
-    schemaVersion: 2,
+    schemaVersion: 5,
     documentKind: 'semantic-layout-plan',
     compilerKind: 'semantic-source-to-layout-plan',
     sourceHash: sourceContract.sourceHash(valid),
     dictionarySource: clone(valid.dictionarySource),
+    coordinateContract: clone(layoutDictionary.dictionary.coordinateContract),
     intents: intents
   };
   document.contentHash = 'layout.' + hash(document);

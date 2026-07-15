@@ -1,10 +1,11 @@
 var assert = require('assert');
 var dictionary = require('../ai/capability-semantic-dictionary');
+var sourceContract = require('../ai/game-semantic-source');
 var api = require('./semantic-engine-api');
 
 (async function() {
   var index = dictionary.buildIndex();
-  var source = { schemaVersion: 4, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'api_demo', name: 'API Demo' }, entities: [], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+  var source = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'api_demo', name: 'API Demo' }, entities: [], components: [], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
   var server = api.createServer({ index: index });
   await new Promise(function(resolve) { server.listen(0, '127.0.0.1', resolve); });
   try {

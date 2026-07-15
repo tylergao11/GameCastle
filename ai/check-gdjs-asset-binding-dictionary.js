@@ -8,9 +8,13 @@ var configurationTruth = require('./gdevelop-truth/object-configuration-truth.js
 var adapterDictionary = require('./gdjs-asset-binding-dictionary');
 var binder = require('./gdjs-project-asset-binder');
 var png = require('./local-derivation-port');
+var spatialEngine = require('../runtime/spatial');
+var layoutDictionary = require('../shared/semantic-layout-dictionary.json');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function digest(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }
+function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
+function seal(value, prefix) { var core = clone(value); delete core.contentHash; value.contentHash = prefix + crypto.createHash('sha256').update(JSON.stringify(stable(core))).digest('hex').slice(0, 24); return value; }
 
 var truthByConfiguration = {};
 configurationTruth.objects.forEach(function(record) { truthByConfiguration[record.configurationType] = record; });
@@ -49,9 +53,11 @@ try {
     slots.push({ semanticId: assetId, path: file.path, sha256: file.sha256, format: file.format, resourceKind: adapter.resourceKind });
   });
 
-  var seed = { schemaVersion: 1, documentKind: 'gdjs-project-seed', sourceHash: 'semantic.official-adapter-coverage', project: project, objectDeclarations: declarations, assetBindingRequirements: requirements };
+  var layoutPlan = { schemaVersion: 5, documentKind: 'semantic-layout-plan', compilerKind: 'semantic-source-to-layout-plan', sourceHash: 'semantic.official-adapter-coverage', realizedSourceHash: 'semantic.official-adapter-coverage', dictionarySource: { layoutDictionaryHash: digest(Buffer.from(JSON.stringify(stable(layoutDictionary)))) }, coordinateContract: clone(layoutDictionary.coordinateContract), intents: [], contentHash: '' };
+  seal(layoutPlan, 'layout.');
+  var seed = { schemaVersion: 2, documentKind: 'gdjs-project-seed', sourceHash: 'semantic.official-adapter-coverage', dictionarySource: layoutPlan.dictionarySource, project: project, objectDeclarations: declarations, assetBindingRequirements: requirements, layoutPlan: layoutPlan, spatialAssemblyRequest: spatialEngine.createAssemblyRequest(layoutPlan), contentHash: 'project-seed.fixture' };
   var world = { schemaVersion: 2, documentKind: 'semantic-asset-world', sourceHash: seed.sourceHash, contentHash: 'fixture.asset-world', slots: slots };
-  var bound = binder.bind(seed, world);
+  var bound = binder.bindResources(seed, world);
   assert.strictEqual(bound.resources.length, requirements.length, 'Every external-resource adapter must materialize exactly one GDevelop resource.');
   assert.strictEqual(bound.generatedCode.length, project.layouts.length, 'All official adapter configurations must compile through libGD.');
   console.log('[GDJSAssetBindingDictionary] ' + Object.keys(truthByConfiguration).length + ' official configurations explicitly covered and compiled');

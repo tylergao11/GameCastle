@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 3,
+  "id": "ability.triggered_effect",
+  "kind": "ability",
+  "name": "Triggered Effect",
+  "summary": "Internal base for an ability activated by a game condition.",
+  "abstract": true,
+  "target": { "required": true, "roles": ["player", "character", "enemy"] },
+  "config": {},
+  "bindings": {
+    "trigger": { "kind": "condition", "required": true, "summary": "Condition that requests the ability." },
+    "effect": { "kind": "action", "required": true, "summary": "Game effect produced by the ability." }
+  },
+  "implementation": {
+    "targetMembers": [],
+    "targetBehaviors": [],
+    "entities": [],
+    "layouts": [],
+    "events": []
+  }
+}

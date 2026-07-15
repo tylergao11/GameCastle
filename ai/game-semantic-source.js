@@ -182,6 +182,73 @@ function validateEntity(index, entity, label) {
   if (entity.behaviorTypeRefs.length && !entity.objectTypeRef) fail('SEMANTIC_ENTITY_INVALID', label + '.behaviorTypeRefs requires objectTypeRef');
   if (!Array.isArray(entity.members)) fail('SEMANTIC_ENTITY_INVALID', label + '.members must be an array'); unique(entity.members, label + '.members'); entity.members.forEach(function(member, memberIndex) { validateMember(index, member, label + '.members[' + memberIndex + ']'); });
 }
+function validateComponentBinding(index, binding, expected, label) {
+  object(binding, label); allowed(binding, ['use', 'arguments'], label);
+  var use = text(binding.use, label + '.use');
+  var expectedKinds = expected.kinds || [expected.kind || expected.bindingKind];
+  var foundation = eventAlgebra.operationForUse(use);
+  if (foundation) {
+    if (expectedKinds.indexOf(foundation.kind) < 0) fail('SEMANTIC_COMPONENT_BINDING_INVALID', label + ' requires one of these uses: ' + expectedKinds.join(', '));
+    try { eventAlgebra.validateOperationArguments(use, foundation.kind, binding.arguments || {}); }
+    catch (error) { fail('SEMANTIC_COMPONENT_BINDING_INVALID', label + ' has invalid arguments: ' + error.message); }
+  } else {
+    var entry;
+    try { entry = dictionary.resolve(index, use); } catch (error) { fail('SEMANTIC_COMPONENT_BINDING_INVALID', error.message); }
+    if (entry.semantic_id !== use || expectedKinds.indexOf(entry.kind) < 0 || entry.binding.status !== 'executable') fail('SEMANTIC_COMPONENT_BINDING_INVALID', label + ' must use one executable dictionary ' + expectedKinds.join(' or '));
+    try { dictionary.validateCapabilityArguments(entry, binding.arguments || {}); }
+    catch (error) { fail('SEMANTIC_COMPONENT_BINDING_INVALID', label + ' has invalid arguments: ' + error.message); }
+  }
+  object(binding.arguments || {}, label + '.arguments'); validateScalarTree(binding.arguments || {}, label + '.arguments');
+}
+function validateComponentConfig(index, descriptor, value, bindings, label) {
+  if (descriptor.type === 'enum' || descriptor.type === 'layout-choice') { if ((descriptor.values || []).indexOf(value) < 0) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' must take one dictionary component value: ' + (descriptor.values || []).join(', ')); return; }
+  if (descriptor.type === 'number') { if (typeof value !== 'number' || !isFinite(value)) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' must be a finite number'); if (descriptor.minimum !== undefined && value < descriptor.minimum) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' must be at least ' + descriptor.minimum); if (descriptor.maximum !== undefined && value > descriptor.maximum) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' must be at most ' + descriptor.maximum); return; }
+  if (descriptor.type === 'text' || descriptor.type === 'layout' || descriptor.type === 'color') { if (typeof value !== 'string' || !value.length) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' must be text'); return; }
+  if (descriptor.type === 'binding-ref') { var bindingName = text(value, label); if (!bindings[bindingName]) fail('SEMANTIC_COMPONENT_BINDING_MISSING', label + ' references missing binding ' + bindingName); validateComponentBinding(index, bindings[bindingName], { kind: descriptor.bindingKind }, label); return; }
+  if (descriptor.type === 'list') {
+    if (!Array.isArray(value)) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' must be a list');
+    if (descriptor.minItems !== undefined && value.length < descriptor.minItems) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' requires at least ' + descriptor.minItems + ' items');
+    value.forEach(function(item, itemIndex) { validateComponentConfig(index, descriptor.item, item, bindings, label + '[' + itemIndex + ']'); }); return;
+  }
+  if (descriptor.type === 'object') {
+    object(value, label); var fields = descriptor.fields || {};
+    Object.keys(value).forEach(function(name) { if (!fields[name]) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' contains unknown field: ' + name); validateComponentConfig(index, fields[name], value[name], bindings, label + '.' + name); });
+    Object.keys(fields).forEach(function(name) { if (fields[name].required && !Object.prototype.hasOwnProperty.call(value, name)) fail('SEMANTIC_COMPONENT_CONFIG_MISSING', label + ' requires ' + name); }); return;
+  }
+  fail('SEMANTIC_COMPONENT_CONFIG_INVALID', label + ' has an unknown dictionary component config type');
+}
+function componentBindingRefs(descriptor, value, output) {
+  if (descriptor.type === 'binding-ref') { output.push(value); return output; }
+  if (descriptor.type === 'list') { value.forEach(function(item) { componentBindingRefs(descriptor.item, item, output); }); return output; }
+  if (descriptor.type === 'object') { Object.keys(value).forEach(function(name) { componentBindingRefs(descriptor.fields[name], value[name], output); }); }
+  return output;
+}
+function validateComponent(index, source, component, label) {
+  object(component, label); allowed(component, ['semanticId', 'componentRef', 'target', 'config', 'bindings'], label); id(component.semanticId, label + '.semanticId');
+  var definition;
+  try { definition = dictionary.resolveComponent(index, text(component.componentRef, label + '.componentRef')); }
+  catch (error) { fail('SEMANTIC_COMPONENT_REFERENCE_INVALID', error.message); }
+  if (component.componentRef !== definition.semantic_id) fail('SEMANTIC_COMPONENT_REFERENCE_INVALID', label + '.componentRef must use ' + definition.semantic_id);
+  if (definition.runtime.status !== 'executable') fail('SEMANTIC_COMPONENT_SOURCE_ONLY', definition.component_id + ' has no executable dictionary expansion');
+  var target = component.target === null || component.target === undefined ? null : id(component.target, label + '.target');
+  if (definition.compiler.target && definition.compiler.target.required && !target) fail('SEMANTIC_COMPONENT_TARGET_MISSING', definition.component_id + ' requires target');
+  var targetEntity = target && source.entities.filter(function(entity) { return entity.semanticId === target; })[0];
+  if (target && !targetEntity) fail('SEMANTIC_COMPONENT_TARGET_MISSING', label + '.target is not a declared entity: ' + target);
+  object(component.bindings, label + '.bindings');
+  object(component.config, label + '.config');
+  var expectedConfig = definition.compiler.config || {};
+  Object.keys(component.config).forEach(function(name) { var descriptor = expectedConfig[name]; if (!descriptor) fail('SEMANTIC_COMPONENT_CONFIG_INVALID', definition.component_id + ' has no config field ' + name); validateComponentConfig(index, descriptor, component.config[name], component.bindings, label + '.config.' + name); });
+  Object.keys(expectedConfig).forEach(function(name) { if (expectedConfig[name].required && expectedConfig[name].default === undefined && !Object.prototype.hasOwnProperty.call(component.config, name)) fail('SEMANTIC_COMPONENT_CONFIG_MISSING', definition.component_id + ' requires config.' + name); });
+  var expectedBindings = definition.compiler.bindings || {};
+  var namedBindings = definition.compiler.namedBindings || null;
+  Object.keys(component.bindings).forEach(function(name) { var expected = expectedBindings[name] || namedBindings; if (!expected) fail('SEMANTIC_COMPONENT_BINDING_INVALID', definition.component_id + ' has no binding ' + name); validateComponentBinding(index, component.bindings[name], expected, label + '.bindings.' + name); });
+  Object.keys(expectedBindings).forEach(function(name) { if (expectedBindings[name].required && !component.bindings[name]) fail('SEMANTIC_COMPONENT_BINDING_MISSING', definition.component_id + ' requires binding ' + name); });
+  if (namedBindings && namedBindings.requireReferenced) {
+    var referenced = [];
+    Object.keys(component.config).forEach(function(name) { componentBindingRefs(expectedConfig[name], component.config[name], referenced); });
+    Object.keys(component.bindings).forEach(function(name) { if (!expectedBindings[name] && referenced.indexOf(name) < 0) fail('SEMANTIC_COMPONENT_BINDING_INVALID', definition.component_id + ' binding is not referenced by config: ' + name); });
+  }
+}
 function validateEventArguments(index, eventType, values, label) {
   object(values, label);
   var parameters = eventType.serialization.parameters || [], byKey = {};
@@ -291,8 +358,12 @@ function validateLayoutRelation(source, relation, label) {
   if (!Array.isArray(relation.subjects) || !relation.subjects.length) fail('SEMANTIC_LAYOUT_RELATION_INVALID', label + '.subjects must be non-empty');
   relation.subjects.forEach(function(subject, subjectIndex) { validateSubject(source, subject, label + '.subjects[' + subjectIndex + ']'); });
 }
+function validateLayoutBounds(bounds, label) {
+  object(bounds, label); allowed(bounds, ['width', 'height'], label);
+  ['width', 'height'].forEach(function(name) { if (typeof bounds[name] !== 'number' || !isFinite(bounds[name]) || bounds[name] <= 0) fail('SEMANTIC_LAYOUT_BOUNDS_INVALID', label + '.' + name + ' must be a positive finite number'); });
+}
 function validateLayoutIntent(index, source, intent, label) {
-  object(intent, label); allowed(intent, ['semanticId', 'roles', 'subject', 'relations', 'bindings'], label); id(intent.semanticId, label + '.semanticId'); validateRoles(intent.roles, label); validateSubject(source, intent.subject, label);
+  object(intent, label); allowed(intent, ['semanticId', 'roles', 'subject', 'bounds', 'relations', 'bindings'], label); id(intent.semanticId, label + '.semanticId'); validateRoles(intent.roles, label); var subject = validateSubject(source, intent.subject, label); var entity = source.entities.filter(function(item) { return item.semanticId === subject; })[0]; if (!entity || !entity.objectTypeRef) fail('SEMANTIC_LAYOUT_SUBJECT_UNMATERIALIZED', label + '.subject must identify an executable object entity'); validateLayoutBounds(intent.bounds, label + '.bounds');
   if (!Array.isArray(intent.relations) || intent.relations.length !== 1) fail('SEMANTIC_LAYOUT_INTENT_INVALID', label + '.relations must contain exactly one dictionary placement relation');
   intent.relations.forEach(function(relation, relationIndex) { validateLayoutRelation(source, relation, label + '.relations[' + relationIndex + ']'); }); validateBindings(index, intent.bindings, label);
 }
@@ -301,7 +372,7 @@ function validatePolicies(policies) {
   Object.keys(policies.relativeChange).forEach(function(degree) { id(degree, 'relative change degree'); var policy = policies.relativeChange[degree]; object(policy, 'relativeChange.' + degree); allowed(policy, ['mode', 'value'], 'relativeChange.' + degree); if (policy.mode !== 'percentage' && policy.mode !== 'absolute') fail('SEMANTIC_POLICY_INVALID', 'relativeChange.' + degree + '.mode is invalid'); if (typeof policy.value !== 'number' || !isFinite(policy.value) || policy.value <= 0) fail('SEMANTIC_POLICY_INVALID', 'relativeChange.' + degree + '.value must be a positive finite number'); });
 }
 function validateSource(source, options) {
-  var index = dictionaryIndex(options); object(source, 'GameSemanticSource'); allowed(source, ['schemaVersion', 'documentKind', 'dictionarySource', 'game', 'entities', 'events', 'assetIntents', 'layoutIntents', 'tuningPolicies'], 'GameSemanticSource');
+  var index = dictionaryIndex(options); object(source, 'GameSemanticSource'); allowed(source, ['schemaVersion', 'documentKind', 'dictionarySource', 'game', 'entities', 'components', 'events', 'assetIntents', 'layoutIntents', 'tuningPolicies'], 'GameSemanticSource');
   if (source.schemaVersion !== SCHEMA_VERSION || source.documentKind !== contract.sourceDocumentKind) fail('SEMANTIC_SOURCE_KIND_INVALID', 'GameSemanticSource has an invalid document kind or version');
   assertDictionarySource(source.dictionarySource, index); object(source.game, 'game'); allowed(source.game, ['semanticId', 'name'], 'game'); id(source.game.semanticId, 'game.semanticId'); text(source.game.name, 'game.name');
   contract.collections.forEach(function(collection) { if (!Array.isArray(source[collection])) fail('SEMANTIC_SOURCE_INVALID', collection + ' must be an array'); unique(source[collection], collection); });
@@ -315,7 +386,7 @@ function validateSource(source, options) {
     item.children.forEach(function(child, childIndex) { registerEventIds(child, childIndex, label + '.children'); });
   }
   source.events.forEach(function(item, itemIndex) { registerEventIds(item, itemIndex, 'events'); });
-  source.entities.forEach(function(item, itemIndex) { validateEntity(index, item, 'entities[' + itemIndex + ']'); }); source.events.forEach(function(item, itemIndex) { validateEvent(index, item, 'events[' + itemIndex + ']'); }); source.assetIntents.forEach(function(item, itemIndex) { validateAssetIntent(index, source, item, 'assetIntents[' + itemIndex + ']'); }); source.layoutIntents.forEach(function(item, itemIndex) { validateLayoutIntent(index, source, item, 'layoutIntents[' + itemIndex + ']'); }); validatePolicies(source.tuningPolicies);
+  source.entities.forEach(function(item, itemIndex) { validateEntity(index, item, 'entities[' + itemIndex + ']'); }); source.components.forEach(function(item, itemIndex) { validateComponent(index, source, item, 'components[' + itemIndex + ']'); }); source.events.forEach(function(item, itemIndex) { validateEvent(index, item, 'events[' + itemIndex + ']'); }); source.assetIntents.forEach(function(item, itemIndex) { validateAssetIntent(index, source, item, 'assetIntents[' + itemIndex + ']'); }); source.layoutIntents.forEach(function(item, itemIndex) { validateLayoutIntent(index, source, item, 'layoutIntents[' + itemIndex + ']'); }); validatePolicies(source.tuningPolicies);
   return clone(source);
 }
 function collection(source, name) { if (contract.collections.indexOf(name) < 0) fail('SEMANTIC_REVISION_INVALID', 'Unknown semantic collection: ' + name); return source[name]; }
@@ -335,7 +406,7 @@ function applyRevision(source, revision, options) {
 function invocationStructure(item, condition) { var view = { semanticRef: item.semanticRef, operation: clone(item.operation), channel: item.channel, argumentKeys: Object.keys(item.arguments).sort() }; if (condition) view.inverted = item.inverted; else view.awaited = item.awaited; return view; }
 function eventStructure(event) { return { semanticId: event.semanticId, eventTypeRef: event.eventTypeRef, argumentKeys: Object.keys(event.arguments).sort(), locals: Object.keys(event.locals).sort().map(function(key) { return { semanticId: key, valueType: variableValueType(event.locals[key]) }; }), conditions: event.conditions.map(function(item) { return invocationStructure(item, true); }), actions: event.actions.map(function(item) { return invocationStructure(item, false); }), children: event.children.map(eventStructure) }; }
 function structureView(source, options) {
-  source = validateSource(source, options); var payload = { game: { semanticId: source.game.semanticId, nameType: 'string' }, entities: source.entities.map(function(entity) { return { semanticId: entity.semanticId, roles: clone(entity.roles), objectTypeRef: entity.objectTypeRef || null, behaviorTypeRefs: clone(entity.behaviorTypeRefs), members: entity.members.map(function(member) { return { semanticId: member.semanticId, roles: clone(member.roles), valueType: variableValueType(member.value), bindings: bindingStructure(member.bindings) }; }) }; }), events: source.events.map(eventStructure), assetIntents: source.assetIntents.map(function(item) { return { semanticId: item.semanticId, roles: clone(item.roles), subject: item.subject, descriptionType: typeof item.description, productionFamily: item.productionFamily, styleId: item.styleId, constraintShape: Object.keys(item.constraints).sort(), animation: clone(item.animation || null), bindings: bindingStructure(item.bindings) }; }), layoutIntents: source.layoutIntents.map(function(item) { return { semanticId: item.semanticId, roles: clone(item.roles), subject: item.subject, relations: item.relations.map(function(relation) { return { semanticId: relation.semanticId, layoutRef: relation.layoutRef, subjects: clone(relation.subjects) }; }), bindings: bindingStructure(item.bindings) }; }) };
+  source = validateSource(source, options); var payload = { game: { semanticId: source.game.semanticId, nameType: 'string' }, entities: source.entities.map(function(entity) { return { semanticId: entity.semanticId, roles: clone(entity.roles), objectTypeRef: entity.objectTypeRef || null, behaviorTypeRefs: clone(entity.behaviorTypeRefs), members: entity.members.map(function(member) { return { semanticId: member.semanticId, roles: clone(member.roles), valueType: variableValueType(member.value), bindings: bindingStructure(member.bindings) }; }) }; }), components: source.components.map(function(component) { return { semanticId: component.semanticId, componentRef: component.componentRef, target: component.target, config: clone(component.config), bindings: Object.keys(component.bindings).sort().map(function(name) { return { name: name, use: component.bindings[name].use }; }) }; }), events: source.events.map(eventStructure), assetIntents: source.assetIntents.map(function(item) { return { semanticId: item.semanticId, roles: clone(item.roles), subject: item.subject, descriptionType: typeof item.description, productionFamily: item.productionFamily, styleId: item.styleId, constraintShape: Object.keys(item.constraints).sort(), animation: clone(item.animation || null), bindings: bindingStructure(item.bindings) }; }), layoutIntents: source.layoutIntents.map(function(item) { return { semanticId: item.semanticId, roles: clone(item.roles), subject: item.subject, bounds: clone(item.bounds), relations: item.relations.map(function(relation) { return { semanticId: relation.semanticId, layoutRef: relation.layoutRef, subjects: clone(relation.subjects) }; }), bindings: bindingStructure(item.bindings) }; }) };
   return { schemaVersion: SCHEMA_VERSION, documentKind: contract.structureDocumentKind, sourceHash: sourceHash(source), structureHash: hash(payload, 'structure.'), worldVersion: options && options.worldVersion === undefined ? null : (options && options.worldVersion), dictionarySource: clone(source.dictionarySource), payload: payload };
 }
 
@@ -343,7 +414,7 @@ function structuralDiff(previousView, nextView) {
   object(previousView, 'previous structure view'); object(nextView, 'next structure view');
   if (previousView.documentKind !== contract.structureDocumentKind || nextView.documentKind !== contract.structureDocumentKind) fail('SEMANTIC_STRUCTURE_DIFF_INVALID', 'structure views are required');
   var result = { fromStructureHash: previousView.structureHash, toStructureHash: nextView.structureHash, collections: {} };
-  ['entities', 'events', 'assetIntents', 'layoutIntents'].forEach(function(name) {
+  ['entities', 'components', 'events', 'assetIntents', 'layoutIntents'].forEach(function(name) {
     var before = previousView.payload[name] || []; var after = nextView.payload[name] || [];
     var beforeById = Object.create(null); var afterById = Object.create(null); before.forEach(function(item) { beforeById[item.semanticId] = item; }); after.forEach(function(item) { afterById[item.semanticId] = item; });
     var added = Object.keys(afterById).filter(function(key) { return !beforeById[key]; }).sort(); var removed = Object.keys(beforeById).filter(function(key) { return !afterById[key]; }).sort(); var changed = Object.keys(afterById).filter(function(key) { return beforeById[key] && JSON.stringify(stable(beforeById[key])) !== JSON.stringify(stable(afterById[key])); }).sort();

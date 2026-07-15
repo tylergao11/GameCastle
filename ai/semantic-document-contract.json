@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 6,
   "sourceDocumentKind": "game-semantic-source",
   "revisionDocumentKind": "game-semantic-revision",
   "structureDocumentKind": "semantic-world-structure-view",
-  "collections": ["entities", "events", "assetIntents", "layoutIntents"],
+  "collections": ["entities", "components", "events", "assetIntents", "layoutIntents"],
   "revisionOperations": ["upsert", "remove", "set_member_value", "adjust_member_value"]
 }

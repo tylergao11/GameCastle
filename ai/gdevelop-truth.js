@@ -470,12 +470,16 @@ function validateLayout(project, layout, index) {
   assertArray(layout.behaviorsSharedData, label + '.behaviorsSharedData');
   assertArray(layout.usedResources, label + '.usedResources');
   validateVariables(layout.variables, label + '.variables');
+  var layerNames = {};
   layout.layers.forEach(function(layer, layerIndex) {
     validateLayer(layer, label + '.layers[' + layerIndex + ']');
+    if (layerNames[layer.name]) throw new Error(label + '.layers has duplicate layer: ' + layer.name);
+    layerNames[layer.name] = true;
   });
   var objectIndex = indexProjectObjects(project, layout);
   layout.instances.forEach(function(instance, instanceIndex) {
     validateInstance(instance, label + '.instances[' + instanceIndex + ']', objectIndex);
+    if (!layerNames[instance.layer]) throw new Error(label + '.instances[' + instanceIndex + '] references unknown layer: ' + instance.layer);
   });
   layout.events.forEach(function(event, eventIndex) {
     validateEvent(event, label + '.events[' + eventIndex + ']');

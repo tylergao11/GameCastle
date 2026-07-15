@@ -4,6 +4,7 @@ var fs = require('fs');
 var os = require('os');
 var path = require('path');
 var dictionary = require('./capability-semantic-dictionary');
+var sourceContract = require('./game-semantic-source');
 var linker = require('./semantic-runtime-linker');
 var engine = require('./asset-engine-langgraph');
 var binder = require('./gdjs-project-asset-binder');
@@ -14,14 +15,15 @@ function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('h
 (async function() {
   var index = dictionary.buildIndex();
   var source = {
-    schemaVersion: 4,
+    schemaVersion: sourceContract.SCHEMA_VERSION,
     documentKind: 'game-semantic-source',
     dictionarySource: index.source,
     game: { semanticId: 'font_resource_demo', name: 'Font Resource Demo' },
     entities: [{ semanticId: 'caption', roles: ['ui', 'text'], objectTypeRef: 'gdjs://object/TextObject::Text', behaviorTypeRefs: [], members: [] }],
+    components: [],
     events: [],
     assetIntents: [{ semanticId: 'caption_font', roles: ['ui', 'font'], subject: 'caption', description: 'A readable UI font.', productionFamily: 'ui', styleId: 'gamecastle.style-dna.v1', constraints: {}, bindings: [] }],
-    layoutIntents: [],
+    layoutIntents: [{ semanticId: 'caption_layout', roles: ['ui'], subject: 'caption', bounds: { width: 240, height: 48 }, relations: [{ semanticId: 'caption_anchor', layoutRef: 'gc-layout://screen/top-center', subjects: ['caption'] }], bindings: [] }],
     tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } }
   };
   var assembly = linker.assemble(source, { index: index });
@@ -45,7 +47,7 @@ function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('h
     assert.strictEqual(result.assetProduction.pass, true, 'Accepted external font must not invoke or require an image-model path.');
     assert.strictEqual(result.assetWorld.slots[0].resourceKind, 'font');
     assert.strictEqual(result.assetWorld.slots[0].format, 'ttf');
-    var bound = binder.bind(assembly.projectSeed, result.assetWorld);
+    var bound = binder.bindResources(assembly.projectSeed, result.assetWorld);
     assert.strictEqual(bound.resources[0].kind, 'font');
     assert.strictEqual(bound.generatedCode.length, 1, 'The official Text configuration must compile with the accepted font resource.');
     var missing = await engine.runAssetEngine({ runId: 'missing-font-resource', assetRequirementContract: assembly.assetRequirements, assetLibraryPort: libraryPorts.createTestAssetLibraryPort(), modelPolicy: { provider: 'external-provider', simulated: false }, projectAssetDir: path.join(root, 'missing') });

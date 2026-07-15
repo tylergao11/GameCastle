@@ -5,17 +5,25 @@ var universe = dictionary.readJson(dictionary.UNIVERSE_PATH);
 var bindings = dictionary.readJson(dictionary.OFFICIAL_BINDINGS_PATH);
 
 var fresh = dictionary.buildIndex({ universe: universe, officialBindings: bindings });
-assert.strictEqual(index.schemaVersion, 2, 'GDJS Semantic Dictionary schemaVersion mismatch');
+assert.strictEqual(index.schemaVersion, 3, 'GDJS Semantic Dictionary schemaVersion mismatch');
 assert.strictEqual(index.dictionaryKind, 'gdjs-semantic-dictionary', 'GDJS Semantic Dictionary kind mismatch');
 assert(dictionary.sameFingerprint(index.source, fresh.source), 'GDJS Semantic Dictionary is built from a different pinned source truth');
 assert.strictEqual(typeof index.source.layoutDictionaryHash, 'string', 'The source fingerprint must pin the semantic layout dictionary.');
 assert.strictEqual(typeof index.source.assetBindingDictionaryHash, 'string', 'The source fingerprint must pin the GDJS asset binding dictionary.');
+assert.strictEqual(typeof index.source.componentDictionaryHash, 'string', 'The source fingerprint must pin the component dictionary.');
 assert.strictEqual(index.summary.capabilityCount, universe.capabilities.length, 'every GDJS no-code declaration must be represented');
 assert.strictEqual(index.summary.interpretableCapabilityCount, universe.capabilities.length, 'every GDJS no-code declaration must have official explanatory text');
 assert.strictEqual(Object.keys(index.by_capability).length, universe.capabilities.length, 'dictionary capability coverage mismatch');
 assert.strictEqual(index.summary.executableCapabilityCount, Object.keys(bindings.bindings).length, 'runtime binding coverage mismatch');
 assert.strictEqual(index.summary.sourceOnlyCapabilityCount, universe.capabilities.length - Object.keys(bindings.bindings).length, 'source-only declaration count mismatch');
 assert.strictEqual(universe.unresolvedDeclarations.length, 0, 'dictionary source contains unresolved declarations');
+assert.strictEqual(Object.keys(index.by_component).length, index.summary.componentCount, 'component dictionary coverage mismatch');
+Object.keys(index.by_component).forEach(function(componentId) {
+  var entry = index.by_component[componentId];
+  assert.strictEqual(dictionary.resolveComponent(index, entry.semantic_id).component_id, componentId, componentId + ' component resolution is not unique');
+  assert(entry.source && entry.source.kind === 'component-manifest', componentId + ' lacks component source evidence');
+  assert(entry.runtime && (entry.runtime.status === 'executable' || entry.runtime.status === 'source-only'), componentId + ' lacks explicit component execution status');
+});
 assert(index.event_grammar && Array.isArray(index.event_grammar.eventTypes) && index.event_grammar.eventTypes.length === index.summary.eventTypeCount, 'full GDJS event grammar is missing');
 index.event_grammar.eventTypes.forEach(function(eventType) {
   assert(eventType.eventType && eventType.explanation.title && eventType.explanation.description, 'event grammar lacks explanatory source text');

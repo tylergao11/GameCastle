@@ -10,7 +10,7 @@ var providerContract = require('../shared/provider-runtime-contract.json');
 
 var ROLE_MODALITY = {
   'creative-text': 'text', 'semantic-design': 'text',
-  'image-generate': 'image-generation', 'vision-review': 'vision-review'
+  'image-generate': 'image-generation', 'vision-review': 'vision-review', 'spatial-plan': 'vision-review'
 };
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -27,6 +27,7 @@ function redact(value, secrets) {
   return output;
 }
 function makeError(code, message, owner) { var error = new Error(message); error.code = code; error.owner = owner || 'ProviderRuntime'; return error; }
+function imageMime(imagePath) { var extension = path.extname(imagePath).toLowerCase(); return { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' }[extension] || 'application/octet-stream'; }
 
 function makeReceipt(base) {
   return Object.assign({ schemaVersion: 1, receiptId: 'provider.' + safeId(base.requestId), owner: 'ProviderRuntime', startedAt: now(), status: 'requested', attempts: [], cost: { reserved: 0, settled: 0, currency: 'USD', kind: 'estimated' } }, base);
@@ -53,6 +54,7 @@ function createProviderRuntime(options) {
     return safe;
   }
   function configFor(request) {
+    if (request.role === 'spatial-plan') return governance.spatial({ provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) });
     var assetRole = ROLE_MODALITY[request.role] !== 'text';
     var overrides = { provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) };
     return assetRole ? governance.asset(overrides) : governance.semantic(overrides);
@@ -105,7 +107,7 @@ function createProviderRuntime(options) {
   return { invokeRole: invokeRole, cancel: cancel, health: health, listReceipts: function() { return clone(receipts); } };
 }
 
-function selectModel(config, role, override) { if (override) return override; if (role === 'image-generate') return config.imageModel; if (role === 'vision-review') return config.visionModel || config.textModel; return config.textModel; }
+function selectModel(config, role, override) { if (override) return override; if (role === 'image-generate') return config.imageModel; if (role === 'vision-review' || role === 'spatial-plan') return config.visionModel || config.textModel; return config.textModel; }
 function retryable(error) { return !error || !error.code || ['AbortError', 'PROVIDER_CANCELLED', 'PROVIDER_KEY_UNAVAILABLE', 'PROVIDER_NOT_AUTHORIZED'].indexOf(error.code || error.name) < 0; }
 function failure(error) { var value = { code: error.code || error.name || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', message: String(error.message || error).replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]') }; if (error.streamDiagnostics) value.streamDiagnostics = clone(error.streamDiagnostics); if (error.partialContent) value.partialContent = String(error.partialContent); return value; }
 function debt(error) { return { code: error.code || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', recoveryStage: 'provider-runtime', blocksPublish: false }; }
@@ -115,21 +117,23 @@ async function invokeHttpTransport(context) {
   if (context.config.simulated) throw makeError('SIMULATED_TRANSPORT_NOT_CONFIGURED', 'Simulated calls must use an injected local transport');
   if (context.config.provider === 'comfyui-local') return require('./comfyui-local-provider').invokeComfyUI(context);
   if ((role === 'creative-text' || role === 'semantic-design') && context.config.provider === 'deepseek') return invokeDeepSeekChat(context);
-  if (role === 'creative-text' || role === 'semantic-design' || role === 'vision-review') return invokeResponses(context);
+  if (role === 'creative-text' || role === 'semantic-design' || role === 'vision-review' || role === 'spatial-plan') return invokeResponses(context);
   if (role === 'image-generate') return invokeImageGeneration(context);
   throw makeError('ROLE_UNSUPPORTED', 'Unsupported HTTP role');
 }
 async function invokeResponses(context) {
   var input = context.request.input || {};
   var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
-  if (context.request.role === 'vision-review') {
-    if (!input.imagePath || !fs.existsSync(input.imagePath)) throw makeError('VISION_INPUT_MISSING', 'Vision review requires an existing local imagePath');
-    messages = [{ role: 'user', content: [{ type: 'input_text', text: input.prompt || '' }, { type: 'input_image', image_url: 'data:image/png;base64,' + fs.readFileSync(input.imagePath).toString('base64') }] }];
+  if (context.request.role === 'vision-review' || context.request.role === 'spatial-plan') {
+    var imagePaths = context.request.role === 'vision-review' ? [input.imagePath] : input.imagePaths;
+    if (!Array.isArray(imagePaths) || !imagePaths.length || imagePaths.some(function(imagePath) { return !imagePath || !fs.existsSync(imagePath); })) throw makeError('VISION_INPUT_MISSING', context.request.role + ' requires existing local image inputs');
+    var content = [{ type: 'input_text', text: [input.systemPrompt, input.prompt].filter(Boolean).join('\n\n') }].concat(imagePaths.map(function(imagePath) { return { type: 'input_image', image_url: 'data:' + imageMime(imagePath) + ';base64,' + fs.readFileSync(imagePath).toString('base64') }; }));
+    messages = [{ role: 'user', content: content }];
   }
   var body = { model: context.model, input: messages, max_output_tokens: input.maxTokens || 4096, stream: true };
   if (input.jsonSchema) body.text = { format: { type: 'json_schema', name: input.jsonSchema.name, strict: true, schema: input.jsonSchema.schema } };
   var result = await responsesClient.requestResponses({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
-  return { output: context.request.role === 'vision-review' ? { text: result.text, events: result.events } : { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost };
+  return { output: (context.request.role === 'vision-review' || context.request.role === 'spatial-plan') ? { text: result.text, events: result.events } : { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost };
 }
 async function invokeDeepSeekChat(context) {
   var input = context.request.input || {};

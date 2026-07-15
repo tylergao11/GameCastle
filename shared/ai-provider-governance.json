@@ -10,5 +10,6 @@
     "simulated-local": { "defaultEndpoint": "local://simulated", "defaultTextModel": "simulated-text", "modalities": ["text", "image-generation", "vision-review"] }
   },
   "assetDefaults": { "providerEnv": "ASSET_MODEL_PROVIDER", "imageModelEnv": "ASSET_IMAGE_MODEL", "visionModelEnv": "ASSET_VISION_MODEL", "maxCostEnv": "ASSET_MODEL_MAX_COST", "allowExternalEnv": "ASSET_ALLOW_EXTERNAL" },
+  "spatialDefaults": { "providerEnv": "SPATIAL_MODEL_PROVIDER", "visionModelEnv": "SPATIAL_VISION_MODEL", "maxCostEnv": "SPATIAL_MODEL_MAX_COST", "allowExternalEnv": "SPATIAL_ALLOW_EXTERNAL" },
   "runtimeDefaults": { "allowExternalEnvs": ["AI_ALLOW_EXTERNAL", "LLM_ALLOW_EXTERNAL", "ASSET_ALLOW_EXTERNAL"], "timeoutMs": 30000, "maxAttempts": 3, "receiptPolicy": "safe-immutable" }
 }

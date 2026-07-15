@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 3,
+  "id": "ability.cooldown_skill",
+  "kind": "ability",
+  "name": "Cooldown Skill",
+  "summary": "A triggered game ability with reusable cooldown control.",
+  "extends": ["ability.triggered_effect"],
+  "target": { "required": true, "roles": ["player", "character", "enemy"] },
+  "config": {
+    "cooldownSeconds": { "type": "number", "minimum": 0, "default": 1, "summary": "Seconds before the ability becomes ready again." }
+  },
+  "bindings": {},
+  "implementation": {
+    "targetMembers": [{ "name": "ready", "roles": ["ability", "ready"], "value": true }],
+    "targetBehaviors": [],
+    "entities": [],
+    "layouts": [],
+    "events": [
+      {
+        "name": "activate",
+        "kind": "rule",
+        "conditions": [
+          { "binding": "trigger" },
+          { "use": "state.boolean.is", "arguments": { "target": "$member:ready", "value": true } }
+        ],
+        "actions": [
+          { "binding": "effect" },
+          { "use": "state.boolean.set", "arguments": { "target": "$member:ready", "value": false } },
+          { "use": "object.timer.reset", "arguments": { "target": "$target", "timer": "$timer:cooldown" } }
+        ]
+      },
+      {
+        "name": "rearm",
+        "kind": "rule",
+        "conditions": [
+          { "use": "state.boolean.is", "arguments": { "target": "$member:ready", "value": false } },
+          { "use": "object.timer.elapsed", "arguments": { "target": "$target", "timer": "$timer:cooldown", "operator": ">=", "seconds": "$config:cooldownSeconds" } }
+        ],
+        "actions": [{ "use": "state.boolean.set", "arguments": { "target": "$member:ready", "value": true } }]
+      }
+    ]
+  }
+}

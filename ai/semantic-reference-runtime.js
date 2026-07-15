@@ -26,6 +26,27 @@ function argumentText(entry) { return visibleParameters(entry).map(parameterText
 function ownerText(entry) { return entry.owner.kind === 'global' ? 'global' : entry.owner.kind + ':' + entry.owner.id.split('::').pop(); }
 function capabilityLine(entryHandle, entry) { return [entryHandle, entry.kind, ownerText(entry), clean(entry.explanation.title), argumentText(entry)].join('|'); }
 function eventLine(entryHandle, entry) { return [entryHandle, 'event', clean(entry.explanation.title), (entry.serialization.parameters || []).map(parameterText).join(',')].join('|'); }
+function componentConfigType(descriptor, layoutTable) {
+  if (descriptor.type === 'enum') return 'oneOf(' + descriptor.values.map(promptToken).join(',') + ')';
+  if (descriptor.type === 'layout-choice') return 'oneOf(' + descriptor.values.map(function(value) { return promptToken(layoutTable.handleByIdentity[value]); }).join(',') + ')';
+  if (descriptor.type === 'list') return 'list<' + componentConfigType(descriptor.item, layoutTable) + '>';
+  if (descriptor.type === 'object') return '{' + Object.keys(descriptor.fields || {}).map(function(name) { var field = descriptor.fields[name]; return name + ':' + componentConfigType(field, layoutTable) + (field.required ? '' : ' optional'); }).join(',') + '}';
+  if (descriptor.type === 'binding-ref') return descriptor.bindingKind + ' binding name';
+  if (descriptor.type === 'number' && descriptor.minimum !== undefined && descriptor.maximum !== undefined) return 'number[' + descriptor.minimum + ',' + descriptor.maximum + ']';
+  if (descriptor.type === 'number' && descriptor.minimum !== undefined) return 'number>=' + descriptor.minimum;
+  return descriptor.type;
+}
+function componentConfigText(name, descriptor, layoutTable) {
+  var defaultValue = (descriptor.type === 'layout' || descriptor.type === 'layout-choice') && descriptor.default !== undefined ? layoutTable.handleByIdentity[descriptor.default] : descriptor.default;
+  return name + '=' + componentConfigType(descriptor, layoutTable) + (defaultValue === undefined ? (descriptor.required ? ' required' : '') : ' default(' + promptToken(defaultValue) + ')');
+}
+function componentLine(entryHandle, entry, layoutTable) {
+  var card = entry.llm2;
+  var config = Object.keys(card.config || {}).map(function(name) { return componentConfigText(name, card.config[name], layoutTable); }).join(',');
+  var bindings = Object.keys(card.bindings || {}).map(function(name) { var binding = card.bindings[name]; return name + '=' + binding.kind + (binding.required ? '' : ' optional'); }).join(',');
+  if (card.namedBindings) bindings += (bindings ? ',' : '') + 'named=' + card.namedBindings.kinds.join('|');
+  return [entryHandle, clean(card.name), clean(card.summary), card.target && card.target.required ? 'target=entity' : 'target=entity optional', 'config:' + config, 'bindings:' + bindings].join('|');
+}
 function allowed(command, fields, label) { Object.keys(command).forEach(function(key) { if (fields.indexOf(key) < 0) fail('SEMANTIC_REFERENCE_FIELD_INVALID', label + ' contains unknown field: ' + key); }); }
 function handle(value, tableValue, label) {
   if (typeof value !== 'string' || !Object.prototype.hasOwnProperty.call(tableValue.byHandle, value)) fail('SEMANTIC_REFERENCE_HANDLE_INVALID', label + ' requires a handle from [param-context] or [retrieve]: ' + String(value));
@@ -56,6 +77,7 @@ function create(index) {
   var layouts = table(layoutDictionary.list(), 'l', function(entry) { return entry.semanticRef; });
   var families = table(Object.keys(production.productionFamilies || {}).map(function(id) { return { id: id, recipeId: production.productionFamilies[id].defaultRecipeId }; }), 'f', function(entry) { return entry.id; });
   var styleTable = table(Object.keys(styles.styles || {}).map(function(id) { return { id: id, value: styles.styles[id] }; }), 's', function(entry) { return entry.id; });
+  var components = table(dictionary.listComponents(index, { exposed: true, executable: true }), 'component', function(entry) { return entry.semantic_id; });
 
   var extensionGroupsByKey = Object.create(null);
   function groupFor(extension) {
@@ -76,13 +98,8 @@ function create(index) {
     return entry;
   }
   function validateArguments(entry, value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + ' requires one arguments object.');
-    var expected = visibleParameters(entry);
-    var byKey = Object.create(null);
-    expected.forEach(function(parameter) { byKey[parameter.semanticKey] = parameter; });
-    Object.keys(value).forEach(function(key) { if (!byKey[key]) fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + ' has no argument named ' + key + '. Fill: ' + argumentText(entry)); });
-    expected.forEach(function(parameter) { if (!parameter.optional && !Object.prototype.hasOwnProperty.call(value, parameter.semanticKey)) fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + ' requires argument ' + parameter.semanticKey + '. Fill: ' + argumentText(entry)); });
-    return clone(value);
+    try { return dictionary.validateCapabilityArguments(entry, value); }
+    catch (error) { fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', error.message); }
   }
   function normalizeArguments(entry, value, context) {
     validateArguments(entry, value);
@@ -192,9 +209,10 @@ function create(index) {
       entityKinds: Object.keys(algebra.ENTITY_KINDS),
       behaviorKinds: Object.keys(algebra.BEHAVIOR_KINDS),
       eventKinds: algebra.eventKindLines(index),
-      layouts: layouts.rows.map(function(entry) { return layouts.handleByIdentity[entry.semanticRef] + '|' + clean(entry.title); }),
+      layouts: layouts.rows.map(function(entry) { return [layouts.handleByIdentity[entry.semanticRef], clean(entry.title), entry.placement.mode, entry.placement.space, entry.placement.materialization].join('|'); }),
       assetFamilies: families.rows.map(function(entry) { return families.handleByIdentity[entry.id] + '|' + entry.id; }),
       assetStyles: styleTable.rows.map(function(entry) { return styleTable.handleByIdentity[entry.id] + '|' + entry.id + '|' + clean(entry.value.name); }),
+      components: components.rows.map(function(entry) { return componentLine(components.handleByIdentity[entry.semantic_id], entry, layouts); }),
       extensionGroups: groups.rows.map(groupLine)
     };
   }
@@ -205,6 +223,11 @@ function create(index) {
     parameterContext: parameterContext,
     retrieve: retrieve,
     resolveExtension: resolveExtension,
+    validateOperationArguments: function(use, expectedKind, args) {
+      var foundation = algebra.operationForUse(use);
+      if (foundation) return algebra.validateOperationArguments(use, expectedKind, args);
+      return validateArguments(resolveExtension(use, expectedKind), args);
+    },
     extensionHandle: function(value) { return reverse(extensions, value, 'extension capability'); },
     normalizeArguments: normalizeArguments,
     compileOperation: function(use, expectedKind, args, context) {
@@ -235,7 +258,9 @@ function create(index) {
     resolveFamily: function(value) { return handle(value, families, 'family').id; },
     familyHandle: function(value) { return reverse(families, value, 'productionFamily'); },
     resolveStyle: function(value) { return handle(value, styleTable, 'style').id; },
-    styleHandle: function(value) { return reverse(styleTable, value, 'styleId'); }
+    styleHandle: function(value) { return reverse(styleTable, value, 'styleId'); },
+    resolveComponent: function(value) { return clone(handle(value, components, 'component.kind')); },
+    componentHandle: function(value) { return reverse(components, dictionary.resolveComponent(index, value).semantic_id, 'componentRef'); }
   };
 }
 

@@ -45,7 +45,7 @@ It performs real ComfyUI master generation for one static asset and one FrameSet
 - A materialized file must match the published revision ID, SHA-256, kind, and format before project use.
 - Only an accepted revision can be published. Publication is idempotent for the same requirement fingerprint and revision.
 - The library record is cross-project truth; `semantic-asset-world` is the source-hash-bound project projection.
-- The browser consumes only the bound project resources. It never calls the library or a model provider.
+- The browser consumes only project-bound resources after final assembly. It never calls the library or a model provider.
 
 ## Animation extension
 

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 3,
+  "id": "input.touch_surface",
+  "kind": "control",
+  "name": "Touch Surface",
+  "summary": "Internal visual and pointer-sensitive surface shared by mobile controls.",
+  "abstract": true,
+  "target": { "required": true, "roles": ["player", "character"] },
+  "config": {
+    "shape": { "type": "enum", "values": ["circle", "rectangle"], "default": "circle", "summary": "Visible control shape." },
+    "size": { "type": "number", "minimum": 1, "maximum": 128, "default": 72, "summary": "Visible control diameter or side length in screen pixels." },
+    "color": { "type": "color", "default": "#2F80ED", "summary": "Visible control color." },
+    "placement": { "type": "layout-choice", "values": ["gc-layout://screen/control-bottom-left", "gc-layout://screen/control-bottom-right"], "default": "gc-layout://screen/control-bottom-right", "summary": "Safe screen anchor for the centered control." }
+  },
+  "bindings": {},
+  "implementation": {
+    "targetMembers": [],
+    "targetBehaviors": [],
+    "entities": [{ "name": "surface", "kind": "shape-painter", "roles": ["ui", "control"] }],
+    "layouts": [{ "entity": "surface", "config": "placement", "bounds": { "width": { "$configNumber": "size" }, "height": { "$configNumber": "size" } } }],
+    "events": [
+      {
+        "name": "draw-circle",
+        "kind": "rule",
+        "whenConfigIn": { "name": "shape", "values": ["circle"] },
+        "conditions": [{ "use": "always", "arguments": {} }],
+        "actions": [
+          { "use": "shape.fill-color", "arguments": { "target": "$surface", "color": "$config:color" } },
+          { "use": "shape.circle", "arguments": { "target": "$surface", "x": 0, "y": 0, "radius": { "$configNumber": "size", "multiply": 0.5 } } }
+        ]
+      },
+      {
+        "name": "draw-rectangle",
+        "kind": "rule",
+        "whenConfigIn": { "name": "shape", "values": ["rectangle"] },
+        "conditions": [{ "use": "always", "arguments": {} }],
+        "actions": [
+          { "use": "shape.fill-color", "arguments": { "target": "$surface", "color": "$config:color" } },
+          { "use": "shape.rectangle", "arguments": { "target": "$surface", "left": { "$configNumber": "size", "multiply": -0.5 }, "top": { "$configNumber": "size", "multiply": -0.5 }, "right": { "$configNumber": "size", "multiply": 0.5 }, "bottom": { "$configNumber": "size", "multiply": 0.5 } } }
+        ]
+      }
+    ]
+  }
+}

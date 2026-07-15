@@ -1,127 +1,27 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "id": "input.virtual_joystick",
   "kind": "control",
   "name": "Virtual Joystick",
-  "aiManifest": {
-    "summary": "A mobile thumb control for moving the player.",
-    "aliases": [
-      "joystick",
-      "virtual joystick",
-      "movement joystick",
-      "thumbstick"
-    ],
-    "actions": [
-      "move"
-    ],
-    "targetRoles": [
-      "player",
-      "character"
-    ],
-    "safeExamples": [
-      "add joystick controls Player near screen bottom-left"
-    ]
+  "summary": "A mobile direction control that drives a character with top-down movement.",
+  "extends": ["input.touch_surface"],
+  "target": { "required": true, "roles": ["player", "character"] },
+  "config": {
+    "direction": { "type": "enum", "values": ["horizontal", "vertical", "omnidirectional"], "default": "omnidirectional", "summary": "Directions accepted by the control." },
+    "placement": { "type": "layout-choice", "values": ["gc-layout://screen/control-bottom-left", "gc-layout://screen/control-bottom-right"], "default": "gc-layout://screen/control-bottom-left", "summary": "Safe screen anchor for the centered control." },
+    "size": { "type": "number", "minimum": 1, "maximum": 128, "default": 96, "summary": "Visible control diameter or side length in screen pixels." }
   },
-  "compilerManifest": {
-    "componentId": "input.virtual_joystick",
-    "extends": "ui.interactive_surface",
-    "thingName": "Joystick",
-    "thingArchetype": "ui",
-    "role": "control",
-    "defaultAction": "move",
-    "defaultConfig": {
-      "action": "move",
-      "deadZone": "standard",
-      "radius": "medium",
-      "axisSmoothing": "standard",
-      "shape": "circle",
-      "color": "#2D9CDB",
-      "width": 96,
-      "height": 96,
-      "layer": "UI",
-      "inputs": [
-        "move_left",
-        "move_right",
-        "move_up",
-        "move_down"
-      ]
-    },
-    "inheritance": {
-      "contracts": [
-        "input.control",
-        "input.axis"
-      ],
-      "defaultOwner": "component-manifest",
-      "exposedOverrides": [
-        "action"
-      ],
-      "sealedDefaults": [
-        "deadZone",
-        "radius",
-        "axisSmoothing",
-        "shape",
-        "color",
-        "width",
-        "height",
-        "layer",
-        "inputs"
-      ]
-    },
-    "provides": [
-      "input.move.axis"
-    ],
-    "requires": [
-      {
-        "componentId": "movement.platformer",
-        "target": "sameTarget",
-        "reason": "joystick movement needs a movement receiver"
-      }
-    ],
-    "binding": {
-      "inputKind": "joystick_axis"
-    },
-    "relations": [
-      {
-        "type": "controls",
-        "from": "componentThing",
-        "to": "target"
-      }
-    ],
-    "placement": {
-      "space": "ui",
-      "preferredAnchor": "screen",
-      "preferredDirection": "bottom-left"
-    },
-    "gdjsBridge": {
-      "objectSpec": {
-        "type": "ShapePainter",
-        "mechanism": "component-object-expansion",
-        "routeId": "collision-mask-setup",
-        "routeMechanism": "target-code-expansion",
-        "layerEmission": {
-          "mechanism": "component-ui-layer",
-          "routeId": "responsive-ui",
-          "routeMechanism": "placement-contract"
-        },
-        "placementEmission": {
-          "mechanism": "component-placement-rewrite",
-          "routeId": "awkward-gdjs-parameters",
-          "routeMechanism": "target-rewrite"
-        }
-      },
-      "runtimeAdapters": [
-        "virtual-joystick"
-      ],
-      "adapterRoutes": {
-        "virtual-joystick": {
-          "owner": "runtime-adapter",
-          "mechanism": "touch-axis-adapter",
-          "routeId": "touch-multitouch-state",
-          "routeOwner": "runtime-adapter",
-          "routeMechanism": "bridge-target-rewrite"
-        }
-      },
-      "status": "pending"
-    }
+  "bindings": {},
+  "implementation": {
+    "targetMembers": [],
+    "targetBehaviors": ["topdown"],
+    "entities": [],
+    "layouts": [],
+    "events": [
+      { "name": "left", "kind": "rule", "whenConfigIn": { "name": "direction", "values": ["horizontal", "omnidirectional"] }, "conditions": [{ "use": "input.pointer.held", "arguments": { "button": "Left" } }, { "use": "input.pointer.on-object", "arguments": { "target": "$surface" } }, { "use": "input.pointer.x.compare-object", "arguments": { "operator": "<", "target": "$surface" } }], "actions": [{ "use": "movement.topdown.left", "arguments": { "target": "$target" } }] },
+      { "name": "right", "kind": "rule", "whenConfigIn": { "name": "direction", "values": ["horizontal", "omnidirectional"] }, "conditions": [{ "use": "input.pointer.held", "arguments": { "button": "Left" } }, { "use": "input.pointer.on-object", "arguments": { "target": "$surface" } }, { "use": "input.pointer.x.compare-object", "arguments": { "operator": ">", "target": "$surface" } }], "actions": [{ "use": "movement.topdown.right", "arguments": { "target": "$target" } }] },
+      { "name": "up", "kind": "rule", "whenConfigIn": { "name": "direction", "values": ["vertical", "omnidirectional"] }, "conditions": [{ "use": "input.pointer.held", "arguments": { "button": "Left" } }, { "use": "input.pointer.on-object", "arguments": { "target": "$surface" } }, { "use": "input.pointer.y.compare-object", "arguments": { "operator": "<", "target": "$surface" } }], "actions": [{ "use": "movement.topdown.up", "arguments": { "target": "$target" } }] },
+      { "name": "down", "kind": "rule", "whenConfigIn": { "name": "direction", "values": ["vertical", "omnidirectional"] }, "conditions": [{ "use": "input.pointer.held", "arguments": { "button": "Left" } }, { "use": "input.pointer.on-object", "arguments": { "target": "$surface" } }, { "use": "input.pointer.y.compare-object", "arguments": { "operator": ">", "target": "$surface" } }], "actions": [{ "use": "movement.topdown.down", "arguments": { "target": "$target" } }] }
+    ]
   }
 }

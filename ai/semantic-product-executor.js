@@ -17,7 +17,7 @@ function execute(request, options) {
   var source = sourceContract.validateSource(request.source, { index: index });
   if (request.revision !== undefined) source = sourceContract.applyRevision(source, request.revision, { index: index });
   var assembly = linker.assemble(source, { index: index });
-  var artifact = request.assetWorld === undefined ? assembly.projectSeed : assetBinder.bind(assembly.projectSeed, request.assetWorld);
+  var artifact = request.assetWorld === undefined ? assembly.projectSeed : assetBinder.bindResources(assembly.projectSeed, request.assetWorld);
   return {
     schemaVersion: 1,
     documentKind: 'semantic-product-execution',

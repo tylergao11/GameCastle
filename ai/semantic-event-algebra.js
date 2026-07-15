@@ -29,7 +29,8 @@ var ENTITY_KINDS = {
   panel: 'gdjs://object/PanelSpriteObject::PanelSprite',
   'tiled-sprite': 'gdjs://object/TiledSpriteObject::TiledSprite',
   'text-input': 'gdjs://object/TextInput::TextInputObject',
-  video: 'gdjs://object/Video::VideoObject'
+  video: 'gdjs://object/Video::VideoObject',
+  'shape-painter': 'gdjs://object/PrimitiveDrawing::Drawer'
 };
 
 var BEHAVIOR_KINDS = {
@@ -62,7 +63,7 @@ var OPERATIONS = [
   operation('trigger.once', 'condition', 'run once when the other conditions become true', {}, function() {
     return [invocation('BuiltinCommonInstructions::global::extension::condition::Once', {})];
   }),
-  operation('input.key.pressed', 'condition', 'a keyboard key is held', { key: 'keyboard key' }, function(a) {
+  operation('input.key.held', 'condition', 'a keyboard key is held', { key: 'keyboard key' }, function(a) {
     return [invocation('BuiltinKeyboard::global::extension::condition::KeyFromTextPressed', { key_to_check: a.key })];
   }),
   operation('input.key.just-pressed', 'condition', 'a keyboard key was newly pressed', { key: 'keyboard key' }, function(a) {
@@ -70,6 +71,24 @@ var OPERATIONS = [
   }),
   operation('input.key.released', 'condition', 'a keyboard key was released', { key: 'keyboard key' }, function(a) {
     return [invocation('BuiltinKeyboard::global::extension::condition::KeyFromTextReleased', { key_to_check: a.key })];
+  }),
+  operation('input.pointer.pressed', 'condition', 'a pointer started pressing', { button: 'pointer button optional' }, function() {
+    return [invocation('BuiltinMouse::global::extension::condition::HasAnyTouchOrMouseStarted', {})];
+  }),
+  operation('input.pointer.held', 'condition', 'a pointer is held', { button: 'pointer button' }, function(a) {
+    return [invocation('BuiltinMouse::global::extension::condition::MouseButtonFromTextPressed', { button_to_check: a.button })];
+  }),
+  operation('input.pointer.released', 'condition', 'a pointer was released', { button: 'pointer button' }, function(a) {
+    return [invocation('BuiltinMouse::global::extension::condition::MouseButtonFromTextReleased', { button_to_check: a.button })];
+  }),
+  operation('input.pointer.on-object', 'condition', 'the pointer is on an entity', { target: 'entity' }, function(a) {
+    return [invocation('BuiltinObject::global::extension::condition::IsCursorOnObject', { object: a.target, accurate_test_yes_by_default: true })];
+  }),
+  operation('input.pointer.x.compare-object', 'condition', 'compare pointer X with an entity X position', { operator: 'dictionary-token', target: 'entity' }, function(a) {
+    return [invocation('BuiltinMouse::global::extension::condition::CursorX', { operator: a.operator, value: expression('object.x', { target: a.target }) })];
+  }),
+  operation('input.pointer.y.compare-object', 'condition', 'compare pointer Y with an entity Y position', { operator: 'dictionary-token', target: 'entity' }, function(a) {
+    return [invocation('BuiltinMouse::global::extension::condition::CursorY', { operator: a.operator, value: expression('object.y', { target: a.target }) })];
   }),
   operation('number.compare', 'condition', 'compare two numeric values', { left: 'number or number expression', operator: 'dictionary-token', right: 'number or number expression' }, function(a) {
     return [invocation('BuiltinCommonInstructions::global::extension::condition::CompareNumbers', { first_expression: a.left, sign_of_the_test: a.operator, second_expression: a.right })];
@@ -234,6 +253,27 @@ var OPERATIONS = [
   operation('sprite.animation.set', 'action', 'change a sprite animation by name', { target: 'entity', animation: 'animation name' }, function(a) {
     return [invocation('Sprite::object::Sprite::Sprite::action::SetAnimationName', { object: a.target, animation_name: a.animation })];
   }),
+  operation('movement.topdown.left', 'action', 'move a top-down character left', { target: 'entity' }, function(a) {
+    return [invocation('TopDownMovementBehavior::behavior::TopDownMovementBehavior::TopDownMovementBehavior::action::SimulateLeftKey', { object: a.target, behavior: 'topdown' })];
+  }),
+  operation('movement.topdown.right', 'action', 'move a top-down character right', { target: 'entity' }, function(a) {
+    return [invocation('TopDownMovementBehavior::behavior::TopDownMovementBehavior::TopDownMovementBehavior::action::SimulateRightKey', { object: a.target, behavior: 'topdown' })];
+  }),
+  operation('movement.topdown.up', 'action', 'move a top-down character up', { target: 'entity' }, function(a) {
+    return [invocation('TopDownMovementBehavior::behavior::TopDownMovementBehavior::TopDownMovementBehavior::action::SimulateUpKey', { object: a.target, behavior: 'topdown' })];
+  }),
+  operation('movement.topdown.down', 'action', 'move a top-down character down', { target: 'entity' }, function(a) {
+    return [invocation('TopDownMovementBehavior::behavior::TopDownMovementBehavior::TopDownMovementBehavior::action::SimulateDownKey', { object: a.target, behavior: 'topdown' })];
+  }),
+  operation('shape.fill-color', 'action', 'set a shape painter fill color', { target: 'entity', color: 'color text' }, function(a) {
+    return [invocation('PrimitiveDrawing::object::PrimitiveDrawing::Drawer::action::FillColor', { shape_painter_object: a.target, fill_color: a.color })];
+  }),
+  operation('shape.circle', 'action', 'draw a filled circle', { target: 'entity', x: 'number', y: 'number', radius: 'number' }, function(a) {
+    return [invocation('PrimitiveDrawing::object::PrimitiveDrawing::Drawer::action::Circle', { shape_painter_object: a.target, x_position_of_center: a.x, y_position_of_center: a.y, radius_in_pixels: a.radius })];
+  }),
+  operation('shape.rectangle', 'action', 'draw a filled rectangle', { target: 'entity', left: 'number', top: 'number', right: 'number', bottom: 'number' }, function(a) {
+    return [invocation('PrimitiveDrawing::object::PrimitiveDrawing::Drawer::action::Rectangle', { shape_painter_object: a.target, left_x_position: a.left, top_y_position: a.top, right_x_position: a.right, bottom_y_position: a.bottom })];
+  }),
 
   operation('number.random', 'number-expression', 'random integer from 0 through max', { max: 'number or expression' }, function(a) {
     return [invocation('BuiltinMathematicalTools::global::extension::number-expression::Random', { maximum_value: a.max })];
@@ -287,8 +327,16 @@ OPERATIONS.forEach(function(item) {
 
 function requiredFields(item) { return Object.keys(item.fields || {}).filter(function(key) { return !/ optional$/.test(item.fields[key]); }); }
 function validateFields(item, args) {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) fail('SEMANTIC_ALGEBRA_FIELD_INVALID', item.key + ' requires one arguments object.');
   Object.keys(args).forEach(function(key) { if (!Object.prototype.hasOwnProperty.call(item.fields, key)) fail('SEMANTIC_ALGEBRA_FIELD_INVALID', item.key + ' has no parameter named ' + key + '. Fill: ' + Object.keys(item.fields).join(', ')); });
   requiredFields(item).forEach(function(key) { if (!Object.prototype.hasOwnProperty.call(args, key)) fail('SEMANTIC_ALGEBRA_FIELD_MISSING', item.key + ' requires parameter ' + key + '. Fill: ' + Object.keys(item.fields).join(', ')); });
+}
+function validateOperationArguments(use, expectedKind, args) {
+  var item = BY_KEY[use];
+  if (!item) fail('SEMANTIC_ALGEBRA_OPERATION_INVALID', 'Unknown event operation: ' + use);
+  if (expectedKind && item.kind !== expectedKind) fail('SEMANTIC_ALGEBRA_KIND_INVALID', use + ' is ' + item.kind + ', expected ' + expectedKind);
+  validateFields(item, args);
+  return clone(args);
 }
 function resolveEntry(index, capabilityId, expectedKind) {
   var entry = index.by_capability[capabilityId];
@@ -382,6 +430,8 @@ function probeExpansion(index, item, scope, variant, presentOptional, booleanVal
       var normalized = clone(values);
       entry.parameter_contract.parameters.filter(function(parameter) { return parameter.kind !== 'code-only'; }).forEach(function(parameter) {
         if (parameter.runtimeNormalization === 'boolean-token' && typeof normalized[parameter.semanticKey] === 'boolean') normalized[parameter.semanticKey] = parameter.runtimeValues[normalized[parameter.semanticKey] ? 0 : 1];
+        if (parameter.runtimeNormalization === 'entity-object-name' && normalized[parameter.semanticKey] !== undefined) normalized[parameter.semanticKey] = '__runtime_object_' + variant + '__';
+        if (parameter.runtimeNormalization === 'entity-behavior-name' && normalized[parameter.semanticKey] !== undefined) normalized[parameter.semanticKey] = '__runtime_behavior_' + variant + '__';
       });
       return normalized;
     }
@@ -607,6 +657,7 @@ module.exports = {
   behaviorRefs: behaviorRefs,
   behaviorKindsForRefs: behaviorKindsForRefs,
   operationForUse: operationForUse,
+  validateOperationArguments: validateOperationArguments,
   assertFoundationExpansion: assertFoundationExpansion,
   foundationCapabilityIds: foundationCapabilityIds,
   bindingRefs: bindingRefs

@@ -1,5 +1,5 @@
 var READ_COMMANDS = ['retrieve'];
-var WRITE_COMMANDS = ['game', 'entity', 'member', 'event', 'when', 'then', 'asset', 'layout', 'policy', 'remove'];
+var WRITE_COMMANDS = ['game', 'entity', 'component', 'member', 'event', 'when', 'then', 'asset', 'layout', 'policy', 'remove'];
 var COMPLETION_COMMANDS = ['complete'];
 var ALL_COMMANDS = READ_COMMANDS.concat(WRITE_COMMANDS, COMPLETION_COMMANDS);
 
@@ -9,11 +9,12 @@ var READ_LINES = [
 var WRITE_LINES = [
   'game(semanticId=...semanticId, name=...name)',
   'entity(semanticId=...semanticId, roles=...nonEmptyStringArray, kind=...entityKind, behaviors=...stringArray)',
+  'component(semanticId=...semanticId, kind=...componentHandle, target=...entityOptional, config=...object, bindings={...bindingName:{"use":...actionOrConditionUse,"arguments":{...parameter:value}}})',
   'member(entity=...entity, semanticId=...semanticId, roles=...nonEmptyStringArray, value=...value, bindings=...stringArray)',
   'asset(semanticId=...semanticId, roles=...nonEmptyStringArray, subject=...subject, description=...description, family=...fHandle, style=...sHandle, constraints=...object, bindings=...stringArray)',
-  'layout(semanticId=...semanticId, roles=...nonEmptyStringArray, subject=...subject, relations=...relationArray, bindings=...stringArray)',
+  'layout(semanticId=...semanticId, roles=...nonEmptyStringArray, subject=...subject, bounds={"width":...positiveNumber,"height":...positiveNumber}, relations=...relationArray, bindings=...stringArray)',
   'policy(degree=...degree, mode=percentage|absolute, value=...positiveNumber)',
-  'remove(collection=entities|events|assetIntents|layoutIntents, semanticId=...semanticId)',
+  'remove(collection=entities|components|events|assetIntents|layoutIntents, semanticId=...semanticId)',
 ];
 var ROOT_EVENT_LINES = [
   'event(semanticId=...semanticId, kind=...eventKind, locals={...semanticId:value}, ...eventParameter=value)'

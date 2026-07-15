@@ -7,7 +7,8 @@
     "creative-text": { "modality": "text", "owner": "CreativeImagination", "defaultEstimatedCost": 0.01 },
     "semantic-design": { "modality": "text", "owner": "SemanticLLM2", "defaultEstimatedCost": 0.01 },
     "image-generate": { "modality": "image-generation", "owner": "ImageAgent", "defaultEstimatedCost": 0.04 },
-    "vision-review": { "modality": "vision-review", "owner": "VisionAgent", "defaultEstimatedCost": 0.005 }
+    "vision-review": { "modality": "vision-review", "owner": "VisionAgent", "defaultEstimatedCost": 0.005 },
+    "spatial-plan": { "modality": "vision-review", "owner": "SpatialPlanner", "defaultEstimatedCost": 0.01 }
   },
   "request": { "required": ["requestId", "projectId", "role", "input"], "forbidden": ["apiKey", "authorization", "secret"] },
   "receipt": { "required": ["receiptId", "requestId", "projectId", "role", "provider", "model", "status", "attempts", "cost", "provenance"], "forbidden": ["apiKey", "authorization", "rawPrompt", "rawImage"] },

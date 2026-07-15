@@ -1,6 +1,7 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
+var componentCatalog = require('./component-catalog');
 
 var UNIVERSE_PATH = path.join(__dirname, 'gdevelop-truth', 'capability-universe.json');
 var OFFICIAL_BINDINGS_PATH = path.join(__dirname, 'gdevelop-truth', 'official-capability-bindings.json');
@@ -19,7 +20,7 @@ var EVENT_ROLE_BY_CAPABILITY_KIND = {
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 function loadIndex() {
   var index = readJson(SEMANTIC_INDEX_PATH);
-  if (index.schemaVersion !== 2 || index.dictionaryKind !== 'gdjs-semantic-dictionary' || !index.source || !index.by_capability || !index.by_event_type || !index.event_grammar) throw new Error('Generated GDJS Semantic Dictionary is incomplete');
+  if (index.schemaVersion !== 3 || index.dictionaryKind !== 'gdjs-semantic-dictionary' || !index.source || !index.by_capability || !index.by_event_type || !index.by_component || !index.event_grammar) throw new Error('Generated GDJS Semantic Dictionary is incomplete');
   return index;
 }
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -85,12 +86,13 @@ function semanticTypes(universe, bindingsDocument, configurationTruth) {
   return { objectTypes: collect('object', objectTypeSemanticId, 'object-type'), behaviorTypes: collect('behavior', behaviorTypeSemanticId, 'behavior-type') };
 }
 
-function universeFingerprint(universe, bindingsDocument, eventGrammar, configurationTruth) {
+function universeFingerprint(universe, bindingsDocument, eventGrammar, configurationTruth, components) {
   var bindingDocument = bindingsDocument || readJson(OFFICIAL_BINDINGS_PATH);
   var grammar = eventGrammar || readJson(EVENT_GRAMMAR_PATH);
   var configuration = configurationTruth || readJson(OBJECT_CONFIGURATION_TRUTH_PATH);
   var layoutDictionary = readJson(LAYOUT_DICTIONARY_PATH);
   var assetBindingDictionary = readJson(ASSET_BINDING_DICTIONARY_PATH);
+  var componentDefinitions = components || componentCatalog.loadComponentCatalog();
   var types = semanticTypes(universe, bindingDocument, configuration);
   return {
     sourceCommit: bindingDocument.sourceCommit,
@@ -102,12 +104,40 @@ function universeFingerprint(universe, bindingsDocument, eventGrammar, configura
     semanticTypesHash: hash(types),
     objectConfigurationHash: hash(configuration),
     layoutDictionaryHash: hash(layoutDictionary),
-    assetBindingDictionaryHash: hash(assetBindingDictionary)
+    assetBindingDictionaryHash: hash(assetBindingDictionary),
+    componentDictionaryHash: hash({
+      schemaVersion: componentDefinitions.schemaVersion,
+      components: componentDefinitions.components.map(function(component) { return componentCatalog.compilerView(component); })
+    })
   };
 }
 
 function sameFingerprint(left, right) {
-  return !!left && !!right && left.sourceCommit === right.sourceCommit && left.universeHash === right.universeHash && left.capabilityCount === right.capabilityCount && left.bindingCount === right.bindingCount && left.bindingsHash === right.bindingsHash && left.eventGrammarHash === right.eventGrammarHash && left.semanticTypesHash === right.semanticTypesHash && left.objectConfigurationHash === right.objectConfigurationHash && left.layoutDictionaryHash === right.layoutDictionaryHash && left.assetBindingDictionaryHash === right.assetBindingDictionaryHash;
+  return !!left && !!right && left.sourceCommit === right.sourceCommit && left.universeHash === right.universeHash && left.capabilityCount === right.capabilityCount && left.bindingCount === right.bindingCount && left.bindingsHash === right.bindingsHash && left.eventGrammarHash === right.eventGrammarHash && left.semanticTypesHash === right.semanticTypesHash && left.objectConfigurationHash === right.objectConfigurationHash && left.layoutDictionaryHash === right.layoutDictionaryHash && left.assetBindingDictionaryHash === right.assetBindingDictionaryHash && left.componentDictionaryHash === right.componentDictionaryHash;
+}
+
+function componentEntries(catalog) {
+  var byComponent = Object.create(null);
+  catalog.components.forEach(function(component) {
+    var compiler = componentCatalog.compilerView(component);
+    var exposed = componentCatalog.aiView(component);
+    var implementation = compiler.implementation || {};
+    var status = compiler.abstract || !(implementation.targetBehaviors || []).length && !(implementation.entities || []).length && !(implementation.events || []).length ? 'source-only' : 'executable';
+    byComponent[component.id] = {
+      semantic_id: 'gc-component://' + component.id,
+      component_id: component.id,
+      kind: component.kind,
+      name: component.name,
+      llm2: clone(exposed),
+      compiler: compiler,
+      runtime: {
+        status: status,
+        reason: status === 'executable' ? null : 'The component is an internal abstract definition.'
+      },
+      source: { kind: 'component-manifest', path: 'ai/components/' + component.sourceFile }
+    };
+  });
+  return byComponent;
 }
 
 function sourceContract(capability, capabilityById, families, seen) {
@@ -223,6 +253,7 @@ function buildIndex(options) {
   var bindingsDocument = clone(options.officialBindings || readJson(OFFICIAL_BINDINGS_PATH));
   var eventGrammar = clone(options.eventGrammar || readJson(EVENT_GRAMMAR_PATH));
   var configurationTruth = clone(options.objectConfigurationTruth || readJson(OBJECT_CONFIGURATION_TRUTH_PATH));
+  var components = options.components || componentCatalog.loadComponentCatalog();
   if (!Array.isArray(universe.unresolvedDeclarations) || universe.unresolvedDeclarations.length) throw new Error('GDJS source universe has unresolved declarations');
   if (!bindingsDocument.parameterSemantics || !Array.isArray(bindingsDocument.parameterSemantics.source) || !bindingsDocument.parameterSemantics.source.length) throw new Error('GDJS runtime parameter semantics truth is incomplete');
   if (eventGrammar.schemaVersion !== 3 || eventGrammar.grammarKind !== 'gdjs-event-grammar' || !eventGrammar.instructionSerialization || !eventGrammar.instructionSerialization.conditionInversion || !eventGrammar.instructionSerialization.actionAwait || !eventGrammar.eventSerialization || !Array.isArray(eventGrammar.eventTypes) || !eventGrammar.eventTypes.length || eventGrammar.eventTypes.some(function(eventType) { return !eventType.serialization || !Array.isArray(eventType.serialization.instructionLists); })) throw new Error('GDJS event grammar is incomplete');
@@ -259,10 +290,11 @@ function buildIndex(options) {
     byEventType[entry.semantic_id] = entry;
   });
   var executableCount = Object.keys(byCapability).filter(function(id) { return byCapability[id].binding.status === 'executable'; }).length;
+  var byComponent = componentEntries(components);
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     dictionaryKind: 'gdjs-semantic-dictionary',
-    source: universeFingerprint(universe, bindingsDocument, eventGrammar, configurationTruth),
+    source: universeFingerprint(universe, bindingsDocument, eventGrammar, configurationTruth, components),
     summary: {
       capabilityCount: universe.capabilities.length,
       interpretableCapabilityCount: Object.keys(byCapability).length,
@@ -271,7 +303,8 @@ function buildIndex(options) {
       ownerCount: Object.keys(byOwner).length,
       eventTypeCount: eventGrammar.eventTypes.length,
       objectTypeCount: Object.keys(types.objectTypes).length,
-      behaviorTypeCount: Object.keys(types.behaviorTypes).length
+      behaviorTypeCount: Object.keys(types.behaviorTypes).length,
+      componentCount: Object.keys(byComponent).length
     },
     by_capability: byCapability,
     by_semantic: bySemantic,
@@ -279,6 +312,7 @@ function buildIndex(options) {
     by_event_type: byEventType,
     by_object_type: types.objectTypes,
     by_behavior_type: types.behaviorTypes,
+    by_component: byComponent,
     event_grammar: eventGrammar
   };
 }
@@ -303,6 +337,21 @@ function resolveType(index, reference, collection, kind) {
 }
 function resolveObjectType(index, reference) { return resolveType(index, reference, 'by_object_type', 'object type'); }
 function resolveBehaviorType(index, reference) { return resolveType(index, reference, 'by_behavior_type', 'behavior type'); }
+function resolveComponent(index, reference) {
+  var values = index.by_component || {};
+  var entry = values[reference] || Object.keys(values).map(function(key) { return values[key]; }).filter(function(candidate) { return candidate.semantic_id === reference; })[0];
+  if (!entry) throw new Error('Unknown component reference: ' + reference);
+  return clone(entry);
+}
+
+function validateCapabilityArguments(entry, value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(entry.semantic_id + ' requires one arguments object');
+  var expected = entry.parameter_contract.parameters.filter(function(parameter) { return parameter.kind !== 'code-only'; });
+  var expectedKeys = expected.map(function(parameter) { return parameter.semanticKey; });
+  Object.keys(value).forEach(function(key) { if (expectedKeys.indexOf(key) < 0) throw new Error(entry.semantic_id + ' has no argument named ' + key + '. Fill: ' + expectedKeys.join(', ')); });
+  expected.filter(function(parameter) { return !parameter.optional; }).forEach(function(parameter) { if (!Object.prototype.hasOwnProperty.call(value, parameter.semanticKey)) throw new Error(entry.semantic_id + ' requires argument ' + parameter.semanticKey + '. Fill: ' + expectedKeys.join(', ')); });
+  return clone(value);
+}
 
 function listOwners(index) {
   return Object.keys(index.by_owner).sort().map(function(ownerKey) {
@@ -318,6 +367,14 @@ function listMembers(index, owner) {
 }
 function listObjectTypes(index) { return Object.keys(index.by_object_type || {}).sort().map(function(key) { return clone(index.by_object_type[key]); }); }
 function listBehaviorTypes(index) { return Object.keys(index.by_behavior_type || {}).sort().map(function(key) { return clone(index.by_behavior_type[key]); }); }
+function listComponents(index, options) {
+  options = options || {};
+  return Object.keys(index.by_component || {}).sort().map(function(key) { return index.by_component[key]; }).filter(function(entry) {
+    if (options.exposed && !entry.llm2) return false;
+    if (options.executable && entry.runtime.status !== 'executable') return false;
+    return true;
+  }).map(clone);
+}
 
 function searchableText(entry) {
   return [entry.explanation.title, entry.explanation.description, entry.explanation.sentence, entry.explanation.group].concat(entry.parameter_contract.parameters.map(function(parameter) { return [parameter.label, parameter.description].join(' '); })).join(' ').toLocaleLowerCase();
@@ -346,12 +403,15 @@ module.exports = {
   sameFingerprint: sameFingerprint,
   buildIndex: buildIndex,
   resolve: resolve,
+  validateCapabilityArguments: validateCapabilityArguments,
   resolveEventType: resolveEventType,
   resolveObjectType: resolveObjectType,
   resolveBehaviorType: resolveBehaviorType,
+  resolveComponent: resolveComponent,
   listOwners: listOwners,
   listMembers: listMembers,
   listObjectTypes: listObjectTypes,
   listBehaviorTypes: listBehaviorTypes,
+  listComponents: listComponents,
   search: search
 };

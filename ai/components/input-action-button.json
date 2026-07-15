@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 3,
+  "id": "input.action_button",
+  "kind": "control",
+  "name": "Action Button",
+  "summary": "A mobile button that triggers one bound game action.",
+  "extends": ["input.touch_surface"],
+  "target": { "required": true, "roles": ["player", "character"] },
+  "config": {
+    "pressMode": { "type": "enum", "values": ["pressed", "held", "released"], "default": "pressed", "summary": "Pointer phase that triggers the action." }
+  },
+  "bindings": {
+    "action": { "kind": "action", "required": true, "summary": "Game action triggered by the button." }
+  },
+  "implementation": {
+    "targetMembers": [],
+    "targetBehaviors": [],
+    "entities": [],
+    "layouts": [],
+    "events": [{
+      "name": "activate",
+      "kind": "rule",
+      "conditions": [
+        { "useByConfig": "pressMode", "uses": { "pressed": "input.pointer.pressed", "held": "input.pointer.held", "released": "input.pointer.released" }, "arguments": { "button": "Left" } },
+        { "use": "input.pointer.on-object", "arguments": { "target": "$surface" } }
+      ],
+      "actions": [{ "binding": "action" }]
+    }]
+  }
+}

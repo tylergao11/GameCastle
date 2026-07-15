@@ -2,7 +2,7 @@
 
 ## Runtime entry and boundary
 
-`ai/semantic-asset-product-pipeline.js#run` is the production entry. It validates Source/Revision, asks `semantic-runtime-linker.js` for one source-bound assembly, passes its exact `SemanticAssetRequirements` to `asset-engine-langgraph.js#runAssetEngine`, blocks on any asset debt, and binds the accepted `AssetWorld` to the project seed from the same source hash.
+`ai/semantic-asset-product-pipeline.js#run` is the production asset entry. It validates Source/Revision, asks `semantic-runtime-linker.js` for one source-bound assembly, passes its exact `SemanticAssetRequirements` to `asset-engine-langgraph.js#runAssetEngine`, blocks on any asset debt, and resource-binds the accepted `AssetWorld` to the project seed from the same source hash. The result is an asset-bound seed. `ai/spatial-product-pipeline.js#run` later adds native geometry facts and runs the visual Spatial Planner against the GDJS scene canvas; it does not assess asset quality or replace accepted resources.
 
 ```js
 var result = await semanticAssetProductPipeline.run({
@@ -16,10 +16,10 @@ var result = await semanticAssetProductPipeline.run({
     modelPolicy: modelPolicy
   }
 });
-var boundProject = result.artifact;
+var assetBoundSeed = result.artifact;
 ```
 
-`POST /semantic/execute` remains a deterministic execution boundary. It never starts ComfyUI or writes assets: callers either request a seed without `assetWorld`, or run the asset graph first and submit its accepted `assetWorld` to obtain a bound project. This separation keeps model calls, filesystem writes, cloud credentials, and outbox mutation outside the deterministic product executor.
+`POST /semantic/execute` remains a deterministic execution boundary. It never starts ComfyUI or writes assets: callers either request a seed without `assetWorld`, or run the asset graph first and submit its accepted `assetWorld` to obtain an asset-bound seed. This separation keeps model calls, filesystem writes, cloud credentials, and outbox mutation outside the deterministic product executor.
 
 ## Official LangGraph
 

@@ -13,7 +13,7 @@ var LLM2 = Object.freeze({
   provider: PROVIDER,
   model: MODEL,
   thinking: Object.freeze({ type: 'enabled' }),
-  reasoningEffort: 'medium',
+  reasoningEffort: 'high',
   temperature: 0
 });
 

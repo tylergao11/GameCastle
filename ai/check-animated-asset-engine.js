@@ -3,6 +3,7 @@ var fs = require('fs');
 var os = require('os');
 var path = require('path');
 var dictionary = require('./capability-semantic-dictionary');
+var sourceContract = require('./game-semantic-source');
 var linker = require('./semantic-runtime-linker');
 var engine = require('./asset-engine-langgraph');
 var outboxModule = require('./asset-publication-outbox');
@@ -13,7 +14,7 @@ var enginePorts = require('./test-asset-engine-ports');
 var binder = require('./gdjs-project-asset-binder');
 
 var index = dictionary.buildIndex();
-var source = { schemaVersion: 4, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'animated_asset_demo', name: 'Animated Asset Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }], events: [], assetIntents: [{ semanticId: 'player_animation', roles: ['player', 'visual'], subject: 'player', description: 'A readable player movement animation.', productionFamily: 'character-animation', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, animation: { initialStateId: 'idle', states: [{ stateId: 'idle', loop: true, frameCount: 4, frameDurationMs: 120, derivationProfileId: 'idle-bob' }, { stateId: 'move', loop: true, frameCount: 4, frameDurationMs: 90, derivationProfileId: 'move-bob' }] }, bindings: [] }], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+var source = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'animated_asset_demo', name: 'Animated Asset Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }], components: [], events: [], assetIntents: [{ semanticId: 'player_animation', roles: ['player', 'visual'], subject: 'player', description: 'A readable player movement animation.', productionFamily: 'character-animation', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, animation: { initialStateId: 'idle', states: [{ stateId: 'idle', loop: true, frameCount: 4, frameDurationMs: 120, derivationProfileId: 'idle-bob' }, { stateId: 'move', loop: true, frameCount: 4, frameDurationMs: 90, derivationProfileId: 'move-bob' }] }, bindings: [] }], layoutIntents: [{ semanticId: 'player_layout', roles: ['world'], subject: 'player', bounds: { width: 64, height: 64 }, relations: [{ semanticId: 'player_anchor', layoutRef: 'gc-layout://world/center', subjects: ['player'] }], bindings: [] }], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
 var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-animated-asset-engine-'));
 (async function() {
   try {
@@ -25,7 +26,7 @@ var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-animated-asset-engi
     assert.strictEqual(result.assetWorld.slots[0].frameSet.documentKind, frameSet.contract.documentKind);
     assert.strictEqual(result.assetPublicationOutboxEntries.length, 1);
     await publisher.drain({ outbox: outboxModule.create({ path: result.assetPublicationOutbox.path }), assetLibraryPort: libraryPort });
-    assert.strictEqual(binder.bind(assembly.projectSeed, result.assetWorld).project.objects[0].assetBinding.adapterId, 'gdjs.configuration.sprite-frame-set.v1');
+    assert.strictEqual(binder.bindResources(assembly.projectSeed, result.assetWorld).project.objects[0].assetBinding.adapterId, 'gdjs.configuration.sprite-frame-set.v1');
     var reused = await engine.runAssetEngine({ runId: 'animated-asset-reuse', assetRequirementContract: assembly.assetRequirements, assetLibraryPort: libraryPort, modelPolicy: { provider: 'external-provider', simulated: false }, projectAssetDir: path.join(root, 'reuse') });
     assert.strictEqual(reused.accepted, true);
     assert.strictEqual(reused.assetWorld.slots[0].frameSet.revisionId, result.assetWorld.slots[0].frameSet.revisionId);

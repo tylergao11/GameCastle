@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 3,
+  "id": "logic.state_machine",
+  "kind": "system",
+  "name": "State Machine",
+  "summary": "A character state controller that applies declared condition-driven transitions.",
+  "target": { "required": true, "roles": ["player", "character", "enemy"] },
+  "config": {
+    "initialState": { "type": "text", "required": true, "summary": "State assigned when the character is created." },
+    "transitions": {
+      "type": "list",
+      "required": true,
+      "minItems": 1,
+      "summary": "Condition-driven transitions between named states.",
+      "item": {
+        "type": "object",
+        "fields": {
+          "from": { "type": "text", "required": true },
+          "to": { "type": "text", "required": true },
+          "condition": { "type": "binding-ref", "bindingKind": "condition", "required": true },
+          "effect": { "type": "binding-ref", "bindingKind": "action" }
+        }
+      }
+    }
+  },
+  "bindings": {},
+  "namedBindings": { "kinds": ["condition", "action"], "requireReferenced": true, "summary": "Named transition conditions and optional effects referenced by config." },
+  "implementation": {
+    "targetMembers": [{ "name": "state", "roles": ["state", "machine"], "value": "$config:initialState" }],
+    "targetBehaviors": [],
+    "entities": [],
+    "layouts": [],
+    "events": [
+      {
+        "name": "transition",
+        "repeatConfig": "transitions",
+        "kind": "rule",
+        "conditions": [
+          { "use": "state.text.compare", "arguments": { "target": "$member:state", "operator": "=", "value": "$item:from" } },
+          { "itemBindingRef": "condition" }
+        ],
+        "actions": [
+          { "itemBindingRef": "effect", "optional": true },
+          { "use": "state.text.set", "arguments": { "target": "$member:state", "value": "$item:to" } }
+        ]
+      }
+    ]
+  }
+}

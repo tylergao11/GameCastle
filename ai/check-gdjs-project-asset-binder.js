@@ -4,20 +4,22 @@ var fs = require('fs');
 var os = require('os');
 var path = require('path');
 var dictionary = require('./capability-semantic-dictionary');
+var sourceContract = require('./game-semantic-source');
 var linker = require('./semantic-runtime-linker');
 var binder = require('./gdjs-project-asset-binder');
 var png = require('./local-derivation-port');
 
 var index = dictionary.buildIndex();
 var source = {
-  schemaVersion: 4,
+  schemaVersion: sourceContract.SCHEMA_VERSION,
   documentKind: 'game-semantic-source',
   dictionarySource: index.source,
   game: { semanticId: 'asset_binding_demo', name: 'Asset Binding Demo' },
   entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }],
+  components: [],
   events: [],
   assetIntents: [{ semanticId: 'player_visual', roles: ['player', 'visual'], subject: 'player', description: 'A readable player sprite.', productionFamily: 'character', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, bindings: [] }],
-  layoutIntents: [],
+  layoutIntents: [{ semanticId: 'player_layout', roles: ['world'], subject: 'player', bounds: { width: 64, height: 64 }, relations: [{ semanticId: 'player_anchor', layoutRef: 'gc-layout://world/center', subjects: ['player'] }], bindings: [] }],
   tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } }
 };
 
@@ -35,15 +37,15 @@ try {
     contentHash: 'asset-world.fixture',
     slots: [{ semanticId: 'player_visual', path: imagePath, sha256: digest, format: 'png', width: 1, height: 1, transparent: false }]
   };
-  var bound = binder.bind(seed, assetWorld);
-  assert.strictEqual(bound.documentKind, 'gdjs-bound-project');
+  var bound = binder.bindResources(seed, assetWorld);
+  assert.strictEqual(bound.documentKind, 'gdjs-asset-bound-project-seed');
   assert.strictEqual(bound.resources.length, 1);
   assert.strictEqual(bound.resources[0].file, imagePath);
   assert.strictEqual(bound.project.objects[0].assetBinding.adapterId, 'gdjs.configuration.sprite-first-frame.v1');
   assert.strictEqual(bound.project.objects[0].assetBinding.resourceKind, 'image');
   assert.strictEqual(bound.generatedCode.length, 1, 'Bound project must compile through official libGD.');
-  assert.throws(function() { binder.bind(seed, Object.assign({}, assetWorld, { sourceHash: 'semantic.other' })); }, function(error) { return error.code === 'SEMANTIC_ASSET_WORLD_MISMATCH'; });
-  assert.throws(function() { binder.bind(seed, Object.assign({}, assetWorld, { slots: [] })); }, function(error) { return error.code === 'SEMANTIC_ASSET_REQUIRED_MISSING'; });
+  assert.throws(function() { binder.bindResources(seed, Object.assign({}, assetWorld, { sourceHash: 'semantic.other' })); }, function(error) { return error.code === 'SEMANTIC_ASSET_WORLD_MISMATCH'; });
+  assert.throws(function() { binder.bindResources(seed, Object.assign({}, assetWorld, { slots: [] })); }, function(error) { return error.code === 'SEMANTIC_ASSET_REQUIRED_MISSING'; });
   console.log('[GDJSProjectAssetBinder] source-bound accepted asset resources and official Sprite configuration passed');
 } finally {
   fs.rmSync(root, { recursive: true, force: true });

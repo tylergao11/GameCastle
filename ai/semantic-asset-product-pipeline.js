@@ -21,7 +21,7 @@ async function run(input) {
   });
   var assetState = await assetEngine.runAssetEngine(engineInput);
   if (!assetState.accepted) fail('SEMANTIC_ASSET_PRODUCT_BLOCKED', 'Asset LangGraph completed with blocking debt; GDJS binding was not attempted.', assetState);
-  var artifact = binder.bind(assembly.projectSeed, assetState.assetWorld);
+  var artifact = binder.bindResources(assembly.projectSeed, assetState.assetWorld);
   return { schemaVersion: 1, documentKind: 'semantic-asset-product', runId: input.runId, projectId: engineInput.projectId, sourceHash: assembly.sourceHash, source: source, assembly: assembly, assetState: assetState, artifact: artifact };
 }
 

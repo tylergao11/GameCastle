@@ -1,16 +1,103 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 4,
   "dictionaryId": "gamecastle.semantic-layout",
+  "coordinateContract": {
+    "safeAreas": {
+      "world": { "leftFraction": 0, "topFraction": 0, "rightFraction": 0, "bottomFraction": 0 },
+      "world-grid": { "leftFraction": 0.04, "topFraction": 0.04, "rightFraction": 0.04, "bottomFraction": 0.04 },
+      "screen": { "leftFraction": 0.04, "topFraction": 0.04, "rightFraction": 0.04, "bottomFraction": 0.04 }
+    }
+  },
   "relations": {
-    "gc-layout://world/origin": { "title": "World origin", "description": "Place the subject at the upper-left origin of the playable world.", "placement": { "xFraction": 0, "yFraction": 0, "layer": "", "zOrder": 0 } },
-    "gc-layout://world/center": { "title": "World center", "description": "Place the subject at the center of the playable world.", "placement": { "xFraction": 0.5, "yFraction": 0.5, "layer": "", "zOrder": 0 } },
-    "gc-layout://world/left-middle": { "title": "World left middle", "description": "Place the subject at the middle of the world left edge.", "placement": { "xFraction": 0, "yFraction": 0.5, "layer": "", "zOrder": 0 } },
-    "gc-layout://world/right-middle": { "title": "World right middle", "description": "Place the subject at the middle of the world right edge.", "placement": { "xFraction": 1, "yFraction": 0.5, "layer": "", "zOrder": 0 } },
-    "gc-layout://world/top-center": { "title": "World top center", "description": "Place the subject at the center of the world top edge.", "placement": { "xFraction": 0.5, "yFraction": 0, "layer": "", "zOrder": 0 } },
-    "gc-layout://world/bottom-center": { "title": "World bottom center", "description": "Place the subject at the center of the world bottom edge.", "placement": { "xFraction": 0.5, "yFraction": 1, "layer": "", "zOrder": 0 } },
-    "gc-layout://screen/top-left": { "title": "Screen top left", "description": "Place a screen-facing subject at the upper-left screen anchor.", "placement": { "xFraction": 0, "yFraction": 0, "layer": "", "zOrder": 100 } },
-    "gc-layout://screen/top-right": { "title": "Screen top right", "description": "Place a screen-facing subject at the upper-right screen anchor.", "placement": { "xFraction": 1, "yFraction": 0, "layer": "", "zOrder": 100 } },
-    "gc-layout://screen/bottom-left": { "title": "Screen bottom left", "description": "Place a screen-facing subject at the lower-left screen anchor.", "placement": { "xFraction": 0, "yFraction": 1, "layer": "", "zOrder": 100 } },
-    "gc-layout://screen/bottom-right": { "title": "Screen bottom right", "description": "Place a screen-facing subject at the lower-right screen anchor.", "placement": { "xFraction": 1, "yFraction": 1, "layer": "", "zOrder": 100 } }
+    "gc-layout://world/origin": {
+      "title": "World origin",
+      "description": "Prefer the upper-left playable-world region while preserving room for the scene design.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "world", "safeArea": "world", "anchorPreference": { "horizontal": { "align": "left", "offsetFraction": 0 }, "vertical": { "align": "top", "offsetFraction": 0 } }, "layer": "", "zOrderRange": { "minimum": 0, "maximum": 99 }, "overlap": { "group": "world", "policy": "reject" } }
+    },
+    "gc-layout://world/center": {
+      "title": "World center",
+      "description": "Prefer the playable-world center while preserving room for the scene design.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "world", "safeArea": "world", "anchorPreference": { "horizontal": { "align": "center", "offsetFraction": 0 }, "vertical": { "align": "center", "offsetFraction": 0 } }, "layer": "", "zOrderRange": { "minimum": 0, "maximum": 99 }, "overlap": { "group": "world", "policy": "reject" } }
+    },
+    "gc-layout://world/left-middle": {
+      "title": "World left middle",
+      "description": "Prefer the middle of the playable-world left side while preserving room for the scene design.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "world", "safeArea": "world", "anchorPreference": { "horizontal": { "align": "left", "offsetFraction": 0 }, "vertical": { "align": "center", "offsetFraction": 0 } }, "layer": "", "zOrderRange": { "minimum": 0, "maximum": 99 }, "overlap": { "group": "world", "policy": "reject" } }
+    },
+    "gc-layout://world/right-middle": {
+      "title": "World right middle",
+      "description": "Prefer the middle of the playable-world right side while preserving room for the scene design.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "world", "safeArea": "world", "anchorPreference": { "horizontal": { "align": "right", "offsetFraction": 0 }, "vertical": { "align": "center", "offsetFraction": 0 } }, "layer": "", "zOrderRange": { "minimum": 0, "maximum": 99 }, "overlap": { "group": "world", "policy": "reject" } }
+    },
+    "gc-layout://world/top-center": {
+      "title": "World top center",
+      "description": "Prefer the playable-world top center while preserving room for the scene design.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "world", "safeArea": "world", "anchorPreference": { "horizontal": { "align": "center", "offsetFraction": 0 }, "vertical": { "align": "top", "offsetFraction": 0 } }, "layer": "", "zOrderRange": { "minimum": 0, "maximum": 99 }, "overlap": { "group": "world", "policy": "reject" } }
+    },
+    "gc-layout://world/bottom-center": {
+      "title": "World bottom center",
+      "description": "Prefer the playable-world bottom center while preserving room for the scene design.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "world", "safeArea": "world", "anchorPreference": { "horizontal": { "align": "center", "offsetFraction": 0 }, "vertical": { "align": "bottom", "offsetFraction": 0 } }, "layer": "", "zOrderRange": { "minimum": 0, "maximum": 99 }, "overlap": { "group": "world", "policy": "reject" } }
+    },
+    "gc-layout://world/grid-free-cell": {
+      "title": "World free grid cell",
+      "description": "Create the initial subject in a free world-grid cell and retain a reusable random free-cell spawn contract.",
+      "placement": { "mode": "grid", "materialization": "scene-instance", "space": "world", "safeArea": "world-grid", "grid": { "columns": 20, "rows": 15, "selection": "random-free-cell" }, "layer": "", "zOrderRange": { "minimum": 0, "maximum": 99 }, "overlap": { "group": "world", "policy": "reject" } }
+    },
+    "gc-layout://world/runtime-grid-free-cell": {
+      "title": "Runtime free grid cell",
+      "description": "Declare a reusable random free-cell world-grid spawn contract without an initial scene instance.",
+      "placement": { "mode": "grid", "materialization": "runtime-contract", "space": "world", "safeArea": "world-grid", "grid": { "columns": 20, "rows": 15, "selection": "random-free-cell" }, "layer": "", "zOrderRange": { "minimum": 0, "maximum": 99 }, "overlap": { "group": "world", "policy": "reject" } }
+    },
+    "gc-layout://screen/top-left": {
+      "title": "Screen top left",
+      "description": "Prefer the upper-left safe screen region for a screen-facing subject.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "left", "offsetFraction": 0 }, "vertical": { "align": "top", "offsetFraction": 0 } }, "layer": "ui", "zOrderRange": { "minimum": 100, "maximum": 109 }, "overlap": { "group": "ui-hud", "policy": "reject" } }
+    },
+    "gc-layout://screen/top-center": {
+      "title": "Screen top center",
+      "description": "Prefer the upper-center safe screen region for a screen-facing subject.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "center", "offsetFraction": 0 }, "vertical": { "align": "top", "offsetFraction": 0 } }, "layer": "ui", "zOrderRange": { "minimum": 100, "maximum": 109 }, "overlap": { "group": "ui-hud", "policy": "reject" } }
+    },
+    "gc-layout://screen/top-right": {
+      "title": "Screen top right",
+      "description": "Prefer the upper-right safe screen region for a screen-facing subject.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "right", "offsetFraction": 0 }, "vertical": { "align": "top", "offsetFraction": 0 } }, "layer": "ui", "zOrderRange": { "minimum": 100, "maximum": 109 }, "overlap": { "group": "ui-hud", "policy": "reject" } }
+    },
+    "gc-layout://screen/left-middle": {
+      "title": "Screen left middle",
+      "description": "Prefer the left-middle safe screen region for a screen-facing subject.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "left", "offsetFraction": 0 }, "vertical": { "align": "center", "offsetFraction": 0 } }, "layer": "ui", "zOrderRange": { "minimum": 100, "maximum": 109 }, "overlap": { "group": "ui-hud", "policy": "reject" } }
+    },
+    "gc-layout://screen/right-middle": {
+      "title": "Screen right middle",
+      "description": "Prefer the right-middle safe screen region for a screen-facing subject.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "right", "offsetFraction": 0 }, "vertical": { "align": "center", "offsetFraction": 0 } }, "layer": "ui", "zOrderRange": { "minimum": 100, "maximum": 109 }, "overlap": { "group": "ui-hud", "policy": "reject" } }
+    },
+    "gc-layout://screen/bottom-left": {
+      "title": "Screen bottom left",
+      "description": "Prefer the lower-left safe screen region for a screen-facing subject.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "left", "offsetFraction": 0 }, "vertical": { "align": "bottom", "offsetFraction": 0 } }, "layer": "ui", "zOrderRange": { "minimum": 100, "maximum": 109 }, "overlap": { "group": "ui-hud", "policy": "reject" } }
+    },
+    "gc-layout://screen/bottom-center": {
+      "title": "Screen bottom center",
+      "description": "Prefer the lower-center safe screen region for a screen-facing subject.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "center", "offsetFraction": 0 }, "vertical": { "align": "bottom", "offsetFraction": 0 } }, "layer": "ui", "zOrderRange": { "minimum": 100, "maximum": 109 }, "overlap": { "group": "ui-hud", "policy": "reject" } }
+    },
+    "gc-layout://screen/bottom-right": {
+      "title": "Screen bottom right",
+      "description": "Prefer the lower-right safe screen region for a screen-facing subject.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "right", "offsetFraction": 0 }, "vertical": { "align": "bottom", "offsetFraction": 0 } }, "layer": "ui", "zOrderRange": { "minimum": 100, "maximum": 109 }, "overlap": { "group": "ui-hud", "policy": "reject" } }
+    },
+    "gc-layout://screen/control-bottom-left": {
+      "title": "Screen control bottom left",
+      "description": "Prefer the lower-left safe screen control region with percentage edge margins.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "left", "offsetFraction": 0.04 }, "vertical": { "align": "bottom", "offsetFraction": 0.04 } }, "layer": "ui", "zOrderRange": { "minimum": 110, "maximum": 119 }, "overlap": { "group": "ui-controls", "policy": "reject" } }
+    },
+    "gc-layout://screen/control-bottom-right": {
+      "title": "Screen control bottom right",
+      "description": "Prefer the lower-right safe screen control region with percentage edge margins.",
+      "placement": { "mode": "region", "materialization": "scene-instance", "space": "screen", "safeArea": "screen", "anchorPreference": { "horizontal": { "align": "right", "offsetFraction": 0.04 }, "vertical": { "align": "bottom", "offsetFraction": 0.04 } }, "layer": "ui", "zOrderRange": { "minimum": 110, "maximum": 119 }, "overlap": { "group": "ui-controls", "policy": "reject" } }
+    }
   }
 }
