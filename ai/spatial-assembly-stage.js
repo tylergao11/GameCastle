@@ -1,4 +1,5 @@
 var spatialEngine = require('../runtime/spatial');
+var assetWorldApi = require('./asset-world');
 
 // Assembly-layer orchestration only. SpatialPlanner owns the first candidate;
 // SpatialEngine only validates and materializes hash-bound facts.
@@ -13,7 +14,8 @@ function prepare(assetBoundSeed, assetWorld, options) {
   object(assetBoundSeed, 'GDJS asset-bound project seed');
   if (assetBoundSeed.documentKind !== 'gdjs-asset-bound-project-seed') fail('SPATIAL_ASSEMBLY_STAGE_INVALID', 'Spatial assembly requires a resource-bound GDJS project seed.');
   object(assetWorld, 'accepted AssetWorld');
-  if (assetWorld.documentKind !== 'semantic-asset-world' || text(assetWorld.sourceHash, 'accepted AssetWorld.sourceHash') !== assetBoundSeed.sourceHash || text(assetWorld.contentHash, 'accepted AssetWorld.contentHash') !== assetBoundSeed.assetWorldHash) fail('SPATIAL_ASSEMBLY_STAGE_ASSET_MISMATCH', 'Spatial assembly requires the exact accepted AssetWorld used by resource binding.');
+  assetWorld = assetWorldApi.validateAcceptedAssetWorld(assetWorld, { sourceHash: assetBoundSeed.sourceHash });
+  if (text(assetWorld.contentHash, 'accepted AssetWorld.contentHash') !== assetBoundSeed.assetWorldHash) fail('SPATIAL_ASSEMBLY_STAGE_ASSET_MISMATCH', 'Spatial assembly requires the exact accepted AssetWorld used by resource binding.');
   allowed(options, ['componentExpansion', 'geometryFacts'], 'Spatial assembly options');
   return spatialEngine.createAssemblyInput(assetBoundSeed.spatialAssemblyRequest, {
     layoutPlan: assetBoundSeed.layoutPlan,

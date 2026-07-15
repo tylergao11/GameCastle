@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.product-delivery",
+  "owner": "ProductDeliveryOrchestrator",
+  "truthModel": {
+    "semanticIntent": "GameSemanticSource and source-bound GameSemanticRevision",
+    "assetAcceptance": "validated immutable semantic-asset-world",
+    "spatialAcceptance": "validated spatial-layout-resolution and accepted GDJS projection",
+    "crossStageLifecycle": "one persisted product-delivery-run",
+    "assetCard": "read-only projection; never an authored or persisted truth source"
+  },
+  "statuses": [
+    "semantic-ready",
+    "asset-producing",
+    "asset-bound",
+    "spatial-planning",
+    "spatial-accepted",
+    "assembly-reviewing",
+    "awaiting-semantic-revision",
+    "accepted",
+    "blocked"
+  ],
+  "stages": ["semantic", "asset", "spatial", "assembly"],
+  "routes": ["retry-stage", "semantic-revision", "system-blocked"],
+  "defaultBudgets": {
+    "semanticCycles": 3,
+    "stageAttemptsPerSource": {
+      "semantic": 2,
+      "asset": 2,
+      "spatial": 2,
+      "assembly": 2
+    },
+    "repeatedObservationLimit": 2,
+    "elapsedMs": 900000,
+    "costUsd": 10
+  },
+  "maximumBudgets": {
+    "semanticCycles": 3,
+    "stageAttemptsPerSource": {
+      "semantic": 2,
+      "asset": 2,
+      "spatial": 2,
+      "assembly": 2
+    },
+    "repeatedObservationLimit": 2,
+    "elapsedMs": 900000,
+    "costUsd": 10
+  },
+  "stagePolicy": {
+    "spatialMaxRounds": 3,
+    "spatialMaxTokens": 4096,
+    "leaseStaleMs": 1200000
+  },
+  "semanticAssemblyObservationCodes": [
+    "ASSEMBLY_ASSET_ROLE_MISMATCH",
+    "ASSEMBLY_LAYOUT_INTENT_VIOLATED",
+    "ASSEMBLY_LEGIBILITY_FAILED",
+    "ASSEMBLY_VISUAL_HIERARCHY_FAILED",
+    "ASSEMBLY_COMPOSITION_FAILED"
+  ],
+  "artifactRefs": [
+    "sourceHash",
+    "revisionHash",
+    "assetWorldHash",
+    "assetBoundSeedHash",
+    "geometryFactSetHash",
+    "spatialResolutionHash",
+    "finalProjectionHash",
+    "browserCaptureHash",
+    "assemblyReviewHash"
+  ],
+  "completionGate": [
+    "sourceHash",
+    "assetWorldHash",
+    "assetBoundSeedHash",
+    "geometryFactSetHash",
+    "spatialResolutionHash",
+    "finalProjectionHash",
+    "browserCaptureHash",
+    "assemblyReviewHash"
+  ],
+  "forbidden": [
+    "mutable source or artifact documents inside ProductDeliveryRun",
+    "caller-authored lifecycle status",
+    "route or repair commands inside semantic feedback",
+    "budget reset by changing an internal stage runId",
+    "reuse of downstream artifacts after sourceHash changes",
+    "partial AssetWorld",
+    "nullable accepted spatial product",
+    "AssetCard as a fifth source of truth"
+  ]
+}

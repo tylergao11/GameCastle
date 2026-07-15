@@ -1,6 +1,7 @@
 var childProcess = require('child_process');
 var fs = require('fs');
 var path = require('path');
+var sourceRoot = require('./gdevelop-source-root');
 
 var rootDir = path.resolve(__dirname, '..');
 
@@ -38,8 +39,7 @@ function run(command, args, cwd) {
 
 var sourceDir = path.resolve(
   getArgValue('--source') ||
-  process.env.GDEVELOP_SOURCE_DIR ||
-  path.resolve(rootDir, '..', 'GDevelop-master')
+  sourceRoot.resolveSourceRoot()
 );
 var gdjsDir = resolveGdjsDir(sourceDir);
 var outDir = path.resolve(
@@ -50,7 +50,7 @@ var outDir = path.resolve(
 
 if (!fs.existsSync(path.join(gdjsDir, 'package.json'))) {
   console.error('[GDJSRuntime] Missing GDJS package.json: ' + gdjsDir);
-  console.error('[GDJSRuntime] Pass --source <GDevelop repo> or set GDEVELOP_SOURCE_DIR.');
+  console.error('[GDJSRuntime] Pass --source <GDevelop repo> or set GAMECASTLE_GDEVELOP_SOURCE_DIR.');
   process.exit(1);
 }
 

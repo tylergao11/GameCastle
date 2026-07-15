@@ -1,0 +1,13 @@
+{
+  "1": { "inputs": { "ckpt_name": "sd_xl_base_1.0.safetensors" }, "class_type": "CheckpointLoaderSimple" },
+  "2": { "inputs": { "text": "game asset", "clip": ["1", 1] }, "class_type": "CLIPTextEncode" },
+  "3": { "inputs": { "text": "text, watermark", "clip": ["1", 1] }, "class_type": "CLIPTextEncode" },
+  "4": { "inputs": { "width": 1024, "height": 1024, "batch_size": 2 }, "class_type": "EmptyLatentImage" },
+  "5": { "inputs": { "add_noise": "enable", "noise_seed": 1, "steps": 30, "cfg": 7, "sampler_name": "euler", "scheduler": "normal", "start_at_step": 0, "end_at_step": 24, "return_with_leftover_noise": "enable", "model": ["1", 0], "positive": ["2", 0], "negative": ["3", 0], "latent_image": ["4", 0] }, "class_type": "KSamplerAdvanced" },
+  "6": { "inputs": { "ckpt_name": "sd_xl_refiner_1.0.safetensors" }, "class_type": "CheckpointLoaderSimple" },
+  "7": { "inputs": { "text": "game asset", "clip": ["6", 1] }, "class_type": "CLIPTextEncode" },
+  "8": { "inputs": { "text": "text, watermark", "clip": ["6", 1] }, "class_type": "CLIPTextEncode" },
+  "9": { "inputs": { "add_noise": "disable", "noise_seed": 0, "steps": 30, "cfg": 7, "sampler_name": "euler", "scheduler": "normal", "start_at_step": 24, "end_at_step": 10000, "return_with_leftover_noise": "disable", "model": ["6", 0], "positive": ["7", 0], "negative": ["8", 0], "latent_image": ["5", 0] }, "class_type": "KSamplerAdvanced" },
+  "10": { "inputs": { "samples": ["9", 0], "vae": ["6", 2] }, "class_type": "VAEDecode" },
+  "11": { "inputs": { "filename_prefix": "gamecastle-sdxl", "images": ["10", 0] }, "class_type": "SaveImage" }
+}

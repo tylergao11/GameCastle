@@ -4,10 +4,12 @@ var crypto = require('crypto');
 var runtimeCodegen = require('./runtime-codegen');
 var adapters = require('./gdjs-asset-binding-dictionary');
 var frameSet = require('./frame-set');
+var assetWorldContract = require('./asset-world');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
 function hash(value) { return crypto.createHash('sha256').update(JSON.stringify(stable(value))).digest('hex').slice(0, 24); }
+function fileHash(file) { return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); }
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'GDJSProjectAssetBinder'; throw error; }
 function resourceName(slot) { return 'assets/' + slot.sha256 + '.' + String(slot.format || 'png').replace(/[^A-Za-z0-9]/g, ''); }
 function slotResourceKind(slot) { return slot.resourceKind || (String(slot.format || '').toLowerCase() === 'png' ? 'image' : null); }
@@ -25,9 +27,9 @@ function projectFrameSet(revision) {
 
 function bindResources(projectSeed, assetWorld) {
   if (!projectSeed || projectSeed.schemaVersion !== 2 || projectSeed.documentKind !== 'gdjs-project-seed' || !projectSeed.sourceHash || !projectSeed.project || !projectSeed.layoutPlan || !projectSeed.spatialAssemblyRequest) fail('SEMANTIC_PROJECT_SEED_INVALID', 'A current GDJS project seed with a spatial assembly request is required.');
-  if (!assetWorld || assetWorld.documentKind !== 'semantic-asset-world' || assetWorld.sourceHash !== projectSeed.sourceHash) fail('SEMANTIC_ASSET_WORLD_MISMATCH', 'Accepted semantic asset world must match the project seed sourceHash.');
+  assetWorld = assetWorldContract.validateAcceptedAssetWorld(assetWorld, { sourceHash: projectSeed.sourceHash });
   var worldById = {};
-  (assetWorld.slots || []).forEach(function(slot) { if (!slot || !slot.semanticId || worldById[slot.semanticId]) fail('SEMANTIC_ASSET_WORLD_INVALID', 'Semantic asset world slots must have unique semanticId.'); if (isFrameSetSlot(slot)) { var accepted = frameSet.validate(slot.frameSet); if (accepted.frames.some(function(frame) { return !fs.existsSync(frame.path); })) fail('SEMANTIC_ASSET_FILE_MISSING', 'Accepted FrameSetRevision has an unavailable frame: ' + slot.semanticId); } else { if (!slot.path || !fs.existsSync(slot.path)) fail('SEMANTIC_ASSET_FILE_MISSING', 'Accepted asset file is unavailable: ' + slot.semanticId); if (!slotResourceKind(slot)) fail('SEMANTIC_ASSET_RESOURCE_KIND_MISSING', 'Accepted asset world slot must declare resourceKind: ' + slot.semanticId); } worldById[slot.semanticId] = slot; });
+  (assetWorld.slots || []).forEach(function(slot) { if (!slot || !slot.semanticId || worldById[slot.semanticId]) fail('SEMANTIC_ASSET_WORLD_INVALID', 'Semantic asset world slots must have unique semanticId.'); if (isFrameSetSlot(slot)) { var accepted = frameSet.validate(slot.frameSet); accepted.frames.forEach(function(frame) { if (!fs.existsSync(frame.path)) fail('SEMANTIC_ASSET_FILE_MISSING', 'Accepted FrameSetRevision has an unavailable frame: ' + slot.semanticId); if (fileHash(frame.path) !== frame.sha256) fail('SEMANTIC_ASSET_FILE_HASH_MISMATCH', 'Accepted FrameSetRevision frame bytes changed: ' + slot.semanticId + '/' + frame.frameId); }); } else { if (!slot.path || !fs.existsSync(slot.path)) fail('SEMANTIC_ASSET_FILE_MISSING', 'Accepted asset file is unavailable: ' + slot.semanticId); if (fileHash(slot.path) !== slot.sha256) fail('SEMANTIC_ASSET_FILE_HASH_MISMATCH', 'Accepted asset file bytes changed: ' + slot.semanticId); if (!slotResourceKind(slot)) fail('SEMANTIC_ASSET_RESOURCE_KIND_MISSING', 'Accepted asset world slot must declare resourceKind: ' + slot.semanticId); } worldById[slot.semanticId] = slot; });
   var project = clone(projectSeed.project), declarations = projectSeed.objectDeclarations || [], resources = [], resourceByName = {};
   function addResource(resource) { if (!resourceByName[resource.name]) { resourceByName[resource.name] = true; resources.push(resource); } }
   (projectSeed.assetBindingRequirements || []).forEach(function(requirement) {

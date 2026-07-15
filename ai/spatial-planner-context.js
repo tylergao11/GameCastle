@@ -4,6 +4,7 @@ var frameSet = require('./frame-set');
 var semanticDictionary = require('./capability-semantic-dictionary');
 var sourceContract = require('./game-semantic-source');
 var spatialEngine = require('../runtime/spatial');
+var assetWorldApi = require('./asset-world');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
@@ -77,7 +78,8 @@ function createContext(inputValue, assetBoundSeed, assetWorld, semanticSource) {
   if (assetBoundSeed.documentKind !== 'gdjs-asset-bound-project-seed' || text(assetBoundSeed.sourceHash, 'GDJS asset-bound project seed.sourceHash') !== input.sourceHash || text(assetBoundSeed.assetWorldHash, 'GDJS asset-bound project seed.assetWorldHash') !== input.assetWorldHash || text(assetBoundSeed.contentHash, 'GDJS asset-bound project seed.contentHash') !== input.assetBoundProjectSeedHash) fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext requires the exact asset-bound GDJS seed recorded by Spatial Assembly Input.');
   try { input = spatialEngine.validateAssemblyInputAgainstSeed(input, assetBoundSeed); }
   catch (error) { fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext requires scene facts derived from the exact asset-bound GDJS seed: ' + String(error && error.message || error)); }
-  if (assetWorld.documentKind !== 'semantic-asset-world' || text(assetWorld.sourceHash, 'accepted AssetWorld.sourceHash') !== input.sourceHash || text(assetWorld.contentHash, 'accepted AssetWorld.contentHash') !== input.assetWorldHash) fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext requires the exact accepted AssetWorld recorded by Spatial Assembly Input.');
+  assetWorld = assetWorldApi.validateAcceptedAssetWorld(assetWorld, { sourceHash: input.sourceHash });
+  if (text(assetWorld.contentHash, 'accepted AssetWorld.contentHash') !== input.assetWorldHash) fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext requires the exact accepted AssetWorld recorded by Spatial Assembly Input.');
   var source = sourceContract.validateSource(semanticSource);
   if (sourceContract.sourceHash(source) !== input.sourceHash) fail('SPATIAL_PLANNER_CONTEXT_INPUT_MISMATCH', 'SpatialPlannerContext semantic design does not match Spatial Assembly Input.');
   var slots = Object.create(null), requirementsBySubject = Object.create(null), intents = Object.create(null), geometry = Object.create(null), imageInputsBySemanticId = Object.create(null);

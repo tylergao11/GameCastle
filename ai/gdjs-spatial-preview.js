@@ -3,6 +3,7 @@ var fs = require('fs');
 var path = require('path');
 var png = require('./local-derivation-port');
 var spatialEngine = require('../runtime/spatial');
+var assetWorldApi = require('./asset-world');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
@@ -66,18 +67,6 @@ function destinationBounds(instance, geometry) {
   var points = [worldPoint(instance, geometry, 0, 0), worldPoint(instance, geometry, geometry.nativeSize.width, 0), worldPoint(instance, geometry, 0, geometry.nativeSize.height), worldPoint(instance, geometry, geometry.nativeSize.width, geometry.nativeSize.height)];
   return { left: Math.floor(Math.min.apply(null, points.map(function(point) { return point.x; }))), top: Math.floor(Math.min.apply(null, points.map(function(point) { return point.y; }))), right: Math.ceil(Math.max.apply(null, points.map(function(point) { return point.x; }))), bottom: Math.ceil(Math.max.apply(null, points.map(function(point) { return point.y; }))) };
 }
-function colorFor(subject) {
-  var value = 0;
-  for (var index = 0; index < subject.length; index++) value = (value * 31 + subject.charCodeAt(index)) >>> 0;
-  return { red: 80 + value % 120, green: 80 + (value >>> 8) % 120, blue: 80 + (value >>> 16) % 120 };
-}
-function drawFallback(raster, instance, geometry) {
-  var bounds = destinationBounds(instance, geometry), drawable = geometry.drawableBounds, color = colorFor(instance.subject);
-  for (var y = Math.max(0, bounds.top); y < Math.min(raster.height, bounds.bottom); y++) for (var x = Math.max(0, bounds.left); x < Math.min(raster.width, bounds.right); x++) {
-    var local = localPoint(instance, geometry, x + 0.5, y + 0.5);
-    if (local.x >= drawable.left && local.x < drawable.right && local.y >= drawable.top && local.y < drawable.bottom) blend(raster, x, y, color.red, color.green, color.blue, 220);
-  }
-}
 function decodeImage(filePath, subject) {
   if (path.extname(filePath).toLowerCase() !== '.png') fail('GDJS_SPATIAL_PREVIEW_IMAGE_UNSUPPORTED', 'Preview requires an accepted PNG image for ' + subject + ' until a raster decoder is supplied for this resource format.');
   try { return png.decodePng(fs.readFileSync(filePath)); } catch (error) { fail('GDJS_SPATIAL_PREVIEW_IMAGE_UNSUPPORTED', 'Preview cannot decode accepted image for ' + subject + ': ' + error.message); }
@@ -98,8 +87,9 @@ function renderRaster(spatialInput, projection) {
   orderedInstances(spatialInput, projection).forEach(function(item) {
     if (!item.geometry) fail('GDJS_SPATIAL_PREVIEW_GEOMETRY_MISSING', 'Preview is missing render geometry for ' + item.instance.subject);
     var filePath = resourcePath(projection, item.instance.objectName);
-    if (filePath && fs.existsSync(filePath)) drawImage(raster, item.instance, item.geometry, filePath);
-    else drawFallback(raster, item.instance, item.geometry);
+    if (!filePath) fail('GDJS_SPATIAL_PREVIEW_RESOURCE_MISSING', 'Preview requires the accepted resource bound to ' + item.instance.subject + '; placeholder rendering is forbidden.');
+    if (!fs.existsSync(filePath)) fail('GDJS_SPATIAL_PREVIEW_IMAGE_MISSING', 'Preview cannot read the accepted resource bound to ' + item.instance.subject + '.');
+    drawImage(raster, item.instance, item.geometry, filePath);
   });
   return raster;
 }
@@ -123,7 +113,8 @@ async function renderPreview(input) {
   var spatialInput = spatialEngine.validateAssemblyInput(input.spatialInput), projection = spatialEngine.validateProjection(spatialInput, input.assetBoundSeed, input.projection);
   if (projection.basis.documentKind !== 'spatial-layout-candidate') fail('GDJS_SPATIAL_PREVIEW_BASIS_INVALID', 'GDJS preview requires a provisional candidate projection');
   object(input.assetWorld, 'accepted AssetWorld');
-  if (input.assetWorld.documentKind !== 'semantic-asset-world' || input.assetWorld.sourceHash !== spatialInput.sourceHash || input.assetWorld.contentHash !== spatialInput.assetWorldHash) fail('GDJS_SPATIAL_PREVIEW_INPUT_MISMATCH', 'GDJS preview requires the accepted AssetWorld bound to the active Spatial Assembly Input');
+  input.assetWorld = assetWorldApi.validateAcceptedAssetWorld(input.assetWorld, { sourceHash: spatialInput.sourceHash });
+  if (input.assetWorld.contentHash !== spatialInput.assetWorldHash) fail('GDJS_SPATIAL_PREVIEW_INPUT_MISMATCH', 'GDJS preview requires the accepted AssetWorld bound to the active Spatial Assembly Input');
   var outputDir = text(input.outputDir, 'GDJS spatial preview outputDir');
   fs.mkdirSync(outputDir, { recursive: true });
   var imagePath = path.resolve(outputDir, 'spatial-preview-' + projection.contentHash.slice(-24) + '.png'), raster = renderRaster(spatialInput, projection), bytes = png.encodePng(raster);

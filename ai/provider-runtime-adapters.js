@@ -23,6 +23,7 @@ function createAssetProviderPorts(runtime, options) {
   if (governance.asset({ provider: options.provider }).provider === 'comfyui-local') return require('./comfyui-local-provider').createAssetProviderPorts(runtime, options);
   function call(role, state, extra) { return runtime.invokeRole({ requestId: state.runId + ':' + state.slot.slotId + ':' + role, projectId: state.projectId || state.runId, role: role, provider: options.provider, estimatedCost: options.estimatedCost, timeoutMs: options.timeoutMs, maxAttempts: options.maxAttempts, input: Object.assign({ prompt: assetPrompt(state), negativePrompt: styleDNA.negativePrompt(state.slot.styleId), size: options.size, transparent: !!((state.slot.constraints || {}).transparent) }, extra || {}) }); }
   return {
+    productionFingerprint: function(state) { return crypto.createHash('sha256').update(JSON.stringify({ provider: options.provider, model: options.imageModel || options.model || null, size: options.size || null, slot: state.slot })).digest('hex'); },
     generateMaster: async function(state) { return candidate(state, await call('image-generate', state), 'masterImage'); }
   };
 }

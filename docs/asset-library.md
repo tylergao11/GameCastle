@@ -34,12 +34,12 @@ The app never talks to PostgreSQL or MinIO directly. It speaks only to the priva
 After the stack is healthy and local ComfyUI is available, run the true creation-and-reuse probe:
 
 ```powershell
-node scripts/run-with-local-env.js ai/asset-engine-cloud-library-live-smoke.js
+node scripts/run-with-local-env.js tests/live/asset-engine-cloud-library-live-smoke.js
 ```
 
 It performs real ComfyUI master generation for one static asset and one FrameSet, deterministically derives both accepted revisions, drains their outbox entries, then runs the identical requirements for a second project. The second run must materialize both revisions from the cloud library, publish nothing, preserve the static SHA-256, and preserve the FrameSet content hash. It is intentionally not part of ordinary CI because it requires the local model and running cloud stack.
 
-## Truth and compatibility rules
+## Truth rules
 
 - A library record is reusable only when its requirement fingerprint exactly matches the complete reusable requirement.
 - A materialized file must match the published revision ID, SHA-256, kind, and format before project use.

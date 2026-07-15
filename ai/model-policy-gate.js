@@ -21,6 +21,9 @@ function authorizeModelPorts(ports, policy) {
     };
   });
   if (ports && typeof ports.materializeCandidate === 'function') wrapped.materializeCandidate = ports.materializeCandidate;
+  if (ports && typeof ports.discardCandidate === 'function') wrapped.discardCandidate = ports.discardCandidate;
+  if (ports && typeof ports.reviewCandidate === 'function') wrapped.reviewCandidate = ports.reviewCandidate;
+  if (ports && typeof ports.productionFingerprint === 'function') wrapped.productionFingerprint = ports.productionFingerprint;
   return { ports: wrapped, receipt: { allowed: !denied, code: denied, provider: normalized.provider, simulated: normalized.simulated, maxCost: normalized.maxCost, scope: normalized.allowedScopes[0] } };
 }
 

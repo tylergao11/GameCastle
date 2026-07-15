@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "owner": "LocalDerivationKernel",
   "styleDictionaryId": "gamecastle.asset-style-dictionary",
   "scopes": ["project-local", "private-local"],
@@ -11,5 +11,13 @@
     "frame_transform", "transform_frames", "ping_pong", "frame_timing", "state_sheet",
     "decode_normalize_png", "inspect_raster", "validate_alpha", "validate_frame_grid"
   ],
+  "finalAlphaPolicy": {
+    "transparentBelow": 250,
+    "visibleAbove": 0,
+    "opaqueAtOrAbove": 250,
+    "minimumTransparentRatio": 0.05,
+    "minimumVisibleRatio": 0.005,
+    "maximumOpaquePerimeterRatio": 0.9
+  },
   "receiptRequired": ["operationId", "op", "inputHash", "outputHash", "scriptVersion", "parentRevisionId", "scope", "dictionaryId", "styleId"]
 }

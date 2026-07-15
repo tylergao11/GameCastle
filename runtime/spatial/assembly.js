@@ -133,7 +133,7 @@ function validateEvidence(value, label, code) {
   object(value, label, code); allowed(value, ['documentKind', 'contentHash', 'producerRevision'], label, code);
   return { documentKind: text(value.documentKind, label + '.documentKind', code), contentHash: text(value.contentHash, label + '.contentHash', code), producerRevision: text(value.producerRevision, label + '.producerRevision', code) };
 }
-function validateGeometryFactSet(value, request, assetWorldHash) {
+function validateGeometryFactSet(value, request, assetWorldHash, acceptedAssetWorld) {
   var code = 'SPATIAL_ASSEMBLY_GEOMETRY_INVALID';
   object(value, 'SpatialGeometryFactSet', code);
   allowed(value, ['schemaVersion', 'documentKind', 'sourceHash', 'assetWorldHash', 'facts', 'contentHash'], 'SpatialGeometryFactSet', code);
@@ -141,9 +141,10 @@ function validateGeometryFactSet(value, request, assetWorldHash) {
   if (text(value.sourceHash, 'SpatialGeometryFactSet.sourceHash', code) !== request.sourceHash) fail(code, 'SpatialGeometryFactSet sourceHash does not match the spatial assembly request');
   if (text(value.assetWorldHash, 'SpatialGeometryFactSet.assetWorldHash', code) !== assetWorldHash) fail(code, 'SpatialGeometryFactSet assetWorldHash does not match the accepted asset world');
   array(value.facts, 'SpatialGeometryFactSet.facts', code);
-  var facts = Object.create(null);
+  var facts = Object.create(null), assetSlots = Object.create(null);
+  if (acceptedAssetWorld) (acceptedAssetWorld.slots || []).forEach(function(slot) { assetSlots[slot.semanticId] = slot; });
   value.facts.forEach(function(fact, index) {
-    var label = 'SpatialGeometryFactSet.facts[' + index + ']'; object(fact, label, code); allowed(fact, ['subject', 'kind', 'drawableBounds', 'nativeSize', 'objectOrigin', 'positionSemantic', 'sizeSemantic', 'layerSemantic', 'evidence'], label, code);
+    var label = 'SpatialGeometryFactSet.facts[' + index + ']'; object(fact, label, code); allowed(fact, ['subject', 'kind', 'assetSemanticId', 'drawableBounds', 'nativeSize', 'objectOrigin', 'positionSemantic', 'sizeSemantic', 'layerSemantic', 'evidence'], label, code);
     var subject = text(fact.subject, label + '.subject', code), kind = text(fact.kind, label + '.kind', code);
     if (!request.subjects[subject]) fail(code, 'SpatialGeometryFactSet fact targets a subject outside the semantic request: ' + subject);
     if (!engineContract.geometryFactKinds[kind]) fail(code, 'SpatialGeometryFactSet fact has an unknown kind: ' + kind);
@@ -151,9 +152,16 @@ function validateGeometryFactSet(value, request, assetWorldHash) {
     if (facts[subject][kind]) fail(code, 'SpatialGeometryFactSet has duplicate ' + kind + ' facts for ' + subject);
     var normalized = { subject: subject, kind: kind, evidence: validateEvidence(fact.evidence, label + '.evidence', code) };
     if (kind === 'render-geometry') {
+      normalized.assetSemanticId = text(fact.assetSemanticId, label + '.assetSemanticId', code);
       normalized.drawableBounds = validateBounds(fact.drawableBounds, label + '.drawableBounds', code);
       normalized.nativeSize = validateSize(fact.nativeSize, label + '.nativeSize', code);
       normalized.objectOrigin = validatePoint(fact.objectOrigin, label + '.objectOrigin', code);
+      if (acceptedAssetWorld) {
+        var acceptedSlot = assetSlots[normalized.assetSemanticId];
+        if (!acceptedSlot) fail(code, 'Render geometry evidence references no accepted AssetWorld slot: ' + normalized.assetSemanticId);
+        var expectedEvidenceHash = acceptedSlot.frameSet && acceptedSlot.frameSet.contentHash || acceptedSlot.sha256;
+        if (normalized.evidence.documentKind !== 'accepted-asset-geometry' || normalized.evidence.contentHash !== expectedEvidenceHash || normalized.evidence.producerRevision !== 'gamecastle.spatial-geometry.v1') fail(code, 'Render geometry evidence does not bind the exact accepted AssetWorld slot: ' + normalized.assetSemanticId);
+      }
     } else {
       normalized.positionSemantic = text(fact.positionSemantic, label + '.positionSemantic', code);
       normalized.sizeSemantic = text(fact.sizeSemantic, label + '.sizeSemantic', code);
@@ -343,7 +351,7 @@ function createAssemblyInput(requestValue, input) {
   if (text(assetBoundSeed.assetWorldHash, 'GDJS asset-bound project seed.assetWorldHash', code) !== text(assetWorld.contentHash, 'accepted AssetWorld.contentHash', code)) fail(code, 'GDJS asset-bound project seed must bind the exact accepted AssetWorld');
   var layoutIntentSnapshot = createLayoutIntentSnapshot(plan), canvas = deriveSceneCanvas(assetBoundSeed, code), sceneSubjects = deriveSceneSubjects(assetBoundSeed, layoutIntentSnapshot, code), componentExpansion = validateComponentExpansion(input.componentExpansion, request, code);
   validateSceneSubjects(sceneSubjects, layoutIntentSnapshot, canvas, code);
-  var facts = validateGeometryFactSet(input.geometryFacts, request, text(assetWorld.contentHash, 'accepted AssetWorld.contentHash', code));
+  var facts = validateGeometryFactSet(input.geometryFacts, request, text(assetWorld.contentHash, 'accepted AssetWorld.contentHash', code), assetWorld);
   var result = {
     schemaVersion: 4,
     documentKind: 'spatial-assembly-input',

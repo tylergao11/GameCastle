@@ -8,28 +8,32 @@ var modelPolicy = require('../ai/semantic-model-policy');
 var semanticParser = require('../ai/semantic-dsl-parser');
 var semanticDraft = require('../ai/semantic-draft');
 var semanticReferences = require('../ai/semantic-reference-runtime');
+var repositoryPath = require('./repository-path');
+var snakeBenchmark = require('../benchmarks/snake-semantic-benchmark');
 
 var index = dictionary.loadIndex();
 var runId = 'snake-live-' + new Date().toISOString().replace(/[:.]/g, '-');
-var outputDirectory = path.join(process.cwd(), 'output', 'semantic-live');
+var outputDirectory = path.join(repositoryPath.root, 'output', 'semantic-live');
 var record = { runId: runId, runTrace: [] };
 var creativeFileArgument = process.argv.filter(function(argument) { return argument.indexOf('--creative-file=') === 0; })[0] || null;
 var timeoutArgument = process.argv.filter(function(argument) { return argument.indexOf('--timeout-ms=') === 0; })[0] || null;
 var maxTokensArgument = process.argv.filter(function(argument) { return argument.indexOf('--max-tokens=') === 0; })[0] || null;
-var maxRoundsArgument = process.argv.filter(function(argument) { return argument.indexOf('--max-rounds=') === 0; })[0] || null;
 var taskArgument = process.argv.filter(function(argument) { return argument.indexOf('--task=') === 0; })[0] || null;
 var seedFileArgument = process.argv.filter(function(argument) { return argument.indexOf('--seed-file=') === 0; })[0] || null;
+var benchmarkTaskArgument = process.argv.filter(function(argument) { return argument.indexOf('--benchmark-task=') === 0; })[0] || null;
 var skipLlm1 = process.argv.indexOf('--skip-llm1') >= 0;
 var semanticTimeoutMs = timeoutArgument ? Number(timeoutArgument.slice('--timeout-ms='.length)) : 120000;
-var semanticMaxTokens = maxTokensArgument ? Number(maxTokensArgument.slice('--max-tokens='.length)) : 8192;
-var semanticMaxRounds = maxRoundsArgument ? Number(maxRoundsArgument.slice('--max-rounds='.length)) : 1;
-if (!Number.isFinite(semanticTimeoutMs) || semanticTimeoutMs < 1) throw new Error('--timeout-ms must be a positive number.');
-if (!Number.isInteger(semanticMaxTokens) || semanticMaxTokens < 1) throw new Error('--max-tokens must be a positive integer.');
-if (!Number.isInteger(semanticMaxRounds) || semanticMaxRounds < 1) throw new Error('--max-rounds must be a positive integer.');
-var semanticTask = taskArgument ? taskArgument.slice('--task='.length).trim() : 'Build a complete playable 2D Snake demo with a grid board, controllable snake, food, score growth, self and boundary loss, and a restart loop.';
+var semanticMaxTokens = maxTokensArgument ? Number(maxTokensArgument.slice('--max-tokens='.length)) : 4096;
+if (!Number.isFinite(semanticTimeoutMs) || semanticTimeoutMs < 1 || semanticTimeoutMs > 120000) throw new Error('--timeout-ms must be between 1 and the 120000 ms semantic hard limit.');
+if (!Number.isInteger(semanticMaxTokens) || semanticMaxTokens < 1 || semanticMaxTokens > 4096) throw new Error('--max-tokens must be between 1 and 4096.');
+if (benchmarkTaskArgument && (taskArgument || seedFileArgument)) throw new Error('--benchmark-task owns task and seed; do not combine it with --task or --seed-file.');
+var benchmarkTask = benchmarkTaskArgument ? snakeBenchmark.tasks.find(function(task) { return task.id === benchmarkTaskArgument.slice('--benchmark-task='.length); }) : null;
+if (benchmarkTaskArgument && !benchmarkTask) throw new Error('Unknown --benchmark-task. Select one task id from benchmarks/snake-semantic-contract.json.');
+var semanticTask = benchmarkTask ? benchmarkTask.task : taskArgument ? taskArgument.slice('--task='.length).trim() : 'Build a complete playable 2D Snake demo with a grid board, controllable snake, food, score growth, self and boundary loss, and a restart loop.';
 if (!semanticTask) throw new Error('--task must contain a task.');
-var seedFile = seedFileArgument ? path.resolve(seedFileArgument.slice('--seed-file='.length)) : null;
-record.probe = { semanticTimeoutMs: semanticTimeoutMs, semanticMaxTokens: semanticMaxTokens, semanticMaxRounds: semanticMaxRounds, skipLlm1: skipLlm1, task: semanticTask, seedFile: seedFile };
+var seedSelection = benchmarkTask && benchmarkTask.seedFile ? { absolutePath: repositoryPath.fromLocator(benchmarkTask.seedFile, 'benchmark seedFile'), locator: benchmarkTask.seedFile } : seedFileArgument ? repositoryPath.fromCommandLine(seedFileArgument.slice('--seed-file='.length), '--seed-file') : null;
+var seedFile = seedSelection ? seedSelection.absolutePath : null;
+record.probe = { semanticTimeoutMs: semanticTimeoutMs, semanticMaxTokens: semanticMaxTokens, skipLlm1: skipLlm1, benchmarkId: benchmarkTask ? snakeBenchmark.contract.benchmarkId : null, benchmarkTaskId: benchmarkTask ? benchmarkTask.id : null, task: semanticTask, seedFile: seedSelection ? seedSelection.locator : null };
 
 function loadSeedSource() {
   if (!seedFile) return null;
@@ -45,12 +49,12 @@ function writeResult(value) {
   fs.mkdirSync(outputDirectory, { recursive: true });
   var file = path.join(outputDirectory, runId + '.json');
   fs.writeFileSync(file, JSON.stringify(value, null, 2), 'utf8');
-  return file;
+  return repositoryPath.relativeLocator(file, 'semantic-live output');
 }
 
-function writeDeepSeekOutput(role, round, requestId, output) {
+function writeDeepSeekOutput(role, sequence, requestId, output) {
   var fields = ['role=' + role];
-  if (round !== null && round !== undefined) fields.push('round=' + round);
+  if (sequence !== null && sequence !== undefined) fields.push('sequence=' + sequence);
   if (requestId) fields.push('requestId=' + requestId);
   process.stdout.write('[DeepSeekOutput] begin ' + fields.join(' ') + '\n');
   process.stdout.write(String(output || '') + '\n');
@@ -59,15 +63,15 @@ function writeDeepSeekOutput(role, round, requestId, output) {
 
 async function main() {
   var seedSource = loadSeedSource();
-  var semanticWorld = seedSource ? sourceContract.structureView(seedSource, { index: index }) : { mode: 'baseline', world: { sourceHash: 'semantic.snake.initial', structureHash: 'structure.snake.initial', payload: {} } };
   var creativeVision;
   if (skipLlm1) {
     creativeVision = '';
     process.stdout.write('[SnakeLive] creative=skipped\n');
   } else if (creativeFileArgument) {
-    var creativeRecord = JSON.parse(fs.readFileSync(path.resolve(creativeFileArgument.slice('--creative-file='.length)), 'utf8'));
+    var creativeSelection = repositoryPath.fromCommandLine(creativeFileArgument.slice('--creative-file='.length), '--creative-file');
+    var creativeRecord = JSON.parse(fs.readFileSync(creativeSelection.absolutePath, 'utf8'));
     creativeVision = creativeRecord.creativeVision;
-    record.creativeSource = path.resolve(creativeFileArgument.slice('--creative-file='.length));
+    record.creativeSource = creativeSelection.locator;
     process.stdout.write('[SnakeLive] creative=reused source=' + record.creativeSource + '\n');
   } else creativeVision = await llmProvider.callTextModel(
       'Create a compact creative vision for a 2D Snake game. Cover player fantasy, grid atmosphere, readable snake and food art direction, score progression, growth rhythm, loss moment, and restart energy. Write concise production-ready prose.',
@@ -88,31 +92,31 @@ async function main() {
       estimatedCost: 0.01,
       timeoutMs: semanticTimeoutMs,
       maxTokens: semanticMaxTokens,
-      maxRounds: semanticMaxRounds,
       userRequest: semanticTask,
       creativeVision: creativeVision,
-      world: semanticWorld,
       source: seedSource,
-      onSemanticRound: function(entry) {
+      onSemanticEvent: function(entry) {
         record.runTrace.push(entry);
         writeResult(record);
-        writeDeepSeekOutput('LLM2', entry.round, entry.requestId, entry.output);
-        var providerDiagnostics = entry.provider && entry.provider.diagnostics || {};
-        process.stdout.write('[DeepSeekRound] round=' + entry.round + ' finish=' + (entry.provider && entry.provider.finishReason || 'unknown') + ' reasoningChars=' + (providerDiagnostics.reasoningChars || 0) + ' contentChars=' + (providerDiagnostics.contentChars || 0) + ' chunks=' + (providerDiagnostics.chunkCount || 0) + ' firstReasoningMs=' + (providerDiagnostics.firstReasoningMs === null || providerDiagnostics.firstReasoningMs === undefined ? 'none' : providerDiagnostics.firstReasoningMs) + ' firstContentMs=' + (providerDiagnostics.firstContentMs === null || providerDiagnostics.firstContentMs === undefined ? 'none' : providerDiagnostics.firstContentMs) + ' elapsedMs=' + (providerDiagnostics.elapsedMs || 0) + '\n');
+        writeDeepSeekOutput('LLM2', entry.sequence, entry.requestId, entry.output);
+        process.stdout.write('[DeepSeekCall] sequence=' + entry.sequence + ' phase=' + entry.phase + ' state=' + entry.state + ' task=' + (entry.activeTaskId || '-') + ' finish=' + (entry.finishReason || 'unknown') + ' reasoningChars=' + (entry.reasoningChars || 0) + ' contentChars=' + (entry.contentChars || 0) + ' firstReasoningMs=' + (entry.firstReasoningMs === null || entry.firstReasoningMs === undefined ? 'none' : entry.firstReasoningMs) + ' firstContentMs=' + (entry.firstContentMs === null || entry.firstContentMs === undefined ? 'none' : entry.firstContentMs) + ' elapsedMs=' + (entry.elapsedMs || 0) + ' cacheHitRate=' + (entry.cache && entry.cache.hitRate || 0) + '\n');
         var commands = (entry.commands || []).map(function(command) { return command.type; }).join(',');
         var failures = (entry.results || []).filter(function(item) { return !item.ok; }).map(function(item) { return (item.code || 'FAILED') + ':' + item.message; }).join(' | ');
-        process.stdout.write('[SnakeLive] round=' + entry.round + ' mode=' + entry.kind + ' commands=' + commands + ' status=' + (failures ? 'feedback ' + failures : 'applied') + '\n');
+        process.stdout.write('[SnakeLive] sequence=' + entry.sequence + ' mode=' + entry.kind + ' commands=' + commands + ' status=' + (failures ? 'feedback ' + failures : 'accepted') + '\n');
       },
       index: index
     });
   } catch (error) {
-    record.error = { code: error.code || error.name || 'FAILED', message: error.message, runTrace: error.runTrace || record.runTrace, runLedger: error.runLedger || null, document: error.document || null };
+    record.error = { code: error.code || error.name || 'FAILED', message: error.message, runTrace: error.runTrace || record.runTrace, runLedger: error.runLedger || null, runState: error.runState || null, taskPlan: error.taskPlan || null, cacheSummary: error.cacheSummary || null, document: error.document || null };
     error.outputFile = writeResult(record);
     throw error;
   }
   record.result = result;
   record.runTrace = result.runTrace || record.runTrace;
   record.runLedger = result.runLedger || null;
+  record.runState = result.runState || null;
+  record.taskPlan = result.taskPlan || null;
+  record.cacheSummary = result.cacheSummary || null;
   var file = writeResult(record);
   if (!result.ok) {
     var failure = result.receipt && result.receipt.failure || {};

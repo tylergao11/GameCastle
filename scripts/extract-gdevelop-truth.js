@@ -1,10 +1,10 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
+var sourceRoot = require('./gdevelop-source-root');
 
 var ROOT = path.join(__dirname, '..');
-var DEFAULT_SOURCE_DIR = path.resolve(ROOT, '..', 'GDevelop-master');
-var SOURCE_DIR = process.env.GAMECASTLE_GDEVELOP_SOURCE_DIR || DEFAULT_SOURCE_DIR;
+var SOURCE_DIR = sourceRoot.resolveSourceRoot();
 var OUT_DIR = path.join(ROOT, 'ai', 'gdevelop-truth');
 var OUT_PATH = path.join(OUT_DIR, 'runtime-truth.json');
 var CHECK_MODE = process.argv.indexOf('--check') >= 0;

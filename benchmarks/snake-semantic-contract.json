@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 2,
+  "benchmarkKind": "semantic-task-benchmark-contract",
+  "benchmarkId": "snake-layered-v2",
+  "requiredRuntimePhases": ["task-plan", "draft-write", "completion"],
+  "requiredProtocolVersions": { "planner": "semantic-planner-prompt-v1", "executor": "semantic-executor-prompt-v1" },
+  "minimumCacheHitRate": 0.9,
+  "hardTimeoutMs": 120000,
+  "tasks": [
+    {
+      "id": "core-model",
+      "seedFile": null,
+      "task": "Create the Snake game's core semantic model only: the game plus a snake head, food, game state, and score text. Do not add gameplay rules yet.",
+      "changeBudget": { "entities": { "exact": 4 }, "members": { "exact": 0 }, "components": { "exact": 0 }, "events": { "exact": 0 }, "assetIntents": { "exact": 0 }, "layoutIntents": { "exact": 0 } },
+      "requiredEntities": [
+        { "scope": "added", "semanticIdPattern": "^snake[-_. ]?head$", "kind": "sprite", "count": 1 },
+        { "scope": "added", "semanticIdPattern": "^food$", "kind": "sprite", "count": 1 },
+        { "scope": "added", "semanticIdPattern": "^game[-_. ]?state$", "kind": "state", "count": 1 },
+        { "scope": "added", "semanticIdPattern": "^score[-_. ]?text$", "kind": "text", "count": 1 }
+      ]
+    },
+    {
+      "id": "state-fields",
+      "seedFile": "scripts/fixtures/semantic-snake-core-seed.dsl",
+      "task": "Add only the Snake game state fields needed for score, current movement direction, and a 32-pixel grid step. Do not add events or other entities.",
+      "changeBudget": { "entities": { "exact": 0 }, "members": { "exact": 3 }, "components": { "exact": 0 }, "events": { "exact": 0 }, "assetIntents": { "exact": 0 }, "layoutIntents": { "exact": 0 } },
+      "requiredMembers": [
+        { "scope": "added", "entity": "GameState", "semanticIdPattern": "^score$", "value": 0, "count": 1 },
+        { "scope": "added", "entity": "GameState", "semanticIdPattern": "^direction$", "value": "right", "count": 1 },
+        { "scope": "added", "entity": "GameState", "semanticIdPattern": "^(step|grid[-_. ]?step)$", "value": 32, "count": 1 }
+      ]
+    },
+    {
+      "id": "up-input",
+      "seedFile": "scripts/fixtures/semantic-snake-state-seed.dsl",
+      "task": "Add only one Snake input rule: when the Up key is just pressed, set GameState.direction to up. Do not add any other direction or gameplay rule.",
+      "changeBudget": { "entities": { "exact": 0 }, "members": { "exact": 0 }, "components": { "exact": 0 }, "events": { "exact": 1 }, "assetIntents": { "exact": 0 }, "layoutIntents": { "exact": 0 } },
+      "requiredEvents": [
+        { "scope": "added", "count": 1, "conditionCount": 1, "actionCount": 1, "conditions": [{ "use": "input.key.just-pressed", "args": { "key": "Up" } }], "actions": [{ "use": "state.text.set", "args": { "target": "GameState.direction", "value": "up" } }] }
+      ]
+    },
+    {
+      "id": "timed-right-movement",
+      "seedFile": "scripts/fixtures/semantic-snake-turn-seed.dsl",
+      "task": "Add only one timed grid-movement rule for the existing Snake draft: every 0.15 seconds, while GameState.direction is right, move snakeHead right by GameState.step. Do not add food, scoring, loss, restart, or other directions.",
+      "changeBudget": { "entities": { "exact": 0 }, "members": { "exact": 0 }, "components": { "exact": 0 }, "events": { "exact": 1 }, "assetIntents": { "exact": 0 }, "layoutIntents": { "exact": 0 } },
+      "requiredEvents": [
+        { "scope": "added", "count": 1, "conditionCount": 2, "actionCount": 2, "conditions": [{ "use": "timer.elapsed", "args": { "operator": ">=", "seconds": 0.15 }, "capture": { "timer": "movementTimer" } }, { "use": "state.text.compare", "args": { "target": "GameState.direction", "operator": "=", "value": "right" } }], "actions": [{ "use": "timer.reset", "args": { "timer": { "$value": "movementTimer" } } }, { "use": "object.x.add", "args": { "target": "snakeHead", "value.use": "state.number", "value.target": "GameState.step" } }] }
+      ]
+    },
+    {
+      "id": "food-score-growth",
+      "seedFile": "scripts/fixtures/semantic-snake-turn-seed.dsl",
+      "task": "Add only the Snake food-collection rule: when snakeHead collides with food, increase GameState.score by 1, record one pending growth step in game state, and relocate food to a new grid position. Do not add movement, loss, or restart rules.",
+      "changeBudget": { "entities": { "exact": 0 }, "members": { "exact": 1 }, "components": { "exact": 0 }, "events": { "exact": 1 }, "assetIntents": { "exact": 0 }, "layoutIntents": { "exact": 0 } },
+      "requiredMembers": [{ "scope": "added", "entity": "GameState", "semanticIdPattern": "^pending[-_. ]?growth$", "value": 0, "count": 1, "bind": "growth" }],
+      "requiredEvents": [
+        { "scope": "added", "count": 1, "conditionCount": 1, "actionCount": 3, "conditions": [{ "use": "object.collides", "args": { "first": "snakeHead", "second": "food" } }], "actions": [{ "use": "state.number.add", "args": { "target": "GameState.score", "value": 1 } }, { "use": "state.number.add", "args": { "target": { "$member": "growth" }, "value": 1 } }, { "use": "object.place.random-grid", "args": { "target": "food", "step.use": "state.number", "step.target": "GameState.step" } }] }
+      ]
+    },
+    {
+      "id": "loss-restart",
+      "seedFile": "scripts/fixtures/semantic-snake-turn-seed.dsl",
+      "task": "Add only the Snake loss-and-restart loop: detect boundary or self collision, mark the game over, and when Space is just pressed after loss reset score, direction, snake state, and food for a new run. Do not add normal movement or food-scoring rules.",
+      "changeBudget": { "entities": { "exact": 1 }, "members": { "exact": 1 }, "components": { "exact": 0 }, "events": { "exact": 6 }, "assetIntents": { "exact": 0 }, "layoutIntents": { "exact": 0 } },
+      "requiredEntities": [{ "scope": "added", "semanticIdPattern": "^snake[-_. ]?body$", "kind": "sprite", "count": 1, "bind": "body" }],
+      "requiredMembers": [{ "scope": "added", "entity": "GameState", "semanticIdPattern": "^game[-_. ]?over$", "value": false, "count": 1, "bind": "gameOver" }],
+      "requiredEvents": [
+        { "scope": "added", "count": 1, "conditions": [{ "use": "object.collides", "args": { "first": "snakeHead", "second": { "$entity": "body" } } }], "actions": [{ "use": "state.boolean.set", "args": { "target": { "$member": "gameOver" }, "value": true } }] },
+        { "scope": "added", "count": 1, "conditions": [{ "use": "input.key.just-pressed", "args": { "key": "Space" } }, { "use": "state.boolean.is", "args": { "target": { "$member": "gameOver" }, "value": true } }], "actions": [{ "use": "state.number.set", "args": { "target": "GameState.score", "value": 0 } }, { "use": "state.text.set", "args": { "target": "GameState.direction", "value": "right" } }, { "use": "state.boolean.set", "args": { "target": { "$member": "gameOver" }, "value": false } }, { "use": "object.delete", "args": { "target": { "$entity": "body" } } }, { "use": "object.position.set", "args": { "target": "snakeHead" } }, { "use": "object.place.random-grid", "args": { "target": "food" } }], "bind": "restart" }
+      ],
+      "coverageOperations": [
+        { "channel": "conditions", "use": "object.x.compare", "args": { "target": "snakeHead", "operator": "<" }, "minimum": 1, "sameEventActions": [{ "use": "state.boolean.set", "args": { "target": { "$member": "gameOver" }, "value": true } }] },
+        { "channel": "conditions", "use": "object.x.compare", "args": { "target": "snakeHead", "operator": ">" }, "minimum": 1, "sameEventActions": [{ "use": "state.boolean.set", "args": { "target": { "$member": "gameOver" }, "value": true } }] },
+        { "channel": "conditions", "use": "object.y.compare", "args": { "target": "snakeHead", "operator": "<" }, "minimum": 1, "sameEventActions": [{ "use": "state.boolean.set", "args": { "target": { "$member": "gameOver" }, "value": true } }] },
+        { "channel": "conditions", "use": "object.y.compare", "args": { "target": "snakeHead", "operator": ">" }, "minimum": 1, "sameEventActions": [{ "use": "state.boolean.set", "args": { "target": { "$member": "gameOver" }, "value": true } }] }
+      ],
+      "forbiddenOperations": [
+        { "channel": "actions", "use": "object.x.add" },
+        { "channel": "actions", "use": "object.y.add" },
+        { "channel": "actions", "use": "state.number.add", "args": { "target": "GameState.score" } }
+      ],
+      "lifecycleRules": [{ "eventBinding": "restart", "target": "food", "resetUse": "object.place.random-grid", "deleteUse": "object.delete", "recreateUse": "object.create" }]
+    }
+  ]
+}

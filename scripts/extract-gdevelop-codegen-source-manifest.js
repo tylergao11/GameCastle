@@ -1,9 +1,10 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
+var sourceRoot = require('./gdevelop-source-root');
 
 var ROOT = path.resolve(__dirname, '..');
-var SOURCE_ROOT = path.resolve(process.env.GDEVELOP_SOURCE_DIR || 'D:/GDevelop-master');
+var SOURCE_ROOT = sourceRoot.resolveSourceRoot();
 var OUT = path.join(ROOT, 'ai', 'gdevelop-truth', 'gdevelop-codegen-source.json');
 var SOURCE_COMMIT = 'a8c4ad81802ff35eef64c0f68ef01445556eb0ba';
 

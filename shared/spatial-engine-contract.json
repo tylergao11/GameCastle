@@ -27,7 +27,7 @@
   },
   "geometryFactKinds": {
     "render-geometry": {
-      "requiredFields": ["subject", "drawableBounds", "nativeSize", "objectOrigin", "evidence"],
+      "requiredFields": ["subject", "assetSemanticId", "drawableBounds", "nativeSize", "objectOrigin", "evidence"],
       "drawableBoundsSemantic": "native drawable boundary relative to the object origin",
       "nativeSizeSemantic": "accepted asset native pixel size before SpatialPlanner chooses display size",
       "objectOriginSemantic": "asset-local point represented by the GDevelop object position"
@@ -143,7 +143,7 @@
     "geometryFactProducer": {
       "blocks": ["spatial-planner", "spatial-runtime-validation", "candidate-gdjs-projection", "accepted-gdjs-projection", "acceptance"],
       "requires": ["A canonical producer must bind every render-geometry fact to its accepted AssetWorld slot or FrameSet frame, or to component-expansion evidence.", "The producer must record source hash, artifact hash, producer revision, native drawable bounds, native size, and object origin as one auditable fact set."],
-      "status": "required-before-plan"
+      "status": "implemented"
     },
     "gdjsCoordinateEvidence": {
       "blocks": ["spatial-planner", "spatial-runtime-validation", "candidate-gdjs-projection", "accepted-gdjs-projection", "acceptance"],

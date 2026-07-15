@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.asset-engine-execution-profiles",
+  "owner": "AssetEngineExecutionPolicy",
+  "defaultProfileId": "asset-engine-production.v1",
+  "profiles": {
+    "asset-engine-production.v1": {
+      "mode": "production",
+      "description": "Use the pinned production retry, candidate, and timeout ceilings owned by their production contracts."
+    },
+    "asset-engine-test.v1": {
+      "mode": "diagnostic",
+      "description": "One bounded black-box generation probe; never a batch asset-production run.",
+      "maxGeneratedWorkItems": 1,
+      "maxProductionAttempts": 1,
+      "candidateRounds": 1,
+      "totalDeadlineMs": 180000
+    }
+  },
+  "forbiddenLooseOverrides": ["maxAttempts", "providerOptions.timeoutMs", "providerOptions.batchSize", "providerOptions.candidateRounds", "providerOptions.maxAttempts", "providerOptions.reviewTimeoutMs"]
+}

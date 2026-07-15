@@ -1,9 +1,10 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
+var sourceRoot = require('./gdevelop-source-root');
 
 var ROOT = path.resolve(__dirname, '..');
-var SOURCE_ROOT = path.resolve(process.env.GDEVELOP_SOURCE_DIR || 'D:/GDevelop-master');
+var SOURCE_ROOT = sourceRoot.resolveSourceRoot();
 var SOURCE_MANIFEST = require('../ai/gdevelop-truth/gdevelop-codegen-source.json');
 var SPATIAL_SOURCE = require('../ai/gdevelop-truth/spatial-coordinate-source.json');
 var PROJECT_DEFAULTS = require('../ai/gdevelop-truth/project-defaults.json');

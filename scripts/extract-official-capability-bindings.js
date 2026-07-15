@@ -1,11 +1,12 @@
 var fs = require('fs');
 var path = require('path');
+var sourceRoot = require('./gdevelop-source-root');
 var capabilityIr = require('../ai/gdjs-capability-ir');
 var extensionLoader = require('../ai/gdevelop-extension-loader');
 var runtimeCodegen = require('../ai/runtime-codegen');
 
 var ROOT = path.resolve(__dirname, '..');
-var SOURCE_DIR = process.env.GAMECASTLE_GDEVELOP_SOURCE_DIR || path.resolve(ROOT, '..', 'GDevelop-master');
+var SOURCE_DIR = sourceRoot.resolveSourceRoot();
 var OUT = path.join(ROOT, 'ai', 'gdevelop-truth', 'official-capability-bindings.json');
 var CODEGEN_INOPERABLE = {
   'TextInput::object::TextInput::TextInputObject::number-expression::Font size': 'Official expression id contains whitespace and libGD parses it as an object variable instead of a callable expression.'

@@ -1,9 +1,10 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
+var sourceRoot = require('./gdevelop-source-root');
 
 var ROOT = path.resolve(__dirname, '..');
-var SOURCE_DIR = process.env.GAMECASTLE_GDEVELOP_SOURCE_DIR || path.resolve(ROOT, '..', 'GDevelop-master');
+var SOURCE_DIR = sourceRoot.resolveSourceRoot();
 var REGISTRATION_PATH = path.join(SOURCE_DIR, 'Core', 'GDCore', 'Extensions', 'Builtin', 'CommonInstructionsExtension.cpp');
 var EVENT_HEADERS_DIR = path.join(SOURCE_DIR, 'Core', 'GDCore', 'Events', 'Builtin');
 var INSTRUCTION_SERIALIZATION_PATH = path.join(SOURCE_DIR, 'Core', 'GDCore', 'Events', 'Serialization.cpp');

@@ -1,17 +1,17 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "dictionaryId": "gamecastle.asset-style-dictionary",
   "defaultStyleId": "gamecastle.style-dna.v1",
   "styles": {
     "gamecastle.style-dna.v1": {
       "name": "GameCastle Style DNA",
-      "purpose": "A cohesive mobile-game visual language: bold outlined vector cartoon assets with flat color masses, low-detail readable geometry, restrained toon volume, western-cartoon proportions, and high-contrast game UI.",
-      "classification": ["vector-art", "toon-shader", "mobile-game-asset"],
-      "explicitlyNot": ["anime", "pixel-art", "photorealistic", "painterly-realism", "dense-texture", "generic-ui"],
+      "purpose": "A cohesive low-resolution mobile-game raster-toon language: expressive readable silhouettes, chunky shape masses, controlled color ramps, organic cartoon shading, strong native-size character, and high-contrast game UI.",
+      "classification": ["raster-toon", "low-resolution-game-sprite", "mobile-game-asset"],
+      "explicitlyNot": ["anime", "photorealistic", "glossy-3d-render", "dense-microtexture", "generic-ui"],
       "inputContract": {
         "required": ["alpha silhouette"],
         "optional": ["subject tag", "palette role", "anchor", "motion"],
-        "rejects": ["empty canvas", "opaque photographic background", "anime facial proportions", "pixel grid", "photorealistic material texture"]
+        "rejects": ["empty canvas", "opaque photographic background", "anime facial proportions", "photorealistic material texture", "glossy plastic surface", "detail that collapses at target size"]
       },
       "palette": {
         "ink": "#141923",
@@ -23,38 +23,131 @@
         "lime": "#c6f252"
       },
       "styleDNA": {
-        "outline": "bold near-black rounded outline around every gameplay-readable silhouette",
-        "shapeLanguage": "simple low-detail geometric primitives, rounded corners, large readable masses",
-        "colorLanguage": "flat color blocks with a deliberately limited local palette; color choice is contextual, not the style identity",
-        "volume": "one restrained toon shadow and at most one small highlight; no realistic rendering",
-        "characterProportion": "western-cartoon, compact body, oversized readable head/face where applicable",
-        "uiLanguage": "high-contrast flat rectangular or rounded game UI blocks with bold outline and single accent fill",
-        "sceneLanguage": "layered broad silhouette masses; gameplay foreground must remain more readable than decoration"
+        "outline": "a strong dark outer contour or dark edge mass that remains legible at the exact runtime size; it may vary organically instead of looking mechanically stroked",
+        "shapeLanguage": "chunky low-resolution cartoon shapes, compact proportions, and large readable silhouette masses",
+        "colorLanguage": "a deliberately limited local palette organized into a few clustered tone ramps; color choice is contextual, not the style identity",
+        "volume": "controlled two-to-four-tone raster-toon shading with a small highlight where useful; no glossy plastic or realistic material rendering",
+        "characterProportion": "expressive western-cartoon proportions with a compact body and oversized readable head or face where applicable",
+        "uiLanguage": "high-contrast raster-toon game UI blocks with a strong contour, restrained shading, and one accent fill",
+        "sceneLanguage": "layered broad silhouette masses and quiet play space; gameplay foreground must remain more readable than decoration"
       },
       "promptContract": {
-        "requiredPhrases": ["2D game sprite", "bold dark outline", "flat colors", "simple geometric shapes", "clean readable silhouette"],
-        "negativePhrases": ["anime", "manga", "pixel art", "photograph", "photorealistic", "realistic texture", "painterly", "complex material", "3d render", "text", "letters", "words", "watermark", "logo", "sprite sheet", "texture sheet", "grid", "collection", "repeated objects", "busy background"],
+        "requiredPhrases": ["2D raster-toon game sprite", "chunky readable silhouette", "limited color ramps", "controlled cartoon shading", "native-size readability"],
+        "negativePhrases": ["photograph", "glossy 3D render", "text or watermark", "sprite sheet"],
         "productionFamilyPhrases": {
-          "character": ["one isolated western cartoon character", "readable full-body silhouette"],
-          "character-animation": ["one isolated western cartoon character", "neutral animation-ready pose", "readable full-body silhouette"],
-          "prop": ["one centered isolated prop", "object only", "no character features"],
+          "character": ["one expressive isolated cartoon character", "clear full-body pose"],
+          "character-part": ["single requested body part"],
+          "character-animation": ["one isolated animation-ready cartoon character", "clear full-body pose"],
+          "prop": ["one centered isolated prop"],
           "effect": ["one isolated readable gameplay effect"],
-          "effect-animation": ["one isolated readable gameplay effect", "animation-ready silhouette"],
+          "effect-animation": ["one isolated animation-ready gameplay effect"],
           "background": ["one coherent role-specific scene"],
           "ui": ["one isolated game interface element"]
         },
         "productionFamilyNegativePhrases": {
-          "prop": ["face", "eyes", "mouth", "person", "character", "multiple objects", "pattern", "repetition"],
-          "character": ["multiple characters", "crowd"],
-          "character-animation": ["multiple characters", "crowd"],
-          "effect": ["character", "person"],
-          "effect-animation": ["character", "person"]
+          "prop": ["multiple objects"],
+          "character": ["multiple characters"],
+          "character-part": ["complete creature or multiple body parts"],
+          "character-animation": ["multiple characters"],
+          "effect": ["physical character or prop"],
+          "effect-animation": ["physical character or prop"],
+          "background": ["foreground characters"],
+          "world-geometry": ["tile map or texture atlas"],
+          "ui": ["complete interface screen"]
         },
         "maxLocalColorFamilies": 5,
         "maxShadowLayers": 1,
         "maxHighlightLayers": 1
       },
       "semanticReview": {
+        "defaultProfile": {
+          "semanticPositiveTexts": ["one correct role-specific game asset"],
+          "semanticNegativeTexts": ["an unrelated subject", "a collection of unrelated objects or a different game asset"],
+          "stylePositiveTexts": ["expressive low-resolution raster-toon mobile game art with a strong silhouette, limited color ramps, and controlled organic cartoon shading"],
+          "styleNegativeTexts": ["photorealistic noisy detailed texture", "anime rendering or glossy plastic 3D art"]
+        },
+        "phaseProfiles": [
+          {
+            "phase": "final-derived-asset",
+            "requiresTransparent": true,
+            "compositionChecks": [
+              {
+                "id": "transparent-subject-isolation",
+                "positiveTexts": ["one isolated game asset cutout with clean empty space around its silhouette"],
+                "negativeTexts": ["a logo badge, framed emblem, scenery, floor, or background shape attached to the subject"]
+              }
+            ]
+          }
+        ],
+        "productionFamilyProfiles": {
+          "character": {
+            "semanticPositiveTexts": ["one complete cartoon character"],
+            "semanticNegativeTexts": ["multiple characters", "a crowd", "a sheet of character poses"]
+          },
+          "character-part": {
+            "semanticPositiveTexts": ["one exact requested character component", "one reusable game sprite component"],
+            "semanticNegativeTexts": ["a complete character instead of the requested component", "a collection or sheet of unrelated components"],
+            "compositionChecks": [
+              {
+                "id": "requested-character-part",
+                "positiveTexts": ["a close-up game sprite showing exactly the requested character component"],
+                "negativeTexts": ["a complete character or a component sheet instead of the requested component"]
+              }
+            ]
+          },
+          "character-animation": {
+            "semanticPositiveTexts": ["one animation-ready cartoon character"],
+            "semanticNegativeTexts": ["multiple characters", "a crowd", "an animation sheet"]
+          },
+          "prop": {
+            "semanticPositiveTexts": ["one centered gameplay prop"],
+            "semanticNegativeTexts": ["multiple objects", "a repeating pattern", "a character"]
+          },
+          "world-geometry": {
+            "semanticPositiveTexts": ["one seamless orthographic game tile filling the image edge to edge"],
+            "semanticNegativeTexts": ["a tile map", "a grid of many tiles", "a texture atlas", "a landscape scene", "multiple repeated objects"],
+            "stylePositiveTexts": ["simple low-detail raster-toon top-down mobile game tile with clustered colors"],
+            "styleNegativeTexts": ["busy repeated tile pattern", "realistic terrain texture"],
+            "compositionChecks": [
+              {
+                "id": "single-tile",
+                "positiveTexts": ["one single seamless square game tile filling the whole image"],
+                "negativeTexts": ["a grid map made of many different tiles", "a texture atlas containing repeated tiles"]
+              }
+            ]
+          },
+          "background": {
+            "semanticPositiveTexts": ["one coherent empty gameplay background with a broad calm playable center"],
+            "semanticNegativeTexts": ["a checkerboard", "a tile map", "a grid of cells", "a collection of objects", "characters occupying the play area"],
+            "stylePositiveTexts": ["cohesive raster-toon cartoon game background with broad simple silhouette layers and quiet negative space"],
+            "styleNegativeTexts": ["busy noisy scenery", "dense detailed texture", "photorealistic landscape"],
+            "compositionChecks": [
+              {
+                "id": "calm-play-space",
+                "positiveTexts": ["one empty game background with a large calm open playable center"],
+                "negativeTexts": ["a checkerboard grid map full of cells", "a busy board made of many tiles"]
+              }
+            ]
+          },
+          "effect": {
+            "semanticPositiveTexts": ["one compact gameplay effect"],
+            "semanticNegativeTexts": ["a character", "a physical object", "multiple effects"],
+            "stylePositiveTexts": ["bold clean raster-toon cartoon impact effect with a readable silhouette and limited color ramps"],
+            "styleNegativeTexts": ["photorealistic explosion", "smoke simulation", "busy particle field"]
+          },
+          "effect-animation": {
+            "semanticPositiveTexts": ["one animation-ready gameplay effect"],
+            "semanticNegativeTexts": ["a character", "a physical object", "an effect sprite sheet"],
+            "stylePositiveTexts": ["bold clean raster-toon cartoon impact effect with a readable silhouette and limited color ramps"],
+            "styleNegativeTexts": ["photorealistic explosion", "smoke simulation", "busy particle field"]
+          },
+          "ui": {
+            "semanticPositiveTexts": ["one blank game interface element"],
+            "semanticNegativeTexts": ["a complete interface screen", "a collection of icons", "a character", "readable text"],
+            "stylePositiveTexts": ["high-contrast raster-toon game UI with a strong contour, restrained shading, and one accent fill"],
+            "styleNegativeTexts": ["generic website UI", "photorealistic panel", "dense ornamental interface"]
+          }
+        },
         "requiredAliases": {
           "hero": ["hero", "person", "character", "man", "woman", "girl", "boy"],
           "character": ["character", "person", "man", "woman", "girl", "boy"],

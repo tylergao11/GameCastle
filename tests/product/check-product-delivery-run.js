@@ -1,0 +1,51 @@
+var assert = require('assert');
+var fs = require('fs');
+var os = require('os');
+var path = require('path');
+var delivery = require('../../ai/product-delivery-run');
+
+var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-product-delivery-run-'));
+try {
+  var file = path.join(root, 'delivery.json');
+  var run = delivery.open({ file: file, deliveryId: 'demo', projectId: 'demo', sourceHash: 'semantic.source-a', budgets: { semanticCycles: 2, stageAttemptsPerSource: { asset: 2 }, repeatedObservationLimit: 2, elapsedMs: 60000, costUsd: 1 } });
+  assert.strictEqual(run.semanticCycle, 1);
+  run = delivery.write(file, delivery.beginStage(run, 'asset'));
+  run = delivery.write(file, delivery.beginStage(run, 'asset'));
+  assert.throws(function() { delivery.beginStage(run, 'asset'); }, function(error) { return error.code === 'PRODUCT_DELIVERY_STAGE_BUDGET_EXHAUSTED'; });
+  var first = delivery.recordObservation(run, { stage: 'asset', code: 'ASSET_FINAL_REVIEW_REJECTED', message: 'First model wording.', targets: [{ collection: 'assetIntents', semanticId: 'player_visual' }], evidenceHash: 'evidence.same' });
+  run = delivery.write(file, first.run); assert.strictEqual(first.fused, false);
+  var second = delivery.recordObservation(run, { stage: 'asset', code: 'ASSET_FINAL_REVIEW_REJECTED', message: 'Different wording for the same fact.', targets: [{ collection: 'assetIntents', semanticId: 'player_visual' }], evidenceHash: 'evidence.new-build' });
+  run = delivery.write(file, second.run); assert.strictEqual(second.fused, true, 'Repeated factual observation fuses even when model wording and volatile build/review evidence hashes change.');
+  var orderingRun = delivery.create({ deliveryId: 'ordering-demo', projectId: 'demo', sourceHash: 'semantic.ordering' });
+  var orderedFirst = delivery.recordObservation(orderingRun, { stage: 'assembly', code: 'ASSEMBLY_COMPOSITION_FAILED', targets: [{ collection: 'layoutIntents', semanticId: 'hud' }, { collection: 'entities', semanticId: 'player' }] });
+  var orderedSecond = delivery.recordObservation(orderedFirst.run, { stage: 'assembly', code: 'ASSEMBLY_COMPOSITION_FAILED', targets: [{ collection: 'entities', semanticId: 'player' }, { collection: 'layoutIntents', semanticId: 'hud' }] });
+  assert.strictEqual(orderedSecond.fused, true, 'Target ordering cannot create a second observation identity for the same factual issue.');
+  var reopened = delivery.open({ file: file, deliveryId: 'demo', projectId: 'demo', budgets: { semanticCycles: 99, stageAttemptsPerSource: { asset: 99 }, repeatedObservationLimit: 99, elapsedMs: 999999, costUsd: 999 } });
+  assert.strictEqual(reopened.budgets.semanticCycles, 2, 'Reopening with a different run request cannot enlarge persisted budgets.');
+  var costError = null;
+  try { delivery.recordCost(delivery.create({ deliveryId: 'cost-demo', projectId: 'cost-demo', sourceHash: 'semantic.cost', budgets: { costUsd: 1 } }), 1.25, ['provider.cost']); } catch (error) { costError = error; }
+  assert(costError && costError.code === 'PRODUCT_DELIVERY_COST_BUDGET_EXHAUSTED');
+  assert.strictEqual(costError.deliveryRun.usage.settledCostUsd, 1.25, 'An over-budget settlement carries the truthful sealed cost state for persistence before blocking.');
+  reopened = delivery.beginStage(reopened, 'semantic');
+  reopened = delivery.startSource(reopened, 'semantic.source-b', 'semantic-revision.b');
+  assert.strictEqual(reopened.semanticCycle, 2);
+  assert.deepStrictEqual(reopened.artifacts, { sourceHash: 'semantic.source-b', revisionHash: 'semantic-revision.b', assetWorldHash: null, assetBoundSeedHash: null, geometryFactSetHash: null, spatialResolutionHash: null, finalProjectionHash: null, browserCaptureHash: null, assemblyReviewHash: null }, 'New sourceHash atomically invalidates every downstream artifact ref.');
+  assert.throws(function() { delivery.recordArtifacts(reopened, 'spatial', { spatialResolutionHash: 'forged' }); }, function(error) { return error.code === 'PRODUCT_DELIVERY_STAGE_ORDER_INVALID'; }, 'artifact hashes cannot skip their owning stage');
+  assert.throws(function() { delivery.beginStage(reopened, 'semantic'); }, function(error) { return error.code === 'PRODUCT_DELIVERY_SEMANTIC_BUDGET_EXHAUSTED'; }, 'Semantic budget is enforced before another LLM2 call can start.');
+  var recovering = delivery.beginStage(delivery.create({ deliveryId: 'recovery', projectId: 'demo', sourceHash: 'semantic.recovery' }), 'asset');
+  recovering = delivery.recordArtifacts(recovering, 'asset', { assetWorldHash: 'asset-world.recovery', assetBoundSeedHash: 'asset-bound.recovery' });
+  var recovered = delivery.recover(recovering);
+  assert.strictEqual(recovered.status, 'semantic-ready');
+  assert.strictEqual(recovered.artifacts.assetWorldHash, null);
+  assert(recovered.history.some(function(event) { return event.kind === 'recovery-restarted'; }), 'Crash recovery invalidates downstream refs and reruns from the active Source without resetting counters.');
+  var blocked = delivery.block(reopened, { code: 'TEST_BLOCK', owner: 'Check', stage: 'semantic', message: 'terminal test' });
+  assert.throws(function() { delivery.beginStage(blocked, 'asset'); }, function(error) { return error.code === 'PRODUCT_DELIVERY_TERMINAL'; }, 'terminal runs cannot be re-entered');
+  var forged = JSON.parse(JSON.stringify(run)); forged.status = 'accepted';
+  assert.throws(function() { delivery.validate(forged); }, function(error) { return error.code === 'PRODUCT_DELIVERY_RUN_HASH_INVALID'; });
+  var lease = delivery.acquireLease(path.join(root, 'leased.json'));
+  assert.throws(function() { delivery.acquireLease(path.join(root, 'leased.json')); }, function(error) { return error.code === 'PRODUCT_DELIVERY_ALREADY_RUNNING'; });
+  delivery.releaseLease(lease);
+  var reacquired = delivery.acquireLease(path.join(root, 'leased.json')); delivery.releaseLease(reacquired);
+  assert.throws(function() { delivery.create({ deliveryId: 'oversized', projectId: 'demo', sourceHash: 'semantic.oversized', budgets: { semanticCycles: 4 } }); }, function(error) { return error.code === 'PRODUCT_DELIVERY_BUDGET_INVALID'; });
+console.log('[ProductDeliveryRun] bounded persisted budgets, preauthorization, execution lease, truthful cost settlement, recovery invalidation, canonical observation fuse, and hash binding passed');
+} finally { fs.rmSync(root, { recursive: true, force: true }); }

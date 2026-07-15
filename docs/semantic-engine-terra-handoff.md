@@ -16,24 +16,34 @@ The semantic engine is rebuilt from a pinned GDevelop source checkout. There is 
 
 ## Architecture boundary
 
-LLM1 owns creative direction. LLM2 is the final design decision maker and writes one batch of canonical function-shaped semantic DSL from positive fill-in forms. The prompt contains no examples. The LLM2 provider request has no JSON schema or JSON response format. The local runtime incrementally applies `name(...)` commands and materializes either a complete `GameSemanticSource` or an incremental `GameSemanticRevision`.
+LLM1 owns creative direction. LLM2 is the final design decision maker. Its Planner first emits one complete batch of generic `plan-task(...)` commands; Runtime validates and freezes that TaskPlan. The Executor then emits one canonical function-shaped Draft-write batch for the active task and finally `complete()` alone. TaskPlan is LLM2's only mutation scope. The prompts contain no examples and provider requests use no JSON schema or JSON response format.
 
-Both roles use DeepSeek V4 Flash with thinking enabled. LLM1 uses medium reasoning and temperature `1.5`; LLM2 uses high reasoning and temperature `0`. Production LLM2 allows at most eight rounds and 120 seconds. `scripts/debug-snake-real-llm.js` defaults to one round and 120 seconds for atomic inspection; callers explicitly select the phase count needed by the test.
+Both roles use DeepSeek V4 Flash with thinking enabled. LLM1 uses medium reasoning and temperature `1.5`; LLM2 uses high reasoning and temperature `0`. The semantic run has one hard 120-second deadline; phase calls are additionally capped at 25/20/8 seconds for Planner/task/finalization. State-machine progress replaces fixed rounds.
 
 The generated GDJS Semantic Dictionary is the total runtime truth. `ai/semantic-event-algebra.js` is a dictionary-validated semantic projection: it owns names and composition such as `object.collides`, `state.number.add`, and `text.display-number`, while the dictionary alone decides whether each exact capability, kind, parameter contract, object type, behavior type, and event type exists and is executable.
 
 Everything after LLM2 is deterministic compilation:
 
 ```text
-GameSemanticSource / GameSemanticRevision
+ProductDeliveryOrchestrator + persisted ProductDeliveryRun
+  -> initial GameSemanticSource / source-bound GameSemanticRevision
   -> Semantic Compiler -> GDJS event graph
   -> Asset Requirement Compiler -> asset requests
   -> Layout Compiler -> layout intent + reservation
   -> RuntimeLinker -> spatial assembly request + libGD-validated project seed
-  -> accepted AssetWorld -> source-hash-checked GDJS resource binding seed
+  -> complete accepted AssetWorld v4 -> source-hash-checked GDJS resource binding seed
   -> assembly-time native geometry facts + GDJS scene-canvas + pinned coordinate evidence
   -> Spatial Planner visual candidate -> Runtime validation -> GDJS candidate preview
-  -> later ACCEPT -> canonical spatial resolution -> final GDJS project artifact
+  -> later ACCEPT -> canonical spatial resolution -> final GDJS projection
+  -> official libGD HTML export -> tokenized loopback HTTP -> real browser capture
+  -> independent assembly review bound to exact build and screenshot hashes
+  -> accepted product
+
+Rejected assembly
+  -> exact-target source-bound factual FeedbackBatch
+  -> LLM2 Revision through a new frozen TaskPlan
+  -> new source hash clears all downstream artifacts
+  -> rerun AssetWorld, spatial projection, capture, and review
 ```
 
 Asset, layout, and runtime assembly are peers that consume one semantic source. None is allowed to choose gameplay, components, templates, numbers, or asset meaning after LLM2.
@@ -46,11 +56,11 @@ The current RuntimeLinker produces the source-bound assembly manifest, a spatial
 
 Each entry is a source-bound observed fact:
 
-- `feedbackId`, `kind`, and semantic subjects;
+- `feedbackId`, `kind`, and exact semantic targets;
 - `observation.code`, plain-language `description`, and scalar `evidence` values;
 - exact `baseSourceHash` and `baseStructureHash` for an existing world, or explicit `null` hashes for first-turn feedback.
 
-The contract rejects routing and repair-decision fields. Feedback is provided to LLM2 as context; LLM2 alone decides the next design change. Deterministic layers apply DSL, report facts, or reject invalid artifacts.
+The contract rejects routing, repair-decision, `changeScope`, `maxRounds`, and other execution-control fields. Feedback is provided to LLM2 as context; LLM2 alone decides the next design change through a newly frozen TaskPlan. Deterministic layers apply DSL, report facts, or reject invalid artifacts.
 
 ## Incremental semantic boundary
 
@@ -60,21 +70,29 @@ The contract rejects routing and repair-decision fields. Feedback is provided to
 
 `ai/semantic-draft.js` owns local left-to-right Draft execution. It injects `dictionarySource`, applies component instances, normalizes fixed and named component bindings, builds nested events through `event.parent`, fills dictionary-declared event parameters and locals, accepts open `when/then` operations, expands semantic multiplication, persists semantic use/operation/part/size plus channel/inversion/await provenance, replaces a whole expansion group as one operation, and materializes strict Source v6 or Revision documents. Internal `gdjs://...` and `gc-component://...` references remain server-side. Recursive member and event-local values materialize through one official number/string/boolean/structure/array serializer.
 
-The component expander resolves inherited dictionary blueprints, target members, configuration-selected branches, repeated transition events, and semantic bindings into private compilation material. Its public evidence contains hashes and generated IDs rather than a second `game-semantic-source`. Action Button, Virtual Joystick, Cooldown Skill, and State Machine are the public coarse components; their visual variants, effects, triggers, states, and transitions remain configuration or bindings. Control surfaces use centered drawing and dictionary safe-area placements. The event compiler then emits serializer-derived event envelopes, instruction-list channels including `whileConditions`, exact event parameter defaults/emission, local-variable keys, and subevent emission. Source v6 rejects raw capability IDs, malformed expansion groups, unnormalized parameter values, expression-kind mismatches, missing component collections, v4 documents, and legacy event shapes rather than translating them.
+Draft event metadata and event logic remain separate executable forms. Inline `conditions`, `actions`, or `children` fields on `event(...)` receive a specific repair fact that points back to `when(event=...)`, `then(event=...)`, and child `event(parent=...)`; Runtime does not add a JSON compatibility reader.
 
-`ai/semantic-run-ledger.js` owns incremental feedback. Every successful command records a compact applied boundary in `[task-ledger]`; the updated Draft owns the applied semantic structure. Extension results accumulate in `[retrieve]`; parse, validation, assembly, parameter, and `complete()` failures become value-safe `[errs]` facts. Empty WORLD sections are omitted. The next LLM2 round receives the same task plus the updated Draft and completes the remaining work. A repeated normalized failure fuses on its second occurrence.
+The component expander resolves inherited dictionary blueprints, target members, configuration-selected branches, repeated transition events, and semantic bindings into private compilation material. Its public evidence contains hashes and generated IDs rather than a second `game-semantic-source`. Action Button, Virtual Joystick, Cooldown Skill, and State Machine are the public coarse components; their visual variants, effects, triggers, states, and transitions remain configuration or bindings. Control surfaces use centered drawing and dictionary safe-area placements. The event compiler then emits serializer-derived event envelopes, instruction-list channels including `whileConditions`, exact event parameter defaults/emission, local-variable keys, and subevent emission. Only Source v6 with normalized parameter values, complete component collections, valid expansion groups and the current event shape is accepted.
 
-`ai/semantic-llm2-runtime.js` enforces separate extension-read, Draft-write, and `complete()` batches, keeps the complete existing Source server-side, and emits ordered `runTrace` entries through `onSemanticRound` for durable diagnosis.
+`ai/semantic-run-state-machine.js` is the only run-state and fuse owner. Its immutable hash-chained events project the legal mode, frozen plan hash/task order, active task, completed task receipts, deterministic retrieval receipts, final Source hash, and one consecutive-identical-failure signature. A Draft-write executes on a fork; any failure discards the whole candidate and records equal before/after hashes. Only a verified task receipt advances the active task. Terminal completion, fuse, and expiry are ledger projections, not mutable side fields.
+
+`ai/semantic-llm2-runtime.js` seals the plan, performs declared extension lookup deterministically, enforces one write batch per active task, revalidates and assembles the final candidate, and accepts `complete()` only in `FINALIZING`. It emits ordered `runTrace` evidence through `onSemanticEvent`; observer failures are diagnostics and cannot change semantic state. Planner and Executor stable-prefix hashes, bytes, cache usage, latency, outputs, and deterministic outcomes are recorded per model call.
 
 ## Product execution boundary
 
-`ai/semantic-product-executor.js` is the deterministic product boundary. It accepts one complete `GameSemanticSource`, an optional source-hash-checked `GameSemanticRevision`, and an optional accepted `semantic-asset-world`; it returns either a libGD-validated project seed or a source-hash-checked asset-bound project seed. `server/semantic-engine-api.js` exposes the same boundary as `POST /semantic/execute` (default port `3030`; `npm run semantic:serve`). It rejects unknown fields, including legacy feedback and routing fields. It does not call LLM1/LLM2, select a component, or decide a repair.
+`server/product-engine-api.js` exposes the current product service on authenticated loopback HTTP (default `127.0.0.1:3030`; `PRODUCT_ENGINE_TOKEN` is mandatory; `npm run product:serve`). `POST /product/deliver` accepts only delivery/project identity and initial request/creative direction, then delegates to `ai/product-delivery-orchestrator.js`, the only complete-product coordinator. LLM2 creates the normal initial Source; only the internal programmatic orchestrator may receive one fully validated Source for trusted bootstrap or resume. Product composition owns storage paths, dictionary, budgets, semantic settings, Asset/Spatial policy, capture authority, and reviewer; none are HTTP request fields. `ProductDeliveryRun` persists the source hash, stage attempts, budgets, artifact hashes, observation fuse, and terminal state. The orchestrator owns `Source/Revision -> official Asset LangGraph -> complete AssetWorld -> asset-bound seed -> native geometry -> official Spatial LangGraph -> accepted spatial projection -> real-browser capture -> independent assembly review`. Only classified semantic quality observations become source-bound FeedbackBatch entries; provider, contract, evidence, filesystem, and runtime failures block as system faults.
+
+An accepted assembly returns the hash-bound product. Its browser evidence is issued only by the product capture authority, HMAC-signed, and independently checked against the libGD build manifest, loopback response build hash, PNG bytes, viewport, and runtime/network/console error set. A rejected assembly with exact semantic targets returns facts to LLM2. A valid Revision activates a new source hash and clears every prior AssetWorld, bound seed, geometry fact set, spatial resolution/projection, browser capture, assembly review, and AssetCard projection before all downstream stages run again. AssetCard is inspection-only and cannot mutate or replace Source, AssetWorld, accepted spatial truth, or ProductDeliveryRun.
+
+One cross-process lease serializes a delivery. Provider calls use a collision-resistant delivery namespace and atomically persisted receipts; recovery reconciles their settled cost before any new work. Semantic budget is authorized before invoking LLM2. Recovery of a nonterminal interrupted run keeps all usage and fuse counters, clears downstream references, and reruns from the persisted hash-addressed active Source. One second assembly attempt exists only to complete a single interrupted full rerun; an assembly failure itself is never retried locally.
+
+`POST /semantic/execute` calls `ai/semantic-product-executor.js` only as a strict deterministic Source/Revision compilation sub-boundary. It accepts `requestId`, one complete `GameSemanticSource`, and an optional source-hash-checked `GameSemanticRevision`; unknown fields are rejected. It returns a libGD-validated project seed. It accepts no AssetWorld and does not call LLM1/LLM2, run providers, write assets, perform spatial assembly, capture a browser, review assembly, or decide a repair.
 
 Layout realization, local LLM2 revisions, and seven game-family semantic assembly coverage are required gates. The family coverage proves architecture compatibility and does not claim empty samples are playable games.
 
-## Retired legacy boundary
+## Client boundary
 
-Retired assembly, product-composition, local-runtime client, studio, owner-routed feedback, and the former semantic-asset cache paths have been removed. The current `AssetLibrary` is the only cross-project asset reuse and publication boundary; the frontend does not call it directly.
+The frontend calls the Product Engine API and consumes accepted delivery products. `AssetLibrary` is the only cross-project asset reuse and publication boundary, and remains server-side; the frontend cannot submit AssetWorld, stage state, feedback routing, or storage credentials.
 
 ## Gate
 
@@ -82,8 +100,10 @@ Run:
 
 ```powershell
 npm run check:semantic-engine
+npm run check:semantic-loop
+npm run check:product-loop
 npm run check:project
-npm run semantic:serve
+npm run product:serve
 ```
 
-The gate verifies source snapshots, runtime bindings, event grammar, full dictionary coverage, event-algebra dictionary closure, extension retrieve, local Draft execution, incremental run-ledger feedback, non-image resource ingestion, deterministic product execution, and the HTTP product boundary.
+The gates verify source snapshots, runtime bindings, event grammar, full dictionary coverage, event-algebra dictionary closure, frozen TaskPlan feasibility, deterministic task retrieval, authoritative Draft slicing, atomic write receipts/rollback, the single semantic state/fuse ledger, prompt-cache hashes, six-task offline record/replay parity, complete AssetWorld acceptance, ProductDeliveryRun invalidation, native geometry and spatial acceptance, real-browser capture integrity, independent assembly review, factual feedback-to-Revision rerun, and both HTTP boundaries.

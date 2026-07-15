@@ -6,6 +6,8 @@ var styles = require('../shared/asset-style-dictionary.json');
 
 var CAPABILITY_KINDS = ['action', 'condition', 'number-expression', 'string-expression'];
 var EXTENSION_KINDS = ['object', 'behavior', 'event'].concat(CAPABILITY_KINDS);
+var TASK_CATALOGS = ['entity-kinds', 'behavior-kinds', 'event-kinds', 'layouts', 'asset-families', 'asset-styles', 'component-library'];
+var PARAMETER_KEYS = { 'entity-kinds': 'entityKinds', 'behavior-kinds': 'behaviorKinds', 'event-kinds': 'eventKinds', layouts: 'layouts', 'asset-families': 'assetFamilies', 'asset-styles': 'assetStyles', 'component-library': 'components' };
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticReferenceRuntime'; throw error; }
@@ -216,11 +218,32 @@ function create(index) {
       extensionGroups: groups.rows.map(groupLine)
     };
   }
+  function plannerCatalog() {
+    return { foundationOperations: algebra.promptLines(index), parameters: parameterContext() };
+  }
+  function taskFacts(task) {
+    task = task || {};
+    var foundationLines = algebra.promptLines(index), byUse = Object.create(null);
+    foundationLines.forEach(function(line) { var fields = String(line).split('|'); byUse[fields[1]] = line; });
+    var operations = (task.uses || []).map(function(use) {
+      if (!Object.prototype.hasOwnProperty.call(byUse, use)) fail('SEMANTIC_TASK_USE_INVALID', 'TaskPlan use is outside the foundation semantic catalog: ' + use);
+      return byUse[use];
+    });
+    var allParameters = parameterContext(), parameters = Object.create(null);
+    (task.catalogs || []).forEach(function(name) {
+      if (TASK_CATALOGS.indexOf(name) < 0) fail('SEMANTIC_TASK_CATALOG_INVALID', 'TaskPlan catalog is not an executor catalog: ' + name);
+      var key = PARAMETER_KEYS[name]; parameters[key] = clone(allParameters[key]);
+    });
+    var retrieved = (task.retrieves || []).map(function(request) { return retrieve({ type: 'retrieve', group: request.group, kind: request.kind }); });
+    return { operations: operations, parameters: parameters, retrieved: retrieved };
+  }
 
   return {
     index: index,
     foundationOperationLines: function() { return algebra.promptLines(index); },
     parameterContext: parameterContext,
+    plannerCatalog: plannerCatalog,
+    taskFacts: taskFacts,
     retrieve: retrieve,
     resolveExtension: resolveExtension,
     validateOperationArguments: function(use, expectedKind, args) {
@@ -264,4 +287,4 @@ function create(index) {
   };
 }
 
-module.exports = { CAPABILITY_KINDS: CAPABILITY_KINDS, create: create };
+module.exports = { CAPABILITY_KINDS: CAPABILITY_KINDS, EXTENSION_KINDS: EXTENSION_KINDS, TASK_CATALOGS: TASK_CATALOGS, create: create };

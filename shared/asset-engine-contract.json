@@ -1,9 +1,16 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "contractId": "gamecastle.semantic-asset-engine",
   "sourceOfTruth": "GameSemanticSource assetIntents compiled to semantic-asset-requirements",
   "defaults": {
-    "imageResource": { "resourceKind": "image", "acceptedFormats": ["png"] }
+    "imageResource": { "resourceKind": "image", "acceptedFormats": ["png"] },
+    "executionProfileId": "asset-engine-production.v1"
+  },
+  "truthSources": {
+    "executionProfiles": "shared/asset-engine-execution-profiles.json",
+    "styleDictionary": "shared/asset-style-dictionary.json",
+    "productionPipeline": "shared/asset-production-pipeline-contract.json",
+    "comfyuiWorkflows": "shared/comfyui-workflow-registry.json"
   },
   "principles": [
     "asset meaning is decided only by LLM2 semantic source",
@@ -12,8 +19,10 @@
     "asset library keys require the complete reusable requirement",
     "the asset library is an optional cross-project acceleration source",
     "accepted local revisions complete creation before independent accumulation",
+    "semantic-asset-world exists only for a completely accepted production set and carries all acceptance and review or integrity receipts",
     "asset library failure never changes semantic intent or invalidates accepted local output",
     "missing capability or failed validation is explicit and blocks final assembly",
+    "execution limits are selected only through a named AssetEngine profile",
     "a FrameSetRevision reaches runtime only through its verified projection adapter"
   ],
   "graph": [
@@ -28,7 +37,10 @@
     "asset-publication-enqueue"
   ],
   "stageDefinitions": {
-    "asset-intake": [{ "module": "ai/asset-engine-langgraph.js", "exports": ["compileSpecs"] }],
+    "asset-intake": [
+      { "module": "ai/asset-engine-langgraph.js", "exports": ["compileSpecs"] },
+      { "module": "ai/asset-engine-execution-policy.js", "exports": ["resolve"] }
+    ],
     "local-input-archive": [{ "module": "ai/asset-engine-langgraph.js", "exports": ["archiveLocalInputs"] }],
     "asset-library-search": [{ "module": "ai/asset-library.js", "exports": ["create", "requirementFingerprint"] }],
     "model-authorize": [
@@ -40,7 +52,7 @@
     "asset-production": [{ "module": "ai/asset-production-pipeline.js", "exports": ["runProductionSet"] }],
     "asset-finalize": [
       { "module": "ai/asset-engine-langgraph.js", "exports": ["bindingManifest", "productionProjection"] },
-      { "module": "ai/asset-world.js", "exports": ["buildAssetWorld"] }
+      { "module": "ai/asset-world.js", "exports": ["buildAcceptedAssetWorld", "validateAcceptedAssetWorld"] }
     ],
     "asset-publication-enqueue": [
       { "module": "ai/asset-engine-langgraph.js", "exports": ["libraryRequirementForWorkItem"] },
@@ -48,6 +60,6 @@
     ]
   },
   "inputs": ["semantic-asset-requirements", "local-input", "optional asset-library accelerator port"],
-  "outputs": ["asset-manifest", "runtime-binding-manifest", "semantic-asset-world", "asset-production-report", "asset-library-acceleration-report", "asset-publication-outbox-entries"],
-  "forbidden": ["template selection", "unverified library reuse", "placeholder asset", "downstream gameplay decision", "silent retry after debt", "parallel asset cache"]
+  "outputs": ["asset-manifest", "runtime-binding-manifest", "accepted semantic-asset-world or null on debt", "asset-production-report", "asset-library-acceleration-report", "asset-publication-outbox-entries"],
+  "forbidden": ["partial asset world", "unproved asset world", "template selection", "unverified library reuse", "placeholder asset", "downstream gameplay decision", "silent retry after debt", "parallel asset cache"]
 }

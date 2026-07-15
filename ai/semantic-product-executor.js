@@ -1,7 +1,6 @@
 var dictionary = require('./capability-semantic-dictionary');
 var sourceContract = require('./game-semantic-source');
 var linker = require('./semantic-runtime-linker');
-var assetBinder = require('./gdjs-project-asset-binder');
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticProductExecutor'; throw error; }
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -11,13 +10,13 @@ function allowed(value, fields, name) { Object.keys(value).forEach(function(key)
 function execute(request, options) {
   options = options || {};
   request = object(request, 'semantic execution request');
-  allowed(request, ['requestId', 'source', 'revision', 'assetWorld'], 'semantic execution request');
+  allowed(request, ['requestId', 'source', 'revision'], 'semantic execution request');
   if (!request.source) fail('SEMANTIC_EXECUTION_SOURCE_REQUIRED', 'A complete GameSemanticSource is required.');
   var index = options.index || dictionary.loadIndex();
   var source = sourceContract.validateSource(request.source, { index: index });
   if (request.revision !== undefined) source = sourceContract.applyRevision(source, request.revision, { index: index });
   var assembly = linker.assemble(source, { index: index });
-  var artifact = request.assetWorld === undefined ? assembly.projectSeed : assetBinder.bindResources(assembly.projectSeed, request.assetWorld);
+  var artifact = assembly.projectSeed;
   return {
     schemaVersion: 1,
     documentKind: 'semantic-product-execution',

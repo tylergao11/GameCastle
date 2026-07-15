@@ -10,7 +10,8 @@ function fail(code, message) { var error = new Error(message); error.code = code
 function rasterHash(raster) { return crypto.createHash('sha256').update(Buffer.from(raster.data.buffer, raster.data.byteOffset, raster.data.byteLength)).update(String(raster.width) + 'x' + String(raster.height)).digest('hex'); }
 function fileHash(file) { return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); }
 function alphaStats(raster) { var transparent = 0, visible = 0; for (var pixel = 3; pixel < raster.data.length; pixel += 4) { if (raster.data[pixel] < 250) transparent++; if (raster.data[pixel] > 0) visible++; } return { transparentRatio: transparent / (raster.width * raster.height), visibleRatio: visible / (raster.width * raster.height) }; }
-function defaultExecute(python, args, options) { return new Promise(function(resolve, reject) { childProcess.execFile(python, args, { cwd: options.cwd, env: options.env, windowsHide: true, maxBuffer: 1024 * 1024 }, function(error, stdout, stderr) { if (error) { error.stdout = stdout; error.stderr = stderr; reject(error); } else resolve({ stdout: stdout, stderr: stderr }); }); }); }
+function defaultExecute(python, args, options) { return new Promise(function(resolve, reject) { childProcess.execFile(python, args, { cwd: options.cwd, env: options.env, windowsHide: true, maxBuffer: 1024 * 1024, timeout: options.timeoutMs }, function(error, stdout, stderr) { if (error) { error.stdout = stdout; error.stderr = stderr; reject(error); } else resolve({ stdout: stdout, stderr: stderr }); }); }); }
+function remaining(deadlineAt) { if (deadlineAt === undefined || deadlineAt === null) return undefined; var value = Math.floor(Number(deadlineAt) - Date.now()); if (!Number.isFinite(value) || value < 1) fail('ASSET_ENGINE_DEADLINE_EXCEEDED', 'AssetEngine execution profile deadline expired before background removal.'); return value; }
 
 function createRembgBackgroundRemoval(options) {
   options = options || {};
@@ -38,8 +39,8 @@ function createRembgBackgroundRemoval(options) {
       var inputHash = rasterHash(raster), directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-rembg-')), inputFile = path.join(directory, 'input.png'), outputFile = path.join(directory, 'output.png');
       try {
         fs.writeFileSync(inputFile, png.encodePng(raster));
-        try { await execute(python, [entrypoint, '--input', inputFile, '--output', outputFile, '--model', modelId], { cwd: root, env: Object.assign({}, process.env, { U2NET_HOME: path.dirname(modelFile) }) }); }
-        catch (error) { fail('REMBG_INFERENCE_FAILED', 'BiRefNet background removal failed: ' + String(error.stderr || error.message || error).trim()); }
+        try { await execute(python, [entrypoint, '--input', inputFile, '--output', outputFile, '--model', modelId], { cwd: root, env: Object.assign({}, process.env, { U2NET_HOME: path.dirname(modelFile) }), timeoutMs: remaining(context && context.deadlineAt) }); }
+        catch (error) { if (error && (error.killed || error.code === 'ETIMEDOUT')) fail('ASSET_ENGINE_DEADLINE_EXCEEDED', 'AssetEngine execution profile deadline expired during background removal.'); fail('REMBG_INFERENCE_FAILED', 'BiRefNet background removal failed: ' + String(error.stderr || error.message || error).trim()); }
         if (!fs.existsSync(outputFile)) fail('REMBG_OUTPUT_MISSING', 'BiRefNet completed without a PNG output.');
         var output; try { output = png.decodePng(fs.readFileSync(outputFile)); } catch (error) { fail('REMBG_OUTPUT_INVALID', 'BiRefNet output is not a valid PNG: ' + error.message); }
         var stats = alphaStats(output);

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "contractId": "gamecastle.asset-library",
   "owner": "AssetLibrary",
   "backend": {
@@ -17,14 +17,14 @@
     },
     "environment": ["GAMECASTLE_ASSET_LIBRARY_URL", "GAMECASTLE_ASSET_LIBRARY_SERVICE_KEY", "GAMECASTLE_ASSET_LIBRARY_BUCKET"],
     "objectLayout": {
-      "recordPrefix": "asset-library/records",
-      "blobPrefix": "asset-library/blobs",
-      "recordIdPrefix": "gamecastle.asset-library.record.v1"
+      "recordPrefix": "asset-library/v3/records",
+      "blobPrefix": "asset-library/v3/blobs",
+      "recordIdPrefix": "gamecastle.asset-library.record.v3"
     }
   },
   "principles": [
     "accepted revisions are the only publishable library content",
-    "library lookup is deterministic from a complete asset requirement",
+    "library lookup is deterministic from a complete asset requirement and the exact current Style DNA content",
     "library records are immutable and content-addressed",
     "the library accelerates creation but never decides semantic intent",
     "project materialization always verifies the published revision hash",

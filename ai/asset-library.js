@@ -1,6 +1,7 @@
 var crypto = require('crypto');
 var contract = require('../shared/asset-library-contract.json');
 var frameSet = require('./frame-set');
+var styleDNA = require('./style-dna');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
@@ -15,6 +16,7 @@ function requirementView(requirement) {
     productionFamily: requirement.productionFamily,
     recipeId: requirement.recipeId,
     styleId: requirement.styleId,
+    styleContractFingerprint: styleDNA.styleFingerprint(requirement.styleId),
     constraints: clone(requirement.constraints || {}),
     animation: clone(requirement.animation || null),
     resourceKind: requirement.resourceKind,

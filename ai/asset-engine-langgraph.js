@@ -7,16 +7,19 @@ var assetLibraryModule = require('./asset-library');
 var publicationOutbox = require('./asset-publication-outbox');
 var modelPolicyGate = require('./model-policy-gate');
 var providerRuntimeAdapters = require('./provider-runtime-adapters');
+var executionPolicyModule = require('./asset-engine-execution-policy');
 var productionPlanner = require('./asset-production-planner');
 var productionResolver = require('./asset-production-resolver');
 var productionPipeline = require('./asset-production-pipeline');
 var frameSet = require('./frame-set');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
+function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
 function sha256(value) { return crypto.createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex'); }
 function append(trace, stage) { return (trace || []).concat([stage]); }
 function loadLangGraph() { return import('@langchain/langgraph'); }
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'AssetEngineLangGraph'; throw error; }
+function assertDeadline(state) { if (Date.now() >= state.executionDeadlineAt) fail('ASSET_ENGINE_DEADLINE_EXCEEDED', 'AssetEngine execution profile deadline expired.'); }
 
 function describeGraph() {
   var stages = engineContract.graph || [], definitions = engineContract.stageDefinitions || {}, definitionStages = Object.keys(definitions);
@@ -85,20 +88,42 @@ function bindingManifest(sourceHash, bindings, productionReceipt) {
 }
 
 function debtRecords(productionResult, resolutionDebts) {
-  return (resolutionDebts || []).concat(productionResult.debts || []).map(function(debt, index) { return { debtId: 'debt.' + sha256([index, debt]).slice(0, 16), slotId: debt.slotId || null, code: debt.code || 'ASSET_PRODUCTION_FAILED', owner: debt.owner || 'AssetDebtManager', blocksExport: true, recoveryStage: debt.recoveryPhase || 'asset-production' }; });
+  return (resolutionDebts || []).concat(productionResult.debts || []).map(function(debt, index) { var value = { debtId: 'debt.' + sha256([index, debt]).slice(0, 16), slotId: debt.slotId || null, code: debt.code || 'ASSET_PRODUCTION_FAILED', owner: debt.owner || 'AssetDebtManager', message: debt.message || 'Asset production did not produce accepted evidence.', blocksExport: true }; if (debt.diagnostics) value.diagnostics = clone(debt.diagnostics); return value; });
+}
+function acceptanceReviewReceipt(item) {
+  var resourceKind = item.workItem.assetSpec.resourceKind || 'image', receipt;
+  if (resourceKind === 'image') {
+    receipt = item.semanticReviewReceipt || item.currentRevision && item.currentRevision.semanticReviewReceipt || item.candidate && item.candidate.semanticReviewReceipt;
+    if (!receipt || receipt.decision !== 'accepted' || receipt.receiptId !== item.acceptanceReceipt.reviewReceiptId) fail('ASSET_ACCEPTANCE_EVIDENCE_INVALID', 'Accepted image work item has no matching semantic review receipt: ' + item.workItem.slotId);
+    return clone(receipt);
+  }
+  receipt = item.integrityReceipt;
+  if (!receipt || receipt.phase !== 'resource-integrity' || receipt.workItemPlanId !== item.workItem.workItemPlanId || receipt.targetVisualSlotId !== item.workItem.targetVisualSlotId || receipt.sha256 !== item.currentRevision.sha256 || receipt.format !== item.currentRevision.format || receipt.decision !== 'accepted') fail('ASSET_ACCEPTANCE_EVIDENCE_INVALID', 'Accepted non-image work item has no exact integrity receipt: ' + item.workItem.slotId);
+  if (receipt.receiptId !== item.acceptanceReceipt.reviewReceiptId) fail('ASSET_ACCEPTANCE_EVIDENCE_INVALID', 'Accepted non-image work item has no matching integrity receipt: ' + item.workItem.slotId);
+  return receipt;
+}
+function uniqueAcceptanceReceipts(items) {
+  var byId = Object.create(null), result = [];
+  items.forEach(function(receipt) {
+    if (!byId[receipt.receiptId]) { byId[receipt.receiptId] = receipt; result.push(receipt); return; }
+    if (JSON.stringify(stable(byId[receipt.receiptId])) !== JSON.stringify(stable(receipt))) fail('ASSET_ACCEPTANCE_EVIDENCE_INVALID', 'Acceptance evidence reuses one receipt id for different receipt content: ' + receipt.receiptId);
+  });
+  return result;
 }
 function productionProjection(runId, sourceHash, productionResult) {
   var accepted = productionResult.workItems.filter(function(item) { return item.accepted; });
   var assets = accepted.map(function(item) { return frameSet.isFrameSet(item.candidate) ? { slotId: item.workItem.slotId, targetVisualSlotId: item.workItem.targetVisualSlotId, assetId: item.currentRevision.revisionId, revisionId: item.currentRevision.revisionId, frameSet: item.candidate, source: item.candidate.source } : Object.assign({}, item.candidate, { slotId: item.workItem.slotId, revisionId: item.currentRevision.revisionId, targetVisualSlotId: item.workItem.targetVisualSlotId, resourceKind: item.workItem.assetSpec.resourceKind || 'image' }); });
   var manifest = { meta: { schemaVersion: 2, contractId: runId + ':asset-manifest', createdAt: new Date().toISOString(), owner: 'AssetEngine', status: productionResult.pass ? 'ready' : 'partial' }, sourceHash: sourceHash, runId: runId, productionSetId: productionResult.plan.productionSetId, assets: assets, summary: { resolved: assets.length, generated: assets.filter(function(asset) { return asset.status === 'generated' || asset.status === 'variant'; }).length, reused: assets.filter(function(asset) { return asset.status === 'reused'; }).length, placeholders: 0, failed: productionResult.workItems.length - accepted.length, cacheHit: false, publishable: productionResult.pass } };
   var bindings = productionResult.pass ? accepted.map(function(item) { var candidate = item.candidate; return frameSet.isFrameSet(candidate) ? { slotId: item.workItem.slotId, targetVisualSlotId: item.workItem.targetVisualSlotId, assetRevisionId: item.currentRevision.revisionId, bindingMode: 'frame-set', required: true, preserve: (item.workItem.assetSpec.preserve || []).slice(), status: 'accepted', asset: { revisionId: candidate.revisionId, contentHash: candidate.contentHash, source: candidate.source } } : { slotId: item.workItem.slotId, targetVisualSlotId: item.workItem.targetVisualSlotId, assetRevisionId: item.currentRevision.revisionId, bindingMode: 'object-resource', required: true, preserve: (item.workItem.assetSpec.preserve || []).slice(), status: 'accepted', asset: { assetId: candidate.assetId, revisionId: item.currentRevision.revisionId, path: candidate.path, format: candidate.format, width: candidate.width, height: candidate.height, transparent: candidate.transparent, source: candidate.source, sha256: candidate.sha256 } }; }) : [];
-  return { assetManifest: manifest, bindings: bindings };
+  return { assetManifest: manifest, bindings: bindings, acceptanceEvidence: { productionSetAcceptanceReceipt: clone(productionResult.acceptanceReceipt), workItemAcceptanceReceipts: accepted.map(function(item) { return clone(item.acceptanceReceipt); }), reviewReceipts: uniqueAcceptanceReceipts(accepted.map(acceptanceReviewReceipt)) } };
 }
 
 async function runAssetEngine(input) {
   input = input || {};
+  if (Object.prototype.hasOwnProperty.call(input, 'previousAssetWorld')) fail('ASSET_WORLD_INJECTION_FORBIDDEN', 'AssetEngine does not accept a caller-supplied previous AssetWorld.');
   if (!input.runId) throw new Error('Asset engine requires runId');
   if (!input.assetRequirementContract || input.assetRequirementContract.documentKind !== 'semantic-asset-requirements' || !input.assetRequirementContract.sourceHash) throw new Error('AssetEngine requires SemanticAssetRequirements.sourceHash.');
+  var executionPolicy = executionPolicyModule.resolve(input), executionDeadlineAt = Date.now() + executionPolicy.totalDeadlineMs;
   var assetLibrary = input.assetLibraryPort ? assetLibraryModule.create(input.assetLibraryPort) : null;
   var lg = await loadLangGraph();
   assertLangGraphRuntime(lg);
@@ -112,27 +137,28 @@ async function runAssetEngine(input) {
     localInputs: clone(input.localInputs || {}),
     localAssets: input.localAssets || {},
     frameSets: input.frameSets || {},
-    previousAssetWorld: clone(input.previousAssetWorld || null),
     sources: input.sources || {},
     assetLibrary: assetLibrary,
     libraryMatches: {},
     assetLibraryAccelerationEvents: [],
     ports: input.ports || {},
     providerRuntime: input.providerRuntime || null,
-    providerOptions: input.providerOptions || {},
+    providerOptions: Object.assign({}, input.providerOptions || {}, { timeoutMs: executionPolicy.totalDeadlineMs, candidateRounds: executionPolicy.candidateRounds, executionProfileId: executionPolicy.profileId, executionProfileHash: executionPolicy.profileHash }),
     modelPolicy: input.modelPolicy || {},
     productionRequest: null,
     projectAssetDir: input.projectAssetDir || null,
     revisionInputs: {},
     ledger: input.ledger || {},
     ledgerPath: input.ledgerPath || null,
-    maxAttempts: input.maxAttempts,
+    maxAttempts: executionPolicy.maxProductionAttempts,
+    executionPolicy: clone(executionPolicy),
+    executionDeadlineAt: executionDeadlineAt,
     maxCost: input.maxCost,
     assetLibraryPublication: clone(input.assetLibraryPublication || {}),
     assetPublicationOutboxPath: input.assetPublicationOutboxPath || null,
     trace: []
   };
-  function node(stage, work) { return async function(wire) { var state = Object.assign({}, wire.state); await work(state); state.trace = append(state.trace, stage); return { state: state }; }; }
+  function node(stage, work) { return async function(wire) { var state = Object.assign({}, wire.state); assertDeadline(state); await work(state); assertDeadline(state); state.trace = append(state.trace, stage); return { state: state }; }; }
   var handlers = {
     'asset-intake': function(state) { state.assetSpecs = compileSpecs(state.assetRequirementContract); state.productionRequest = { requestId: state.runId + ':asset-production', projectId: state.projectId, sourceHash: state.sourceHash, requirements: clone(state.assetSpecs) }; },
     'local-input-archive': function(state) { state.localInputRecords = archiveLocalInputs(state.localInputs); },
@@ -155,17 +181,19 @@ async function runAssetEngine(input) {
     },
     'asset-resolve': async function(state) { state.resolution = await productionResolver.resolveProductionSet({ runId: state.runId, projectId: state.projectId, sourceHash: state.sourceHash, plan: state.productionPlan, localInputs: state.localInputs, localAssets: state.localAssets, frameSets: state.frameSets, sources: state.sources, assetLibrary: state.assetLibrary, libraryMatches: state.libraryMatches, ports: state.authorizedPorts, projectAssetDir: state.projectAssetDir }); },
     'asset-production': async function(state) {
-      state.assetProduction = await productionPipeline.runProductionSet({ runId: state.runId, projectId: state.projectId, plan: state.productionPlan, candidates: state.resolution.candidates, ports: state.authorizedPorts, projectAssetDir: state.projectAssetDir, ledgerPath: state.ledgerPath });
+      var generationWorkItems = state.productionPlan.workItems.filter(function(workItem) { return (workItem.assetSpec.resourceKind || 'image') === 'image' && !state.resolution.candidates[workItem.slotId]; });
+      if (state.executionPolicy.maxGeneratedWorkItems !== null && generationWorkItems.length > state.executionPolicy.maxGeneratedWorkItems) fail('ASSET_ENGINE_EXECUTION_SCOPE_EXCEEDED', 'Execution profile ' + state.executionPolicy.profileId + ' permits at most ' + state.executionPolicy.maxGeneratedWorkItems + ' generation-required work item(s), received ' + generationWorkItems.length + '.');
+      state.assetProduction = await productionPipeline.runProductionSet({ runId: state.runId, projectId: state.projectId, plan: state.productionPlan, candidates: state.resolution.candidates, ports: state.authorizedPorts, projectAssetDir: state.projectAssetDir, ledgerPath: state.ledgerPath, maxAttempts: state.maxAttempts, deadlineAt: state.executionDeadlineAt, executionPolicy: state.executionPolicy });
     },
     'asset-finalize': function(state) {
       var projection = productionProjection(state.runId, state.sourceHash, state.assetProduction);
       state.assetManifest = projection.assetManifest;
       state.runtimeBindingManifest = bindingManifest(state.sourceHash, projection.bindings, state.assetProduction.acceptanceReceipt);
-      state.assetWorld = assetWorld.buildAssetWorld(state.assetManifest, state.previousAssetWorld || null);
       state.debts = debtRecords(state.assetProduction, state.resolution.debts);
       state.accepted = state.assetProduction.pass && state.debts.length === 0;
+      state.assetWorld = state.accepted ? assetWorld.buildAcceptedAssetWorld({ assetManifest: state.assetManifest, productionSetAcceptanceReceipt: projection.acceptanceEvidence.productionSetAcceptanceReceipt, workItemAcceptanceReceipts: projection.acceptanceEvidence.workItemAcceptanceReceipts, reviewReceipts: projection.acceptanceEvidence.reviewReceipts }) : null;
       state.assetLibraryAccelerationReport = { configured: !!state.assetLibrary, events: state.assetLibraryAccelerationEvents.concat(state.resolution.libraryFailures || []) };
-      state.assetProductionReport = { pass: state.accepted, productionSetAcceptanceReceipt: state.assetProduction.acceptanceReceipt, workItemReports: state.assetProduction.workItems.map(function(item) { return { workItemPlanId: item.workItem.workItemPlanId, targetVisualSlotId: item.workItem.targetVisualSlotId, loopState: item.loopState, acceptanceReceipt: item.acceptanceReceipt || null, debt: item.debt || null }; }) };
+      state.assetProductionReport = { pass: state.accepted, executionPolicy: clone(state.executionPolicy), productionSetAcceptanceReceipt: state.assetProduction.acceptanceReceipt, workItemReports: state.assetProduction.workItems.map(function(item) { return { workItemPlanId: item.workItem.workItemPlanId, targetVisualSlotId: item.workItem.targetVisualSlotId, loopState: item.loopState, attemptDiagnostics: item.attemptDiagnostics || item.debt && item.debt.attemptDiagnostics || [], acceptanceReceipt: item.acceptanceReceipt || null, debt: item.debt || null }; }) };
     },
     'asset-publication-enqueue': function(state) {
       state.assetPublicationOutboxEntries = [];

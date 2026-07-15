@@ -1,18 +1,18 @@
-var LANGUAGE_ID = 'semantic-dsl-v1';
-var READ_COMMANDS = ['retrieve'];
+var taskPlan = require('./semantic-task-plan');
+
+var LANGUAGE_ID = taskPlan.LANGUAGE_ID;
+var PLAN_COMMANDS = taskPlan.PLAN_COMMANDS;
 var WRITE_COMMANDS = ['game', 'entity', 'component', 'member', 'event', 'when', 'then', 'asset', 'layout', 'policy', 'remove'];
 var COMPLETION_COMMANDS = ['complete'];
-var ALL_COMMANDS = READ_COMMANDS.concat(WRITE_COMMANDS, COMPLETION_COMMANDS);
+var ALL_COMMANDS = PLAN_COMMANDS.concat(WRITE_COMMANDS, COMPLETION_COMMANDS);
 
-var READ_LINES = [
-  'retrieve(group=...gHandle, kind=...oneExtensionKind)',
-];
+var PLAN_LINES = taskPlan.PLAN_LINES;
 var WRITE_LINES = [
   'game(semanticId=...semanticId, name=...name)',
   'entity(semanticId=...semanticId, roles=...nonEmptyStringArray, kind=...entityKind, behaviors=...stringArray)',
   'component(semanticId=...semanticId, kind=...componentHandle, target=...entityOptional, config=...object, bindings={...bindingName:{"use":...actionOrConditionUse,"arguments":{...parameter:value}}})',
   'member(entity=...entity, semanticId=...semanticId, roles=...nonEmptyStringArray, value=...value, bindings=...stringArray)',
-  'asset(semanticId=...semanticId, roles=...nonEmptyStringArray, subject=...subject, description=...description, family=...fHandle, style=...sHandle, constraints=...object, bindings=...stringArray)',
+  'asset(semanticId=...semanticId, roles=...nonEmptyStringArray, subject=...subject, description=...description, family=...fHandle, style=...sHandle, constraints=...object, animation=...objectOptional, bindings=...stringArray)',
   'layout(semanticId=...semanticId, roles=...nonEmptyStringArray, subject=...subject, bounds={"width":...positiveNumber,"height":...positiveNumber}, relations=...relationArray, bindings=...stringArray)',
   'policy(degree=...degree, mode=percentage|absolute, value=...positiveNumber)',
   'remove(collection=entities|components|events|assetIntents|layoutIntents, semanticId=...semanticId)',
@@ -30,6 +30,6 @@ var EVENT_LOGIC_LINES = [
 var COMPLETION_LINES = [
   'complete()'
 ];
-var LINES = READ_LINES.concat(WRITE_LINES, ROOT_EVENT_LINES, CHILD_EVENT_LINES, EVENT_LOGIC_LINES, COMPLETION_LINES);
+var LINES = PLAN_LINES.concat(WRITE_LINES, ROOT_EVENT_LINES, CHILD_EVENT_LINES, EVENT_LOGIC_LINES, COMPLETION_LINES);
 
-module.exports = { LANGUAGE_ID: LANGUAGE_ID, READ_COMMANDS: READ_COMMANDS, WRITE_COMMANDS: WRITE_COMMANDS, COMPLETION_COMMANDS: COMPLETION_COMMANDS, ALL_COMMANDS: ALL_COMMANDS, READ_LINES: READ_LINES, WRITE_LINES: WRITE_LINES, ROOT_EVENT_LINES: ROOT_EVENT_LINES, CHILD_EVENT_LINES: CHILD_EVENT_LINES, EVENT_LOGIC_LINES: EVENT_LOGIC_LINES, COMPLETION_LINES: COMPLETION_LINES, LINES: LINES };
+module.exports = { LANGUAGE_ID: LANGUAGE_ID, PLAN_COMMANDS: PLAN_COMMANDS, WRITE_COMMANDS: WRITE_COMMANDS, COMPLETION_COMMANDS: COMPLETION_COMMANDS, ALL_COMMANDS: ALL_COMMANDS, PLAN_LINES: PLAN_LINES, WRITE_LINES: WRITE_LINES, ROOT_EVENT_LINES: ROOT_EVENT_LINES, CHILD_EVENT_LINES: CHILD_EVENT_LINES, EVENT_LOGIC_LINES: EVENT_LOGIC_LINES, COMPLETION_LINES: COMPLETION_LINES, LINES: LINES };

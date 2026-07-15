@@ -1,8 +1,12 @@
+var crypto = require('crypto');
 var sourceContract = require('./game-semantic-source');
 var runtimeNames = require('./semantic-runtime-names');
 var algebra = require('./semantic-event-algebra');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
+function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
+function deepFreeze(value) { if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value; Object.keys(value).forEach(function(key) { deepFreeze(value[key]); }); return Object.freeze(value); }
+function factHash(value) { return 'semantic.compiled-fact.' + crypto.createHash('sha256').update(JSON.stringify(stable(value))).digest('hex'); }
 function valueType(value) { return Array.isArray(value) ? 'array' : (value && typeof value === 'object' ? 'structure' : typeof value); }
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticDraft'; throw error; }
 function allowed(command, fields) { Object.keys(command).forEach(function(key) { if (fields.indexOf(key) < 0) fail('SEMANTIC_DRAFT_FIELD_INVALID', '>' + command.type + ' contains unknown field: ' + key); }); }
@@ -67,6 +71,7 @@ function create(references, source) {
   value = clone(value); seedEventSlots(value.events, references);
   return { schemaVersion: 5, draftKind: 'game-semantic-draft', baseSource: source ? clone(source) : null, value: value, touched: [], references: references };
 }
+function fork(draft) { return { schemaVersion: draft.schemaVersion, draftKind: draft.draftKind, baseSource: clone(draft.baseSource), value: clone(draft.value), touched: clone(draft.touched), references: draft.references }; }
 function mark(draft, command, semanticId) { draft.touched.push({ type: command.type, semanticId: semanticId || command.semanticId || null, entity: command.entity || null }); }
 function operationArgs(command) {
   var rawArgs = command.arguments === undefined ? Object.create(null) : object(command.arguments, command.type + '.arguments');
@@ -181,6 +186,7 @@ function execute(draft, command) {
   } else if (command.type === 'event') {
     var eventId = text(command.semanticId, 'event.semanticId');
     if (command.parent === null) fail('SEMANTIC_DRAFT_VALUE_INVALID', 'event.parent accepts an existing parent event semanticId; root events omit parent.');
+    ['conditions', 'actions', 'children'].forEach(function(field) { if (Object.prototype.hasOwnProperty.call(command, field)) fail('SEMANTIC_DRAFT_EVENT_LOGIC_INLINE', 'event(...) defines event metadata only; express conditions with when(event=...), actions with then(event=...), and children with event(parent=...). Inline field is invalid: ' + field); });
     var parentId = command.parent === undefined ? null : text(command.parent, 'event.parent');
     var eventArguments = Object.create(null);
     Object.keys(command).forEach(function(key) { if (['type', 'semanticId', 'kind', 'parent', 'locals'].indexOf(key) < 0) eventArguments[key] = clone(command[key]); });
@@ -189,7 +195,7 @@ function execute(draft, command) {
     var currentEvent = findEvent(value.events, eventId);
     if (currentEvent && parentId && findEvent(currentEvent.children || [], parentId)) fail('SEMANTIC_EVENT_CYCLE', 'Event parent would create a cycle: ' + eventId + ' -> ' + parentId);
     var node = currentEvent || { semanticId: eventId, conditions: [], actions: [], children: [] };
-    node.eventTypeRef = compiledEvent.eventTypeRef; node.arguments = compiledEvent.arguments; node.locals = command.locals === undefined && currentEvent ? node.locals : object(command.locals || {}, 'event.locals');
+    node.eventTypeRef = compiledEvent.eventTypeRef; node.arguments = compiledEvent.arguments; node._semanticArguments = clone(eventArguments); node.locals = command.locals === undefined && currentEvent ? node.locals : object(command.locals || {}, 'event.locals');
     var oldParent = currentEvent ? eventParent(value.events, eventId) : null;
     if (!currentEvent || (oldParent ? oldParent.semanticId : null) !== parentId) {
       if (currentEvent) removeEvent(value.events, eventId);
@@ -199,8 +205,10 @@ function execute(draft, command) {
   } else if (command.type === 'when' || command.type === 'then') {
     summaryId = applyInvocations(draft, command);
   } else if (command.type === 'asset') {
-    allowed(command, ['type', 'semanticId', 'roles', 'subject', 'description', 'family', 'style', 'constraints', 'bindings']);
-    upsert(value.assetIntents, { semanticId: text(command.semanticId, 'asset.semanticId'), roles: nonEmptyArray(command.roles, 'asset.roles'), subject: text(command.subject, 'asset.subject'), description: text(command.description, 'asset.description'), productionFamily: refs.resolveFamily(command.family), styleId: refs.resolveStyle(command.style), constraints: object(command.constraints || {}, 'asset.constraints'), bindings: refs.resolveBindings(command.bindings || [], 'asset.bindings') });
+    allowed(command, ['type', 'semanticId', 'roles', 'subject', 'description', 'family', 'style', 'constraints', 'animation', 'bindings']);
+    var assetIntent = { semanticId: text(command.semanticId, 'asset.semanticId'), roles: nonEmptyArray(command.roles, 'asset.roles'), subject: text(command.subject, 'asset.subject'), description: text(command.description, 'asset.description'), productionFamily: refs.resolveFamily(command.family), styleId: refs.resolveStyle(command.style), constraints: object(command.constraints || {}, 'asset.constraints'), bindings: refs.resolveBindings(command.bindings || [], 'asset.bindings') };
+    if (command.animation !== undefined) assetIntent.animation = object(command.animation, 'asset.animation');
+    upsert(value.assetIntents, assetIntent);
   } else if (command.type === 'layout') {
     allowed(command, ['type', 'semanticId', 'roles', 'subject', 'bounds', 'relations', 'bindings']);
     var relations = array(command.relations, 'layout.relations').map(function(relation, position) { relation = object(relation, 'layout.relations[' + position + ']'); allowed(relation, ['semanticId', 'layout', 'subjects']); return { semanticId: text(relation.semanticId, 'layout relation semanticId'), layoutRef: refs.resolveLayout(relation.layout), subjects: array(relation.subjects, 'layout relation subjects') }; });
@@ -214,7 +222,7 @@ function execute(draft, command) {
   } else fail('SEMANTIC_DRAFT_COMMAND_INVALID', 'Unsupported Draft command: ' + command.type);
   mark(draft, command, summaryId); return { summary: command.type + (summaryId ? ' ' + summaryId : '') + ' applied' };
 }
-function cleanEvent(event) { event.conditions.forEach(function(item) { delete item._slot; delete item._use; delete item._semanticArguments; }); event.actions.forEach(function(item) { delete item._slot; delete item._use; delete item._semanticArguments; }); event.children.forEach(cleanEvent); }
+function cleanEvent(event) { delete event._semanticArguments; event.conditions.forEach(function(item) { delete item._slot; delete item._use; delete item._semanticArguments; }); event.actions.forEach(function(item) { delete item._slot; delete item._use; delete item._semanticArguments; }); event.children.forEach(cleanEvent); }
 function materialize(draft) { var source = clone(draft.value); source.events.forEach(cleanEvent); return source; }
 function structure(draft) {
   var value = draft.value, refs = draft.references;
@@ -241,10 +249,85 @@ function structure(draft) {
       return { semanticId: item.semanticId, kind: refs.componentHandle(item.componentRef), target: item.target, config: config, bindings: bindings };
     }),
     events: value.events.map(eventView),
-    assetIntents: value.assetIntents.map(function(item) { return { semanticId: item.semanticId, subject: item.subject, family: refs.familyHandle(item.productionFamily), style: refs.styleHandle(item.styleId), bindings: refs.bindingUses(item.bindings) }; }),
+    assetIntents: value.assetIntents.map(function(item) { var view = { semanticId: item.semanticId, roles: clone(item.roles), subject: item.subject, description: item.description, family: refs.familyHandle(item.productionFamily), style: refs.styleHandle(item.styleId), constraints: clone(item.constraints), bindings: refs.bindingUses(item.bindings) }; if (item.animation !== undefined) view.animation = clone(item.animation); return view; }),
     layoutIntents: value.layoutIntents.map(function(item) { return { semanticId: item.semanticId, subject: item.subject, bounds: clone(item.bounds), layouts: item.relations.map(function(relation) { return refs.layoutHandle(relation.layoutRef); }), bindings: refs.bindingUses(item.bindings) }; }),
     tuningDegrees: Object.keys(value.tuningPolicies.relativeChange).sort()
   };
+}
+function taskStructure(draft) {
+  if (!draft || draft.draftKind !== 'game-semantic-draft' || !draft.value || !draft.references) fail('SEMANTIC_DRAFT_INVALID', 'taskStructure requires a semantic Draft.');
+  var value = draft.value, refs = draft.references, runtimeReferences = Object.create(null);
+  value.entities.forEach(function(entity) {
+    if (entity.objectTypeRef) runtimeReferences[runtimeNames.entityObjectName(entity.semanticId)] = { referenceKind: 'entity', semanticId: entity.semanticId };
+    entity.members.forEach(function(member) { runtimeReferences[runtimeNames.memberVariableName(entity.semanticId, member.semanticId)] = { referenceKind: 'member', target: entity.semanticId + '.' + member.semanticId }; });
+    entity.behaviorTypeRefs.forEach(function(behaviorRef) { runtimeReferences[runtimeNames.behaviorName(entity.semanticId, behaviorRef)] = { referenceKind: 'behavior', target: entity.semanticId, kind: refs.behaviorKinds([behaviorRef])[0] }; });
+  });
+  walkEvents(value.events, function(event) { Object.keys(event.locals).forEach(function(localId) { runtimeReferences[runtimeNames.generatedName('local', localId)] = { referenceKind: 'local', semanticId: localId }; }); });
+
+  function safeCompiled(value) {
+    if (Array.isArray(value)) return value.map(safeCompiled);
+    if (typeof value === 'string' && runtimeReferences[value]) return clone(runtimeReferences[value]);
+    if (value && typeof value === 'object') {
+      if (typeof value.semanticRef === 'string' && value.arguments && typeof value.arguments === 'object' && !Array.isArray(value.arguments)) return { capability: refs.extensionHandle(value.semanticRef), parameterValues: safeCompiled(value.arguments), compiledArgumentsHash: factHash(value.arguments) };
+      return Object.keys(value).reduce(function(out, key) { out[key] = safeCompiled(value[key]); return out; }, Object.create(null));
+    }
+    return clone(value);
+  }
+  function eventArgumentFact(event) {
+    if (event._semanticArguments) return { truthKind: 'semantic-arguments', semanticArgumentsAvailable: true, values: clone(event._semanticArguments) };
+    return { truthKind: 'compiled-exact', semanticArgumentsAvailable: false, parameterValues: safeCompiled(event.arguments), compiledArgumentsHash: factHash(event.arguments) };
+  }
+  function operationFacts(entries, condition) {
+    var bySlot = Object.create(null), ordered = [];
+    entries.forEach(function(entry) {
+      var fact = bySlot[entry._slot];
+      if (!fact) {
+        fact = bySlot[entry._slot] = { operationId: entry._slot, use: entry._use, channel: entry.channel, expansionSize: entry.operation.size };
+        if (condition) fact.not = entry.inverted; else fact.await = entry.awaited;
+        if (entry._semanticArguments) fact.argumentFact = { truthKind: 'semantic-arguments', semanticArgumentsAvailable: true, values: clone(entry._semanticArguments) };
+        else fact.argumentFact = { truthKind: 'compiled-exact', semanticArgumentsAvailable: false, replaceOperationId: entry._slot, invocations: [], compiledGroupHash: null };
+        ordered.push(fact);
+      }
+      if (!entry._semanticArguments) fact.argumentFact.invocations.push({ part: entry.operation.part, capability: refs.extensionHandle(entry.semanticRef), parameterValues: safeCompiled(entry.arguments), compiledArgumentsHash: factHash(entry.arguments) });
+    });
+    ordered.forEach(function(fact) {
+      if (fact.argumentFact.truthKind === 'compiled-exact') fact.argumentFact.compiledGroupHash = factHash(fact.argumentFact.invocations.map(function(invocation) { return { part: invocation.part, capability: invocation.capability, compiledArgumentsHash: invocation.compiledArgumentsHash }; }));
+    });
+    return ordered;
+  }
+  function componentView(item) {
+    var definition = refs.resolveComponent(refs.componentHandle(item.componentRef));
+    var config = Object.keys(definition.compiler.config || {}).reduce(function(out, name) { var descriptor = definition.compiler.config[name]; if (descriptor.default !== undefined) out[name] = clone(descriptor.default); return out; }, Object.create(null));
+    Object.keys(item.config).forEach(function(name) { config[name] = clone(item.config[name]); });
+    Object.keys(config).forEach(function(name) { config[name] = componentConfigView(refs, definition.compiler.config[name], config[name]); });
+    var bindings = Object.keys(item.bindings).reduce(function(out, name) { var binding = clone(item.bindings[name]); if (!algebra.operationForUse(binding.use)) binding.use = refs.extensionHandle(binding.use); out[name] = binding; return out; }, Object.create(null));
+    return { semanticId: item.semanticId, kind: refs.componentHandle(item.componentRef), target: item.target, config: config, bindings: bindings };
+  }
+  function eventView(item) {
+    return {
+      semanticId: item.semanticId,
+      kind: refs.eventKind(item.eventTypeRef),
+      argumentFact: eventArgumentFact(item),
+      locals: clone(item.locals),
+      conditions: operationFacts(item.conditions, true),
+      actions: operationFacts(item.actions, false),
+      children: item.children.map(eventView)
+    };
+  }
+  var result = {
+    schemaVersion: 1,
+    structureKind: 'semantic-draft-task-structure',
+    game: value.game ? clone(value.game) : null,
+    entities: value.entities.map(function(item) { return { semanticId: item.semanticId, roles: clone(item.roles), kind: refs.entityKind(item.objectTypeRef), behaviors: refs.behaviorKinds(item.behaviorTypeRefs), members: item.members.map(function(member) { return { semanticId: member.semanticId, roles: clone(member.roles), value: clone(member.value), bindings: refs.bindingUses(member.bindings) }; }) }; }),
+    components: value.components.map(componentView),
+    events: value.events.map(eventView),
+    assetIntents: value.assetIntents.map(function(item) { var view = { semanticId: item.semanticId, roles: clone(item.roles), subject: item.subject, description: item.description, family: refs.familyHandle(item.productionFamily), style: refs.styleHandle(item.styleId), constraints: clone(item.constraints), bindings: refs.bindingUses(item.bindings) }; if (item.animation !== undefined) view.animation = clone(item.animation); return view; }),
+    layoutIntents: value.layoutIntents.map(function(item) { return { semanticId: item.semanticId, roles: clone(item.roles), subject: item.subject, bounds: clone(item.bounds), relations: item.relations.map(function(relation) { return { semanticId: relation.semanticId, layout: refs.layoutHandle(relation.layoutRef), subjects: clone(relation.subjects) }; }), bindings: refs.bindingUses(item.bindings) }; }),
+    tuningPolicies: { relativeChange: clone(value.tuningPolicies.relativeChange) }
+  };
+  var serialized = JSON.stringify(result);
+  if (/gdjs:\/\/|gc-component:\/\//.test(serialized)) fail('SEMANTIC_DRAFT_TASK_STRUCTURE_INTERNAL_REF', 'Task-safe Draft projection exposed an internal runtime reference.');
+  return deepFreeze(clone(result));
 }
 function revision(draft) {
   if (!draft.baseSource) return null; var next = materialize(draft), operations = [];
@@ -252,4 +335,4 @@ function revision(draft) {
   if (!operations.length) fail('SEMANTIC_DRAFT_NO_CHANGES', 'Draft contains no revision changes.'); return { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-revision', baseSourceHash: sourceContract.sourceHash(draft.baseSource), operations: operations };
 }
 
-module.exports = { create: create, execute: execute, materialize: materialize, structure: structure, revision: revision };
+module.exports = { create: create, fork: fork, execute: execute, materialize: materialize, structure: structure, taskStructure: taskStructure, revision: revision };

@@ -1,12 +1,13 @@
 # Network synchronization boundary
 
-`server/signaling-server.js` provides a WebSocket room service for signaling, state synchronization, events, and ordered game input. It is not a semantic compiler, asset engine, or design decision maker.
+`server/signaling-server.js` provides a WebSocket room service for signaling, state synchronization, events, and ordered game input after an accepted product exists. It is not a semantic compiler, asset engine, product orchestrator, or design decision maker.
 
-The semantic product API is a separate HTTP service at `server/semantic-engine-api.js`. Keep the boundaries separate:
+The product engine is a separate HTTP service at `server/product-engine-api.js`. Keep the boundaries separate:
 
 | Service | Owns | Does not own |
 | --- | --- | --- |
-| Semantic API | Source/Revision validation, deterministic assembly, AssetWorld binding | Multiplayer rooms, runtime authority, design inference |
-| WebSocket server | Rooms, player membership, relay, synchronization, ordered input | Semantic Source mutation, LLM calls, asset binding |
+| Product Engine `POST /product/deliver` | ProductDeliveryRun; Source/Revision; complete AssetWorld; asset-bound seed; geometry/spatial acceptance; real-browser capture; independent assembly review; factual feedback and LLM2 Revision rerun | Multiplayer rooms or live game authority |
+| Deterministic sub-boundary `POST /semantic/execute` | Strict Source/Revision validation and libGD project-seed compilation | AssetWorld input, model calls, assets, spatial assembly, browser evidence, product acceptance |
+| WebSocket server | Rooms, player membership, relay, synchronization, ordered input | Semantic Source mutation, LLM calls, product delivery, asset or spatial binding |
 
-An assembled project must be source-hash valid before it is delivered to any runtime. Multiplayer messages can drive runtime behavior only after that project exists; they cannot alter semantic compilation contracts.
+Only a product accepted by `ProductDeliveryOrchestrator`—with one source hash binding its complete AssetWorld, accepted spatial projection, browser capture, and assembly review—may be delivered to a multiplayer runtime. Multiplayer messages can drive that runtime behavior; they cannot alter TaskPlan, Source/Revision, product feedback, compilation contracts, or delivery evidence.

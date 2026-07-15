@@ -33,15 +33,24 @@ function analyze(bytes, profile) {
   for (var y = 0; y < raster.height; y++) for (var x = 0; x < raster.width; x++) { var pixel = y * raster.width + x, at = pixel * 4, foreground = data[at + 3] > 16 && distance(data[at], data[at + 1], data[at + 2], bg) > 52; if (foreground) { mask[pixel] = 1; visible += 1; sumX += x; sumY += y; } }
   var total = raster.width * raster.height, coverage = visible / total, areas = componentAreas(mask, raster.width, raster.height), significantFloor = Math.max(4, Math.round(total * 0.002)), significantComponents = areas.filter(function(area) { return area >= significantFloor; }).length;
   var centerDistance = visible ? Math.sqrt(((sumX / visible) / Math.max(1, raster.width - 1) - 0.5) ** 2 + ((sumY / visible) / Math.max(1, raster.height - 1) - 0.5) ** 2) : 1;
-  var isolated = coverage >= 0.015 && coverage <= 0.82 && significantComponents >= 1 && significantComponents <= 6 && centerDistance <= 0.42 && borderDeviation <= 90;
-  var pass = profile.transparent === true ? isolated : coverage > 0.01;
+  var pass = coverage >= 0.005;
   var score = 100 - Math.abs(coverage - (profile.transparent === true ? 0.34 : 0.5)) * 80 - Math.max(0, significantComponents - 1) * 8 - centerDistance * 45 - borderDeviation * 0.18;
   return { pass: pass, score: Number(score.toFixed(6)), coverage: Number(coverage.toFixed(6)), significantComponents: significantComponents, centerDistance: Number(centerDistance.toFixed(6)), borderDeviation: Number(borderDeviation.toFixed(6)), sha256: hash(bytes) };
 }
-function select(candidates, profile) {
+function select(candidates, profile, semanticReviews) {
   if (!Array.isArray(candidates) || !candidates.length) fail('MASTER_IMAGE_CANDIDATES_MISSING', 'ComfyUI returned no master-image candidates.');
-  var ranked = candidates.map(function(candidate, index) { return Object.assign({ index: index, candidate: candidate }, analyze(candidate.bytes, profile)); }).filter(function(item) { return item.pass; }).sort(function(left, right) { return right.score - left.score || left.sha256.localeCompare(right.sha256); });
-  if (!ranked.length) fail('MASTER_IMAGE_QUALITY_REJECTED', 'No ComfyUI master-image candidate passed deterministic quality checks.');
+  if (!Array.isArray(semanticReviews) || semanticReviews.length !== candidates.length) fail('MASTER_IMAGE_SEMANTIC_REVIEW_MISSING', 'Every master-image candidate requires semantic review.');
+  var threshold = require('../shared/asset-semantic-review-contract.json').thresholds.candidateSemanticMargin;
+  var reports = candidates.map(function(candidate, index) {
+    var semantic = semanticReviews[index], checks = semantic.compositionChecks || [], compositionMargin = checks.length ? Math.min.apply(null, checks.map(function(check) { return check.margin; })) : Infinity, structural = analyze(candidate.bytes, profile), reasons = [];
+    if (!structural.pass) reasons.push({ code: 'MASTER_IMAGE_CONTENT_EMPTY', actual: structural.coverage, requiredMinimum: 0.005 });
+    if (semantic.semanticMargin < threshold) reasons.push({ code: 'MASTER_IMAGE_SEMANTIC_REJECTED', actual: semantic.semanticMargin, requiredMinimum: threshold });
+    checks.forEach(function(check) { if (check.margin < threshold) reasons.push({ code: 'MASTER_IMAGE_COMPOSITION_REJECTED', checkId: check.id, actual: check.margin, requiredMinimum: threshold }); });
+    return Object.assign({ index: index, candidate: candidate, semanticReview: semantic, compositionMargin: compositionMargin, eligible: reasons.length === 0, rejectionReasons: reasons }, structural, { score: structural.score + semantic.semanticMargin * 240 + semantic.styleMargin * 120 + (Number.isFinite(compositionMargin) ? compositionMargin * 240 : 0) });
+  });
+  var ranked = reports.filter(function(item) { return item.eligible; }).sort(function(left, right) { return right.score - left.score || left.sha256.localeCompare(right.sha256); });
+  if (!ranked.length) { var error = new Error('No master-image candidate passed: ' + reports.map(function(report) { return '#' + report.index + ' ' + report.rejectionReasons.map(function(reason) { return reason.code + (reason.checkId ? ':' + reason.checkId : ''); }).join('|'); }).join(', ') + '.'); error.code = 'MASTER_IMAGE_QUALITY_REJECTED'; error.owner = 'MasterImageQuality'; error.diagnostics = reports.map(function(report) { return { index: report.index, sha256: report.sha256, coverage: report.coverage, significantComponents: report.significantComponents, centerDistance: report.centerDistance, borderDeviation: report.borderDeviation, semanticMargin: report.semanticReview.semanticMargin, styleMargin: report.semanticReview.styleMargin, compositionChecks: report.semanticReview.compositionChecks || [], rejectionReasons: report.rejectionReasons }; }); throw error; }
+  ranked[0].candidateDiagnostics = reports.map(function(report) { return { index: report.index, sha256: report.sha256, eligible: report.eligible, score: report.score, coverage: report.coverage, significantComponents: report.significantComponents, centerDistance: report.centerDistance, borderDeviation: report.borderDeviation, semanticMargin: report.semanticReview.semanticMargin, styleMargin: report.semanticReview.styleMargin, compositionChecks: report.semanticReview.compositionChecks || [], rejectionReasons: report.rejectionReasons }; });
   return ranked[0];
 }
 

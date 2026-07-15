@@ -1,0 +1,11 @@
+var assert = require('assert');
+var contract = require('../../shared/provider-runtime-contract.json');
+var runtime = require('../../ai/provider-runtime');
+assert.strictEqual(contract.contractId, 'gamecastle.provider-runtime');
+assert.deepStrictEqual(Object.keys(contract.roles).sort(), Object.keys(runtime.ROLE_MODALITY).sort());
+Object.keys(contract.roles).forEach(function(role) { assert.strictEqual(contract.roles[role].modality, runtime.ROLE_MODALITY[role]); });
+Object.keys(contract.roles).forEach(function(role) { assert(contract.roles[role].defaultEstimatedCost > 0, role + ' requires a positive default cost reservation'); });
+assert.deepStrictEqual(contract.ports.ProviderRuntimePort, ['invokeRole', 'cancel', 'health']);
+['apiKey', 'authorization', 'rawPrompt', 'rawImage'].forEach(function(field) { assert(contract.receipt.forbidden.indexOf(field) >= 0); });
+assert.strictEqual(contract.publishGate.simulated, 'deny');
+console.log('[ProviderRuntimeContract] roles, port, secret boundary, receipt and publish gate passed');

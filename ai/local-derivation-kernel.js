@@ -17,7 +17,7 @@ function createLocalDerivationKernel(handlers) {
       if (typeof handler !== 'function') throw error('LOCAL_OPERATION_UNAVAILABLE', 'No local handler is registered for ' + spec.op + '.');
       var result = await handler(spec, context || {});
       if (!result || typeof result.inputHash !== 'string' || typeof result.outputHash !== 'string' || !result.parentRevisionId) throw error('LOCAL_OPERATION_RECEIPT_INVALID', 'Local handler did not return a complete immutable receipt.');
-      return Object.assign({ schemaVersion: 1, owner: 'LocalDerivationKernel', op: spec.op, operationId: spec.operationId, dictionaryId: spec.dictionaryId, styleId: spec.styleId, scriptVersion: result.scriptVersion || 'unversioned', scope: spec.scope }, result);
+      return Object.assign({ schemaVersion: contract.schemaVersion, owner: 'LocalDerivationKernel', op: spec.op, operationId: spec.operationId, dictionaryId: spec.dictionaryId, styleId: spec.styleId, scriptVersion: result.scriptVersion || 'unversioned', scope: spec.scope }, result);
     },
   };
 }

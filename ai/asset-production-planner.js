@@ -20,19 +20,21 @@ function compile(input) {
     var recipeId = requirement.recipeId || family.defaultRecipeId;
     var recipe = production.recipes[recipeId];
     if (!recipe) fail('ASSET_PRODUCTION_RECIPE_INVALID', 'Pinned production truth has no recipe: ' + recipeId);
-    var target = targetVisualSlotId(requirement);
+    var retryPolicy = production.retryPolicies && production.retryPolicies[recipe.retryPolicyId];
+    if (!retryPolicy || !Number.isInteger(retryPolicy.generationAttempts) || retryPolicy.generationAttempts < 1 || !Array.isArray(retryPolicy.retryableCodes)) fail('ASSET_PRODUCTION_RETRY_POLICY_INVALID', 'Pinned production truth has no valid retry policy: ' + recipe.retryPolicyId);
+    var target = targetVisualSlotId(requirement), assetSpec = { slotId: requirement.semanticId, targetVisualSlotId: target, subject: requirement.subject, description: requirement.description, productionFamily: requirement.productionFamily, artifactKind: recipe.artifactKind, resourceKind: requirement.resourceKind || 'image', acceptedFormats: clone(requirement.acceptedFormats || ['png']), gdjsAssetAdapterId: requirement.gdjsAssetAdapterId || null, semanticTags: clone(requirement.semanticTags || []), gdjsBindings: clone(requirement.gdjsBindings), styleId: requirement.styleId, styleTags: [requirement.styleId], constraints: clone(requirement.constraints), animation: clone(requirement.animation || null), preserve: [] };
     return {
-      workItemPlanId: 'work.' + hash([request.requestId, requirement.semanticId, target]).slice(0, 24),
+      workItemPlanId: 'work.' + hash([requirement.semanticId, target, requirement.productionFamily, recipeId, recipe.artifactKind, assetSpec]).slice(0, 24),
       semanticId: requirement.semanticId,
       slotId: requirement.semanticId,
       targetVisualSlotId: target,
       productionFamily: requirement.productionFamily,
       recipeId: recipeId,
       artifactKind: recipe.artifactKind,
-      assetSpec: { slotId: requirement.semanticId, targetVisualSlotId: target, subject: requirement.subject, description: requirement.description, productionFamily: requirement.productionFamily, artifactKind: recipe.artifactKind, resourceKind: requirement.resourceKind || 'image', acceptedFormats: clone(requirement.acceptedFormats || ['png']), gdjsAssetAdapterId: requirement.gdjsAssetAdapterId || null, semanticTags: clone(requirement.semanticTags || []), gdjsBindings: clone(requirement.gdjsBindings), styleId: requirement.styleId, styleTags: [requirement.styleId], constraints: clone(requirement.constraints), animation: clone(requirement.animation || null), preserve: [] },
+      assetSpec: assetSpec,
       stageSequence: clone(recipe.minimumPath),
       stylePromptRef: { dictionaryId: 'gamecastle.asset-style-dictionary', styleId: requirement.styleId },
-      retryBudget: clone(input.retryBudget || { generation: 1 })
+      retryBudget: { generation: retryPolicy.generationAttempts, retryableCodes: clone(retryPolicy.retryableCodes) }
     };
   });
   var draft = {

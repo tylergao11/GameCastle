@@ -18,6 +18,7 @@ function hash(value) { return crypto.createHash('sha256').update(JSON.stringify(
 function now() { return new Date().toISOString(); }
 function safeId(value) { return String(value || '').replace(/[^A-Za-z0-9_.-]/g, '_'); }
 function finite(value, fallback) { var number = Number(value); return Number.isFinite(number) && number >= 0 ? number : fallback; }
+function budget(value, fallback) { if (value === Infinity) return Infinity; return finite(value, fallback); }
 function redact(value, secrets) {
   if (typeof value === 'string') return secrets.reduce(function(text, secret) { return secret ? text.split(secret).join('[REDACTED]') : text; }, value);
   if (!value || typeof value !== 'object') return value;
@@ -33,23 +34,40 @@ function makeReceipt(base) {
   return Object.assign({ schemaVersion: 1, receiptId: 'provider.' + safeId(base.requestId), owner: 'ProviderRuntime', startedAt: now(), status: 'requested', attempts: [], cost: { reserved: 0, settled: 0, currency: 'USD', kind: 'estimated' } }, base);
 }
 
+function loadReceiptStore(receiptDir) {
+  if (!receiptDir) return [];
+  var resolved = path.resolve(receiptDir), seen = Object.create(null), receipts = [];
+  fs.mkdirSync(resolved, { recursive: true });
+  fs.readdirSync(resolved).filter(function(file) { return file.endsWith('.json'); }).sort().forEach(function(file) {
+    var receipt;
+    try { receipt = JSON.parse(fs.readFileSync(path.join(resolved, file), 'utf8')); }
+    catch (error) { throw makeError('PROVIDER_RECEIPT_STORE_INVALID', 'Provider receipt store contains unreadable JSON: ' + file); }
+    if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt) || receipt.schemaVersion !== 1 || typeof receipt.receiptId !== 'string' || !/^provider\.[A-Za-z0-9_.-]+$/.test(receipt.receiptId) || file !== receipt.receiptId + '.json' || typeof receipt.requestId !== 'string' || !receipt.requestId || !receipt.cost || !Number.isFinite(receipt.cost.settled) || receipt.cost.settled < 0 || seen[receipt.receiptId]) throw makeError('PROVIDER_RECEIPT_STORE_INVALID', 'Provider receipt store contains an invalid or duplicate receipt: ' + file);
+    seen[receipt.receiptId] = true; receipts.push(receipt);
+  });
+  return receipts;
+}
+
 function createProviderRuntime(options) {
   options = options || {};
   var invokeTransport = options.invokeTransport || invokeHttpTransport;
   var fetchImpl = options.fetchImpl || null;
-  var receipts = [];
+  var receiptDir = options.receiptDir ? path.resolve(options.receiptDir) : null;
+  var receipts = loadReceiptStore(receiptDir);
   var active = new Map();
-  var spent = 0;
-  var maxCost = options.maxCost === undefined ? Infinity : finite(options.maxCost, 0);
-  var receiptDir = options.receiptDir || null;
+  var spent = receipts.reduce(function(total, receipt) { return total + receipt.cost.settled; }, 0);
+  var maxCost = options.maxCost === undefined ? Infinity : budget(options.maxCost, 0);
 
   function persist(receipt) {
     var safe = redact(receipt, [receipt.apiKey]);
     delete safe.apiKey;
+    if (receipts.some(function(existing) { return existing.receiptId === safe.receiptId; })) throw makeError('PROVIDER_REQUEST_ID_REUSED', 'Provider requestId has already produced an immutable receipt: ' + safe.requestId);
     receipts.push(safe);
     if (receiptDir) {
-      fs.mkdirSync(receiptDir, { recursive: true });
-      fs.writeFileSync(path.join(receiptDir, safe.receiptId + '.json'), JSON.stringify(safe, null, 2));
+      var target = path.join(receiptDir, safe.receiptId + '.json'), temporary = target + '.tmp.' + process.pid + '.' + crypto.randomBytes(8).toString('hex');
+      try { fs.writeFileSync(temporary, JSON.stringify(safe, null, 2), { encoding: 'utf8', flag: 'wx' }); fs.renameSync(temporary, target); }
+      catch (error) { var storeError = makeError('PROVIDER_RECEIPT_STORE_WRITE_FAILED', 'Provider receipt could not be durably persisted.'); storeError.cause = error; throw storeError; }
+      finally { if (fs.existsSync(temporary)) fs.rmSync(temporary, { force: true }); }
     }
     return safe;
   }
@@ -76,6 +94,7 @@ function createProviderRuntime(options) {
     if (!request.requestId || !request.projectId || !request.role) throw makeError('PROVIDER_REQUEST_INVALID', 'Provider request requires requestId, projectId, and role');
     var config = configFor(request);
     var receipt = makeReceipt({ requestId: safeId(request.requestId), projectId: safeId(request.projectId), role: request.role, modality: ROLE_MODALITY[request.role], provider: config.provider, model: selectModel(config, request.role, request.model), simulated: !!config.simulated, requestHash: hash({ role: request.role, input: redact(request.input || {}, [config.apiKey] || []) }) });
+    if (receipts.some(function(existing) { return existing.receiptId === receipt.receiptId; })) throw makeError('PROVIDER_REQUEST_ID_REUSED', 'Provider requestId has already produced an immutable receipt: ' + receipt.requestId);
     var reservation;
     try { reservation = authorize(request, config); } catch (error) { receipt.status = 'denied'; receipt.failure = failure(error); return { ok: false, receipt: persist(receipt), debt: debt(error) }; }
     receipt.cost.reserved = reservation; spent += reservation;
@@ -83,9 +102,9 @@ function createProviderRuntime(options) {
     var controller = new AbortController(); active.set(receipt.receiptId, controller);
     try {
       for (var index = 0; index < attempts; index++) {
-        var attempt = { index: index + 1, startedAt: now() };
+        var attempt = { index: index + 1, startedAt: now() }, requestTimeoutMs = Math.max(1, Number(request.timeoutMs || 30000)), timedOut = false, timeoutHandle = setTimeout(function() { timedOut = true; controller.abort(); }, requestTimeoutMs);
         try {
-          var result = await invokeTransport({ request: request, config: config, model: receipt.model, signal: controller.signal, timeoutMs: Number(request.timeoutMs || 30000), fetchImpl: fetchImpl });
+          var result = await invokeTransport({ request: request, config: config, model: receipt.model, signal: controller.signal, timeoutMs: requestTimeoutMs, fetchImpl: fetchImpl });
           attempt.status = 'succeeded'; attempt.finishedAt = now(); receipt.attempts.push(attempt);
           receipt.status = 'succeeded'; receipt.finishedAt = now(); receipt.usage = redact(result.usage || {}, [config.apiKey]); receipt.cost.settled = finite(result.cost, reservation);
           spent += receipt.cost.settled - reservation;
@@ -93,11 +112,12 @@ function createProviderRuntime(options) {
           return { ok: true, output: redact(result.output, [config.apiKey]), receipt: persist(receipt) };
         } catch (error) {
           attempt.status = controller.signal.aborted ? 'cancelled' : 'failed'; attempt.code = error.code || error.name || 'PROVIDER_INVOKE_FAILED'; attempt.finishedAt = now(); receipt.attempts.push(attempt);
-          if (controller.signal.aborted) throw makeError('PROVIDER_CANCELLED', 'Provider request was cancelled');
+          if (controller.signal.aborted) throw timedOut ? makeError('PROVIDER_TIMEOUT', 'Provider request exceeded its execution profile deadline') : makeError('PROVIDER_CANCELLED', 'Provider request was cancelled');
           if (index + 1 === attempts || !retryable(error)) throw error;
-        }
+        } finally { clearTimeout(timeoutHandle); }
       }
     } catch (error) {
+      if (error.code === 'PROVIDER_RECEIPT_STORE_WRITE_FAILED' || error.code === 'PROVIDER_REQUEST_ID_REUSED') throw error;
       receipt.status = error.code === 'PROVIDER_CANCELLED' ? 'cancelled' : 'failed'; receipt.finishedAt = now(); receipt.failure = failure(error); receipt.cost.settled = 0; spent -= reservation;
       return { ok: false, receipt: persist(receipt), debt: debt(error) };
     } finally { active.delete(receipt.receiptId); }
@@ -109,8 +129,8 @@ function createProviderRuntime(options) {
 
 function selectModel(config, role, override) { if (override) return override; if (role === 'image-generate') return config.imageModel; if (role === 'vision-review' || role === 'spatial-plan') return config.visionModel || config.textModel; return config.textModel; }
 function retryable(error) { return !error || !error.code || ['AbortError', 'PROVIDER_CANCELLED', 'PROVIDER_KEY_UNAVAILABLE', 'PROVIDER_NOT_AUTHORIZED'].indexOf(error.code || error.name) < 0; }
-function failure(error) { var value = { code: error.code || error.name || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', message: String(error.message || error).replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]') }; if (error.streamDiagnostics) value.streamDiagnostics = clone(error.streamDiagnostics); if (error.partialContent) value.partialContent = String(error.partialContent); return value; }
-function debt(error) { return { code: error.code || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', recoveryStage: 'provider-runtime', blocksPublish: false }; }
+function failure(error) { var value = { code: error.code || error.name || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', message: String(error.message || error).replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]') }; if (error.diagnostics) value.diagnostics = clone(error.diagnostics); if (error.attemptDiagnostics) value.attemptDiagnostics = clone(error.attemptDiagnostics); if (error.streamDiagnostics) value.streamDiagnostics = clone(error.streamDiagnostics); if (error.partialContent) value.partialContent = String(error.partialContent); return value; }
+function debt(error) { var value = { code: error.code || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', message: String(error.message || error).replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]') }; if (error.diagnostics) value.diagnostics = clone(error.diagnostics); if (error.attemptDiagnostics) value.attemptDiagnostics = clone(error.attemptDiagnostics); return value; }
 
 async function invokeHttpTransport(context) {
   var role = context.request.role;
