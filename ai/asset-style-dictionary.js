@@ -15,10 +15,10 @@ function paletteColor(styleId, role) {
 }
 
 function validateStyle(style) {
-  if (!style.palette || !style.palette.ink || !style.renderRecipe || !style.animationPolicy || !style.styleDNA || !style.promptContract) throw new Error('Asset style is missing GameCastle Style DNA tokens');
+  if (!style.palette || !style.palette.ink || !style.renderRecipe || !style.styleDNA || !style.promptContract) throw new Error('Asset style is missing GameCastle Style DNA tokens');
   ['outline', 'shapeLanguage', 'colorLanguage', 'volume', 'characterProportion', 'uiLanguage', 'sceneLanguage'].forEach(function(key) { if (!style.styleDNA[key]) throw new Error('Asset style is missing Style DNA: ' + key); });
   if (!Array.isArray(style.promptContract.requiredPhrases) || !Array.isArray(style.promptContract.negativePhrases) || !Array.isArray(style.explicitlyNot)) throw new Error('Asset style is missing prompt and exclusion policy');
-  if (style.animationPolicy.defaultFramesPerState !== 1 || style.animationPolicy.runtimeTransformFirst !== true) throw new Error('GameCastle style must preserve low-cost runtime animation');
+  animation.transitions.forEach(function(transition) { if (!transition || typeof transition.event !== 'string' || !transition.event || typeof transition.from !== 'string' || typeof transition.to !== 'string' || (transition.from !== '*' && animation.states.indexOf(transition.from) < 0) || animation.states.indexOf(transition.to) < 0) throw new Error('Asset style has an invalid animation transition'); });
   return true;
 }
 

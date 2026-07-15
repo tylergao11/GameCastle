@@ -1,16 +1,18 @@
 var assert = require('assert');
 var dictionary = require('./capability-semantic-dictionary');
 var compiler = require('./semantic-compiler');
+var algebra = require('./semantic-event-algebra');
 var index = dictionary.buildIndex();
 var capabilities = Object.keys(index.by_capability).map(function(id) { return index.by_capability[id]; });
-function zeroArgument(kind) { return capabilities.filter(function(entry) { return entry.kind === kind && entry.binding.status === 'executable' && entry.binding.binding.parameterCount === 0; })[0]; }
+var foundationIds = new Set(algebra.foundationCapabilityIds(index));
+function zeroArgument(kind) { return capabilities.filter(function(entry) { return entry.kind === kind && entry.binding.status === 'executable' && entry.binding.binding.parameterCount === 0 && !foundationIds.has(entry.capability_id); })[0]; }
 var condition = zeroArgument('condition');
 var action = zeroArgument('action');
 assert(condition && action, 'pinned GDJS source must expose zero-argument executable condition and action fixtures');
 var source = {
-  schemaVersion: 2, documentKind: 'game-semantic-source', dictionarySource: index.source,
+  schemaVersion: 4, documentKind: 'game-semantic-source', dictionarySource: index.source,
   game: { semanticId: 'event_demo', name: 'Event Demo' }, entities: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } },
-  events: [{ semanticId: 'root', eventTypeRef: dictionary.resolveEventType(index, 'BuiltinCommonInstructions::Standard').semantic_id, conditions: [{ semanticRef: condition.semantic_id, arguments: {} }], actions: [{ semanticRef: action.semantic_id, arguments: {} }], children: [{ semanticId: 'child', eventTypeRef: dictionary.resolveEventType(index, 'BuiltinCommonInstructions::Standard').semantic_id, conditions: [{ semanticRef: condition.semantic_id, arguments: {} }], actions: [{ semanticRef: action.semantic_id, arguments: {} }], children: [] }] }]
+  events: [{ semanticId: 'root', eventTypeRef: dictionary.resolveEventType(index, 'BuiltinCommonInstructions::Standard').semantic_id, arguments: {}, locals: {}, conditions: [{ semanticRef: condition.semantic_id, arguments: {}, channel: 'conditions', inverted: false, operation: { use: condition.semantic_id, slot: 'condition.0', part: 0, size: 1 } }], actions: [{ semanticRef: action.semantic_id, arguments: {}, channel: 'actions', awaited: false, operation: { use: action.semantic_id, slot: 'action.0', part: 0, size: 1 } }], children: [{ semanticId: 'child', eventTypeRef: dictionary.resolveEventType(index, 'BuiltinCommonInstructions::Standard').semantic_id, arguments: {}, locals: {}, conditions: [{ semanticRef: condition.semantic_id, arguments: {}, channel: 'conditions', inverted: false, operation: { use: condition.semantic_id, slot: 'condition.0', part: 0, size: 1 } }], actions: [{ semanticRef: action.semantic_id, arguments: {}, channel: 'actions', awaited: false, operation: { use: action.semantic_id, slot: 'action.0', part: 0, size: 1 } }], children: [] }] }]
 };
 var compiled = compiler.compile(source, { index: index });
 assert.strictEqual(compiled.events[0].type, 'BuiltinCommonInstructions::Standard', 'compiler must use the event type resolved from dictionary truth');

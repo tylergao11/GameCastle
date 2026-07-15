@@ -7,20 +7,16 @@ function style(styleId) {
 }
 
 function generationPrompt(styleId, subject, options) {
-  options = options || {}; var value = style(styleId), dna = value.styleDNA, prompt = value.promptContract;
-  return [
-    String(subject || 'game asset'),
-    prompt.requiredPhrases.join(', '),
-    'shape language: ' + dna.shapeLanguage,
-    'outline rule: ' + dna.outline,
-    'volume rule: ' + dna.volume,
-    options.transparent === false ? 'one coherent role-specific scene with a clean declared background policy' : 'isolated single subject with transparent-background-ready edge separation'
-  ].filter(Boolean).join('. ');
+  options = options || {}; var value = style(styleId), prompt = value.promptContract;
+  var familyPhrases = (prompt.productionFamilyPhrases && prompt.productionFamilyPhrases[options.productionFamily]) || [];
+  var background = options.transparent === false ? 'coherent game scene, no interface overlay' : 'isolated subject, plain solid background';
+  return [String(subject || 'game asset')].concat(familyPhrases, prompt.requiredPhrases, [background]).filter(Boolean).join(', ');
 }
 
 function negativePrompt(styleId, extra) {
-  var value = style(styleId);
-  return value.promptContract.negativePhrases.concat(extra || []).join(', ');
+  var value = style(styleId), options = arguments[2] || {}, prompt = value.promptContract, familyPhrases = (prompt.productionFamilyNegativePhrases && prompt.productionFamilyNegativePhrases[options.productionFamily]) || [];
+  var layoutPhrases = options.productionFamily === 'ui' ? [] : ['UI', 'interface', 'menu', 'infographic'];
+  return prompt.negativePhrases.concat(layoutPhrases, familyPhrases, extra || []).join(', ');
 }
 
 function reviewPolicy(styleId, semanticTags, options) {

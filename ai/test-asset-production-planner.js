@@ -1,6 +1,5 @@
 var assert = require('assert');
 var planner = require('./asset-production-planner');
-var validator = require('./asset-production-contract-validator');
 
 function request() {
   return {
@@ -23,6 +22,6 @@ assert.strictEqual(plan.contentHash.length, 64);
 assert.deepStrictEqual(planner.compile({ request: request() }).workItems.map(function(item) { return item.workItemPlanId; }), plan.workItems.map(function(item) { return item.workItemPlanId; }));
 assert.throws(function() { var value = request(); value.requirements[1].semanticId = value.requirements[0].semanticId; planner.compile({ request: value }); }, function(error) { return error.code === 'ASSET_PRODUCTION_REQUIREMENT_DUPLICATE'; });
 assert.throws(function() { var value = request(); value.requirements[0].productionFamily = 'invented'; planner.compile({ request: value }); }, function(error) { return error.code === 'ASSET_PRODUCTION_FAMILY_INVALID'; });
-validator.assertTransition('generating', 'observing');
-assert.throws(function() { validator.assertTransition('accepted', 'observing'); }, function(error) { return error.code === 'ASSET_PRODUCTION_TRANSITION_INVALID'; });
-console.log('[AssetProductionPlanner] semantic requirements, pinned family recipes, stable plan, and fail-closed transitions passed');
+assert.deepStrictEqual(plan.workItems[0].stageSequence, ['master-image', 'deterministic-static', 'accept']);
+assert.strictEqual(plan.workItems[0].retryBudget.generation, 1);
+console.log('[AssetProductionPlanner] semantic requirements, pinned family recipes, stable plan, and single master-image path passed');

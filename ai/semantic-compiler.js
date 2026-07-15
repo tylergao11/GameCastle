@@ -5,8 +5,10 @@ var sourceContract = require('./game-semantic-source');
 function eventConnection(event) {
   return {
     eventTypeRef: event.eventTypeRef,
-    conditions: event.conditions.map(function(item) { return { semantic: item.semanticRef, arguments: item.arguments }; }),
-    actions: event.actions.map(function(item) { return { semantic: item.semanticRef, arguments: item.arguments }; }),
+    arguments: event.arguments,
+    locals: event.locals,
+    conditions: event.conditions.map(function(item) { return { semantic: item.semanticRef, arguments: item.arguments, channel: item.channel, inverted: item.inverted }; }),
+    actions: event.actions.map(function(item) { return { semantic: item.semanticRef, arguments: item.arguments, channel: item.channel, awaited: item.awaited }; }),
     children: event.children.map(eventConnection)
   };
 }
@@ -15,7 +17,7 @@ function compileEvent(registry, event) {
 }
 function compile(source, options) {
   options = options || {};
-  var index = options.index || dictionary.buildIndex();
+  var index = options.index || dictionary.loadIndex();
   var valid = sourceContract.validateSource(source, { index: index });
   var registry = options.registry || capabilityIr.loadRegistry({ semanticIndex: index });
   return {

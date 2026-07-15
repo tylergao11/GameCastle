@@ -15,7 +15,7 @@ var families = [
 
 families.forEach(function(family) {
   var source = {
-    schemaVersion: 2,
+    schemaVersion: 4,
     documentKind: 'game-semantic-source',
     dictionarySource: index.source,
     game: { semanticId: family.id, name: family.name },

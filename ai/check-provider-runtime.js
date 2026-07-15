@@ -32,5 +32,23 @@ function request(role, id, extra) { return Object.assign({ requestId: id, projec
     assert.strictEqual(captured.body.text.format.strict, true);
     assert.strictEqual(captured.body.text.format.name, 'game_semantic_document');
   } finally { Object.keys(saved).forEach(function(key) { if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key]; }); }
-  console.log('[ProviderRuntime] semantic-design JSON schema transport, authorization, receipts, and fail-closed provider policy passed');
+  var deepSeekSaved = { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY, LLM_ALLOW_EXTERNAL: process.env.LLM_ALLOW_EXTERNAL, LLM_ENDPOINT: process.env.LLM_ENDPOINT, LLM_MODEL: process.env.LLM_MODEL };
+  try {
+    process.env.DEEPSEEK_API_KEY = 'provider-test-secret'; process.env.LLM_ALLOW_EXTERNAL = 'true'; process.env.LLM_ENDPOINT = 'https://provider.test/v1'; process.env.LLM_MODEL = 'deepseek-v4-flash';
+    var deepSeekBodies = [];
+    var deepSeekRuntime = runtimeModule.createProviderRuntime({ fetchImpl: async function(_url, init) {
+      deepSeekBodies.push(JSON.parse(init.body));
+      return new Response('data: {"choices":[{"delta":{"content":"{}"}}]}\n\ndata: [DONE]\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    } });
+    assert((await deepSeekRuntime.invokeRole(request('creative-text', 'creative-policy', { provider: 'deepseek' }))).ok);
+    assert((await deepSeekRuntime.invokeRole(request('semantic-design', 'semantic-policy', { provider: 'deepseek', input: { systemPrompt: 'JSON', prompt: 'write', jsonSchema: { name: 'semantic', schema: { type: 'object' } } } }))).ok);
+    assert.deepStrictEqual(deepSeekBodies[0].thinking, { type: 'enabled' });
+    assert.strictEqual(deepSeekBodies[0].reasoning_effort, 'medium');
+    assert.strictEqual(deepSeekBodies[0].temperature, 1.5);
+    assert.deepStrictEqual(deepSeekBodies[1].thinking, { type: 'enabled' });
+    assert.strictEqual(deepSeekBodies[1].reasoning_effort, 'medium');
+    assert.strictEqual(deepSeekBodies[1].temperature, 0);
+    assert.strictEqual(deepSeekBodies[1].response_format.type, 'json_object');
+  } finally { Object.keys(deepSeekSaved).forEach(function(key) { if (deepSeekSaved[key] === undefined) delete process.env[key]; else process.env[key] = deepSeekSaved[key]; }); }
+  console.log('[ProviderRuntime] semantic model profiles, transport authorization, receipts, and fail-closed provider policy passed');
 })().catch(function(error) { console.error(error); process.exit(1); });

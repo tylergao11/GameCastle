@@ -27,5 +27,8 @@
     "TileMap::SimpleTileMap": { "adapterId": "gdjs.configuration.property-resource.v1", "mode": "single-resource", "resourceKind": "image", "acceptedFormats": ["png", "jpg", "jpeg", "webp"], "description": "SimpleTileMap receives its atlas image through atlasImage.", "operations": [{ "kind": "update-property", "property": "atlasImage" }] },
     "TileMap::TileMap": { "adapterId": "gdjs.configuration.property-resource.v1", "mode": "single-resource", "resourceKind": "json", "acceptedFormats": ["json"], "description": "TileMap receives its tile map definition through tilemapJsonFile.", "operations": [{ "kind": "update-property", "property": "tilemapJsonFile" }] },
     "Video::VideoObject": { "adapterId": "gdjs.configuration.property-resource.v1", "mode": "single-resource", "resourceKind": "video", "acceptedFormats": ["mp4", "webm"], "description": "VideoObject receives its accepted video through videoResource.", "operations": [{ "kind": "update-property", "property": "videoResource" }] }
+  },
+  "frameSetAdapters": {
+    "Sprite": { "adapterId": "gdjs.configuration.sprite-frame-set.v1", "mode": "frame-set", "resourceKind": "image", "acceptedFormats": ["png"], "timing": "one uniform frame duration per state", "anchor": "preserved as projection metadata until a verified GDJS anchor adapter exists", "operations": [{ "kind": "sprite-frame-set" }] }
   }
 }

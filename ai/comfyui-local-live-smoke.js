@@ -1,8 +1,9 @@
-/* Real loopback smoke: proves a registered template can produce a verified PNG. */
+/* Real loopback smoke: proves the registered core workflow can produce one immutable master PNG. */
 var assert = require('assert');
 var crypto = require('crypto');
 var runtimeModule = require('./provider-runtime');
 var comfy = require('./comfyui-local-provider');
+var styleDNA = require('./style-dna');
 
 ['COMFYUI_ENDPOINT', 'COMFYUI_ALLOW_LOCAL', 'COMFYUI_MODEL_PATH', 'COMFYUI_MODEL_SHA256'].forEach(function(name) {
   if (!process.env[name]) throw new Error('ComfyUI live smoke requires ' + name + '.');
@@ -20,13 +21,14 @@ if (process.env.COMFYUI_ALLOW_LOCAL !== 'true') throw new Error('ComfyUI live sm
     estimatedCost: 0,
     timeoutMs: 600000,
     input: {
-      prompt: 'single small blue gem game icon, centered, flat vector game art, transparent background, no text',
-      negativePrompt: process.env.COMFYUI_NEGATIVE_PROMPT || 'blurry, low quality, text, watermark',
+      prompt: styleDNA.generationPrompt('gamecastle.style-dna.v1', 'one small blue gem collectible', { transparent: true, productionFamily: 'prop' }),
+      negativePrompt: styleDNA.negativePrompt('gamecastle.style-dna.v1', [], { productionFamily: 'prop' }),
       width: 512,
       height: 512,
-      seed: Number(process.env.COMFYUI_GENERATION_SEED || 1),
-      steps: Number(process.env.COMFYUI_GENERATION_STEPS || 24),
-      cfg: Number(process.env.COMFYUI_GENERATION_CFG || 7)
+      batchSize: 4,
+      seed: 424242,
+      transparent: true,
+      productionFamily: 'prop',
     }
   });
   if (!result.ok) throw new Error('ComfyUI live generation failed: ' + (result.debt && result.debt.code || 'unknown'));

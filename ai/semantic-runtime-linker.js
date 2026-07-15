@@ -5,7 +5,7 @@ var assetCompiler = require('./semantic-asset-compiler');
 var layoutCompiler = require('./semantic-layout-compiler');
 var projectAssembler = require('./gdjs-project-assembler');
 
-function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
+function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
 function hash(value) { return crypto.createHash('sha256').update(JSON.stringify(stable(value))).digest('hex').slice(0, 24); }
 function same(left, right) { return JSON.stringify(stable(left)) === JSON.stringify(stable(right)); }
 

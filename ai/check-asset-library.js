@@ -1,0 +1,25 @@
+var assert = require('assert');
+var libraryModule = require('./asset-library');
+var ports = require('./test-asset-library-ports');
+var frameSet = require('./frame-set');
+var requirement = { semanticId: 'hero_visual', subject: 'hero', description: 'Hero sprite', roles: ['hero'], productionFamily: 'character', recipeId: 'character-sprite.v1', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, resourceKind: 'image', acceptedFormats: ['png'] };
+(async function() {
+  var port = ports.createTestAssetLibraryPort(), library = libraryModule.create(port), revision = { revisionId: 'revision.hero.1', sha256: 'a'.repeat(64), resourceKind: 'image', format: 'png', path: 'fixture.png', status: 'accepted' };
+  assert.strictEqual(await library.lookup(requirement), null);
+  var publication = await library.publish(requirement, revision, { source: 'test' });
+  assert.strictEqual(publication.published, true);
+  assert.strictEqual(port.state.publications.length, 1);
+  var record = await library.lookup(requirement);
+  assert.strictEqual(record.revision.revisionId, revision.revisionId);
+  assert.strictEqual((await library.materialize(record, { projectId: 'project.a', targetDirectory: 'assets' })).sha256, revision.sha256);
+  await library.publish(requirement, revision, { source: 'test' });
+  assert.strictEqual(port.state.publications.length, 1, 'same accepted revision must publish idempotently');
+  await assert.rejects(function() { return library.publish(requirement, Object.assign({}, revision, { status: 'generated' }), {}); }, function(error) { return error.code === 'ASSET_LIBRARY_PUBLISH_STATUS_INVALID'; });
+  var animationRequirement = Object.assign({}, requirement, { semanticId: 'hero_animation', description: 'Hero idle animation', productionFamily: 'character-animation', recipeId: 'character-frame-set.v1' });
+  var animation = frameSet.accept({ schemaVersion: frameSet.contract.schemaVersion, documentKind: frameSet.contract.candidateDocumentKind, resourceKind: frameSet.contract.resource.resourceKind, format: frameSet.contract.resource.format, initialStateId: 'idle', canvas: { width: 64, height: 64 }, anchor: { x: 32, y: 56 }, frames: [{ frameId: 'idle.0', sha256: 'c'.repeat(64), path: 'idle-0.png', width: 64, height: 64, durationMs: 120 }, { frameId: 'idle.1', sha256: 'd'.repeat(64), path: 'idle-1.png', width: 64, height: 64, durationMs: 120 }], states: [{ stateId: 'idle', frameIds: ['idle.0', 'idle.1'], loop: true }] }, 'acceptance.hero.idle.1');
+  await library.publish(animationRequirement, animation, { source: 'test' });
+  var animationRecord = await library.lookup(animationRequirement);
+  assert.strictEqual(animationRecord.revision.documentKind, frameSet.contract.documentKind);
+  assert.strictEqual((await library.materialize(animationRecord, { projectId: 'project.a', targetDirectory: 'assets' })).contentHash, animation.contentHash);
+  console.log('[AssetLibrary] deterministic lookup, verified single-resource and FrameSet materialization, accepted-only publication, and idempotency passed');
+})().catch(function(error) { console.error(error); process.exit(1); });

@@ -5,6 +5,7 @@ var path = require('path');
 var UNIVERSE_PATH = path.join(__dirname, 'gdevelop-truth', 'capability-universe.json');
 var OFFICIAL_BINDINGS_PATH = path.join(__dirname, 'gdevelop-truth', 'official-capability-bindings.json');
 var EVENT_GRAMMAR_PATH = path.join(__dirname, 'gdevelop-truth', 'event-grammar.json');
+var SEMANTIC_INDEX_PATH = path.join(__dirname, 'semantic-mapping', 'capability-semantic-index.json');
 var OBJECT_CONFIGURATION_TRUTH_PATH = path.join(__dirname, 'gdevelop-truth', 'object-configuration-truth.json');
 var LAYOUT_DICTIONARY_PATH = path.join(__dirname, '..', 'shared', 'semantic-layout-dictionary.json');
 var ASSET_BINDING_DICTIONARY_PATH = path.join(__dirname, '..', 'shared', 'gdjs-asset-binding-dictionary.json');
@@ -16,6 +17,11 @@ var EVENT_ROLE_BY_CAPABILITY_KIND = {
 };
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+function loadIndex() {
+  var index = readJson(SEMANTIC_INDEX_PATH);
+  if (index.schemaVersion !== 2 || index.dictionaryKind !== 'gdjs-semantic-dictionary' || !index.source || !index.by_capability || !index.by_event_type || !index.event_grammar) throw new Error('Generated GDJS Semantic Dictionary is incomplete');
+  return index;
+}
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function stableStringify(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -91,6 +97,7 @@ function universeFingerprint(universe, bindingsDocument, eventGrammar, configura
     universeHash: hash({ source: universe.source, capabilities: universe.capabilities, families: universe.families, runtimeOverrides: universe.runtimeOverrides }),
     capabilityCount: universe.capabilities.length,
     bindingCount: Object.keys(bindingDocument.bindings || {}).length,
+    bindingsHash: hash({ bindings: bindingDocument.bindings, parameterSemantics: bindingDocument.parameterSemantics }),
     eventGrammarHash: hash(grammar),
     semanticTypesHash: hash(types),
     objectConfigurationHash: hash(configuration),
@@ -100,7 +107,7 @@ function universeFingerprint(universe, bindingsDocument, eventGrammar, configura
 }
 
 function sameFingerprint(left, right) {
-  return !!left && !!right && left.sourceCommit === right.sourceCommit && left.universeHash === right.universeHash && left.capabilityCount === right.capabilityCount && left.bindingCount === right.bindingCount && left.eventGrammarHash === right.eventGrammarHash && left.semanticTypesHash === right.semanticTypesHash && left.objectConfigurationHash === right.objectConfigurationHash && left.layoutDictionaryHash === right.layoutDictionaryHash && left.assetBindingDictionaryHash === right.assetBindingDictionaryHash;
+  return !!left && !!right && left.sourceCommit === right.sourceCommit && left.universeHash === right.universeHash && left.capabilityCount === right.capabilityCount && left.bindingCount === right.bindingCount && left.bindingsHash === right.bindingsHash && left.eventGrammarHash === right.eventGrammarHash && left.semanticTypesHash === right.semanticTypesHash && left.objectConfigurationHash === right.objectConfigurationHash && left.layoutDictionaryHash === right.layoutDictionaryHash && left.assetBindingDictionaryHash === right.assetBindingDictionaryHash;
 }
 
 function sourceContract(capability, capabilityById, families, seen) {
@@ -116,13 +123,46 @@ function sourceContract(capability, capabilityById, families, seen) {
     return sourceContract(target[0], capabilityById, families, seen);
   }
   var family = capability.inherits ? families[capability.inherits] : null;
-  var used = {};
   var parameters = clone(family ? family.parameters : capability.parameters) || [];
-  parameters.forEach(function(parameter, index) { parameter.semanticKey = parameter.kind === 'code-only' ? null : parameterKey(parameter, index, used); });
+  var parameterMacros = clone(family ? family.parameterMacros : capability.parameterMacros) || [];
   return {
     parameters: parameters,
-    parameterMacros: clone(family ? family.parameterMacros : capability.parameterMacros) || []
+    parameterMacros: parameterMacros
   };
+}
+function bindRuntimeParameterTruth(contract, status, capabilityId) {
+  if (status.status !== 'executable') {
+    var sourceUsed = {};
+    contract.parameters.forEach(function(parameter, index) { parameter.semanticKey = parameter.kind === 'code-only' ? null : parameterKey(parameter, index, sourceUsed); });
+    return contract;
+  }
+  var runtimeParameters = status.binding.parameters || [];
+  var remaining = contract.parameters.slice();
+  contract.parameters = runtimeParameters.map(function(runtime, index) {
+    var match = remaining.findIndex(function(parameter) { return runtime.type === parameter.type && Boolean(runtime.codeOnly) === (parameter.kind === 'code-only'); });
+    if (match < 0 && !runtime.codeOnly && !contract.parameterMacros.length) throw new Error('GDJS source/runtime visible parameter mismatch: ' + capabilityId + '[' + index + ']');
+    var parameter = match < 0 ? {
+      description: 'Materialized from the pinned GDJS runtime parameter contract.',
+      extra: runtime.extra || null,
+      kind: runtime.codeOnly ? 'code-only' : 'visible',
+      label: runtime.codeOnly ? null : (runtime.runtimeNormalization === 'dictionary-token' ? 'Operator' : 'Value'),
+      type: runtime.type
+    } : remaining.splice(match, 1)[0];
+    parameter.optional = Boolean(runtime.optional);
+    parameter.defaultValue = runtime.defaultValue;
+    if (!runtime.promptType || !runtime.runtimeValueKind || !runtime.runtimeNormalization) throw new Error('GDJS runtime parameter semantics are missing: ' + capabilityId + '[' + index + ']');
+    if ((runtime.runtimeNormalization === 'dictionary-token' || runtime.runtimeNormalization === 'boolean-token') && (!Array.isArray(runtime.runtimeValues) || !runtime.runtimeValues.length)) throw new Error('GDJS runtime parameter token domain is missing: ' + capabilityId + '[' + index + ']');
+    if (runtime.runtimeNormalization === 'boolean-token' && runtime.runtimeValues.length !== 2) throw new Error('GDJS runtime boolean parameter domain must contain two values: ' + capabilityId + '[' + index + ']');
+    parameter.promptType = runtime.promptType;
+    parameter.runtimeValueKind = runtime.runtimeValueKind;
+    parameter.runtimeNormalization = runtime.runtimeNormalization;
+    if (runtime.runtimeValues) parameter.runtimeValues = clone(runtime.runtimeValues);
+    return parameter;
+  });
+  if (remaining.length) throw new Error('GDJS source parameter is absent from runtime binding: ' + capabilityId);
+  var used = {};
+  contract.parameters.forEach(function(parameter, index) { parameter.semanticKey = parameter.kind === 'code-only' ? null : parameterKey(parameter, index, used); });
+  return contract;
 }
 
 function executableStatus(capabilityId, bindingsDocument) {
@@ -140,6 +180,8 @@ function capabilityEntry(capability, capabilityById, families, bindingsDocument)
   if (!hasText(presentation.title) || !hasText(presentation.description)) throw new Error('GDJS source declaration lacks interpretable presentation: ' + capability.id);
   var eventRole = EVENT_ROLE_BY_CAPABILITY_KIND[capability.kind];
   if (!eventRole) throw new Error('Unsupported GDJS source capability kind: ' + capability.kind);
+  var status = executableStatus(capability.id, bindingsDocument);
+  var parameterContract = bindRuntimeParameterTruth(sourceContract(capability, capabilityById, families), status, capability.id);
   return {
     semantic_id: semanticId(capability.id),
     capability_id: capability.id,
@@ -164,8 +206,8 @@ function capabilityEntry(capability, capabilityById, families, bindingsDocument)
       orderingRequirements: { status: 'event-order-defined-by-parent-event-grammar' },
       subeventCompatibility: { status: 'event-type-defined-by-parent-event-grammar' }
     },
-    parameter_contract: sourceContract(capability, capabilityById, families),
-    binding: executableStatus(capability.id, bindingsDocument),
+    parameter_contract: parameterContract,
+    binding: status,
     source: clone(capability.source)
   };
 }
@@ -182,7 +224,14 @@ function buildIndex(options) {
   var eventGrammar = clone(options.eventGrammar || readJson(EVENT_GRAMMAR_PATH));
   var configurationTruth = clone(options.objectConfigurationTruth || readJson(OBJECT_CONFIGURATION_TRUTH_PATH));
   if (!Array.isArray(universe.unresolvedDeclarations) || universe.unresolvedDeclarations.length) throw new Error('GDJS source universe has unresolved declarations');
-  if (eventGrammar.grammarKind !== 'gdjs-event-grammar' || !Array.isArray(eventGrammar.eventTypes) || !eventGrammar.eventTypes.length) throw new Error('GDJS event grammar is incomplete');
+  if (!bindingsDocument.parameterSemantics || !Array.isArray(bindingsDocument.parameterSemantics.source) || !bindingsDocument.parameterSemantics.source.length) throw new Error('GDJS runtime parameter semantics truth is incomplete');
+  if (eventGrammar.schemaVersion !== 3 || eventGrammar.grammarKind !== 'gdjs-event-grammar' || !eventGrammar.instructionSerialization || !eventGrammar.instructionSerialization.conditionInversion || !eventGrammar.instructionSerialization.actionAwait || !eventGrammar.eventSerialization || !Array.isArray(eventGrammar.eventTypes) || !eventGrammar.eventTypes.length || eventGrammar.eventTypes.some(function(eventType) { return !eventType.serialization || !Array.isArray(eventType.serialization.instructionLists); })) throw new Error('GDJS event grammar is incomplete');
+  eventGrammar.eventTypes.forEach(function(eventType) {
+    (eventType.serialization.parameters || []).forEach(function(parameter) {
+      if (!parameter.promptType || !parameter.runtimeValueKind || !parameter.runtimeNormalization || !parameter.runtimeSerialization) throw new Error('GDJS event parameter semantics are missing: ' + eventType.eventType + '.' + parameter.semanticKey);
+      if (parameter.runtimeNormalization === 'dictionary-token' && (!Array.isArray(parameter.runtimeValues) || !parameter.runtimeValues.length)) throw new Error('GDJS event token domain is missing: ' + eventType.eventType + '.' + parameter.semanticKey);
+    });
+  });
   var capabilityById = {};
   var families = {};
   (universe.families || []).forEach(function(family) { families[family.id] = family; });
@@ -287,10 +336,12 @@ module.exports = {
   UNIVERSE_PATH: UNIVERSE_PATH,
   OFFICIAL_BINDINGS_PATH: OFFICIAL_BINDINGS_PATH,
   EVENT_GRAMMAR_PATH: EVENT_GRAMMAR_PATH,
+  SEMANTIC_INDEX_PATH: SEMANTIC_INDEX_PATH,
   OBJECT_CONFIGURATION_TRUTH_PATH: OBJECT_CONFIGURATION_TRUTH_PATH,
   LAYOUT_DICTIONARY_PATH: LAYOUT_DICTIONARY_PATH,
   ASSET_BINDING_DICTIONARY_PATH: ASSET_BINDING_DICTIONARY_PATH,
   readJson: readJson,
+  loadIndex: loadIndex,
   universeFingerprint: universeFingerprint,
   sameFingerprint: sameFingerprint,
   buildIndex: buildIndex,

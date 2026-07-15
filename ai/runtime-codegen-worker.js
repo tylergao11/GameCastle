@@ -63,7 +63,7 @@ function restoreObjectDeclarations(gd, project, container, objectDeclarations) {
     });
     if (declaration.assetBinding) {
       var binding = declaration.assetBinding;
-      if (!binding.adapterId || !binding.resourceName || !binding.resourceKind || !Array.isArray(binding.operations)) throw new Error('Official object asset binding is incomplete for ' + declaration.name + '.');
+      if (!binding.adapterId || !binding.resourceKind || !Array.isArray(binding.operations) || (!binding.resourceName && !binding.frameSet)) throw new Error('Official object asset binding is incomplete for ' + declaration.name + '.');
       binding.operations.forEach(function(operation) {
         if (!operation || !operation.kind) throw new Error('Official object asset binding operation is invalid for ' + declaration.name + '.');
         if (operation.kind === 'update-property') {
@@ -80,6 +80,23 @@ function restoreObjectDeclarations(gd, project, container, objectDeclarations) {
           var direction = animation.getDirection(0);
           direction.addSprite('');
           direction.getSprite(0).setImageName(binding.resourceName);
+          return;
+        }
+        if (operation.kind === 'sprite-frame-set') {
+          if (!binding.frameSet || !Array.isArray(binding.frameSet.states) || !binding.frameSet.states.length) throw new Error('FrameSet binding is incomplete for ' + declaration.name + '.');
+          var frameSetConfiguration = gd.asSpriteConfiguration(object.getConfiguration());
+          var frameSetAnimations = frameSetConfiguration.getAnimations();
+          frameSetAnimations.removeAllAnimations();
+          binding.frameSet.states.forEach(function(state, stateIndex) {
+            if (!state || !state.stateId || !Array.isArray(state.frames) || !state.frames.length || !Number.isInteger(state.durationMs) || state.durationMs < 1 || typeof state.loop !== 'boolean') throw new Error('FrameSet state is invalid for ' + declaration.name + '.');
+            frameSetAnimations.addAnimation(state.stateId);
+            var frameSetAnimation = frameSetAnimations.getAnimation(stateIndex);
+            frameSetAnimation.setDirectionsCount(1);
+            var frameSetDirection = frameSetAnimation.getDirection(0);
+            frameSetDirection.setLoop(state.loop);
+            frameSetDirection.setTimeBetweenFrames(state.durationMs);
+            state.frames.forEach(function(frame) { frameSetDirection.addSprite(''); frameSetDirection.getSprite(frameSetDirection.getSpritesCount() - 1).setImageName(frame.resourceName); });
+          });
           return;
         }
         throw new Error('Unknown official object asset binding operation: ' + operation.kind);

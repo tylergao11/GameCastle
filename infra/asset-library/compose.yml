@@ -1,0 +1,79 @@
+name: gamecastle-asset-library
+
+services:
+  postgres:
+    image: ${GAMECASTLE_STORAGE_POSTGRES_IMAGE:?set GAMECASTLE_STORAGE_POSTGRES_IMAGE}
+    environment:
+      POSTGRES_DB: ${GAMECASTLE_STORAGE_POSTGRES_DB:?set GAMECASTLE_STORAGE_POSTGRES_DB}
+      POSTGRES_USER: ${GAMECASTLE_STORAGE_POSTGRES_USER:?set GAMECASTLE_STORAGE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${GAMECASTLE_STORAGE_POSTGRES_PASSWORD:?set GAMECASTLE_STORAGE_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    volumes:
+      - gamecastle_asset_library_postgres:/var/lib/postgresql/data
+
+  minio:
+    image: ${GAMECASTLE_STORAGE_MINIO_IMAGE:?set GAMECASTLE_STORAGE_MINIO_IMAGE}
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${GAMECASTLE_S3_ACCESS_KEY:?set GAMECASTLE_S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${GAMECASTLE_S3_SECRET_KEY:?set GAMECASTLE_S3_SECRET_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    ports:
+      - "${GAMECASTLE_S3_PORT:?set GAMECASTLE_S3_PORT}:9000"
+      - "${GAMECASTLE_S3_CONSOLE_PORT:?set GAMECASTLE_S3_CONSOLE_PORT}:9001"
+    volumes:
+      - gamecastle_asset_library_minio:/data
+
+  minio-init:
+    image: ${GAMECASTLE_STORAGE_MC_IMAGE:?set GAMECASTLE_STORAGE_MC_IMAGE}
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      GAMECASTLE_S3_ACCESS_KEY: ${GAMECASTLE_S3_ACCESS_KEY:?set GAMECASTLE_S3_ACCESS_KEY}
+      GAMECASTLE_S3_SECRET_KEY: ${GAMECASTLE_S3_SECRET_KEY:?set GAMECASTLE_S3_SECRET_KEY}
+      GAMECASTLE_STORAGE_BACKEND_BUCKET: ${GAMECASTLE_STORAGE_BACKEND_BUCKET:?set GAMECASTLE_STORAGE_BACKEND_BUCKET}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mc alias set gamecastle http://minio:9000 "$$GAMECASTLE_S3_ACCESS_KEY" "$$GAMECASTLE_S3_SECRET_KEY"
+        mc mb --ignore-existing "gamecastle/$$GAMECASTLE_STORAGE_BACKEND_BUCKET"
+
+  storage:
+    image: ${GAMECASTLE_STORAGE_IMAGE:?set GAMECASTLE_STORAGE_IMAGE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      SERVER_PORT: 5000
+      AUTH_JWT_SECRET: ${GAMECASTLE_STORAGE_JWT_SECRET:?set GAMECASTLE_STORAGE_JWT_SECRET}
+      AUTH_JWT_ALGORITHM: HS256
+      DATABASE_URL: postgresql://${GAMECASTLE_STORAGE_POSTGRES_USER:?set GAMECASTLE_STORAGE_POSTGRES_USER}:${GAMECASTLE_STORAGE_POSTGRES_PASSWORD:?set GAMECASTLE_STORAGE_POSTGRES_PASSWORD}@postgres:5432/${GAMECASTLE_STORAGE_POSTGRES_DB:?set GAMECASTLE_STORAGE_POSTGRES_DB}
+      DB_INSTALL_ROLES: "true"
+      DB_SUPER_USER: ${GAMECASTLE_STORAGE_POSTGRES_USER:?set GAMECASTLE_STORAGE_POSTGRES_USER}
+      STORAGE_BACKEND: s3
+      STORAGE_S3_BUCKET: ${GAMECASTLE_STORAGE_BACKEND_BUCKET:?set GAMECASTLE_STORAGE_BACKEND_BUCKET}
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_FORCE_PATH_STYLE: "true"
+      STORAGE_S3_REGION: ${GAMECASTLE_S3_REGION:?set GAMECASTLE_S3_REGION}
+      AWS_ACCESS_KEY_ID: ${GAMECASTLE_S3_ACCESS_KEY:?set GAMECASTLE_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${GAMECASTLE_S3_SECRET_KEY:?set GAMECASTLE_S3_SECRET_KEY}
+      IMAGE_TRANSFORMATION_ENABLED: "false"
+      LOG_LEVEL: info
+    ports:
+      - "${GAMECASTLE_ASSET_LIBRARY_PORT:?set GAMECASTLE_ASSET_LIBRARY_PORT}:5000"
+
+volumes:
+  gamecastle_asset_library_postgres:
+  gamecastle_asset_library_minio:

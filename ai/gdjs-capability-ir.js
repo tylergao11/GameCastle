@@ -1,9 +1,10 @@
 var fs = require('fs');
 var path = require('path');
+var runtimeNames = require('./semantic-runtime-names');
+var variableSerializer = require('./gdjs-variable-serializer');
 
 var UNIVERSE_PATH = path.join(__dirname, 'gdevelop-truth', 'capability-universe.json');
 var SEMANTIC_INDEX_PATH = path.join(__dirname, 'semantic-mapping', 'capability-semantic-index.json');
-var OFFICIAL_BINDINGS_PATH = path.join(__dirname, 'gdevelop-truth', 'official-capability-bindings.json');
 var KINDS = { action: true, condition: true, 'number-expression': true, 'string-expression': true };
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -12,17 +13,22 @@ function scalar(value) { return typeof value === 'string' || typeof value === 'n
 
 function loadRegistry(options) {
   options = options || {};
-  var universe = options.universe || readJson(UNIVERSE_PATH);
-  var semanticIndex = options.semanticIndex || readJson(SEMANTIC_INDEX_PATH);
-  var officialBindings = options.officialBindings || readJson(OFFICIAL_BINDINGS_PATH);
-  var registry = { universe: universe, semanticIndex: semanticIndex, officialBindings: officialBindings.bindings || {}, byId: {}, families: {}, instructionIds: {} };
-  (universe.families || []).forEach(function(family) { registry.families[family.id] = family; });
-  (universe.capabilities || []).forEach(function(capability) {
-    if (options.includeSourceDeclarations || registry.officialBindings[capability.id]) registry.byId[capability.id] = capability;
-  });
-  (universe.runtimeOverrides || []).forEach(function(override) {
-    (override.capabilityIds || []).forEach(function(capabilityId) { registry.instructionIds[capabilityId] = override.instructionId; });
-  });
+  var semanticIndex = options.semanticIndex || (options.includeSourceDeclarations ? { by_capability: {}, by_semantic: {} } : readJson(SEMANTIC_INDEX_PATH));
+  var registry = { semanticIndex: semanticIndex, officialBindings: {}, byId: {}, families: {}, instructionIds: {} };
+  if (options.includeSourceDeclarations) {
+    var universe = options.universe || readJson(UNIVERSE_PATH);
+    registry.universe = universe;
+    (universe.families || []).forEach(function(family) { registry.families[family.id] = family; });
+    (universe.capabilities || []).forEach(function(capability) { registry.byId[capability.id] = capability; });
+    (universe.runtimeOverrides || []).forEach(function(override) { (override.capabilityIds || []).forEach(function(capabilityId) { registry.instructionIds[capabilityId] = override.instructionId; }); });
+  } else {
+    Object.keys(semanticIndex.by_capability || {}).forEach(function(capabilityId) {
+      var entry = semanticIndex.by_capability[capabilityId];
+      if (!entry.binding || entry.binding.status !== 'executable' || !entry.binding.binding) return;
+      registry.byId[capabilityId] = { id: capabilityId, kind: entry.kind, owner: clone(entry.owner) };
+      registry.officialBindings[capabilityId] = clone(entry.binding.binding);
+    });
+  }
   return registry;
 }
 
@@ -44,62 +50,32 @@ function resolveCapability(registry, reference, expectedKind) {
   return capability;
 }
 
-function effectiveContract(registry, capability) {
-  if (capability.aliasOf) {
-    var aliasParts = String(capability.aliasOf).split('::');
-    var aliasLocalId = aliasParts[aliasParts.length - 1];
-    var aliasTarget = Object.keys(registry.byId).map(function(id) { return registry.byId[id]; }).filter(function(candidate) {
-      return candidate.extension === capability.extension && candidate.kind === capability.kind && candidate.owner.kind === capability.owner.kind && candidate.owner.id === capability.owner.id && candidate.localId === aliasLocalId;
-    })[0];
-    if (!aliasTarget) throw new Error('GDJS capability alias target is unavailable: ' + capability.id + ' -> ' + capability.aliasOf);
-    return effectiveContract(registry, aliasTarget);
-  }
-  var family = capability.inherits ? registry.families[capability.inherits] : null;
-  return {
-    parameters: clone(family ? family.parameters : capability.parameters) || [],
-    parameterMacros: clone(family ? family.parameterMacros : capability.parameterMacros) || [],
-    valueType: family ? family.valueType : (capability.kind === 'string-expression' ? 'string' : capability.kind === 'number-expression' ? 'number' : null)
-  };
-}
-
 function expressionParameterContract(registry, capability) {
   var official = registry.officialBindings[capability.id];
-  if (official) return clone(official.parameters).filter(function(parameter) { return !parameter.codeOnly; });
-  var contract = effectiveContract(registry, capability);
-  var parameters = contract.parameters.filter(function(parameter) { return parameter.kind !== 'code-only'; });
-  if (/expression$/.test(capability.kind) && contract.parameterMacros.some(function(macro) { return macro.kind === 'standard-value'; })) {
-    var last = parameters[parameters.length - 1];
-    if (last && (last.type === 'expression' || last.type === 'string')) parameters.pop();
-  }
-  return parameters;
+  if (!official) throw new Error('Capability has no official parameter contract: ' + capability.id);
+  return clone(official.parameters).filter(function(parameter) { return !parameter.codeOnly; });
 }
 
 function placeholderFor(parameter, index) {
-  if (parameter.kind === 'code-only') return '';
-  if (/^(?:object|objectList|objectListOrEmptyIfJustDeclared|objectListOrEmptyWithoutPicking|objectPtr)$/.test(parameter.type)) return 'Object' + index;
-  if (parameter.type === 'behavior') return 'Behavior' + index;
-  if (parameter.type === 'layer') return '';
-  if (parameter.type === 'operator' || parameter.type === 'relationalOperator') return '=';
-  if (parameter.type === 'scenevar' || parameter.type === 'globalvar' || parameter.type === 'variable' || parameter.type === 'variableOrProperty' || parameter.type === 'variableOrPropertyOrParameter') return 'variable' + index;
-  if (parameter.type === 'objectvar') return 'objectvar' + index;
-  if (parameter.type === 'yesorno' || parameter.type === 'trueorfalse') return 'yes';
-  if (parameter.type === 'color') return '255;255;255';
-  if (parameter.type === 'number' || parameter.type === 'expression' || parameter.type === 'forceMultiplier') return '0';
-  if (parameter.type === 'string' || parameter.type === 'stringWithSelector') return '""';
-  return parameter.type + index;
+  if (parameter.runtimeNormalization === 'number-expression') return '0';
+  if (parameter.runtimeNormalization === 'string-expression') return '""';
+  if (parameter.runtimeNormalization === 'boolean-token' || parameter.runtimeNormalization === 'dictionary-token') return (parameter.runtimeValues || [])[0];
+  if (parameter.runtimeNormalization === 'entity-object-name') return 'Object' + index;
+  if (parameter.runtimeNormalization === 'entity-behavior-name') return 'Behavior' + index;
+  if (['object-member-name', 'scene-member-name', 'contextual-member-name', 'local-name', 'name'].indexOf(parameter.runtimeNormalization) >= 0) return 'variable' + index;
+  if (parameter.runtimeNormalization === 'resource-name' || parameter.runtimeNormalization === 'text' || parameter.runtimeNormalization === 'scalar') return 'value' + index;
+  throw new Error('GDJS parameter has no dictionary normalization: ' + String(parameter.runtimeNormalization));
+}
+
+function contractDefault(parameter, index) {
+  if (parameter && Object.prototype.hasOwnProperty.call(parameter, 'defaultValue')) return parameter.defaultValue;
+  return placeholderFor(parameter, index);
 }
 
 function placeholderParameters(registry, capability) {
   var official = registry.officialBindings[capability.id];
-  if (official) return official.parameters.map(function(parameter, index) { return placeholderFor({ kind: parameter.codeOnly ? 'code-only' : 'visible', type: parameter.type }, index); });
-  var contract = effectiveContract(registry, capability);
-  var parameters = contract.parameters.map(placeholderFor);
-  contract.parameterMacros.forEach(function(macro) {
-    if (macro.kind === 'standard-operator' || macro.kind === 'standard-relational-operator' || macro.kind === 'standard-value') {
-      parameters.push('=', macro.valueType === 'string' ? '""' : '0');
-    }
-  });
-  return parameters;
+  if (!official) throw new Error('Capability has no official parameter contract: ' + capability.id);
+  return official.parameters.map(function(parameter, index) { return contractDefault(parameter, index); });
 }
 
 function renderExpression(registry, expression) {
@@ -110,7 +86,7 @@ function renderExpression(registry, expression) {
   }
   var contract = expressionParameterContract(registry, capability);
   var args = expression.arguments || expression.parameters || [];
-  if (!Array.isArray(args)) { var semanticEntry = registry.semanticIndex.by_capability[capability.id]; var visible = semanticEntry && semanticEntry.parameter_contract && semanticEntry.parameter_contract.parameters.filter(function(parameter) { return parameter.kind !== 'code-only'; }); if (!visible) throw new Error('GDJS expression has no generated semantic parameter contract: ' + capability.id); Object.keys(args).forEach(function(key) { if (!visible.some(function(parameter) { return parameter.semanticKey === key; })) throw new Error('GDJS expression has unknown dictionary argument ' + key + ': ' + capability.id); }); args = visible.map(function(parameter) { if (!Object.prototype.hasOwnProperty.call(expression.arguments, parameter.semanticKey)) throw new Error('GDJS expression is missing dictionary argument ' + parameter.semanticKey + ': ' + capability.id); return expression.arguments[parameter.semanticKey]; }); }
+  if (!Array.isArray(args)) { var semanticEntry = registry.semanticIndex.by_capability[capability.id]; var visible = semanticEntry && semanticEntry.parameter_contract && semanticEntry.parameter_contract.parameters.filter(function(parameter) { return parameter.kind !== 'code-only'; }); if (!visible) throw new Error('GDJS expression has no generated semantic parameter contract: ' + capability.id); Object.keys(args).forEach(function(key) { if (!visible.some(function(parameter) { return parameter.semanticKey === key; })) throw new Error('GDJS expression has unknown dictionary argument ' + key + ': ' + capability.id); }); args = visible.map(function(parameter, index) { if (Object.prototype.hasOwnProperty.call(expression.arguments, parameter.semanticKey)) return expression.arguments[parameter.semanticKey]; if (!parameter.optional) throw new Error('GDJS expression is missing dictionary argument ' + parameter.semanticKey + ': ' + capability.id); return contractDefault(parameter, index); }); }
   var requiredCount = contract.filter(function(parameter) { return !parameter.optional; }).length;
   if (args.length < requiredCount || args.length > contract.length) {
     throw new Error('GDJS expression argument count mismatch for ' + capability.id + ': expected ' + requiredCount + '..' + contract.length + ', got ' + args.length);
@@ -121,10 +97,10 @@ function renderExpression(registry, expression) {
   var runtimeParts = officialBinding.runtimeId.split('::');
   var runtimeLocalId = runtimeParts[runtimeParts.length - 1];
   var name = (capability.owner || {}).kind === 'global' ? officialBinding.runtimeId : runtimeLocalId;
-  if ((capability.owner || {}).kind === 'object' && contract[0] && /^(?:object|objectList|objectListOrEmptyIfJustDeclared|objectListOrEmptyWithoutPicking|objectPtr)$/.test(contract[0].type)) {
+  if ((capability.owner || {}).kind === 'object' && contract[0] && contract[0].runtimeNormalization === 'entity-object-name') {
     var receiver = rendered.shift();
     name = receiver + '.' + name;
-  } else if ((capability.owner || {}).kind === 'behavior' && contract.length >= 2 && contract[0].type === 'object' && contract[1].type === 'behavior') {
+  } else if ((capability.owner || {}).kind === 'behavior' && contract.length >= 2 && contract[0].runtimeNormalization === 'entity-object-name' && contract[1].runtimeNormalization === 'entity-behavior-name') {
     var objectName = rendered.shift();
     var behaviorName = rendered.shift();
     name = objectName + '.' + behaviorName + '::' + name;
@@ -151,16 +127,42 @@ function compileInstruction(registry, invocation, expectedKind) {
     throw new Error('Expression capabilities must be nested in parameters, not emitted as instructions: ' + capability.id);
   }
   var parameters = invocation.parameters;
-  if (parameters === undefined) { var semanticEntry = registry.semanticIndex.by_capability[capability.id]; var visible = semanticEntry && semanticEntry.parameter_contract && semanticEntry.parameter_contract.parameters.filter(function(parameter) { return parameter.kind !== 'code-only'; }); if (!visible) throw new Error('GDJS invocation has no generated semantic parameter contract: ' + capability.id); if (!invocation.arguments || typeof invocation.arguments !== 'object' || Array.isArray(invocation.arguments)) throw new Error('GDJS invocation requires dictionary-named arguments: ' + capability.id); parameters = visible.map(function(parameter) { if (!Object.prototype.hasOwnProperty.call(invocation.arguments, parameter.semanticKey)) throw new Error('GDJS invocation is missing dictionary argument ' + parameter.semanticKey + ': ' + capability.id); return invocation.arguments[parameter.semanticKey]; }); }
+  if (parameters === undefined) {
+    var semanticEntry = registry.semanticIndex.by_capability[capability.id];
+    var semanticParameters = semanticEntry && semanticEntry.parameter_contract && semanticEntry.parameter_contract.parameters;
+    if (!semanticParameters) throw new Error('GDJS invocation has no generated semantic parameter contract: ' + capability.id);
+    if (!invocation.arguments || typeof invocation.arguments !== 'object' || Array.isArray(invocation.arguments)) throw new Error('GDJS invocation requires dictionary-named arguments: ' + capability.id);
+    var visible = semanticParameters.filter(function(parameter) { return parameter.kind !== 'code-only'; });
+    Object.keys(invocation.arguments).forEach(function(key) { if (!visible.some(function(parameter) { return parameter.semanticKey === key; })) throw new Error('GDJS invocation has unknown dictionary argument ' + key + ': ' + capability.id); });
+    visible.filter(function(parameter) { return !parameter.optional; }).forEach(function(parameter) { if (!Object.prototype.hasOwnProperty.call(invocation.arguments, parameter.semanticKey)) throw new Error('GDJS invocation is missing dictionary argument ' + parameter.semanticKey + ': ' + capability.id); });
+    var visibleIndex = 0;
+    parameters = semanticParameters.map(function(parameter, index) {
+      if (parameter.kind === 'code-only') return contractDefault(parameter, index);
+      var visibleParameter = visible[visibleIndex++];
+      if (Object.prototype.hasOwnProperty.call(invocation.arguments, visibleParameter.semanticKey)) return invocation.arguments[visibleParameter.semanticKey];
+      if (!visibleParameter.optional) throw new Error('GDJS invocation is missing dictionary argument ' + visibleParameter.semanticKey + ': ' + capability.id);
+      return contractDefault(visibleParameter, index);
+    });
+  }
   if (!Array.isArray(parameters)) throw new Error('GDJS invocation parameters must be an array: ' + capability.id);
   var officialParameters = (registry.officialBindings[capability.id] || {}).parameters || [];
-  var expectedParameterCount = officialParameters.length || placeholderParameters(registry, capability).length;
-  var requiredParameterCount = officialParameters.length ? officialParameters.filter(function(parameter) { return !parameter.optional; }).length : expectedParameterCount;
+  if (!officialParameters.length && !(registry.officialBindings[capability.id] && registry.officialBindings[capability.id].parameterCount === 0)) throw new Error('Capability has no official parameter contract: ' + capability.id);
+  var expectedParameterCount = officialParameters.length;
+  var requiredParameterCount = officialParameters.filter(function(parameter) { return !parameter.optional; }).length;
   if (parameters.length < requiredParameterCount || parameters.length > expectedParameterCount) {
     throw new Error('GDJS instruction parameter count mismatch for ' + capability.id + ': expected ' + requiredParameterCount + '..' + expectedParameterCount + ', got ' + parameters.length);
   }
+  var instructionTypeValue = { value: instructionType(registry, capability) };
+  if (capability.kind === 'condition') {
+    var inversion = registry.semanticIndex.event_grammar.instructionSerialization.conditionInversion;
+    instructionTypeValue[inversion.serializedKey] = invocation.inverted === true;
+  }
+  if (capability.kind === 'action') {
+    var actionAwait = registry.semanticIndex.event_grammar.instructionSerialization.actionAwait;
+    instructionTypeValue[actionAwait.serializedKey] = invocation.awaited === true;
+  }
   return {
-    type: { inverted: capability.kind === 'condition' && invocation.inverted === true, value: instructionType(registry, capability) },
+    type: instructionTypeValue,
     parameters: parameters.map(function(value) { return serializeParameter(registry, value); }),
     subInstructions: []
   };
@@ -173,20 +175,39 @@ function compileEventConnection(registry, connection) {
   var eventType = require('./capability-semantic-dictionary').resolveEventType(registry.semanticIndex, eventTypeRef);
   var conditions = connection.conditions || [];
   var actions = connection.actions || [];
-  if (!Array.isArray(conditions) || !Array.isArray(actions) || !actions.length) {
-    throw new Error('Semantic event connection requires condition and non-empty action arrays');
+  if (!Array.isArray(conditions) || !Array.isArray(actions)) {
+    throw new Error('Semantic event connection requires condition and action arrays');
   }
-  if (conditions.length && eventType.grammar.hasConditions !== true) throw new Error('GDJS event type does not declare conditions: ' + eventTypeRef);
-  if (actions.length && eventType.grammar.hasActions !== true) throw new Error('GDJS event type does not declare actions: ' + eventTypeRef);
-  if ((connection.children || []).length && eventType.grammar.canHaveSubEvents !== true) throw new Error('GDJS event type does not declare subevents: ' + eventTypeRef);
-  return {
-    disabled: connection.enabled === false,
-    folded: false,
-    type: eventType.eventType,
-    conditions: conditions.map(function(invocation) { return compileInstruction(registry, invocation, 'condition'); }),
-    actions: actions.map(function(invocation) { return compileInstruction(registry, invocation, 'action'); }),
-    events: (connection.children || []).map(function(child) { return compileEventConnection(registry, child); })
-  };
+  var eventSerialization = registry.semanticIndex.event_grammar.eventSerialization;
+  var instructionLists = eventType.serialization.instructionLists || [];
+  var knownChannels = new Set(instructionLists.map(function(channel) { return channel.semanticKey; }));
+  conditions.concat(actions).forEach(function(invocation) { if (!knownChannels.has(invocation.channel)) throw new Error('GDJS event invocation has an undeclared serialization channel: ' + invocation.channel); });
+  if (conditions.length && !instructionLists.some(function(channel) { return channel.kind === 'condition'; })) throw new Error('GDJS event type does not serialize condition instructions: ' + eventTypeRef);
+  if (actions.length && !instructionLists.some(function(channel) { return channel.kind === 'action'; })) throw new Error('GDJS event type does not serialize action instructions: ' + eventTypeRef);
+  if ((connection.children || []).length && !eventType.serialization.subEvents) throw new Error('GDJS event type does not serialize subevents: ' + eventTypeRef);
+  var result = Object.assign({}, clone(eventType.serialization.defaults || {}));
+  (eventSerialization.canonicalFields || []).forEach(function(field) { result[field.serializedKey] = field.defaultValue; });
+  result[eventSerialization.type.serializedKey] = eventType.eventType;
+  instructionLists.forEach(function(channel) {
+    var source = channel.kind === 'condition' ? conditions : actions;
+    result[channel.serializedKey] = source.filter(function(invocation) { return invocation.channel === channel.semanticKey; }).map(function(invocation) { return compileInstruction(registry, invocation, channel.kind); });
+  });
+  if (eventType.serialization.subEvents && (eventType.serialization.subEvents.emission === 'always' || eventType.serialization.subEvents.emission === 'canonical-or-present' || (connection.children || []).length)) result[eventType.serialization.subEvents.serializedKey] = (connection.children || []).map(function(child) { return compileEventConnection(registry, child); });
+  var locals = connection.locals || {};
+  if (eventType.serialization.localVariables && (eventType.serialization.localVariables.emission === 'canonical-or-present' || Object.keys(locals).length)) result[eventType.serialization.localVariables.serializedKey] = variableSerializer.serializeMap(locals, function(key) { return runtimeNames.generatedName('local', key); });
+  var eventArguments = connection.arguments || {};
+  (eventType.serialization.parameters || []).forEach(function(parameter) {
+    var present = Object.prototype.hasOwnProperty.call(eventArguments, parameter.semanticKey);
+    var dependency = /^with:/.test(parameter.emission || '') ? parameter.emission.slice(5) : null;
+    if (!present && parameter.emission === 'always' && Object.prototype.hasOwnProperty.call(parameter, 'defaultValue')) { result[parameter.serializedKey] = parameter.defaultValue; return; }
+    if (!present && dependency && Object.prototype.hasOwnProperty.call(eventArguments, dependency) && Object.prototype.hasOwnProperty.call(parameter, 'defaultValue')) { result[parameter.serializedKey] = parameter.defaultValue; return; }
+    if (!present) return;
+    var value = eventArguments[parameter.semanticKey];
+    if (parameter.runtimeSerialization === 'expression-or-text') result[parameter.serializedKey] = value && typeof value === 'object' ? renderExpression(registry, value) : String(value);
+    else if (parameter.runtimeSerialization === 'text') result[parameter.serializedKey] = String(value);
+    else throw new Error('GDJS event parameter has no dictionary serialization rule: ' + parameter.semanticKey);
+  });
+  return result;
 }
 
 function symbolicInvocation(registry, capability) {
@@ -211,10 +232,8 @@ function auditClosure(registry) {
 module.exports = {
   UNIVERSE_PATH: UNIVERSE_PATH,
   SEMANTIC_INDEX_PATH: SEMANTIC_INDEX_PATH,
-  OFFICIAL_BINDINGS_PATH: OFFICIAL_BINDINGS_PATH,
   loadRegistry: loadRegistry,
   resolveCapability: resolveCapability,
-  effectiveContract: effectiveContract,
   expressionParameterContract: expressionParameterContract,
   placeholderParameters: placeholderParameters,
   renderExpression: renderExpression,

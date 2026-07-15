@@ -6,17 +6,19 @@ The semantic engine is rebuilt from a pinned GDevelop source checkout. There is 
 
 `ai/gdevelop-truth/capability-universe.json` is generated from every GDevelop no-code extension declaration. It contains 2,481 capabilities plus 19 declared object types and 27 declared behavior types, with source evidence, aliases, families, and runtime declaration facts.
 
-`ai/gdevelop-truth/official-capability-bindings.json` records runtime availability without guessing: 2,442 capabilities are executable on the pinned GDJS runtime; 39 are source-only and remain visible as such.
+`ai/gdevelop-truth/official-capability-bindings.json` records runtime availability without guessing: 2,441 capabilities are executable on the pinned GDJS runtime; 39 are unavailable source declarations and one is explicitly codegen-inoperable. Source/runtime metadata mismatches are not promoted into executable bindings.
 
-`ai/gdevelop-truth/event-grammar.json` is generated from the official event registration and event class headers. It currently contains all nine registered event types and their official descriptions, execution/subevent/variable/list capabilities, and source evidence.
+`ai/gdevelop-truth/event-grammar.json` is generated from the official event registration plus each event class declaration and serializer. It contains all nine registered event types, official descriptions, execution/subevent/variable/list capabilities, source-verified serialization parameters, emission rules, defaults, and evidence hashes.
 
-`ai/semantic-mapping/capability-semantic-index.json` is the generated GDJS Semantic Dictionary. Every entry has a deterministic semantic reference, official explanation, source evidence, parameter contract, event role, and explicit runtime status. Facts unavailable in the official declaration are represented as `not-declared-by-capability-metadata`; they are never inferred.
+`ai/semantic-mapping/capability-semantic-index.json` is the generated GDJS Semantic Dictionary and the only production GDJS capability/event truth input. Every entry has a deterministic semantic reference, official explanation, source evidence, parameter contract, event role, and explicit runtime status. Executable parameter contracts follow official runtime order and carry value kind, optionality, exact default, generated normalization, and token vocabulary. Component snapshots are inputs to extraction and drift checks, not parallel production inputs. Facts unavailable in the official declaration are represented as `not-declared-by-capability-metadata`; they are never inferred.
 
 `dictionarySource` also pins the semantic-layout dictionary hash. A source document therefore cannot silently assemble against a changed layout vocabulary.
 
 ## Architecture boundary
 
-LLM1 owns only creative language. LLM2 is the final design decision maker. LLM2 writes either a complete `GameSemanticSource`, an incremental `GameSemanticRevision`, or a `semantic-context-request`.
+LLM1 owns creative direction. LLM2 is the final design decision maker and writes plain-text semantic DSL from positive fill-in forms. The LLM2 provider request has no JSON schema or JSON response format. The local runtime incrementally applies `>DSL` and materializes either a complete `GameSemanticSource` or an incremental `GameSemanticRevision`.
+
+The generated GDJS Semantic Dictionary is the total runtime truth. `ai/semantic-event-algebra.js` is a dictionary-validated semantic projection: it owns names and composition such as `object.collides`, `state.number.add`, and `text.display-number`, while the dictionary alone decides whether each exact capability, kind, parameter contract, object type, behavior type, and event type exists and is executable.
 
 Everything after LLM2 is deterministic compilation:
 
@@ -44,28 +46,21 @@ Each entry is a source-bound observed fact:
 - `observation.code`, plain-language `description`, and scalar `evidence` values;
 - exact `baseSourceHash` and `baseStructureHash` for an existing world, or explicit `null` hashes for first-turn feedback.
 
-The contract rejects routing and repair-decision fields. Feedback is provided to LLM2 as context; LLM2 alone decides whether to write a complete source, a revision, or an exact dictionary query. Deterministic layers only report facts or reject invalid artifacts.
+The contract rejects routing and repair-decision fields. Feedback is provided to LLM2 as context; LLM2 alone decides the next design change. Deterministic layers apply DSL, report facts, or reject invalid artifacts.
 
-## Dictionary query boundary
+## Incremental semantic boundary
 
-`ai/semantic-context-provider.js` is the only current dictionary read service for LLM2. It executes only explicit requests:
+`ai/semantic-event-algebra.js` is the single owner of foundation game semantics. Its stable entity kinds, behavior kinds, event kinds, conditions, actions, and expressions generate the foundation prompt. A semantic action may expand into multiple ordered dictionary invocations; for example, displaying a labelled number expands to replace-text plus append-number-expression.
 
-- `list_semantic_owners`
-- `list_semantic_members`
-- `describe_semantic_member`
-- `list_semantic_operations`
-- `resolve_semantic`
-- `search_semantic_members`
-- `list_event_types`
-- `describe_event_type`
-- `list_object_types`
-- `describe_object_type`
-- `list_behavior_types`
-- `describe_behavior_type`
-- `list_layout_relations`
-- `describe_layout_relation`
+`ai/semantic-reference-runtime.js` resolves that algebra through the generated dictionary, normalizes entity/member/behavior references, routes state members to scene variables or object variables, serializes semantic text and numbers into the correct GDJS expression forms, lowers booleans/operators into official tokens, and expands selected extension groups. Compact `x*`, `xo*`, `xb*`, and `xe*` handles expose exact retrieved operations and types; foundation forms remain the direct vocabulary. Layout, asset-family, style, and extension-group slots retain compact handles. Internal references remain runtime-only.
 
-It fails on an unknown operation, unknown owner/member/event, missing search limit, duplicate query ID, or unknown field. It does not interpret creative text or choose targets.
+`ai/semantic-draft.js` owns local left-to-right Draft execution. It injects `dictionarySource`, builds nested events through `event.parent`, fills dictionary-declared event slots and locals, accepts open `when/then` operation slots, expands semantic multiplication, persists semantic use/slot/part/size plus channel/inversion/await provenance, replaces a whole expansion group as one operation, normalizes bindings, and materializes strict Source v4 or Revision documents. Internal `gdjs://...` references remain server-side. Recursive member and event-local values materialize through one official number/string/boolean/structure/array serializer.
+
+The event compiler emits serializer-derived event envelopes, instruction-list channels including `whileConditions`, exact event parameter defaults/emission, local-variable keys, and subevent emission. Source v4 rejects raw capability IDs, malformed expansion groups, unnormalized parameter values, expression-kind mismatches, and legacy event shapes rather than translating them.
+
+`ai/semantic-run-ledger.js` owns incremental feedback. Every successful command records its applied boundary in `[task-ledger]`; extension results accumulate in `[retrieve]`; parse, validation, assembly, parameter, and commit failures become value-safe `[errs]` facts. The next LLM2 round receives the same task plus the updated Draft and completes the remaining work. A repeated normalized failure fuses on its second occurrence.
+
+`ai/semantic-llm2-runtime.js` enforces separate extension-read, Draft-write, and commit batches, keeps the complete existing Source server-side, and emits ordered `runTrace` entries through `onSemanticRound` for durable diagnosis.
 
 ## Product execution boundary
 
@@ -73,9 +68,9 @@ It fails on an unknown operation, unknown owner/member/event, missing search lim
 
 Layout realization, local LLM2 revisions, and seven game-family semantic assembly coverage are required gates. The family coverage proves architecture compatibility and does not claim empty samples are playable games.
 
-## Removed legacy boundary
+## Retired legacy boundary
 
-Retired assembly, product-composition, cloud-library, local-runtime client, studio, and owner-routed feedback paths have been removed. The product boundary is the independent semantic execution API; the frontend does not call any retired runtime endpoint.
+Retired assembly, product-composition, local-runtime client, studio, owner-routed feedback, and the former semantic-asset cache paths have been removed. The current `AssetLibrary` is the only cross-project asset reuse and publication boundary; the frontend does not call it directly.
 
 ## Gate
 
@@ -87,4 +82,4 @@ npm run check:project
 npm run semantic:serve
 ```
 
-The gate verifies source snapshots, runtime bindings, event grammar, full dictionary coverage, fail-closed context reads, non-image resource ingestion, deterministic product execution, and the HTTP product boundary.
+The gate verifies source snapshots, runtime bindings, event grammar, full dictionary coverage, event-algebra dictionary closure, extension retrieve, local Draft execution, incremental run-ledger feedback, non-image resource ingestion, deterministic product execution, and the HTTP product boundary.

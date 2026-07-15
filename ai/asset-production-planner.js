@@ -28,12 +28,11 @@ function compile(input) {
       targetVisualSlotId: target,
       productionFamily: requirement.productionFamily,
       recipeId: recipeId,
-      assetSpec: { slotId: requirement.semanticId, targetVisualSlotId: target, subject: requirement.subject, description: requirement.description, resourceKind: requirement.resourceKind || 'image', acceptedFormats: clone(requirement.acceptedFormats || ['png']), gdjsAssetAdapterId: requirement.gdjsAssetAdapterId || null, semanticTags: clone(requirement.roles || requirement.semanticTags || []), gdjsBindings: clone(requirement.gdjsBindings), styleId: requirement.styleId, styleTags: [requirement.styleId], constraints: clone(requirement.constraints), cacheRequirement: clone(requirement.cacheRequirement || requirement), preserve: [] },
+      artifactKind: recipe.artifactKind,
+      assetSpec: { slotId: requirement.semanticId, targetVisualSlotId: target, subject: requirement.subject, description: requirement.description, productionFamily: requirement.productionFamily, artifactKind: recipe.artifactKind, resourceKind: requirement.resourceKind || 'image', acceptedFormats: clone(requirement.acceptedFormats || ['png']), gdjsAssetAdapterId: requirement.gdjsAssetAdapterId || null, semanticTags: clone(requirement.semanticTags || []), gdjsBindings: clone(requirement.gdjsBindings), styleId: requirement.styleId, styleTags: [requirement.styleId], constraints: clone(requirement.constraints), animation: clone(requirement.animation || null), preserve: [] },
       stageSequence: clone(recipe.minimumPath),
-      conditionalCapabilities: clone(recipe.conditionalCapabilities),
-      familyChecks: clone(recipe.familyChecks),
       stylePromptRef: { dictionaryId: 'gamecastle.asset-style-dictionary', styleId: requirement.styleId },
-      retryBudget: clone(input.retryBudget || { generation: 2, repair: 2, segmentation: 1, color: 1, normalization: 1 })
+      retryBudget: clone(input.retryBudget || { generation: 1 })
     };
   });
   var draft = {

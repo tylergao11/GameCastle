@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "contractId": "gamecastle.frame-set",
+  "owner": "FrameSetRevision",
+  "principles": [
+    "a frame set is the canonical animation revision",
+    "every state references ordered immutable frames",
+    "all frames share one declared canvas and anchor",
+    "timing belongs to the frame set, never to a sprite-sheet filename",
+    "sprite sheets and GDJS resources are derived projections"
+  ],
+  "documentKind": "gamecastle.frame-set-revision",
+  "candidateDocumentKind": "gamecastle.frame-set-candidate",
+  "resource": { "resourceKind": "image", "format": "png" },
+  "revisionRequired": ["revisionId", "resourceKind", "format", "status", "acceptanceReceiptId", "canvas", "anchor", "frames", "states", "contentHash"],
+  "frameRequired": ["frameId", "sha256", "path", "width", "height", "durationMs"],
+  "stateRequired": ["stateId", "frameIds", "loop"],
+  "animationIntent": {
+    "required": ["initialStateId", "states"],
+    "stateRequired": ["stateId", "loop", "frameCount", "frameDurationMs", "derivationProfileId"]
+  },
+  "derivationProfiles": {
+    "still-pulse": [
+      { "scaleX": 0.96, "scaleY": 0.96, "translateX": 0, "translateY": 0 },
+      { "scaleX": 1, "scaleY": 1, "translateX": 0, "translateY": 0 }
+    ],
+    "idle-bob": [
+      { "scaleX": 0.96, "scaleY": 0.96, "translateX": 0, "translateY": 1 },
+      { "scaleX": 0.98, "scaleY": 0.98, "translateX": 0, "translateY": 0 },
+      { "scaleX": 1, "scaleY": 1, "translateX": 0, "translateY": -2 },
+      { "scaleX": 0.98, "scaleY": 0.98, "translateX": 0, "translateY": 0 }
+    ],
+    "move-bob": [
+      { "scaleX": 0.94, "scaleY": 0.98, "translateX": -2, "translateY": 1 },
+      { "scaleX": 0.98, "scaleY": 1, "translateX": 0, "translateY": -2 },
+      { "scaleX": 0.94, "scaleY": 0.98, "translateX": 2, "translateY": 1 },
+      { "scaleX": 0.98, "scaleY": 1, "translateX": 0, "translateY": 0 }
+    ],
+    "impact-squash": [
+      { "scaleX": 1, "scaleY": 0.82, "translateX": 0, "translateY": 0 },
+      { "scaleX": 0.94, "scaleY": 1, "translateX": 0, "translateY": -1 }
+    ],
+    "collapse": [
+      { "scaleX": 1, "scaleY": 1, "translateX": 0, "translateY": 0 },
+      { "scaleX": 1, "scaleY": 0.76, "translateX": 0, "translateY": 0 },
+      { "scaleX": 1, "scaleY": 0.52, "translateX": 0, "translateY": 0 }
+    ]
+  }
+}

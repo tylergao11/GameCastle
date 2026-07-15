@@ -32,8 +32,24 @@
         "sceneLanguage": "layered broad silhouette masses; gameplay foreground must remain more readable than decoration"
       },
       "promptContract": {
-        "requiredPhrases": ["bold rounded dark outline", "flat vector color blocks", "low-detail geometric mobile game asset", "subtle single toon shadow", "western cartoon proportions", "clean transparent background"],
-        "negativePhrases": ["anime", "manga", "pixel art", "photorealistic", "realistic texture", "painterly", "complex material", "3d render", "text", "watermark", "logo", "busy background"],
+        "requiredPhrases": ["2D game sprite", "bold dark outline", "flat colors", "simple geometric shapes", "clean readable silhouette"],
+        "negativePhrases": ["anime", "manga", "pixel art", "photograph", "photorealistic", "realistic texture", "painterly", "complex material", "3d render", "text", "letters", "words", "watermark", "logo", "sprite sheet", "texture sheet", "grid", "collection", "repeated objects", "busy background"],
+        "productionFamilyPhrases": {
+          "character": ["one isolated western cartoon character", "readable full-body silhouette"],
+          "character-animation": ["one isolated western cartoon character", "neutral animation-ready pose", "readable full-body silhouette"],
+          "prop": ["one centered isolated prop", "object only", "no character features"],
+          "effect": ["one isolated readable gameplay effect"],
+          "effect-animation": ["one isolated readable gameplay effect", "animation-ready silhouette"],
+          "background": ["one coherent role-specific scene"],
+          "ui": ["one isolated game interface element"]
+        },
+        "productionFamilyNegativePhrases": {
+          "prop": ["face", "eyes", "mouth", "person", "character", "multiple objects", "pattern", "repetition"],
+          "character": ["multiple characters", "crowd"],
+          "character-animation": ["multiple characters", "crowd"],
+          "effect": ["character", "person"],
+          "effect-animation": ["character", "person"]
+        },
         "maxLocalColorFamilies": 5,
         "maxShadowLayers": 1,
         "maxHighlightLayers": 1
@@ -45,6 +61,7 @@
           "enemy": ["enemy", "monster", "creature", "animal"],
           "coin": ["coin", "token", "medal"],
           "flower": ["flower", "plant", "petal"]
+          ,"gem": ["gem", "gemstone", "crystal", "diamond", "jewel"]
         },
         "transparentSubjectForbiddenGroups": [
           { "id": "background_contamination", "terms": ["background", "scene", "ground", "floor", "platform", "landscape"] },
@@ -57,12 +74,6 @@
         "highlight": { "color": "paper", "opacity": 0.22, "position": "upper-left", "layers": 1 },
         "face": { "preset": "western-cartoon-readable", "position": "center-lower" },
         "output": { "format": "png", "transparent": true, "anchor": "bottom-center" }
-      },
-      "animationPolicy": {
-        "states": ["idle", "move", "hit", "death"],
-        "defaultFramesPerState": 1,
-        "runtimeTransformFirst": true,
-        "maxGeneratedKeyframesPerAction": 2
       },
       "semanticRoleTokens": {
         "sprite.character": ["ink", "flat-fill", "single-shadow", "single-highlight", "face"],

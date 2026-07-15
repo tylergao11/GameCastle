@@ -7,13 +7,14 @@ var dictionary = require('./capability-semantic-dictionary');
 var linker = require('./semantic-runtime-linker');
 var engine = require('./asset-engine-langgraph');
 var binder = require('./gdjs-project-asset-binder');
+var libraryPorts = require('./test-asset-library-ports');
 
 function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }
 
 (async function() {
   var index = dictionary.buildIndex();
   var source = {
-    schemaVersion: 2,
+    schemaVersion: 4,
     documentKind: 'game-semantic-source',
     dictionarySource: index.source,
     game: { semanticId: 'font_resource_demo', name: 'Font Resource Demo' },
@@ -37,6 +38,7 @@ function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('h
       runId: 'accepted-font-resource',
       assetRequirementContract: assembly.assetRequirements,
       localAssets: { caption_font: { path: file, sha256: sha(bytes), resourceKind: 'font', format: 'ttf', publishability: { playable: true, publishable: true, blocksFinalExport: false } } },
+      assetLibraryPort: libraryPorts.createTestAssetLibraryPort(),
       modelPolicy: { provider: 'external-provider', simulated: false },
       projectAssetDir: path.join(root, 'resolved')
     });
@@ -46,7 +48,7 @@ function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('h
     var bound = binder.bind(assembly.projectSeed, result.assetWorld);
     assert.strictEqual(bound.resources[0].kind, 'font');
     assert.strictEqual(bound.generatedCode.length, 1, 'The official Text configuration must compile with the accepted font resource.');
-    var missing = await engine.runAssetEngine({ runId: 'missing-font-resource', assetRequirementContract: assembly.assetRequirements, modelPolicy: { provider: 'external-provider', simulated: false }, projectAssetDir: path.join(root, 'missing') });
+    var missing = await engine.runAssetEngine({ runId: 'missing-font-resource', assetRequirementContract: assembly.assetRequirements, assetLibraryPort: libraryPorts.createTestAssetLibraryPort(), modelPolicy: { provider: 'external-provider', simulated: false }, projectAssetDir: path.join(root, 'missing') });
     assert.strictEqual(missing.assetProduction.pass, false);
     assert.strictEqual(missing.debts[0].code, 'ASSET_PRODUCTION_EXTERNAL_RESOURCE_REQUIRED');
     console.log('[NonImageResourceIngestion] accepted font resource is type-preserved, model-independent, source-bound, and libGD-compiled');

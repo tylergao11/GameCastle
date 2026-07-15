@@ -1,0 +1,6 @@
+[submodule "vendor/supabase-storage"]
+	path = vendor/supabase-storage
+	url = https://github.com/supabase/storage.git
+[submodule "vendor/rembg"]
+	path = vendor/rembg
+	url = https://github.com/danielgatis/rembg.git

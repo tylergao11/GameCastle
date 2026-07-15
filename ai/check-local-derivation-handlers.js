@@ -14,7 +14,7 @@ function spec(op, params) { return { schemaVersion: 1, dictionaryId: 'gamecastle
   var resized = await kernel.execute(spec('resize', { width: 8, height: 6 }), { raster: padded.raster, parentRevisionId: 'rev.pad' });
   assert.equal(resized.raster.width, 8); assert.equal(resized.raster.height, 6);
   var recolored = await kernel.execute(spec('recolor', { from: [255, 0, 0], to: [1, 2, 3] }), { raster: resized.raster, parentRevisionId: 'rev.resize' });
-  assert.equal(recolored.owner, 'LocalDerivationKernel'); assert.equal(recolored.scriptVersion, 'local-derivation-v1');
+  assert.equal(recolored.owner, 'LocalDerivationKernel'); assert.equal(recolored.scriptVersion, 'local-derivation-v2');
   var mapped = await kernel.execute(spec('palette_map', { mappings: [{ from: [1, 2, 3], to: [7, 8, 9] }] }), { raster: recolored.raster, parentRevisionId: 'rev.recolor' });
   assert(mapped.raster.data.some(function(value) { return value === 7; }));
   var quantized = await kernel.execute(spec('quantize_palette', { palette: [[0, 0, 0], [255, 255, 255]] }), { raster: mapped.raster, parentRevisionId: 'rev.map' });

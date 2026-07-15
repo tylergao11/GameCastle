@@ -10,7 +10,7 @@ var png = require('./local-derivation-port');
 
 var index = dictionary.buildIndex();
 var source = {
-  schemaVersion: 2,
+  schemaVersion: 4,
   documentKind: 'game-semantic-source',
   dictionarySource: index.source,
   game: { semanticId: 'asset_binding_demo', name: 'Asset Binding Demo' },

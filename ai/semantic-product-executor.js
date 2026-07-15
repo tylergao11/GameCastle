@@ -13,7 +13,7 @@ function execute(request, options) {
   request = object(request, 'semantic execution request');
   allowed(request, ['requestId', 'source', 'revision', 'assetWorld'], 'semantic execution request');
   if (!request.source) fail('SEMANTIC_EXECUTION_SOURCE_REQUIRED', 'A complete GameSemanticSource is required.');
-  var index = options.index || dictionary.buildIndex();
+  var index = options.index || dictionary.loadIndex();
   var source = sourceContract.validateSource(request.source, { index: index });
   if (request.revision !== undefined) source = sourceContract.applyRevision(source, request.revision, { index: index });
   var assembly = linker.assemble(source, { index: index });

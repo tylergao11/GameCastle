@@ -5,6 +5,8 @@
   "scripts": {
     "build": "npm --prefix platform run build",
     "semantic:serve": "node server/semantic-engine-api.js",
+    "asset:graph": "node ai/inspect-asset-engine-langgraph.js",
+    "debug:snake:live": "node scripts/run-with-local-env.js scripts/debug-snake-real-llm.js",
     "runtime:prepare": "node scripts/prepare-gdjs-runtime.js && node scripts/prepare-gdevelop-codegen.js",
     "runtime:prepare:codegen": "node scripts/prepare-gdevelop-codegen.js",
     "truth:extract": "node scripts/extract-gdevelop-truth.js",
@@ -19,7 +21,7 @@
     "project-defaults:check": "node scripts/extract-gdevelop-project-defaults.js --check",
     "object-config:extract": "node scripts/extract-gdevelop-object-configuration-truth.js",
     "object-config:check": "node scripts/extract-gdevelop-object-configuration-truth.js --check",
-    "check:semantic-engine": "node scripts/extract-gdevelop-capability-universe.js --check && node scripts/extract-official-capability-bindings.js --check && node scripts/extract-gdevelop-event-grammar.js --check && node scripts/extract-capability-semantic-index.js --check && node scripts/extract-gdevelop-project-defaults.js --check && node scripts/extract-gdevelop-object-configuration-truth.js --check && node ai/check-capability-semantic-coverage.js && node ai/check-semantic-context-provider.js && node ai/check-game-semantic-source.js && node ai/check-semantic-feedback-contract.js && node ai/check-semantic-session-ledger.js && node ai/check-semantic-compiler.js && node ai/check-semantic-assembly.js && node ai/check-gdjs-project-assembler.js && node ai/check-gdjs-project-asset-binder.js && node ai/check-gdjs-asset-binding-dictionary.js && node ai/check-asset-contract-validator.js && node ai/check-non-image-resource-ingestion.js && node ai/check-semantic-product-executor.js && node server/test-semantic-engine-api.js && node ai/check-semantic-game-family-coverage.js && node ai/check-semantic-llm2-runtime.js && node ai/check-semantic-asset-cache.js && node ai/test-asset-production-planner.js && node ai/test-asset-production-loop.js && node ai/check-asset-engine-langgraph.js",
+    "check:semantic-engine": "node scripts/extract-gdevelop-capability-universe.js --check && node scripts/extract-official-capability-bindings.js --check && node scripts/extract-gdevelop-event-grammar.js --check && node scripts/extract-capability-semantic-index.js --check && node scripts/extract-gdevelop-project-defaults.js --check && node scripts/extract-gdevelop-object-configuration-truth.js --check && node ai/check-capability-semantic-coverage.js && node ai/check-game-semantic-source.js && node ai/check-semantic-feedback-contract.js && node ai/check-semantic-session-ledger.js && node ai/check-semantic-compiler.js && node ai/check-semantic-assembly.js && node ai/check-gdjs-project-assembler.js && node ai/check-gdjs-project-asset-binder.js && node ai/check-gdjs-project-frame-set-binder.js && node ai/check-animated-asset-engine.js && node ai/check-semantic-asset-product-pipeline.js && node ai/check-gdjs-asset-binding-dictionary.js && node ai/check-asset-contract-validator.js && node ai/check-asset-library.js && node ai/check-asset-library-supabase-port.js && node ai/check-frame-set.js && node ai/check-non-image-resource-ingestion.js && node ai/check-semantic-product-executor.js && node server/test-semantic-engine-api.js && node ai/check-semantic-game-family-coverage.js && node ai/check-semantic-llm2-runtime.js && node ai/test-asset-production-planner.js && node ai/check-rembg-background-removal.js && node ai/check-asset-production-pipeline.js && node ai/check-asset-engine-langgraph.js && node ai/check-gamecastle-style-dna.js && node ai/check-master-image-quality.js && node ai/check-comfyui-local-provider.js",
     "check:project": "npm run check:semantic-engine",
     "check:llm-transport": "node ai/check-responses-client.js",
     "check:provider": "node ai/check-provider-runtime-contract.js && node ai/check-provider-runtime.js && node ai/check-responses-client.js && node ai/check-chat-completions-client.js",
@@ -28,7 +30,12 @@
   "dependencies": {
     "@langchain/core": "^1.2.2",
     "@langchain/langgraph": "^1.4.7",
-    "ws": "^8.21.0",
+    "@supabase/storage-js": "2.110.5",
+    "sharp": "0.34.5",
+    "ws": "8.21.0",
     "zod": "^4.4.3"
+  },
+  "overrides": {
+    "ws": "$ws"
   }
 }

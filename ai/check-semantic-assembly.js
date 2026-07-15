@@ -4,7 +4,7 @@ var linker = require('./semantic-runtime-linker');
 
 var index = dictionary.buildIndex();
 var source = {
-  schemaVersion: 2,
+  schemaVersion: 4,
   documentKind: 'game-semantic-source',
   dictionarySource: index.source,
   game: { semanticId: 'demo', name: 'Demo' },

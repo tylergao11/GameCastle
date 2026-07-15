@@ -12,7 +12,7 @@ function authorizeModelPorts(ports, policy) {
   if (normalized.simulated !== true && normalized.localOnly === true && normalized.localAllowed !== true) denied = 'MODEL_UNAVAILABLE';
   if (!Number.isFinite(normalized.maxCost) && normalized.maxCost !== Infinity) denied = 'MODEL_BUDGET_EXHAUSTED';
   var wrapped = {};
-  ['generate', 'edit', 'review', 'segment', 'colorize', 'variant'].forEach(function(name) {
+  ['generateMaster'].forEach(function(name) {
     if (denied || !ports || typeof ports[name] !== 'function') return;
     wrapped[name] = async function(state) {
       var result = await ports[name](state);
@@ -20,12 +20,7 @@ function authorizeModelPorts(ports, policy) {
       return result;
     };
   });
-  if (ports && ports.localDerive && typeof ports.localDerive.derive === 'function') wrapped.localDerive = ports.localDerive;
-  if (ports && ports.localPlan && typeof ports.localPlan.run === 'function') wrapped.localPlan = ports.localPlan;
   if (ports && typeof ports.materializeCandidate === 'function') wrapped.materializeCandidate = ports.materializeCandidate;
-  if (ports && typeof ports.promoteCandidate === 'function') wrapped.promoteCandidate = ports.promoteCandidate;
-  if (ports && typeof ports.normalize === 'function') wrapped.normalize = ports.normalize;
-  if (ports && typeof ports.cutout === 'function') wrapped.cutout = ports.cutout;
   return { ports: wrapped, receipt: { allowed: !denied, code: denied, provider: normalized.provider, simulated: normalized.simulated, maxCost: normalized.maxCost, scope: normalized.allowedScopes[0] } };
 }
 

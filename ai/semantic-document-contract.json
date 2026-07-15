@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 4,
   "sourceDocumentKind": "game-semantic-source",
   "revisionDocumentKind": "game-semantic-revision",
   "structureDocumentKind": "semantic-world-structure-view",

@@ -1,17 +1,20 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "contractId": "gamecastle.semantic-asset-production",
   "owner": "AssetProductionPipeline",
   "truthSources": {
     "self": "shared/asset-production-pipeline-contract.json",
     "assetStyles": "shared/asset-style-dictionary.json",
-    "semanticSource": "ai/game-semantic-source.js"
+    "semanticSource": "ai/game-semantic-source.js",
+    "derivation": "ai/asset-derivation-pipeline.js"
   },
   "principles": [
-    "one GameSemanticSource owns every asset requirement",
-    "one semantic asset intent produces one independent revision lineage",
-    "production family and recipe come from this pinned contract",
-    "runtime binding consumes only accepted final revisions"
+    "GameSemanticSource owns semantic asset intent",
+    "AssetLibrary may satisfy an exact requirement before generation",
+    "ComfyUI creates one immutable master image and performs no asset processing",
+    "AssetDerivationPipeline deterministically creates static assets and FrameSet revisions",
+    "GDJS binds only accepted project-local revisions",
+    "accepted new revisions enter the asynchronous publication outbox"
   ],
   "productionFamilies": {
     "character": { "defaultRecipeId": "character-sprite.v1" },
@@ -19,35 +22,26 @@
     "prop": { "defaultRecipeId": "prop-sprite.v1" },
     "background": { "defaultRecipeId": "scene-background.v1" },
     "ui": { "defaultRecipeId": "ui-element.v1" },
-    "effect": { "defaultRecipeId": "effect-sprite.v1" }
+    "effect": { "defaultRecipeId": "effect-sprite.v1" },
+    "character-animation": { "defaultRecipeId": "character-frame-set.v1" },
+    "effect-animation": { "defaultRecipeId": "effect-frame-set.v1" }
   },
   "recipes": {
-    "character-sprite.v1": { "minimumPath": ["draft-generate", "vision-inspect", "deterministic-validate", "final-review"], "conditionalCapabilities": ["subject-segment", "cutout-validate", "masked-repair", "color-plan", "color-apply", "style-normalize"], "familyChecks": ["identity", "silhouette", "face-readability", "pose", "transparent-edge", "bottom-center-anchor"] },
-    "world-tile.v1": { "minimumPath": ["draft-generate", "vision-inspect", "geometry-validate", "deterministic-validate", "final-review"], "conditionalCapabilities": ["masked-repair", "color-plan", "color-apply", "style-normalize", "tile-validate"], "familyChecks": ["collision-readable-silhouette", "declared-alpha-policy", "seam-policy", "scale-readability"] },
-    "prop-sprite.v1": { "minimumPath": ["draft-generate", "vision-inspect", "deterministic-validate", "final-review"], "conditionalCapabilities": ["subject-segment", "cutout-validate", "masked-repair", "color-plan", "color-apply", "style-normalize"], "familyChecks": ["single-subject", "small-size-readability", "transparent-edge", "declared-anchor"] },
-    "scene-background.v1": { "minimumPath": ["draft-generate", "vision-inspect", "layer-validate", "deterministic-validate", "final-review"], "conditionalCapabilities": ["masked-repair", "color-plan", "color-apply", "style-normalize"], "familyChecks": ["gameplay-contrast", "depth-layer-policy", "no-embedded-ui", "declared-alpha-policy"] },
-    "ui-element.v1": { "minimumPath": ["draft-generate", "vision-inspect", "deterministic-validate", "ui-state-validate", "final-review"], "conditionalCapabilities": ["subject-segment", "cutout-validate", "masked-repair", "color-plan", "color-apply", "style-normalize"], "familyChecks": ["safe-padding", "state-geometry", "text-policy", "touch-scale-readability"] },
-    "effect-sprite.v1": { "minimumPath": ["draft-generate", "vision-inspect", "deterministic-validate", "frame-validate", "final-review"], "conditionalCapabilities": ["subject-segment", "cutout-validate", "masked-repair", "color-plan", "color-apply", "style-normalize"], "familyChecks": ["transparent-edge", "effect-bounds", "pivot", "frame-consistency"] }
+    "character-sprite.v1": { "artifactKind": "single-resource", "minimumPath": ["master-image", "deterministic-static", "accept"] },
+    "world-tile.v1": { "artifactKind": "single-resource", "minimumPath": ["master-image", "deterministic-static", "accept"] },
+    "prop-sprite.v1": { "artifactKind": "single-resource", "minimumPath": ["master-image", "deterministic-static", "accept"] },
+    "scene-background.v1": { "artifactKind": "single-resource", "minimumPath": ["master-image", "deterministic-static", "accept"] },
+    "ui-element.v1": { "artifactKind": "single-resource", "minimumPath": ["master-image", "deterministic-static", "accept"] },
+    "effect-sprite.v1": { "artifactKind": "single-resource", "minimumPath": ["master-image", "deterministic-static", "accept"] },
+    "character-frame-set.v1": { "artifactKind": "frame-set", "minimumPath": ["master-image", "deterministic-static", "deterministic-frame-set", "accept"] },
+    "effect-frame-set.v1": { "artifactKind": "frame-set", "minimumPath": ["master-image", "deterministic-static", "deterministic-frame-set", "accept"] }
   },
   "artifacts": {
     "AssetProductionRequest": { "required": ["requestId", "projectId", "sourceHash", "requirements"] },
     "AssetProductionSetPlan": { "required": ["productionSetId", "sourceHash", "workItems", "dependencyGraph", "coveragePolicy", "contentHash"] },
-    "AssetWorkItemPlan": { "required": ["workItemPlanId", "semanticId", "slotId", "targetVisualSlotId", "productionFamily", "recipeId", "assetSpec", "stageSequence", "stylePromptRef", "retryBudget"] },
-    "AssetRevision": { "required": ["revisionId", "workItemPlanId", "revisionKind", "parentRevisionIds", "path", "sha256", "width", "height", "scope", "executionReceipts"] },
-    "MaskRevision": { "required": ["maskRevisionId", "sourceRevisionId", "path", "sha256", "width", "height", "segmentationReceiptId", "validationReceiptId"] },
-    "VisionInspectionReceipt": { "required": ["receiptId", "sourceRevisionId", "detectedSubjects", "semanticEvidence", "regionEvidence", "artifactEvidence", "confidence", "workflowReceiptId"] },
-    "RepairPlan": { "required": ["repairPlanId", "sourceRevisionId", "failedChecks", "repairRegions", "repairPrompt", "maskRevisionId", "returnStage", "attempt"] },
-    "ColorPlan": { "required": ["colorPlanId", "sourceRevisionId", "styleId", "paletteRoleMap", "protectedRegions", "applicationMode", "returnStage"] },
-    "AssetProductionLoopState": { "required": ["loopId", "workItemPlanId", "currentRevisionId", "phase", "attempt", "budgets", "observationReceiptIds", "pendingAction", "historyHash"] },
-    "AssetObservationReceipt": { "required": ["observationId", "sourceRevisionId", "visionInspectionReceiptId", "deterministicEvidenceIds", "defects", "satisfiedChecks", "contentHash"] },
-    "AssetActionPlan": { "required": ["actionPlanId", "observationId", "action", "reasonCodes", "inputRevisionIds", "expectedChecks", "returnPhase", "budgetReservation"] },
-    "AssetLoopAttemptReceipt": { "required": ["loopId", "attempt", "actionPlanId", "inputRevisionIds", "outputRevisionIds", "executionReceiptIds", "observationId", "decision", "nextPhase"] },
-    "WorkItemAcceptanceReceipt": { "required": ["workItemPlanId", "finalRevisionId", "targetVisualSlotId", "visionEvidenceIds", "deterministicEvidenceIds", "styleId", "decision"] },
+    "AssetWorkItemPlan": { "required": ["workItemPlanId", "semanticId", "slotId", "targetVisualSlotId", "productionFamily", "recipeId", "artifactKind", "assetSpec", "stageSequence"] },
+    "MasterImageRevision": { "required": ["revisionId", "path", "sha256", "width", "height", "providerReceipt"] },
+    "WorkItemAcceptanceReceipt": { "required": ["workItemPlanId", "finalRevisionId", "targetVisualSlotId", "deterministicEvidenceIds", "styleId", "decision"] },
     "AssetProductionSetAcceptanceReceipt": { "required": ["productionSetId", "workItemAcceptanceReceiptIds", "requiredSlotCoverage", "acceptedRevisionByTargetVisualSlotId", "decision"] }
-  },
-  "closedLoop": {
-    "stateMachine": {
-      "planned": ["generating", "resolving"], "resolving": ["observing", "generating", "debt"], "generating": ["observing", "debt"], "observing": ["diagnosing", "debt"], "diagnosing": ["generating", "segmenting", "repairing", "color-planning", "normalizing", "final-reviewing", "rejected", "debt"], "segmenting": ["observing", "repairing", "debt"], "repairing": ["observing", "debt"], "color-planning": ["color-applying", "debt"], "color-applying": ["observing", "debt"], "normalizing": ["observing", "debt"], "final-reviewing": ["accepted", "diagnosing", "rejected", "debt"], "accepted": [], "rejected": [], "debt": []
-    }
   }
 }

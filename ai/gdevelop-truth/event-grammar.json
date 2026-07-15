@@ -1,4 +1,26 @@
 {
+  "eventSerialization": {
+    "canonicalFields": [
+      {
+        "defaultValue": false,
+        "semanticKey": "disabled",
+        "serializedKey": "disabled"
+      },
+      {
+        "defaultValue": false,
+        "semanticKey": "folded",
+        "serializedKey": "folded"
+      }
+    ],
+    "source": {
+      "path": "Core/GDCore/Events/Serialization.cpp",
+      "sha1": "91a698accc1aad02ee5f3b9534f427d0cc3b4ee8"
+    },
+    "type": {
+      "emission": "always",
+      "serializedKey": "type"
+    }
+  },
   "eventTypes": [
     {
       "className": "CommentEvent",
@@ -15,6 +37,38 @@
         "hasActions": false,
         "hasConditions": false,
         "hasExpressions": false
+      },
+      "serialization": {
+        "defaults": {
+          "color": {
+            "b": 109,
+            "g": 230,
+            "r": 255,
+            "textB": 0,
+            "textG": 0,
+            "textR": 0
+          }
+        },
+        "instructionLists": [],
+        "localVariables": null,
+        "parameters": [
+          {
+            "emission": "always",
+            "optional": false,
+            "promptType": "string",
+            "runtimeNormalization": "text",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "literal-token",
+            "semanticKey": "comment",
+            "serializedKey": "comment",
+            "type": "string"
+          }
+        ],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/CommentEvent.cpp",
+          "sha1": "0bfba18320d680229bbf1f311227c0683771a5b1"
+        },
+        "subEvents": null
       },
       "source": {
         "definition": {
@@ -44,6 +98,39 @@
         "hasConditions": true,
         "hasExpressions": false
       },
+      "serialization": {
+        "defaults": {},
+        "instructionLists": [
+          {
+            "emission": "always",
+            "kind": "condition",
+            "primary": true,
+            "semanticKey": "conditions",
+            "serializedKey": "conditions"
+          },
+          {
+            "emission": "always",
+            "kind": "action",
+            "primary": true,
+            "semanticKey": "actions",
+            "serializedKey": "actions"
+          }
+        ],
+        "localVariables": {
+          "emission": "when-present",
+          "serializedKey": "variables"
+        },
+        "parameters": [],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/ElseEvent.cpp",
+          "sha1": "77c278c583936b2c589968a53c0355f28b82036d"
+        },
+        "subEvents": {
+          "emission": "when-present",
+          "semanticKey": "events",
+          "serializedKey": "events"
+        }
+      },
       "source": {
         "definition": {
           "path": "Core/GDCore/Events/Builtin/ElseEvent.h",
@@ -71,6 +158,104 @@
         "hasActions": true,
         "hasConditions": true,
         "hasExpressions": true
+      },
+      "serialization": {
+        "defaults": {},
+        "instructionLists": [
+          {
+            "emission": "always",
+            "kind": "condition",
+            "primary": true,
+            "semanticKey": "conditions",
+            "serializedKey": "conditions"
+          },
+          {
+            "emission": "always",
+            "kind": "action",
+            "primary": true,
+            "semanticKey": "actions",
+            "serializedKey": "actions"
+          }
+        ],
+        "localVariables": {
+          "emission": "canonical-or-present",
+          "serializedKey": "variables"
+        },
+        "parameters": [
+          {
+            "emission": "always",
+            "optional": false,
+            "promptType": "entity",
+            "runtimeNormalization": "entity-object-name",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "object-name",
+            "semanticKey": "target",
+            "serializedKey": "object",
+            "type": "object"
+          },
+          {
+            "emission": "when-present",
+            "optional": true,
+            "promptType": "number-or-expression",
+            "runtimeNormalization": "number-expression",
+            "runtimeSerialization": "expression-or-text",
+            "runtimeValueKind": "number-expression",
+            "semanticKey": "orderBy",
+            "serializedKey": "orderBy",
+            "type": "number-expression"
+          },
+          {
+            "defaultValue": "asc",
+            "emission": "with:orderBy",
+            "optional": true,
+            "promptType": "dictionary-token",
+            "runtimeNormalization": "dictionary-token",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "literal-token",
+            "runtimeValues": [
+              "asc",
+              "desc"
+            ],
+            "semanticKey": "order",
+            "serializedKey": "order",
+            "type": "enum",
+            "values": [
+              "asc",
+              "desc"
+            ]
+          },
+          {
+            "emission": "with:orderBy",
+            "optional": true,
+            "promptType": "number-or-expression",
+            "runtimeNormalization": "number-expression",
+            "runtimeSerialization": "expression-or-text",
+            "runtimeValueKind": "number-expression",
+            "semanticKey": "limit",
+            "serializedKey": "limit",
+            "type": "number-expression"
+          },
+          {
+            "emission": "when-present",
+            "optional": true,
+            "promptType": "local-name",
+            "runtimeNormalization": "local-name",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "variable-expression",
+            "semanticKey": "loopIndex",
+            "serializedKey": "loopIndexVariable",
+            "type": "localvar"
+          }
+        ],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/ForEachEvent.cpp",
+          "sha1": "1a5e3ceb54defec62da08279829a06e932e1fe01"
+        },
+        "subEvents": {
+          "emission": "canonical-or-present",
+          "semanticKey": "events",
+          "serializedKey": "events"
+        }
       },
       "source": {
         "definition": {
@@ -100,6 +285,86 @@
         "hasConditions": true,
         "hasExpressions": true
       },
+      "serialization": {
+        "defaults": {},
+        "instructionLists": [
+          {
+            "emission": "always",
+            "kind": "condition",
+            "primary": true,
+            "semanticKey": "conditions",
+            "serializedKey": "conditions"
+          },
+          {
+            "emission": "always",
+            "kind": "action",
+            "primary": true,
+            "semanticKey": "actions",
+            "serializedKey": "actions"
+          }
+        ],
+        "localVariables": {
+          "emission": "canonical-or-present",
+          "serializedKey": "variables"
+        },
+        "parameters": [
+          {
+            "emission": "always",
+            "optional": false,
+            "promptType": "scene-member",
+            "runtimeNormalization": "scene-member-name",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "variable-expression",
+            "semanticKey": "iterable",
+            "serializedKey": "iterableVariableName",
+            "type": "scenevar"
+          },
+          {
+            "defaultValue": "child",
+            "emission": "always",
+            "optional": true,
+            "promptType": "local-name",
+            "runtimeNormalization": "local-name",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "variable-expression",
+            "semanticKey": "valueIterator",
+            "serializedKey": "valueIteratorVariableName",
+            "type": "localvar"
+          },
+          {
+            "defaultValue": "",
+            "emission": "always",
+            "optional": true,
+            "promptType": "local-name",
+            "runtimeNormalization": "local-name",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "variable-expression",
+            "semanticKey": "keyIterator",
+            "serializedKey": "keyIteratorVariableName",
+            "type": "localvar"
+          },
+          {
+            "emission": "when-present",
+            "optional": true,
+            "promptType": "local-name",
+            "runtimeNormalization": "local-name",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "variable-expression",
+            "semanticKey": "loopIndex",
+            "serializedKey": "loopIndexVariable",
+            "type": "localvar"
+          }
+        ],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/ForEachChildVariableEvent.cpp",
+          "sha1": "6f199f5c19fd5b48d6d13aa9e3d4b5e59cc1a405"
+        },
+        "subEvents": {
+          "emission": "canonical-or-present",
+          "semanticKey": "events",
+          "serializedKey": "events"
+        }
+      },
       "source": {
         "definition": {
           "path": "Core/GDCore/Events/Builtin/ForEachChildVariableEvent.h",
@@ -127,6 +392,29 @@
         "hasActions": false,
         "hasConditions": false,
         "hasExpressions": false
+      },
+      "serialization": {
+        "defaults": {
+          "colorB": 228,
+          "colorG": 176,
+          "colorR": 74,
+          "creationTime": 0,
+          "name": "",
+          "parameters": [],
+          "source": ""
+        },
+        "instructionLists": [],
+        "localVariables": null,
+        "parameters": [],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/GroupEvent.cpp",
+          "sha1": "e42aaee878be068500c83b43c9d0e2873e5b06b1"
+        },
+        "subEvents": {
+          "emission": "always",
+          "semanticKey": "events",
+          "serializedKey": "events"
+        }
       },
       "source": {
         "definition": {
@@ -156,6 +444,33 @@
         "hasConditions": false,
         "hasExpressions": false
       },
+      "serialization": {
+        "defaults": {
+          "include": {
+            "includeConfig": 0
+          }
+        },
+        "instructionLists": [],
+        "localVariables": null,
+        "parameters": [
+          {
+            "emission": "always",
+            "optional": false,
+            "promptType": "string",
+            "runtimeNormalization": "text",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "literal-token",
+            "semanticKey": "target",
+            "serializedKey": "target",
+            "type": "string"
+          }
+        ],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/LinkEvent.cpp",
+          "sha1": "f853316797bc794fce4516908878dd94e5a8945c"
+        },
+        "subEvents": null
+      },
       "source": {
         "definition": {
           "path": "Core/GDCore/Events/Builtin/LinkEvent.h",
@@ -183,6 +498,62 @@
         "hasActions": true,
         "hasConditions": true,
         "hasExpressions": true
+      },
+      "serialization": {
+        "defaults": {},
+        "instructionLists": [
+          {
+            "emission": "always",
+            "kind": "condition",
+            "primary": true,
+            "semanticKey": "conditions",
+            "serializedKey": "conditions"
+          },
+          {
+            "emission": "always",
+            "kind": "action",
+            "primary": true,
+            "semanticKey": "actions",
+            "serializedKey": "actions"
+          }
+        ],
+        "localVariables": {
+          "emission": "canonical-or-present",
+          "serializedKey": "variables"
+        },
+        "parameters": [
+          {
+            "emission": "always",
+            "optional": false,
+            "promptType": "number-or-expression",
+            "runtimeNormalization": "number-expression",
+            "runtimeSerialization": "expression-or-text",
+            "runtimeValueKind": "number-expression",
+            "semanticKey": "count",
+            "serializedKey": "repeatExpression",
+            "type": "number-expression"
+          },
+          {
+            "emission": "when-present",
+            "optional": true,
+            "promptType": "local-name",
+            "runtimeNormalization": "local-name",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "variable-expression",
+            "semanticKey": "loopIndex",
+            "serializedKey": "loopIndexVariable",
+            "type": "localvar"
+          }
+        ],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/RepeatEvent.cpp",
+          "sha1": "1ec543218c1649efcc23b999ff6d3a5791ba0aa5"
+        },
+        "subEvents": {
+          "emission": "canonical-or-present",
+          "semanticKey": "events",
+          "serializedKey": "events"
+        }
       },
       "source": {
         "definition": {
@@ -212,6 +583,39 @@
         "hasConditions": true,
         "hasExpressions": false
       },
+      "serialization": {
+        "defaults": {},
+        "instructionLists": [
+          {
+            "emission": "always",
+            "kind": "condition",
+            "primary": true,
+            "semanticKey": "conditions",
+            "serializedKey": "conditions"
+          },
+          {
+            "emission": "always",
+            "kind": "action",
+            "primary": true,
+            "semanticKey": "actions",
+            "serializedKey": "actions"
+          }
+        ],
+        "localVariables": {
+          "emission": "canonical-or-present",
+          "serializedKey": "variables"
+        },
+        "parameters": [],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/StandardEvent.cpp",
+          "sha1": "7c3b938519aa86d681905c8b44743876d076052a"
+        },
+        "subEvents": {
+          "emission": "canonical-or-present",
+          "semanticKey": "events",
+          "serializedKey": "events"
+        }
+      },
       "source": {
         "definition": {
           "path": "Core/GDCore/Events/Builtin/StandardEvent.h",
@@ -240,6 +644,60 @@
         "hasConditions": true,
         "hasExpressions": false
       },
+      "serialization": {
+        "defaults": {
+          "infiniteLoopWarning": true
+        },
+        "instructionLists": [
+          {
+            "emission": "always",
+            "kind": "condition",
+            "primary": true,
+            "semanticKey": "whileConditions",
+            "serializedKey": "whileConditions"
+          },
+          {
+            "emission": "always",
+            "kind": "condition",
+            "primary": false,
+            "semanticKey": "conditions",
+            "serializedKey": "conditions"
+          },
+          {
+            "emission": "always",
+            "kind": "action",
+            "primary": true,
+            "semanticKey": "actions",
+            "serializedKey": "actions"
+          }
+        ],
+        "localVariables": {
+          "emission": "canonical-or-present",
+          "serializedKey": "variables"
+        },
+        "parameters": [
+          {
+            "emission": "when-present",
+            "optional": true,
+            "promptType": "local-name",
+            "runtimeNormalization": "local-name",
+            "runtimeSerialization": "text",
+            "runtimeValueKind": "variable-expression",
+            "semanticKey": "loopIndex",
+            "serializedKey": "loopIndexVariable",
+            "type": "localvar"
+          }
+        ],
+        "source": {
+          "path": "Core/GDCore/Events/Builtin/WhileEvent.cpp",
+          "sha1": "eb68c8fa2b9d74101a0fa0d58f440141ba572b75"
+        },
+        "subEvents": {
+          "emission": "canonical-or-present",
+          "semanticKey": "events",
+          "serializedKey": "events"
+        }
+      },
       "source": {
         "definition": {
           "path": "Core/GDCore/Events/Builtin/WhileEvent.h",
@@ -254,7 +712,23 @@
     }
   ],
   "grammarKind": "gdjs-event-grammar",
-  "schemaVersion": 1,
+  "instructionSerialization": {
+    "actionAwait": {
+      "defaultValue": false,
+      "dslKey": "await",
+      "serializedKey": "await"
+    },
+    "conditionInversion": {
+      "defaultValue": false,
+      "dslKey": "not",
+      "serializedKey": "inverted"
+    },
+    "source": {
+      "path": "Core/GDCore/Events/Serialization.cpp",
+      "sha1": "91a698accc1aad02ee5f3b9534f427d0cc3b4ee8"
+    }
+  },
+  "schemaVersion": 3,
   "source": {
     "registrationSha1": "ea95d4d9865eb4dfb901f76f4458ad72ea7f3cd1",
     "root": [

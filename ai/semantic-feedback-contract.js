@@ -47,7 +47,7 @@ function validateEntry(entry, index, knownSubjects) {
 
 function subjectsFromSource(source) {
   if (!source) return null;
-  var subjects = {};
+  var subjects = Object.create(null);
   if (source.game && source.game.semanticId) subjects[source.game.semanticId] = true;
   (source.entities || []).forEach(function(entity) { subjects[entity.semanticId] = true; });
   return subjects;
@@ -64,7 +64,7 @@ function validate(batch, options) {
   if (options.sourceHash !== undefined && baseSourceHash !== options.sourceHash) fail('SEMANTIC_FEEDBACK_SOURCE_MISMATCH', 'SemanticFeedbackBatch baseSourceHash does not match the current source');
   if (options.structureHash !== undefined && baseStructureHash !== options.structureHash) fail('SEMANTIC_FEEDBACK_STRUCTURE_MISMATCH', 'SemanticFeedbackBatch baseStructureHash does not match the current world structure');
   if (!Array.isArray(batch.entries) || !batch.entries.length) fail('SEMANTIC_FEEDBACK_ENTRIES_REQUIRED', 'SemanticFeedbackBatch entries must be non-empty');
-  var seen = {};
+  var seen = Object.create(null);
   var knownSubjects = subjectsFromSource(options.source);
   var entries = batch.entries.map(function(entry, index) {
     var valid = validateEntry(entry, index, knownSubjects);

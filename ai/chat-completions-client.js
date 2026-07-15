@@ -9,8 +9,16 @@ async function readChatStream(response) {
   buffer += decoder.decode(); if (buffer) line(buffer); return { text: text, reasoningText: reasoningText, usage: usage, events: events, streamed: true };
 }
 async function requestChatCompletions(options) {
-  options = options || {}; var response = await (options.fetchImpl || fetch)(normalizeEndpoint(options.endpoint) + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (options.apiKey || '') }, body: JSON.stringify(options.body || {}), signal: options.signal });
-  if (!response.ok) { var body = ''; try { body = await response.text(); } catch (_error) {} throw makeHttpError(response, body); }
-  return readChatStream(response);
+  options = options || {};
+  var timeoutSignal = Number(options.timeoutMs) > 0 ? AbortSignal.timeout(Number(options.timeoutMs)) : null;
+  var signal = timeoutSignal && options.signal ? AbortSignal.any([options.signal, timeoutSignal]) : timeoutSignal || options.signal;
+  try {
+    var response = await (options.fetchImpl || fetch)(normalizeEndpoint(options.endpoint) + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (options.apiKey || '') }, body: JSON.stringify(options.body || {}), signal: signal });
+    if (!response.ok) { var body = ''; try { body = await response.text(); } catch (_error) {} throw makeHttpError(response, body); }
+    return await readChatStream(response);
+  } catch (error) {
+    if (timeoutSignal && timeoutSignal.aborted && !(options.signal && options.signal.aborted)) { error = new Error('Chat Completions request exhausted the time budget.'); error.code = 'CHAT_COMPLETIONS_TIMEOUT'; error.owner = 'ChatCompletionsClient'; }
+    throw error;
+  }
 }
 module.exports = { normalizeEndpoint: normalizeEndpoint, readChatStream: readChatStream, requestChatCompletions: requestChatCompletions };

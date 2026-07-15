@@ -5,11 +5,12 @@ var path = require('path');
 var governance = require('./ai-provider-governance');
 var responsesClient = require('./responses-client');
 var chatCompletionsClient = require('./chat-completions-client');
+var semanticModelPolicy = require('./semantic-model-policy');
 var providerContract = require('../shared/provider-runtime-contract.json');
 
 var ROLE_MODALITY = {
   'creative-text': 'text', 'semantic-design': 'text',
-  'image-generate': 'image-generation', 'image-edit': 'image-edit', 'subject-segment': 'vision-review', 'vision-review': 'vision-review'
+  'image-generate': 'image-generation', 'vision-review': 'vision-review'
 };
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -104,7 +105,7 @@ function createProviderRuntime(options) {
   return { invokeRole: invokeRole, cancel: cancel, health: health, listReceipts: function() { return clone(receipts); } };
 }
 
-function selectModel(config, role, override) { if (override) return override; if (role === 'image-generate' || role === 'image-edit') return config.imageModel; if (role === 'subject-segment') return config.segmentModel || config.visionModel || config.textModel; if (role === 'vision-review') return config.visionModel || config.textModel; return config.textModel; }
+function selectModel(config, role, override) { if (override) return override; if (role === 'image-generate') return config.imageModel; if (role === 'vision-review') return config.visionModel || config.textModel; return config.textModel; }
 function retryable(error) { return !error || !error.code || ['AbortError', 'PROVIDER_CANCELLED', 'PROVIDER_KEY_UNAVAILABLE', 'PROVIDER_NOT_AUTHORIZED'].indexOf(error.code || error.name) < 0; }
 function failure(error) { return { code: error.code || error.name || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', message: String(error.message || error).replace(/Bearer\s+[^\s]+/g, 'Bearer [REDACTED]') }; }
 function debt(error) { return { code: error.code || 'PROVIDER_INVOKE_FAILED', owner: error.owner || 'ProviderRuntime', recoveryStage: 'provider-runtime', blocksPublish: false }; }
@@ -113,11 +114,9 @@ async function invokeHttpTransport(context) {
   var role = context.request.role;
   if (context.config.simulated) throw makeError('SIMULATED_TRANSPORT_NOT_CONFIGURED', 'Simulated calls must use an injected local transport');
   if (context.config.provider === 'comfyui-local') return require('./comfyui-local-provider').invokeComfyUI(context);
-  if (context.config.provider === 'comfyui-worker') return require('./comfyui-worker-provider').invokeWorker(context);
   if ((role === 'creative-text' || role === 'semantic-design') && context.config.provider === 'deepseek') return invokeDeepSeekChat(context);
   if (role === 'creative-text' || role === 'semantic-design' || role === 'vision-review') return invokeResponses(context);
   if (role === 'image-generate') return invokeImageGeneration(context);
-  if (role === 'image-edit') return invokeImageEdit(context);
   throw makeError('ROLE_UNSUPPORTED', 'Unsupported HTTP role');
 }
 async function invokeResponses(context) {
@@ -135,20 +134,18 @@ async function invokeResponses(context) {
 async function invokeDeepSeekChat(context) {
   var input = context.request.input || {};
   var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
-  var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true }, thinking: { type: 'disabled' } };
+  var creative = context.request.role === 'creative-text';
+  var profile = creative ? semanticModelPolicy.LLM1 : semanticModelPolicy.LLM2;
+  var thinking = input.thinking || profile.thinking;
+  var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true }, thinking: thinking };
+  if (thinking.type === 'enabled') body.reasoning_effort = input.reasoningEffort || profile.reasoningEffort;
+  body.temperature = input.temperature === undefined ? profile.temperature : input.temperature;
   if (input.jsonSchema) body.response_format = { type: 'json_object' };
-  var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, fetchImpl: context.fetchImpl || undefined });
+  var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
   return { output: { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: 'deepseek-chat-completions' } };
 }
 async function invokeImageGeneration(context) {
   var input = context.request.input || {}; var requestFetch = context.fetchImpl || fetch; var response = await requestFetch(String(context.config.endpoint).replace(/\/$/, '') + '/images/generations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + context.config.apiKey }, body: JSON.stringify({ model: context.model, prompt: input.prompt, size: input.size || '1024x1024', background: input.transparent ? 'transparent' : undefined, response_format: 'b64_json' }), signal: context.signal });
   if (!response.ok) throw makeError('PROVIDER_HTTP_' + response.status, 'Image generation HTTP ' + response.status); var json = await response.json(); var image = (json.data || [])[0] || {}; return { output: { b64Json: image.b64_json, revisedPrompt: image.revised_prompt || null }, usage: json.usage || {}, cost: context.request.estimatedCost };
 }
-async function invokeImageEdit(context) {
-  var input = context.request.input || {}; if (!input.imagePath || !fs.existsSync(input.imagePath)) throw makeError('IMAGE_EDIT_INPUT_MISSING', 'Image edit requires an existing local imagePath');
-  var form = new FormData(); form.append('model', context.model); form.append('prompt', input.prompt || ''); form.append('image', new Blob([fs.readFileSync(input.imagePath)], { type: 'image/png' }), path.basename(input.imagePath)); form.append('response_format', 'b64_json');
-  var requestFetch = context.fetchImpl || fetch; var response = await requestFetch(String(context.config.endpoint).replace(/\/$/, '') + '/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + context.config.apiKey }, body: form, signal: context.signal });
-  if (!response.ok) throw makeError('PROVIDER_HTTP_' + response.status, 'Image edit HTTP ' + response.status); var json = await response.json(); var image = (json.data || [])[0] || {}; return { output: { b64Json: image.b64_json, revisedPrompt: image.revised_prompt || null }, usage: json.usage || {}, cost: context.request.estimatedCost };
-}
-
 module.exports = { ROLE_MODALITY: clone(ROLE_MODALITY), createProviderRuntime: createProviderRuntime, invokeHttpTransport: invokeHttpTransport };
