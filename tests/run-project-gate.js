@@ -5,6 +5,7 @@ var root = path.resolve(__dirname, '..');
 
 var semanticLoop = [
   ['tests/semantic/check-semantic-dsl-parser.js'],
+  ['tests/semantic/check-semantic-dsl-gbnf.js'],
   ['tests/semantic/check-semantic-task-plan.js'],
   ['tests/semantic/check-semantic-run-state-machine.js'],
   ['tests/semantic/check-semantic-prompt-bundle.js'],

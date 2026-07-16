@@ -1,5 +1,11 @@
 var LANGUAGE_ID = 'director-dsl-v1';
 var OPERATIONS = Object.freeze(['semantic.design', 'asset.realize', 'assembly.verify']);
+var CANONICAL_PROGRAM = [
+  'CALL id=semantic operation=semantic.design after=none',
+  'CALL id=asset operation=asset.realize after=semantic',
+  'CALL id=assembly operation=assembly.verify after=asset',
+  'REPAIR from=assembly.verify to=semantic.design'
+].join('\n');
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'DirectorPlannerDSL'; throw error; }
 function text(value, label) { if (typeof value !== 'string' || !value.trim()) fail('DIRECTOR_DSL_INVALID', label + ' must be non-empty text.'); return value.trim(); }
@@ -45,4 +51,6 @@ function stringify(program) {
   return program.calls.map(function(call) { return 'CALL id=' + call.id + ' operation=' + call.operation + ' after=' + (call.after || 'none'); }).concat(['REPAIR from=assembly.verify to=semantic.design']).join('\n');
 }
 
-module.exports = { LANGUAGE_ID: LANGUAGE_ID, OPERATIONS: OPERATIONS, parseProgram: parseProgram, validateProgram: validateProgram, stringify: stringify };
+function canonicalPlan() { return parseProgram(CANONICAL_PROGRAM); }
+
+module.exports = { LANGUAGE_ID: LANGUAGE_ID, OPERATIONS: OPERATIONS, CANONICAL_PROGRAM: CANONICAL_PROGRAM, canonicalPlan: canonicalPlan, parseProgram: parseProgram, validateProgram: validateProgram, stringify: stringify };

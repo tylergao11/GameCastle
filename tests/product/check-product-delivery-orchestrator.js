@@ -110,6 +110,7 @@ function productNamespace(deliveryId, projectId) { return 'product.' + crypto.cr
       index: index,
       budgets: budgets,
       providerRuntime: malformedProvider,
+      directorDynamicPlanning: true,
       directorModelPort: directorModelPortApi.fromProviderRuntime(malformedProvider, { provider: 'simulated-local', model: 'simulated-text', estimatedCost: 0.01 }),
       semanticRuntime: fakeSemantic,
       assetPipeline: fakeAsset,
@@ -144,7 +145,7 @@ function productNamespace(deliveryId, projectId) { return 'product.' + crypto.cr
     assert.strictEqual(recovered.deliveryRun.usage.stageAttempts[sourceContract.sourceHash(recoverySource) + '/assembly'], 2, 'The second assembly attempt is the explicit bounded recovery allowance.');
     assert.strictEqual(recovered.deliveryRun.usage.settledCostUsd, 0.4, 'Recovery reconciles a durable provider settlement that landed before the interrupted ProductDeliveryRun write.');
     assert.strictEqual(recovered.directorRun.trace[0].stage, 'director-plan-reused', 'A recovered delivery reuses its persisted DSL plan without a second planner-model call.');
-    assert.strictEqual(directorCalls.length, 1, 'One frozen Director plan is reused across retries and crash recovery rather than re-planning each run.');
+    assert.strictEqual(directorCalls.length, 0, 'The canonical Director fast path is deterministic and remains model-free across retries and crash recovery.');
     console.log('[ProductDeliveryOrchestrator] isolated provider accounting, asset retry, typed feedback, Revision invalidation, interrupted-assembly recovery, retest, and final acceptance passed');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 })().catch(function(error) { console.error(error); process.exit(1); });

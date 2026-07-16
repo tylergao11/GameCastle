@@ -52,14 +52,15 @@ function makeSession(label, accepted) {
   assert(runs.every(function(run) { return run.trace.every(function(entry) { return !Object.prototype.hasOwnProperty.call(entry, 'input') && !Object.prototype.hasOwnProperty.call(entry, 'output'); }); }), 'Director trace must retain only orchestration evidence, never domain internals.');
   assert.strictEqual(director.metrics().graphInitializations, 1, 'Concurrent Director sessions share one compiled LangGraph.');
   assert.strictEqual(director.metrics().activeSessions, 0, 'Completed Director sessions release their ephemeral callback state.');
-  assert.strictEqual(modelCalls.length, 2);
-  assert.strictEqual(modelCalls.every(function(call) { return call.prompt.indexOf('{"') < 0 && call.prompt.indexOf('"}') < 0; }), true, 'Director model context is deterministic FACT DSL rather than JSON.');
+  assert.strictEqual(modelCalls.length, 0, 'The fixed Director registry uses the deterministic canonical plan without model latency.');
+  assert.strictEqual(director.metrics().deterministicPlans, 2);
+  assert.strictEqual(runs.every(function(run) { return run.trace[0].stage === 'director-plan-deterministic'; }), true);
 
   var resumedAccepted = [];
   var resumed = await director.run({ requestId: 'director-resume', projectId: 'project-resume', userRequest: 'Resume without re-planning.', frozenPlan: { languageId: 'director-dsl-v1', program: PROGRAM, planHash: runs[0].planHash, receiptId: 'persisted.director', provider: 'fixture', model: 'director-fixture' }, session: makeSession('resume', resumedAccepted) });
   assert.strictEqual(resumed.trace[0].stage, 'director-plan-reused');
   assert.deepStrictEqual(resumedAccepted, ['resume']);
-  assert.strictEqual(modelCalls.length, 2, 'A persisted canonical DSL plan resumes without a second model call.');
+  assert.strictEqual(modelCalls.length, 0, 'A persisted canonical DSL plan resumes without a model call.');
 
   var built = prompt.build({ requestId: 'prompt', projectId: 'project', userRequest: 'Compose it.' });
   assert.strictEqual(built.systemPrompt.indexOf('JSON') >= 0, true, 'Director explicitly rejects JSON model output.');
@@ -67,6 +68,7 @@ function makeSession(label, accepted) {
 
   var rejectingDirector = directorApi.create({
     domains: domains,
+    dynamicPlanning: true,
     modelPort: { invoke: async function() { return { ok: true, output: { text: '{"calls":[]}' }, receipt: null }; } }
   });
   await assert.rejects(function() { return rejectingDirector.run({ requestId: 'director-json', projectId: 'project-json', userRequest: 'Never JSON.', session: makeSession('json', []) }); }, function(error) { return error.code === 'DIRECTOR_DSL_JSON_FORBIDDEN'; });

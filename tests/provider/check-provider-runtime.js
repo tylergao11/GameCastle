@@ -63,6 +63,24 @@ function request(role, id, extra) { return Object.assign({ requestId: id, projec
     assert.strictEqual(live.output.text.indexOf('CALL id=semantic') === 0, true);
   } finally { Object.keys(ollamaSaved).forEach(function(key) { if (ollamaSaved[key] === undefined) delete process.env[key]; else process.env[key] = ollamaSaved[key]; }); }
 
+  var llamaSaved = { LLAMA_CPP_SEMANTIC_ALLOW_LOCAL: process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL, LLAMA_CPP_SEMANTIC_ENDPOINT: process.env.LLAMA_CPP_SEMANTIC_ENDPOINT, SEMANTIC_DSL_MODEL: process.env.SEMANTIC_DSL_MODEL };
+  try {
+    process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL = 'true'; process.env.LLAMA_CPP_SEMANTIC_ENDPOINT = 'http://127.0.0.1:8002/v1'; process.env.SEMANTIC_DSL_MODEL = 'Qwen/Qwen3.5-9B';
+    var llamaCaptured;
+    var llamaRuntime = runtimeModule.createProviderRuntime({ fetchImpl: async function(url, init) {
+      llamaCaptured = { url: url, body: JSON.parse(init.body) };
+      return new Response('data: {"choices":[{"delta":{"content":"project(gameId=\"grammar-test\")"}}]}\n\ndata: [DONE]\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    } });
+    var grammar = 'root ::= "project"';
+    var llamaResult = await llamaRuntime.invokeRole(request('semantic-design', 'llama-semantic-dsl', { provider: 'llama-cpp-semantic', input: { systemPrompt: 'Semantic DSL only.', prompt: 'Build.', grammar: grammar } }));
+    assert(llamaResult.ok);
+    assert.strictEqual(llamaCaptured.url, 'http://127.0.0.1:8002/v1/chat/completions');
+    assert.strictEqual(llamaCaptured.body.model, 'Qwen/Qwen3.5-9B');
+    assert.deepStrictEqual(llamaCaptured.body.chat_template_kwargs, { enable_thinking: false });
+    assert.strictEqual(llamaCaptured.body.grammar, grammar);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(llamaCaptured.body, 'thinking'), false, 'llama.cpp receives Qwen chat-template arguments, not a vendor thinking object.');
+  } finally { Object.keys(llamaSaved).forEach(function(key) { if (llamaSaved[key] === undefined) delete process.env[key]; else process.env[key] = llamaSaved[key]; }); }
+
   var visionSaved = { OPENAI_API_KEY: process.env.OPENAI_API_KEY, OPENAI_ENDPOINT: process.env.OPENAI_ENDPOINT, LLM_ALLOW_EXTERNAL: process.env.LLM_ALLOW_EXTERNAL };
   try {
     process.env.OPENAI_API_KEY = 'provider-test-secret'; process.env.LLM_ALLOW_EXTERNAL = 'true'; process.env.OPENAI_ENDPOINT = 'https://provider.test/v1';

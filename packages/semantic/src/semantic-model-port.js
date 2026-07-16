@@ -1,4 +1,5 @@
 var modelPolicy = require('./semantic-model-policy');
+var dslGrammar = require('./semantic-dsl-gbnf');
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticModelPort'; throw error; }
 function optionalText(value, label) { if (value === undefined || value === null) return undefined; if (typeof value !== 'string' || !value.trim()) fail('SEMANTIC_MODEL_PORT_INVALID', label + ' must be non-empty text.'); return value.trim(); }
@@ -45,7 +46,8 @@ function fromProviderRuntime(runtime, options) {
           maxTokens: request.maxTokens,
           thinking: profile.thinking,
           reasoningEffort: profile.reasoningEffort,
-          temperature: profile.temperature
+          temperature: profile.temperature,
+          grammar: dslGrammar.forPhase(request.phase)
         }
       };
       if (provider) invocation.provider = provider;

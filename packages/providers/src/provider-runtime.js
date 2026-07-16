@@ -145,7 +145,7 @@ async function invokeHttpTransport(context) {
   var role = context.request.role;
   if (context.config.simulated) throw makeError('SIMULATED_TRANSPORT_NOT_CONFIGURED', 'Simulated calls must use an injected local transport');
   if (context.config.provider === 'comfyui-local') return require('../../assets/src/comfyui-local-provider').invokeComfyUI(context);
-  if ((role === 'director-plan' || role === 'semantic-design') && (context.config.provider === 'deepseek' || context.config.provider === 'ollama')) return invokeChatCompletions(context);
+  if ((role === 'director-plan' || role === 'semantic-design') && (context.config.provider === 'deepseek' || context.config.provider === 'ollama' || context.config.provider.indexOf('llama-cpp-') === 0)) return invokeChatCompletions(context);
   if (role === 'director-plan' || role === 'semantic-design' || role === 'vision-review' || role === 'spatial-plan') return invokeResponses(context);
   if (role === 'image-generate') return invokeImageGeneration(context);
   throw makeError('ROLE_UNSUPPORTED', 'Unsupported HTTP role');
@@ -168,8 +168,14 @@ async function invokeChatCompletions(context) {
   var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
   var profile = semanticModelPolicy.profile(context.request.role === 'director-plan' ? 'planner' : 'executor');
   var thinking = input.thinking || profile.thinking;
-  var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true }, thinking: thinking };
-  if (thinking.type === 'enabled') body.reasoning_effort = input.reasoningEffort || profile.reasoningEffort;
+  var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true } };
+  if (context.config.provider.indexOf('llama-cpp-') === 0) {
+    body.chat_template_kwargs = { enable_thinking: thinking.type === 'enabled' };
+    if (input.grammar) body.grammar = input.grammar;
+  } else {
+    body.thinking = thinking;
+    if (thinking.type === 'enabled') body.reasoning_effort = input.reasoningEffort || profile.reasoningEffort;
+  }
   body.temperature = input.temperature === undefined ? profile.temperature : input.temperature;
   var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
   return { output: { text: result.text, reasoningText: result.reasoningText, finishReason: result.finishReason, diagnostics: result.diagnostics, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: context.config.provider + '-chat-completions' } };

@@ -8,6 +8,8 @@ var modelPort = require('../../packages/semantic/src/semantic-model-port');
   await adapter.invoke({ phase: 'executor', requestId: 'e', projectId: 'x', messages: [], maxTokens: 8196, timeoutMs: 100 });
   assert.strictEqual(invocations[0].model, 'planner-adapter');
   assert.strictEqual(invocations[1].model, 'executor-adapter');
+  assert(invocations[0].input.grammar.indexOf('"plan-task"') >= 0, 'Planner receives a phase-specific grammar.');
+  assert(invocations[1].input.grammar.indexOf('"game"') >= 0, 'Executor receives a phase-specific grammar.');
   var routed = [];
   var router = modelPort.createRoleRouter({ planner: { invoke: async function() { routed.push('planner'); return {}; } }, executor: { invoke: async function() { routed.push('executor'); return {}; } } });
   await router.invoke({ phase: 'planner' }); await router.invoke({ phase: 'executor' });

@@ -10,6 +10,8 @@
   "scripts": {
     "build": "npm --prefix apps/web run build",
     "product:serve": "node apps/api/src/server.js",
+    "model:semantic:start": "powershell -ExecutionPolicy Bypass -File scripts/models/start-semantic-llm.ps1",
+    "model:semantic:smoke": "node scripts/shared/run-with-local-env.js scripts/models/smoke-semantic-llm.js",
     "asset:graph": "node packages/assets/src/inspect-asset-engine-langgraph.js",
     "check:asset-engine-execution": "node tests/run-project-gate.js asset-engine-execution",
     "debug:snake:live": "node scripts/shared/run-with-local-env.js scripts/semantic/debug-snake-real-llm.js",

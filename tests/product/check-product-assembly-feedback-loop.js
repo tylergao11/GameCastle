@@ -57,7 +57,7 @@ function clone(value) { return JSON.parse(JSON.stringify(value)); }
     assert.strictEqual(sourceHashes.length, 2, 'Source Revision invalidates and reruns asset production instead of retaining stale downstream artifacts.');
     assert.notStrictEqual(sourceHashes[0], sourceHashes[1]);
     assert.strictEqual(product.source.layoutIntents[0].bounds.width, 64);
-    assert.strictEqual(directorCalls, 1, 'The frozen Director plan coordinates the semantic repair loop without a second planning call.');
+    assert.strictEqual(directorCalls, 0, 'The deterministic Director fast path coordinates the semantic repair loop without a planning-model call.');
     assert(product.deliveryRun.history.some(function(event) { return event.kind === 'observation' && event.code === 'ASSEMBLY_LEGIBILITY_FAILED'; }));
     console.log('[ProductAssemblyFeedbackLoop] browser assembly rejection -> factual Feedback -> LLM2 Revision -> full downstream invalidation -> re-review acceptance passed');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }

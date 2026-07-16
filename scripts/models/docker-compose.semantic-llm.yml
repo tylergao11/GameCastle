@@ -1,0 +1,45 @@
+services:
+  semantic-llm:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda13-b9445@sha256:56095506826cc6287d1b3a8448d8e89dbcef739adac92073967e68984d9c7ab5
+    container_name: gamecastle-semantic-llm
+    restart: unless-stopped
+    environment:
+      HF_HOME: /cache
+    ports:
+      - "8002:8002"
+    gpus: all
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 10m
+    volumes:
+      - gamecastle-llm-cache:/cache
+    command:
+      - -hf
+      - unsloth/Qwen3.5-9B-GGUF:UD-Q4_K_XL
+      - -a
+      - Qwen/Qwen3.5-9B
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8002"
+      - -c
+      - "16384"
+      - -ngl
+      - auto
+      - --no-mmproj
+      - -np
+      - "1"
+      - -fa
+      - "on"
+      - -ctk
+      - q8_0
+      - -ctv
+      - q8_0
+
+volumes:
+  gamecastle-llm-cache:
+    name: gamecastle-llm-cache
+    external: true
