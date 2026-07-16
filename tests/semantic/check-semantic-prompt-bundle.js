@@ -13,9 +13,11 @@ var references = referenceRuntime.create(dictionary.loadIndex());
 var draft = draftApi.create(references, null);
 var plannerStart = projection([transition(1, 'PLANNING', 'plan', null, null)], 'PLANNING', 'plan', null, null);
 var plannerRepair = projection(plannerStart.transitionLog.concat([transition(2, 'PLAN_REPAIR', 'plan', { code: 'PLAN_INVALID', signature: 'plan.invalid' }, null)]), 'PLAN_REPAIR', 'plan', { code: 'PLAN_INVALID', signature: 'plan.invalid' }, null);
-var plannerContext = contextApi.planner(references, draft, 'Build a snake game', '', plannerStart);
+var plannerContext = contextApi.planner(references, draft, 'Build a snake game', plannerStart);
 var plannerA = prompt.buildPlannerBundle({ context: plannerContext });
-var plannerB = prompt.buildPlannerBundle({ context: contextApi.planner(references, draft, 'Build a snake game', '', plannerRepair) });
+var plannerB = prompt.buildPlannerBundle({ context: contextApi.planner(references, draft, 'Build a snake game', plannerRepair) });
+
+assert.strictEqual(Object.prototype.hasOwnProperty.call(plannerContext.l2, 'creativeVision'), false, 'Creative-model input is absent from semantic planner context.');
 
 assert.strictEqual(plannerA.protocolVersion, 'semantic-planner-prompt-v12');
 assert.strictEqual(plannerA.system, plannerB.system);
@@ -38,8 +40,11 @@ var facts = contextApi.taskFacts(references, activeTask, []);
 var executorStart = projection([transition(1, 'TASK_ACTIVE', 'write', null, 'move')], 'TASK_ACTIVE', 'write', null, 'move');
 var executorRepair = projection(executorStart.transitionLog.concat([transition(2, 'TASK_REPAIR', 'write', { code: 'WRITE_INVALID', signature: 'write.invalid' }, 'move')]), 'TASK_REPAIR', 'write', { code: 'WRITE_INVALID', signature: 'write.invalid' }, 'move');
 var slice = { schemaVersion: 1, documentKind: 'semantic-task-draft-slice', taskId: 'move', baseDraftHash: 'base', structureHash: 'slice', facts: [] };
-var executorA = prompt.buildExecutorBundle({ context: contextApi.task(slice, plan, executorStart, activeTask, facts, null, 'Build movement', '') });
-var executorB = prompt.buildExecutorBundle({ context: contextApi.task(slice, plan, executorRepair, activeTask, facts, null, 'Build movement', '') });
+var executorContext = contextApi.task(slice, plan, executorStart, activeTask, facts, null, 'Build movement');
+var executorA = prompt.buildExecutorBundle({ context: executorContext });
+var executorB = prompt.buildExecutorBundle({ context: contextApi.task(slice, plan, executorRepair, activeTask, facts, null, 'Build movement') });
+
+assert.strictEqual(Object.prototype.hasOwnProperty.call(executorContext.l2, 'creativeVision'), false, 'Creative-model input is absent from semantic executor context.');
 
 assert.strictEqual(executorA.protocolVersion, 'semantic-executor-prompt-v9');
 assert.strictEqual(executorA.system, executorB.system);

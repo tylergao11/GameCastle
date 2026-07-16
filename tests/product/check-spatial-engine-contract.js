@@ -33,6 +33,9 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
   assert(previewSource.indexOf('GDJS_SPATIAL_PREVIEW_RESOURCE_MISSING') >= 0, 'Missing accepted preview resources fail closed before Spatial Planner acceptance.');
   ['packages/spatial/src/runtime/assembly.js', 'packages/spatial/src/spatial-assembly-stage.js', 'packages/spatial/contracts/spatial-engine-contract.json'].forEach(function(file) { assert.strictEqual(fs.readFileSync(path.join(__dirname, '..', '..', file), 'utf8').indexOf('environment') < 0, true, file + ' contains no legacy environment path.'); });
   assert.throws(function() { plannerDsl.parseProgram('PLACE subject="player" x=1 y=1 width=1 height=1 angle=0 layer="" zOrder=0\nACCEPT'); }, function(error) { return error.code === 'SPATIAL_DSL_ACCEPTANCE_MIXED'; }, 'PLACE and ACCEPT cannot share a model response.');
+  assert.strictEqual(plannerDsl.parsePlace('PLACE subject="player\\nname" x=1 y=1 width=1 height=1 angle=0 layer="ui" zOrder=0', 0).subject, 'player\nname', 'Spatial DSL owns its string escape grammar without delegating to JSON.');
+  assert.throws(function() { plannerDsl.parseProgram('PLACE subject="player\\q" x=1 y=1 width=1 height=1 angle=0 layer="" zOrder=0'); }, function(error) { return error.code === 'SPATIAL_DSL_INVALID'; }, 'Spatial DSL rejects non-DSL escapes.');
+  assert.throws(function() { plannerDsl.parseProgram('{"placements":[]}'); }, function(error) { return error.code === 'SPATIAL_DSL_JSON_FORBIDDEN'; }, 'Spatial Planner model output cannot fall back to JSON.');
   assert.notStrictEqual(plannerDsl.LANGUAGE_ID, semanticDsl.LANGUAGE_ID, 'Semantic and spatial model protocols have distinct language identities.');
   assert.throws(function() { plannerDsl.parseProgram('game(semanticId=demo, name="Demo")'); }, function(error) { return error.code === 'SPATIAL_DSL_INVALID'; }, 'Spatial parser rejects semantic-dsl-v1 commands.');
   var semanticParseOfSpatial = semanticDsl.parse('PLACE subject="player" x=1 y=1 width=1 height=1 angle=0 layer="" zOrder=0');
@@ -108,6 +111,11 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
       'PLACE subject="player" x=362 y=286 width=64 height=64 angle=0 layer="" zOrder=31\nPLACE subject="hud" x=82 y=46 width=100 height=24 angle=0 layer="ui" zOrder=106',
       'ACCEPT'
     ];
+    plannerGraph._resetCompiledGraphCache();
+    assert.deepStrictEqual(plannerGraph._compiledGraphMetrics(), { compiles: 0, cacheHits: 0, invocations: 0, cached: false });
+    assert.deepStrictEqual(await plannerGraph.prewarmGraph(), { ready: true, stages: spatialEngine.contract.graph }, 'prewarm compiles only the contract-declared Spatial Planner graph');
+    assert.strictEqual(plannerCalls.length, 0, 'prewarm must not invoke the Spatial Planner provider');
+    assert.deepStrictEqual(plannerGraph._compiledGraphMetrics(), { compiles: 1, cacheHits: 0, invocations: 0, cached: true }, 'prewarm creates a reusable graph without any spatial run state');
     var run = await plannerGraph.runSpatialPlanner({
       runId: 'spatial-planner-check',
       projectId: 'spatial-planner-check',
@@ -121,6 +129,7 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
       plannerPort: { invoke: async function(request) { plannerCalls.push(request); return { ok: true, output: { text: outputs.shift() }, receipt: { receiptId: 'fixture.' + plannerCalls.length, provider: 'fixture', model: 'fixture-vision', status: 'succeeded', provenance: { simulated: false } } }; } }
     });
     assert.strictEqual(run.status, 'accepted', 'The visual planner completes after a previewed candidate is accepted in a later round: ' + JSON.stringify(run.trace));
+    assert.deepStrictEqual(plannerGraph._compiledGraphMetrics(), { compiles: 1, cacheHits: 1, invocations: 1, cached: true }, 'the first spatial run uses the prewarmed graph');
     assert.strictEqual(run.resolution.acceptedAtRound, 2, 'Acceptance records the later model round.');
     assert.strictEqual(run.candidate.round, 1, 'Acceptance binds the preceding candidate rather than the same response.');
     assert.strictEqual(run.candidateProjection.basis.documentKind, 'spatial-layout-candidate', 'Preview uses the exact provisional GDJS projection.');
@@ -135,9 +144,10 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
     assert.strictEqual(plannerCalls.length, 2);
     assert.deepStrictEqual(plannerCalls[0].imagePaths, [hudPath, playerPath], 'Accepted images are sent in the same semanticId order declared by imageRefs.');
     assert(plannerCalls[0].prompt.indexOf('accepted-asset:hud_visual') >= 0 && plannerCalls[0].prompt.indexOf('accepted-asset:player_visual') >= 0, 'Prompt maps each accepted image to an explicit imageRef.');
-    assert(plannerCalls[1].prompt.indexOf('orderedImageInputs (provider image order):') >= 0 && plannerCalls[1].prompt.indexOf('candidate-preview:' + run.preview.contentHash) >= 0, 'Every visual-planner round declares the complete ordered imageRef list, including the candidate preview.');
+    assert(plannerCalls[1].prompt.indexOf('[spatial-facts]') >= 0 && plannerCalls[1].prompt.indexOf('candidate-preview:' + run.preview.contentHash) >= 0, 'Every visual-planner round declares the complete ordered imageRef list as DSL FACT rows, including the candidate preview.');
     assert(plannerCalls[0].prompt.indexOf('A readable score panel sprite.') >= 0 && plannerCalls[0].prompt.indexOf(assembly.componentExpansion.contentHash) >= 0, 'Planner receives the frozen semantic design and component-expansion identity.');
-    assert(plannerCalls[0].prompt.indexOf('"positiveX":"right"') >= 0 && plannerCalls[0].prompt.indexOf('"left":32,"top":24,"right":768,"bottom":576') >= 0, 'Planner prompt receives the explicit coordinate frame and dictionary-derived legal pixel region.');
+    assert(plannerCalls[0].prompt.indexOf('fact(path="spatial.context.planningSpace.coordinateFrame.axes.positiveX",value="right")') >= 0 && plannerCalls[0].prompt.indexOf('fact(path="spatial.context.planningSpace.subjects.1.legalRegion.rect.left",value=32)') >= 0, 'Planner prompt receives the explicit coordinate frame and dictionary-derived legal pixel region as deterministic DSL FACT rows.');
+    assert.strictEqual(plannerCalls[0].prompt.indexOf('{"positiveX"') < 0, true, 'Spatial model context never serializes planning facts as JSON.');
     assert(plannerCalls[1].imagePaths.indexOf(run.preview.imagePath) >= 0, 'The later visual-planner call receives the exact candidate preview.');
     assert.deepStrictEqual(run.trace.filter(function(entry) { return entry.stage === 'planner-invoke'; }).map(function(entry) { return entry.dsl; }), [
       'PLACE subject="player" x=362 y=286 width=64 height=64 angle=0 layer="" zOrder=31\nPLACE subject="hud" x=82 y=46 width=100 height=24 angle=0 layer="ui" zOrder=106',
@@ -166,6 +176,8 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
     assert.strictEqual(failedRun.traceArtifact.rounds.length, 1, 'Provider failure still persists the exact failed external round.');
     var failedRoundTrace = JSON.parse(fs.readFileSync(failedRun.traceArtifact.rounds[0].path, 'utf8'));
     assert(failedRoundTrace.entries[0].input.systemPrompt && failedRoundTrace.entries[0].input.prompt && failedRoundTrace.entries[0].input.imageInputs.length === 2, 'Provider failure round preserves exact prompt and ordered image inputs for diagnosis.');
+    assert.strictEqual(failedRun.candidate, null, 'the reused graph must not retain a previous run candidate'); assert.strictEqual(failedRun.preview, null, 'the reused graph must not retain a previous run preview');
+    assert.deepStrictEqual(plannerGraph._compiledGraphMetrics(), { compiles: 1, cacheHits: 2, invocations: 2, cached: true }, 'two spatial invocations reuse one compiled graph but retain separate per-run state');
     var productOutputs = [
       'PLACE subject="player" x=362 y=286 width=64 height=64 angle=0 layer="" zOrder=31\nPLACE subject="hud" x=82 y=46 width=100 height=24 angle=0 layer="ui" zOrder=106',
       'ACCEPT'

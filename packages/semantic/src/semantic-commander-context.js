@@ -82,14 +82,14 @@ function baseDraftIndex(draft) {
   };
 }
 
-function planner(references, draft, request, creativeVision, machineProjection, feedback) {
+function planner(references, draft, request, machineProjection, feedback) {
   var base = baseDraftIndex(draft);
   return {
     schemaVersion: SCHEMA_VERSION,
     contextKind: CONTEXT_KIND,
     phase: 'planner',
     l1: plannerCatalog(references),
-    l2: { request: text(request, 'request'), creativeVision: String(creativeVision || ''), sourceMode: draft.baseSource ? 'revision' : 'new', baseDraftHash: base.baseDraftHash, baseDraftIndex: base.index, feedback: feedback === undefined ? null : clone(feedback) },
+    l2: { request: text(request, 'request'), sourceMode: draft.baseSource ? 'revision' : 'new', baseDraftHash: base.baseDraftHash, baseDraftIndex: base.index, feedback: feedback === undefined ? null : clone(feedback) },
     l4: { transitionLines: machine(machineProjection, null) },
   };
 }
@@ -129,7 +129,7 @@ function validateFacts(task, facts) {
   return clone(facts);
 }
 
-function task(draftSlice, plan, machineProjection, activeTask, facts, feedback, request, creativeVision) {
+function task(draftSlice, plan, machineProjection, activeTask, facts, feedback, request) {
   plan = object(plan, 'plan'); activeTask = object(activeTask, 'activeTask');
   var frozenTask = taskPlan.taskById(plan, activeTask.semanticId);
   if (!equal(frozenTask, activeTask)) fail('SEMANTIC_CONTEXT_ACTIVE_TASK_DIVERGED', 'activeTask must be the unmodified task from the frozen TaskPlan.');
@@ -141,7 +141,7 @@ function task(draftSlice, plan, machineProjection, activeTask, facts, feedback, 
     schemaVersion: SCHEMA_VERSION,
     contextKind: CONTEXT_KIND,
     phase: 'executor',
-    l2: { request: text(request, 'request'), creativeVision: String(creativeVision || ''), plan: clone(plan), feedback: feedback === undefined ? null : clone(feedback) },
+    l2: { request: text(request, 'request'), plan: clone(plan), feedback: feedback === undefined ? null : clone(feedback) },
     l3: { activeTask: clone(activeTask), facts: validateFacts(activeTask, facts), draftSlice: clone(draftSlice) },
     l4: { transitionLines: transitions },
   };

@@ -4,7 +4,7 @@
   "owner": "ProviderRuntime",
   "principles": ["keys-are-environment-only", "one-provider-invocation-path", "typed-role-input", "fail-closed", "bounded-cost-and-retry", "receipts-are-safe-and-immutable", "simulated-results-cannot-publish"],
   "roles": {
-    "creative-text": { "modality": "text", "owner": "CreativeImagination", "defaultEstimatedCost": 0.01 },
+    "director-plan": { "modality": "text", "owner": "DirectorPlanner", "defaultEstimatedCost": 0.01 },
     "semantic-design": { "modality": "text", "owner": "SemanticLLM2", "defaultEstimatedCost": 0.01 },
     "image-generate": { "modality": "image-generation", "owner": "ImageAgent", "defaultEstimatedCost": 0.04 },
     "vision-review": { "modality": "vision-review", "owner": "VisionAgent", "defaultEstimatedCost": 0.005 },

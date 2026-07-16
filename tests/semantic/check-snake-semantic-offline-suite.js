@@ -132,8 +132,8 @@ function provider(outputs) {
       var task = benchmark.tasks[i], fixture = fixtures[task.id];
       assert(fixture, 'offline fixture missing for ' + task.id);
       var source = seedSource(task, index);
-      var result = await semanticRuntime.create({ providerRuntime: provider([fixture.plan, fixture.write]) }).invoke({ requestId: 'offline-' + task.id, projectId: 'offline-suite', timeoutMs: semanticRuntime.HARD_TIMEOUT_MS, maxTokens: semanticRuntime.MAX_TOKENS, userRequest: task.task, creativeVision: '', source: source, index: index });
-      var record = { probe: { benchmarkId: benchmark.contract.benchmarkId, benchmarkTaskId: task.id, task: task.task, seedFile: task.seedFile, semanticTimeoutMs: semanticRuntime.HARD_TIMEOUT_MS, semanticMaxTokens: semanticRuntime.MAX_TOKENS }, creativeVision: '', runTrace: result.runTrace, runLedger: result.runLedger, runState: result.runState, taskPlan: result.taskPlan, cacheSummary: result.cacheSummary, result: result };
+      var result = await semanticRuntime.create({ providerRuntime: provider([fixture.plan, fixture.write]) }).invoke({ requestId: 'offline-' + task.id, projectId: 'offline-suite', timeoutMs: semanticRuntime.HARD_TIMEOUT_MS, maxTokens: semanticRuntime.MAX_TOKENS, userRequest: task.task, source: source, index: index });
+      var record = { probe: { benchmarkId: benchmark.contract.benchmarkId, benchmarkTaskId: task.id, task: task.task, seedFile: task.seedFile, semanticTimeoutMs: semanticRuntime.HARD_TIMEOUT_MS, semanticMaxTokens: semanticRuntime.MAX_TOKENS }, runTrace: result.runTrace, runLedger: result.runLedger, runState: result.runState, taskPlan: result.taskPlan, cacheSummary: result.cacheSummary, result: result };
       var file = path.join(directory, task.id + '.json');
       fs.writeFileSync(file, JSON.stringify(record), 'utf8');
       var execution = await replaySuite.replay({ absolutePath: file, locator: 'offline/' + task.id + '.json' }, index);

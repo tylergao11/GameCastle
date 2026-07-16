@@ -27,4 +27,6 @@ async function run(input) {
   return result;
 }
 
-module.exports = { run: run };
+function prewarm() { return spatialPlanner.prewarmGraph(); }
+
+module.exports = { run: run, prewarm: prewarm };

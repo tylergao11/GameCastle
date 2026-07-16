@@ -55,7 +55,7 @@ The Planner therefore chooses real coordinates inside an explicit frame. It does
 It returns only `spatial-dsl-v1`:
 
 ```text
-PLACE subject=<json-string> x=<number> y=<number> width=<number> height=<number> angle=<number> layer=<json-string> zOrder=<number>
+PLACE subject=<dsl-string> x=<number> y=<number> width=<number> height=<number> angle=<number> layer=<dsl-string> zOrder=<number>
 ACCEPT
 ```
 

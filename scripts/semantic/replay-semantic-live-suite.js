@@ -69,7 +69,7 @@ async function replay(file, index) {
   var baseDraft = draftApi.structure(draftApi.create(references, source));
   var result = null, error = null;
   try {
-    result = await semanticRuntime.create({ providerRuntime: provider }).invoke({ requestId: 'semantic.replay', projectId: 'semantic-replay', timeoutMs: record.probe && record.probe.semanticTimeoutMs || semanticRuntime.HARD_TIMEOUT_MS, maxTokens: record.probe && record.probe.semanticMaxTokens || semanticRuntime.MAX_TOKENS, userRequest: record.probe && record.probe.task || '', creativeVision: record.creativeVision || '', source: source, index: index });
+    result = await semanticRuntime.create({ providerRuntime: provider }).invoke({ requestId: 'semantic.replay', projectId: 'semantic-replay', timeoutMs: record.probe && record.probe.semanticTimeoutMs || semanticRuntime.HARD_TIMEOUT_MS, maxTokens: record.probe && record.probe.semanticMaxTokens || semanticRuntime.MAX_TOKENS, userRequest: record.probe && record.probe.task || '', source: source, index: index });
   } catch (caught) { error = caught; }
   if (cursor !== recordedTrace.length) fail(file.locator + ' replay consumed ' + cursor + ' of ' + recordedTrace.length + ' recorded model calls.');
   var trace = result && result.runTrace || error && error.runTrace || [];

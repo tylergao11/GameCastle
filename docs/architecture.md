@@ -2,9 +2,9 @@
 
 ## Design ownership
 
-The creative model supplies creative language. Semantic Planner owns semantic decomposition, and DSL Executor fills values for exactly one frozen active task. Both consume the same DSL syntax registry through separate model roles and may use separate adapters on one open-source base model. Runtime owns GDJS capability binding. After accepted assets exist, Spatial Planner owns visual arrangement within those frozen facts. The local semantic runtime commits accepted task batches and materializes the complete `GameSemanticSource` or source-hash-checked `GameSemanticRevision`.
+Director Planner coordinates only the cross-domain `semantic.design`, `asset.realize`, and `assembly.verify` APIs. Semantic Planner owns semantic decomposition, and DSL Executor fills values for exactly one frozen active task. Both consume the same DSL syntax registry through separate model roles and may use separate adapters on one open-source base model. Runtime owns GDJS capability binding. After accepted assets exist, Spatial Planner owns visual arrangement within those frozen facts. The local semantic runtime commits accepted task batches and materializes the complete `GameSemanticSource` or source-hash-checked `GameSemanticRevision`.
 
-Model selection is supplied through ports. DeepSeek is the current diagnostic adapter; a local distilled model can replace it without changing Planner, Executor, Parser, Runtime, or training-log contracts.
+Model selection is supplied through ports. Ollama is the current local open-source adapter; simulated-local supports deterministic tests without changing Planner, Executor, Parser, Runtime, or training-log contracts.
 
 Runtime owns deterministic mechanics: TaskPlan validation/sealing, task activation, capability retrieval, dictionary binding, official parameter ordering/default insertion, GDJS expression/token normalization, collision-safe internal reference generation, open-slot validation, scene/object variable routing, official recursive variable serialization, dictionary-declared event serialization, nested event construction, one-to-many operation expansion, Draft ordering, task transactions, Source/Revision materialization, and compilation. It does not choose gameplay or design values.
 
@@ -14,7 +14,7 @@ The versioned Planner and Executor system prompts are byte-stable within their p
 
 The complete semantic run is bounded by one non-widenable 300-second deadline. Planner and active-task calls have no separate timeout; each call receives only the remaining total budget. Every LLM2 call receives the same explicit 8196-token output ceiling, shared by reasoning and DSL. A non-settling provider promise is still cut off by the shared deadline. Runtime performs final Source validation, assembly, and completion locally. Progress and termination are ledger states, not a fixed round count.
 
-The future director Planner sees one typed operation registry: `semantic.design`, `asset.realize`, and `assembly.verify`. These API boundaries return structured domain results and receipts. Director state stores cross-domain dependencies, receipts, accepted hashes, and failure facts. Semantic slots, asset work items, assembly candidates, provider messages, and parser repairs remain inside their owning domains, keeping LangGraph orchestration state smaller than the combined domain harness states.
+Director Planner sees one typed operation registry: `semantic.design`, `asset.realize`, and `assembly.verify`. These API boundaries return structured domain results and receipts. Director state stores only cross-domain dependencies, receipts, accepted hashes, and failure facts. Semantic slots, asset work items, assembly candidates, provider messages, and parser repairs remain inside their owning domains, keeping LangGraph orchestration state smaller than the combined domain harness states. A paid Director response that fails DSL validation is first reconciled into `ProductDeliveryRun` cost history and then terminally blocked.
 
 `ProductDeliveryOrchestrator` owns the current cross-stage product loop; `ProductDeliveryRun` is its only persisted lifecycle truth. The orchestrator classifies stage failures as local retry, semantic Revision, or system block. Only exact-target semantic quality observations can become feedback. TaskPlan remains Semantic Planner's only mutation scope.
 
@@ -26,20 +26,20 @@ Pinned GDevelop source
   -> GDJS Semantic Dictionary
   -> stable Event Algebra (dictionary-validated semantic composition)
 
-LLM1 creative direction + request + Planner discovery catalog
+Product request + Planner discovery catalog
   -> ProductDeliveryOrchestrator opens one persisted ProductDeliveryRun
-  -> Semantic Planner semantic-dsl-v9 typed tasks/target slots/capability aliases -> derive catalogs -> validate + freeze
+  -> Director Planner director-dsl-v1 freezes semantic.design -> asset.realize -> assembly.verify only
+  -> semantic.design: Semantic Planner semantic-dsl-v9 typed tasks/target slots/capability aliases -> derive catalogs -> validate + freeze
   -> state machine activates one task
   -> deterministic capability slice -> one atomic Draft-write -> acceptance receipt
   -> next task -> Runtime validates, assembles, and completes deterministically
   -> GameSemanticSource / GameSemanticRevision
-  -> dictionary-owned component realization
+  -> asset.realize: dictionary-owned component realization
   -> event compiler + asset requirement compiler + layout compiler
   -> RuntimeLinker + spatial assembly request + official libGD project seed
-
-Product delivery path
   -> complete accepted AssetWorld v4
   -> GDJS resource binder + asset-bound project seed
+  -> assembly.verify: native geometry facts
   -> source- and AssetWorld-bound native geometry facts
   -> Spatial Planner input (accepted assets + geometry + generated GDJS spatial truth + scene canvas)
   -> derived coordinate frame/layer stack/legal pixels
@@ -51,7 +51,7 @@ Product delivery path
 
 Assembly rejection
   -> exact-target, source-bound factual semantic-feedback-batch
-  -> LLM2 GameSemanticRevision through a new frozen TaskPlan
+  -> frozen Director repair route returns to semantic.design; LLM2 emits GameSemanticRevision through a new frozen TaskPlan
   -> activate new source hash and clear every downstream artifact reference
   -> rerun AssetWorld, spatial projection, browser capture, and assembly review
 ```
@@ -94,7 +94,7 @@ ComfyUI is not an asset processor. Its only registered image workflow is the has
 
 ## Execution boundary
 
-`apps/api/src/server.js` exposes the two current HTTP boundaries over authenticated loopback HTTP. `POST /product/deliver` calls `ProductDeliveryOrchestrator` and owns complete delivery. It accepts exactly product identity plus initial request/creative direction, so LLM2 owns normal initial Source creation. The product composition derives all storage paths, pins the dictionary, budgets, semantic settings, Asset policy and Spatial policy, and keeps constructor adapters as trusted bootstrap/test seams outside request data. HTTP request data cannot contain Source, storage paths, budgets, stage configuration, AssetWorld, stage results, capture/review adapters, lifecycle status, or repair scope. The internal programmatic orchestrator accepts one fully validated Source only for trusted bootstrap or resume.
+`apps/api/src/server.js` exposes the two current HTTP boundaries over authenticated loopback HTTP. `POST /product/deliver` calls `ProductDeliveryOrchestrator` and owns complete delivery. It accepts exactly product identity plus the initial user request, so semantic design owns normal initial Source creation. The product composition derives all storage paths, pins the dictionary, budgets, semantic settings, Asset policy and Spatial policy, and keeps constructor adapters as trusted bootstrap/test seams outside request data. HTTP request data cannot contain Source, storage paths, budgets, stage configuration, AssetWorld, stage results, capture/review adapters, lifecycle status, or repair scope. The internal programmatic orchestrator accepts one fully validated Source only for trusted bootstrap or resume.
 
 The orchestrator fixes the order as `Source/Revision -> semantic-asset-product-pipeline -> official Asset LangGraph -> complete accepted AssetWorld -> asset-bound seed -> native geometry -> spatial-product-pipeline -> official Spatial LangGraph -> accepted final projection -> official libGD browser export -> real loopback browser capture -> independent assembly review`. Every artifact is hash-bound into `ProductDeliveryRun`. The capture authority additionally signs the complete browser evidence with a per-process HMAC; the reviewer accepts evidence only through that authority and rechecks the build manifest, response build hash, PNG bytes and viewport. Acceptance requires all completion references. A source-bound Revision activates a new source hash, invalidates AssetWorld and every later artifact, and reruns the complete downstream path. AssetCard is only a read-only projection over Source, AssetWorld, and the current run; it is never a fifth source of truth.
 

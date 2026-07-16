@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "contractId": "gamecastle.product-delivery",
   "owner": "ProductDeliveryOrchestrator",
   "truthModel": {
@@ -7,7 +7,8 @@
     "assetAcceptance": "validated immutable semantic-asset-world",
     "spatialAcceptance": "validated spatial-layout-resolution and accepted GDJS projection",
     "crossStageLifecycle": "one persisted product-delivery-run",
-    "assetCard": "read-only projection; never an authored or persisted truth source"
+    "assetCard": "read-only projection; never an authored or persisted truth source",
+    "directorPlan": "frozen director-dsl-v1 program, plan hash, and provider receipt only; no domain inputs or domain internals"
   },
   "statuses": [
     "semantic-ready",

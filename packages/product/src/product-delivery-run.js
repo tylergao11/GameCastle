@@ -2,6 +2,7 @@ var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
 var contract = require('../contracts/product-delivery-contract.json');
+var directorDsl = require('./director-planner-dsl');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
@@ -43,6 +44,20 @@ function emptyArtifacts(sourceHash) {
   };
 }
 
+function validateDirector(value) {
+  if (value === null || value === undefined) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('PRODUCT_DELIVERY_RUN_INVALID', 'director must be null or a compact Director Planner receipt.');
+  allowed(value, ['languageId', 'program', 'planHash', 'receiptId', 'provider', 'model'], 'director');
+  if (value.languageId !== 'director-dsl-v1') fail('PRODUCT_DELIVERY_RUN_INVALID', 'director.languageId must be director-dsl-v1.');
+  if (typeof value.program !== 'string' || !value.program.trim()) fail('PRODUCT_DELIVERY_RUN_INVALID', 'director.program must be a non-empty canonical Director DSL program.');
+  try { directorDsl.parseProgram(value.program); } catch (error) { fail('PRODUCT_DELIVERY_RUN_INVALID', 'director.program is not valid director-dsl-v1: ' + error.message); }
+  text(value.planHash, 'director.planHash');
+  if (value.receiptId !== null) text(value.receiptId, 'director.receiptId');
+  if (value.provider !== null) text(value.provider, 'director.provider');
+  if (value.model !== null) text(value.model, 'director.model');
+  return clone(value);
+}
+
 function create(options) {
   options = options || {};
   var now = Date.now(), sourceHash = options.sourceHash === undefined || options.sourceHash === null ? null : text(options.sourceHash, 'sourceHash');
@@ -57,6 +72,7 @@ function create(options) {
     budgets: normalizeBudgets(options.budgets),
     usage: { stageAttempts: {}, observationCounts: {}, settledCostUsd: 0 },
     artifacts: emptyArtifacts(sourceHash),
+    director: null,
     history: [],
     startedAtMs: now,
     updatedAtMs: now,
@@ -66,13 +82,14 @@ function create(options) {
 
 function validate(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('PRODUCT_DELIVERY_RUN_INVALID', 'ProductDeliveryRun must be an object.');
-  allowed(value, ['schemaVersion', 'documentKind', 'deliveryId', 'projectId', 'status', 'currentSourceHash', 'semanticCycle', 'budgets', 'usage', 'artifacts', 'history', 'startedAtMs', 'updatedAtMs', 'blocked', 'contentHash'], 'ProductDeliveryRun');
+  allowed(value, ['schemaVersion', 'documentKind', 'deliveryId', 'projectId', 'status', 'currentSourceHash', 'semanticCycle', 'budgets', 'usage', 'artifacts', 'director', 'history', 'startedAtMs', 'updatedAtMs', 'blocked', 'contentHash'], 'ProductDeliveryRun');
   if (value.schemaVersion !== contract.schemaVersion || value.documentKind !== 'product-delivery-run') fail('PRODUCT_DELIVERY_RUN_INVALID', 'ProductDeliveryRun kind or version is invalid.');
   text(value.deliveryId, 'deliveryId'); text(value.projectId, 'projectId');
   if (contract.statuses.indexOf(value.status) < 0) fail('PRODUCT_DELIVERY_RUN_INVALID', 'ProductDeliveryRun status is invalid: ' + value.status);
   if (value.currentSourceHash !== null) text(value.currentSourceHash, 'currentSourceHash');
   integer(value.semanticCycle, 'semanticCycle', 0); normalizeBudgets(value.budgets);
   if (!value.usage || typeof value.usage !== 'object' || Array.isArray(value.usage) || !value.artifacts || typeof value.artifacts !== 'object' || Array.isArray(value.artifacts) || !Array.isArray(value.history)) fail('PRODUCT_DELIVERY_RUN_INVALID', 'ProductDeliveryRun usage, artifacts, and history are required.');
+  validateDirector(value.director);
   allowed(value.usage, ['stageAttempts', 'observationCounts', 'settledCostUsd'], 'usage');
   if (!value.usage.stageAttempts || typeof value.usage.stageAttempts !== 'object' || Array.isArray(value.usage.stageAttempts) || !value.usage.observationCounts || typeof value.usage.observationCounts !== 'object' || Array.isArray(value.usage.observationCounts)) fail('PRODUCT_DELIVERY_RUN_INVALID', 'usage counters must be objects.');
   Object.keys(value.usage.stageAttempts).forEach(function(key) { integer(value.usage.stageAttempts[key], 'usage.stageAttempts.' + key, 0); });
@@ -187,6 +204,19 @@ function beginStage(run, stage) {
   return seal(run);
 }
 
+function recordDirectorPlan(run, director) {
+  run = validate(run);
+  assertMutable(run, 'recordDirectorPlan');
+  if (run.director !== null) {
+    var existing = validateDirector(run.director), nextExisting = validateDirector(director);
+    if (existing.program !== nextExisting.program || existing.planHash !== nextExisting.planHash || existing.receiptId !== nextExisting.receiptId || existing.provider !== nextExisting.provider || existing.model !== nextExisting.model) fail('PRODUCT_DELIVERY_DIRECTOR_PLAN_CONFLICT', 'Product delivery cannot replace its frozen Director plan.');
+    return seal(run);
+  }
+  run.director = validateDirector(director);
+  append(run, { kind: 'director-plan-recorded', planHash: run.director.planHash, receiptId: run.director.receiptId });
+  return seal(run);
+}
+
 function startSource(run, sourceHash, revisionHash) {
   run = validate(run); sourceHash = text(sourceHash, 'sourceHash');
   assertMutable(run, 'startSource');
@@ -292,6 +322,7 @@ module.exports = {
   acquireLease: acquireLease,
   releaseLease: releaseLease,
   beginStage: beginStage,
+  recordDirectorPlan: recordDirectorPlan,
   startSource: startSource,
   recordArtifacts: recordArtifacts,
   recordObservation: recordObservation,

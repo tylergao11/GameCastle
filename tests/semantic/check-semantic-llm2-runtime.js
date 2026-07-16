@@ -29,7 +29,7 @@ function model(outputs, calls) {
 }
 async function invoke(outputs, extra, calls) {
   calls = calls || [];
-  return runtime.create({ modelPort: model(outputs.slice(), calls) }).invoke(Object.assign({ requestId: 'semantic-test', projectId: 'semantic-test', userRequest: 'Create a score game.', creativeVision: '', index: dictionary.loadIndex() }, extra || {}));
+  return runtime.create({ modelPort: model(outputs.slice(), calls) }).invoke(Object.assign({ requestId: 'semantic-test', projectId: 'semantic-test', userRequest: 'Create a score game.', index: dictionary.loadIndex() }, extra || {}));
 }
 
 (async function() {
@@ -56,7 +56,7 @@ async function invoke(outputs, extra, calls) {
   var trainingDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'semantic-training-'));
   try {
     var sinkCalls = [], sink = trainingLog.createFileSink({ directory: trainingDirectory, runId: 'snake' });
-    var logged = await runtime.create({ modelPort: model([PLAN, WRITE], sinkCalls), trainingLogSink: sink }).invoke({ requestId: 'training', projectId: 'training', userRequest: 'Create a score game.', creativeVision: '', index: dictionary.loadIndex() });
+    var logged = await runtime.create({ modelPort: model([PLAN, WRITE], sinkCalls), trainingLogSink: sink }).invoke({ requestId: 'training', projectId: 'training', userRequest: 'Create a score game.', index: dictionary.loadIndex() });
     var lines = fs.readFileSync(sink.file, 'utf8').trim().split(/\r?\n/).map(JSON.parse);
     assert.strictEqual(logged.ok, true);
     assert.strictEqual(lines.length, 2);
@@ -88,7 +88,7 @@ async function invoke(outputs, extra, calls) {
   await assert.rejects(function() { return invoke([PLAN, WRITE], { timeoutMs: runtime.HARD_TIMEOUT_MS + 1 }); }, function(error) { return error.code === 'SEMANTIC_LLM2_TIMEOUT_INVALID'; });
   await assert.rejects(function() { return invoke([PLAN, WRITE], { maxTokens: runtime.MAX_TOKENS + 1 }); }, function(error) { return error.code === 'SEMANTIC_LLM2_TOKENS_INVALID'; });
   await assert.rejects(function() {
-    return runtime.create({ modelPort: { invoke: function() { return new Promise(function() {}); } } }).invoke({ requestId: 'deadline', projectId: 'deadline', timeoutMs: 20, maxTokens: 64, userRequest: 'Create a game.', creativeVision: '', index: dictionary.loadIndex() });
+    return runtime.create({ modelPort: { invoke: function() { return new Promise(function() {}); } } }).invoke({ requestId: 'deadline', projectId: 'deadline', timeoutMs: 20, maxTokens: 64, userRequest: 'Create a game.', index: dictionary.loadIndex() });
   }, function(error) { return error.code === 'SEMANTIC_RUN_TIMEOUT' || error.code === 'SEMANTIC_RUN_EXPIRED'; });
 
   console.log('[SemanticLLM2Runtime] model port, v9 slot binding, deterministic completion, repair routing, 300-second ceiling, and distillation records passed');

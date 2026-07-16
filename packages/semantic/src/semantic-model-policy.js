@@ -3,7 +3,6 @@ var REASONING_TOKEN_LIMIT = 0;
 var DSL_TOKEN_RESERVE = OUTPUT_TOKEN_LIMIT - REASONING_TOKEN_LIMIT;
 
 var PROFILES = Object.freeze({
-  creative: Object.freeze({ thinking: Object.freeze({ type: 'enabled' }), reasoningEffort: 'medium', temperature: 1.5 }),
   planner: Object.freeze({ thinking: Object.freeze({ type: 'disabled' }), reasoningEffort: null, temperature: 0 }),
   executor: Object.freeze({ thinking: Object.freeze({ type: 'disabled' }), reasoningEffort: null, temperature: 0 })
 });

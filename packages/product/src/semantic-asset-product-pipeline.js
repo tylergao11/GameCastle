@@ -30,4 +30,6 @@ async function run(input) {
   return result;
 }
 
-module.exports = { run: run };
+function prewarm() { return assetEngine.prewarmGraph(); }
+
+module.exports = { run: run, prewarm: prewarm };

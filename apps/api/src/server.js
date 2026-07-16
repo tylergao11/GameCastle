@@ -4,7 +4,7 @@ var path = require('path');
 var semanticExecutor = require('../../../packages/semantic/src/semantic-product-executor');
 var productOrchestratorApi = require('../../../packages/product/src/product-delivery-orchestrator');
 
-var PRODUCT_FIELDS = ['deliveryId', 'projectId', 'userRequest', 'creativeVision'];
+var PRODUCT_FIELDS = ['deliveryId', 'projectId', 'userRequest'];
 
 function json(response, status, value) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
@@ -68,10 +68,17 @@ function statusFor(error) {
   if (error && (error.code === 'PRODUCT_DELIVERY_BLOCKED' || error.code === 'PRODUCT_DELIVERY_TERMINAL' || error.code === 'PRODUCT_DELIVERY_ALREADY_RUNNING')) return 409;
   return 400;
 }
+function prewarm(orchestrator) {
+  if (!orchestrator || typeof orchestrator.prewarm !== 'function') return;
+  Promise.resolve().then(function() { return orchestrator.prewarm(); }).catch(function(error) {
+    process.stderr.write('[ProductEngineApi] graph prewarm deferred: ' + String(error && error.code || error && error.message || error) + '\n');
+  });
+}
 function createServer(options) {
   options = options || {};
   var limit = options.maxBodyBytes || 4 * 1024 * 1024, authToken = text(options.authToken, 'authToken');
   var productOrchestrator = options.productOrchestrator || productOrchestratorApi.create(options.productOptions || {});
+  prewarm(productOrchestrator);
   return http.createServer(async function(request, response) {
     if (request.method !== 'POST') return json(response, 404, { ok: false, error: { code: 'PRODUCT_ENGINE_ROUTE_NOT_FOUND', message: 'Use POST /product/deliver or POST /semantic/execute.' } });
     try {

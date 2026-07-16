@@ -13,6 +13,9 @@ var productionResolver = require('./asset-production-resolver');
 var productionPipeline = require('./asset-production-pipeline');
 var frameSet = require('./frame-set');
 
+var compiledAssetGraphCache = { signature: null, promise: null };
+var compiledAssetGraphCounters = { compiles: 0, cacheHits: 0, invocations: 0 };
+
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
 function sha256(value) { return crypto.createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex'); }
@@ -118,48 +121,9 @@ function productionProjection(runId, sourceHash, productionResult) {
   return { assetManifest: manifest, bindings: bindings, acceptanceEvidence: { productionSetAcceptanceReceipt: clone(productionResult.acceptanceReceipt), workItemAcceptanceReceipts: accepted.map(function(item) { return clone(item.acceptanceReceipt); }), reviewReceipts: uniqueAcceptanceReceipts(accepted.map(acceptanceReviewReceipt)) } };
 }
 
-async function runAssetEngine(input) {
-  input = input || {};
-  if (Object.prototype.hasOwnProperty.call(input, 'previousAssetWorld')) fail('ASSET_WORLD_INJECTION_FORBIDDEN', 'AssetEngine does not accept a caller-supplied previous AssetWorld.');
-  if (!input.runId) throw new Error('Asset engine requires runId');
-  if (!input.assetRequirementContract || input.assetRequirementContract.documentKind !== 'semantic-asset-requirements' || !input.assetRequirementContract.sourceHash) throw new Error('AssetEngine requires SemanticAssetRequirements.sourceHash.');
-  var executionPolicy = executionPolicyModule.resolve(input), executionDeadlineAt = Date.now() + executionPolicy.totalDeadlineMs;
-  var assetLibrary = input.assetLibraryPort ? assetLibraryModule.create(input.assetLibraryPort) : null;
-  var lg = await loadLangGraph();
-  assertLangGraphRuntime(lg);
-  var graphDefinition = describeGraph();
-  var A = lg.Annotation.Root({ state: lg.Annotation({ reducer: function(_left, right) { return right; }, default: function() { return null; } }) });
-  var initial = {
-    runId: input.runId,
-    sourceHash: input.assetRequirementContract.sourceHash,
-    projectId: input.projectId || input.runId,
-    assetRequirementContract: clone(input.assetRequirementContract || null),
-    localInputs: clone(input.localInputs || {}),
-    localAssets: input.localAssets || {},
-    frameSets: input.frameSets || {},
-    sources: input.sources || {},
-    assetLibrary: assetLibrary,
-    libraryMatches: {},
-    assetLibraryAccelerationEvents: [],
-    ports: input.ports || {},
-    providerRuntime: input.providerRuntime || null,
-    providerOptions: Object.assign({}, input.providerOptions || {}, { timeoutMs: executionPolicy.totalDeadlineMs, candidateRounds: executionPolicy.candidateRounds, executionProfileId: executionPolicy.profileId, executionProfileHash: executionPolicy.profileHash }),
-    modelPolicy: input.modelPolicy || {},
-    productionRequest: null,
-    projectAssetDir: input.projectAssetDir || null,
-    revisionInputs: {},
-    ledger: input.ledger || {},
-    ledgerPath: input.ledgerPath || null,
-    maxAttempts: executionPolicy.maxProductionAttempts,
-    executionPolicy: clone(executionPolicy),
-    executionDeadlineAt: executionDeadlineAt,
-    maxCost: input.maxCost,
-    assetLibraryPublication: clone(input.assetLibraryPublication || {}),
-    assetPublicationOutboxPath: input.assetPublicationOutboxPath || null,
-    trace: []
-  };
-  function node(stage, work) { return async function(wire) { var state = Object.assign({}, wire.state); assertDeadline(state); await work(state); assertDeadline(state); state.trace = append(state.trace, stage); return { state: state }; }; }
-  var handlers = {
+function assetGraphNode(stage, work) { return async function(wire) { var state = Object.assign({}, wire.state); assertDeadline(state); await work(state); assertDeadline(state); state.trace = append(state.trace, stage); return { state: state }; }; }
+function assetGraphHandlers() {
+  return {
     'asset-intake': function(state) { state.assetSpecs = compileSpecs(state.assetRequirementContract); state.productionRequest = { requestId: state.runId + ':asset-production', projectId: state.projectId, sourceHash: state.sourceHash, requirements: clone(state.assetSpecs) }; },
     'local-input-archive': function(state) { state.localInputRecords = archiveLocalInputs(state.localInputs); },
     'asset-library-search': async function(state) {
@@ -226,15 +190,74 @@ async function runAssetEngine(input) {
       state.assetPublicationOutbox = { path: outbox.path, pending: outbox.pending().length };
     }
   };
-  var stages = graphDefinition.stages.map(function(definition) { return definition.stage; });
+}
+async function buildCompiledAssetGraph(graphDefinition) {
+  var lg = await loadLangGraph();
+  assertLangGraphRuntime(lg);
+  var handlers = assetGraphHandlers(), stages = graphDefinition.stages.map(function(definition) { return definition.stage; });
   if (!stages.length || stages.some(function(stage) { return typeof handlers[stage] !== 'function'; }) || Object.keys(handlers).some(function(stage) { return stages.indexOf(stage) < 0; })) throw new Error('AssetEngine stage handlers must exactly match packages/assets/contracts/asset-engine-contract.json.');
-  var graph = new lg.StateGraph(A);
-  stages.forEach(function(stage) { graph.addNode(stage, node(stage, handlers[stage])); });
+  var A = lg.Annotation.Root({ state: lg.Annotation({ reducer: function(_left, right) { return right; }, default: function() { return null; } }) }), graph = new lg.StateGraph(A);
+  stages.forEach(function(stage) { graph.addNode(stage, assetGraphNode(stage, handlers[stage])); });
   graph.addEdge(lg.START, stages[0]);
   for (var stageIndex = 0; stageIndex + 1 < stages.length; stageIndex++) graph.addEdge(stages[stageIndex], stages[stageIndex + 1]);
   graph.addEdge(stages[stages.length - 1], lg.END);
-  var output = await graph.compile().invoke({ state: initial });
+  var compiled = graph.compile();
+  compiledAssetGraphCounters.compiles += 1;
+  return compiled;
+}
+function compiledAssetGraph(graphDefinition) {
+  var signature = JSON.stringify(graphDefinition);
+  if (compiledAssetGraphCache.promise && compiledAssetGraphCache.signature === signature) { compiledAssetGraphCounters.cacheHits += 1; return compiledAssetGraphCache.promise; }
+  var pending = buildCompiledAssetGraph(graphDefinition);
+  compiledAssetGraphCache = { signature: signature, promise: pending };
+  pending.then(null, function() { if (compiledAssetGraphCache.promise === pending) compiledAssetGraphCache = { signature: null, promise: null }; });
+  return pending;
+}
+function compiledAssetGraphMetrics() { return { compiles: compiledAssetGraphCounters.compiles, cacheHits: compiledAssetGraphCounters.cacheHits, invocations: compiledAssetGraphCounters.invocations, cached: !!compiledAssetGraphCache.promise }; }
+function resetCompiledAssetGraphCache() { compiledAssetGraphCache = { signature: null, promise: null }; compiledAssetGraphCounters = { compiles: 0, cacheHits: 0, invocations: 0 }; }
+async function prewarmGraph() { var graphDefinition = describeGraph(); await compiledAssetGraph(graphDefinition); return { ready: true, stages: graphDefinition.stages.map(function(stage) { return stage.stage; }) }; }
+
+async function runAssetEngine(input) {
+  input = input || {};
+  if (Object.prototype.hasOwnProperty.call(input, 'previousAssetWorld')) fail('ASSET_WORLD_INJECTION_FORBIDDEN', 'AssetEngine does not accept a caller-supplied previous AssetWorld.');
+  if (!input.runId) throw new Error('Asset engine requires runId');
+  if (!input.assetRequirementContract || input.assetRequirementContract.documentKind !== 'semantic-asset-requirements' || !input.assetRequirementContract.sourceHash) throw new Error('AssetEngine requires SemanticAssetRequirements.sourceHash.');
+  var executionPolicy = executionPolicyModule.resolve(input), executionDeadlineAt = Date.now() + executionPolicy.totalDeadlineMs;
+  var assetLibrary = input.assetLibraryPort ? assetLibraryModule.create(input.assetLibraryPort) : null;
+  var graphDefinition = describeGraph();
+  var initial = {
+    runId: input.runId,
+    sourceHash: input.assetRequirementContract.sourceHash,
+    projectId: input.projectId || input.runId,
+    assetRequirementContract: clone(input.assetRequirementContract || null),
+    localInputs: clone(input.localInputs || {}),
+    localAssets: input.localAssets || {},
+    frameSets: input.frameSets || {},
+    sources: input.sources || {},
+    assetLibrary: assetLibrary,
+    libraryMatches: {},
+    assetLibraryAccelerationEvents: [],
+    ports: input.ports || {},
+    providerRuntime: input.providerRuntime || null,
+    providerOptions: Object.assign({}, input.providerOptions || {}, { timeoutMs: executionPolicy.totalDeadlineMs, candidateRounds: executionPolicy.candidateRounds, executionProfileId: executionPolicy.profileId, executionProfileHash: executionPolicy.profileHash }),
+    modelPolicy: input.modelPolicy || {},
+    productionRequest: null,
+    projectAssetDir: input.projectAssetDir || null,
+    revisionInputs: {},
+    ledger: input.ledger || {},
+    ledgerPath: input.ledgerPath || null,
+    maxAttempts: executionPolicy.maxProductionAttempts,
+    executionPolicy: clone(executionPolicy),
+    executionDeadlineAt: executionDeadlineAt,
+    maxCost: input.maxCost,
+    assetLibraryPublication: clone(input.assetLibraryPublication || {}),
+    assetPublicationOutboxPath: input.assetPublicationOutboxPath || null,
+    trace: []
+  };
+  var graph = await compiledAssetGraph(graphDefinition);
+  compiledAssetGraphCounters.invocations += 1;
+  var output = await graph.invoke({ state: initial });
   return output.state;
 }
 
-module.exports = { runAssetEngine: runAssetEngine, describeGraph: describeGraph, assertLangGraphRuntime: assertLangGraphRuntime, compileSpecs: compileSpecs, libraryRequirementForWorkItem: libraryRequirementForWorkItem, archiveLocalInputs: archiveLocalInputs, bindingManifest: bindingManifest, productionProjection: productionProjection };
+module.exports = { runAssetEngine: runAssetEngine, prewarmGraph: prewarmGraph, describeGraph: describeGraph, assertLangGraphRuntime: assertLangGraphRuntime, compileSpecs: compileSpecs, libraryRequirementForWorkItem: libraryRequirementForWorkItem, archiveLocalInputs: archiveLocalInputs, bindingManifest: bindingManifest, productionProjection: productionProjection, _compiledGraphMetrics: compiledAssetGraphMetrics, _resetCompiledGraphCache: resetCompiledAssetGraphCache };

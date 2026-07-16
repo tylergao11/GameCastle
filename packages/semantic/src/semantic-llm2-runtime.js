@@ -17,7 +17,7 @@ var dictionary = require('./capability-semantic-dictionary');
 var modelPolicy = require('./semantic-model-policy');
 var semanticModelPort = require('./semantic-model-port');
 var trainingLog = require('./semantic-training-log');
-var INPUT_FIELDS = ['requestId', 'projectId', 'estimatedCost', 'timeoutMs', 'maxTokens', 'userRequest', 'creativeVision', 'source', 'feedbackBatch', 'onSemanticEvent', 'index'];
+var INPUT_FIELDS = ['requestId', 'projectId', 'estimatedCost', 'timeoutMs', 'maxTokens', 'userRequest', 'source', 'feedbackBatch', 'onSemanticEvent', 'index'];
 var HARD_TIMEOUT_MS = 300000;
 var MAX_TOKENS = modelPolicy.OUTPUT_TOKEN_LIMIT;
 var CALL_POLICY = Object.freeze({ planner: { maxTokens: MAX_TOKENS, expectedMode: 'task-plan' }, task: { maxTokens: MAX_TOKENS, expectedMode: 'draft-write' } });
@@ -77,7 +77,6 @@ function create(options) {
     if (typeof input.userRequest !== 'string' || !input.userRequest.trim()) throw fail('SEMANTIC_LLM2_REQUEST_INVALID', 'userRequest must be non-empty text.');
 
     var request = input.userRequest.trim();
-    var creativeVision = String(input.creativeVision || '');
     var runStartedAt = Date.now();
     var deadline = Date.now() + timeoutBudgetMs;
     var currentView = input.source ? sourceContract.structureView(input.source, { index: index }) : null;
@@ -262,7 +261,7 @@ function create(options) {
       var view = stateMachine.project(ledger);
 
       if (view.state === stateMachine.STATES.PLANNING) {
-        var plannerContext = contextBuilder.planner(references, draft, request, creativeVision, commanderProjection(), feedbackBatch);
+        var plannerContext = contextBuilder.planner(references, draft, request, commanderProjection(), feedbackBatch);
         var plannerCall = await callModel('planner', plannerContext, null, { deltaHash: view.headHash });
         if (!plannerCall.result || plannerCall.result.ok !== true) { failedProvider(plannerCall, 'plan', null); continue; }
         var planValidation = pipeline.validate(plannerCall.commands, plannerCall.warnings, 'task-plan');
@@ -296,7 +295,7 @@ function create(options) {
         }
         var slice = taskSliceApi.create(draft, plan, taskId);
         var exactFacts = contextBuilder.taskFacts(references, activeTask, retrievedFacts);
-        var taskContext = contextBuilder.task(slice, plan, commanderProjection(), activeTask, exactFacts, feedbackBatch, request, creativeVision);
+        var taskContext = contextBuilder.task(slice, plan, commanderProjection(), activeTask, exactFacts, feedbackBatch, request);
         var taskCall = await callModel('task', taskContext, taskId, { planHash: plan.planHash, activeTaskHash: 'semantic.task.' + promptBundle.hashCanonical(activeTask), baseDraftHash: slice.baseDraftHash, deltaHash: stateMachine.project(ledger).headHash });
         taskCall.baseDraftHash = slice.baseDraftHash;
         if (!taskCall.result || taskCall.result.ok !== true) { failedProvider(taskCall, 'task', taskId); continue; }

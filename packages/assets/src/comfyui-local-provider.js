@@ -9,6 +9,8 @@ var masterImageQuality = require('./master-image-quality');
 var semanticReviewer = require('./clip-image-reviewer');
 
 var blobs = new Map();
+var checkpointVerificationCache = new Map();
+var checkpointVerificationCounters = { hits: 0, misses: 0, fullHashes: 0, failures: 0 };
 function code(value, message) { var error = new Error(message); error.code = value; error.owner = 'ComfyUIMasterImageProvider'; return error; }
 function sha256(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -24,7 +26,61 @@ function localEndpoint(value) { if (!value) throw code('COMFYUI_ENDPOINT_MISSING
 function crc32(buffer) { var value = 0xffffffff; for (var index = 0; index < buffer.length; index++) { value ^= buffer[index]; for (var bit = 0; bit < 8; bit++) value = (value >>> 1) ^ (0xedb88320 & -(value & 1)); } return (value ^ 0xffffffff) >>> 0; }
 function pngInfo(bytes, limits) { limits = limits || {}; if (!Buffer.isBuffer(bytes) || bytes.length < 33 || !bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw code('COMFYUI_OUTPUT_INVALID', 'ComfyUI output is not a PNG.'); if (limits.maxOutputBytes && bytes.length > limits.maxOutputBytes) throw code('COMFYUI_OUTPUT_INVALID', 'ComfyUI PNG exceeds the byte limit.'); var cursor = 8, width = 0, height = 0, colorType = 0, ended = false; while (cursor + 12 <= bytes.length) { var length = bytes.readUInt32BE(cursor), end = cursor + 12 + length; if (end > bytes.length) throw code('COMFYUI_OUTPUT_INVALID', 'ComfyUI PNG chunk is truncated.'); var type = bytes.toString('ascii', cursor + 4, cursor + 8), data = bytes.subarray(cursor + 8, cursor + 8 + length), expected = bytes.readUInt32BE(cursor + 8 + length), actual = crc32(Buffer.concat([Buffer.from(type, 'ascii'), data])); if (expected !== actual) throw code('COMFYUI_OUTPUT_INVALID', 'ComfyUI PNG checksum is invalid.'); if (type === 'IHDR') { width = data.readUInt32BE(0); height = data.readUInt32BE(4); colorType = data[9]; } if (type === 'IEND') { ended = true; break; } cursor = end; } if (!ended || !width || !height || (limits.maxWidth && width > limits.maxWidth) || (limits.maxHeight && height > limits.maxHeight) || (limits.maxPixels && width * height > limits.maxPixels)) throw code('COMFYUI_OUTPUT_INVALID', 'ComfyUI PNG dimensions are invalid.'); return { width: width, height: height, transparent: colorType === 4 || colorType === 6 }; }
 function hashPath(modelPath) { var resolved = path.resolve(modelPath); if (!fs.existsSync(resolved)) throw code('COMFYUI_MODEL_MISSING', 'Configured model artifact is unavailable.'); if (!fs.statSync(resolved).isFile()) throw code('COMFYUI_MODEL_INVALID', 'Master-image checkpoint must be a file.'); var digest = crypto.createHash('sha256'), file = fs.openSync(resolved, 'r'), buffer = Buffer.allocUnsafe(8 * 1024 * 1024), position = 0; try { for (;;) { var read = fs.readSync(file, buffer, 0, buffer.length, position); if (!read) break; digest.update(buffer.subarray(0, read)); position += read; } } finally { fs.closeSync(file); } return digest.digest('hex'); }
-function workflow(model) { var item = registry.workflows[model]; if (!item || item.role !== 'master-image-generate') throw code('COMFYUI_WORKFLOW_UNREGISTERED', 'No registered master-image workflow for ' + model + '.'); var file = path.resolve(__dirname, '..', '..', '..', item.workflowFile), bytes; try { bytes = fs.readFileSync(file); } catch (_error) { throw code('COMFYUI_WORKFLOW_MISSING', 'Registered master-image workflow is unavailable.'); } if (sha256(bytes) !== item.workflowSha256) throw code('COMFYUI_WORKFLOW_HASH_MISMATCH', 'Master-image workflow hash does not match the registry.'); var graph = JSON.parse(bytes.toString('utf8')), classes = Object.keys(graph).map(function(id) { return graph[id].class_type; }); if (classes.some(function(name) { return item.officialCoreNodeClasses.indexOf(name) < 0; }) || classes.indexOf('SaveImage') < 0) throw code('COMFYUI_WORKFLOW_NOT_CORE', 'Master-image workflow must contain only registered ComfyUI core nodes.'); var basePath = process.env[item.baseModel.pathEnv], baseHash = process.env[item.baseModel.sha256Env], refinerPath = process.env[item.refinerModel.pathEnv], refinerHash = process.env[item.refinerModel.sha256Env]; if (!basePath || !baseHash || !refinerPath || !refinerHash) throw code('COMFYUI_MODEL_PROVENANCE_MISSING', 'SDXL base and refiner paths and SHA-256 values are required.'); if (hashPath(basePath) !== baseHash) throw code('COMFYUI_MODEL_HASH_MISMATCH', 'Configured SDXL base SHA-256 does not match the checkpoint.'); if (hashPath(refinerPath) !== refinerHash) throw code('COMFYUI_REFINER_HASH_MISMATCH', 'Configured SDXL refiner SHA-256 does not match the checkpoint.'); return { id: model, item: item, graph: graph, baseHash: baseHash, refinerHash: refinerHash }; }
+function checkpointMetadata(modelPath) {
+  var resolved = path.resolve(modelPath);
+  if (!fs.existsSync(resolved)) throw code('COMFYUI_MODEL_MISSING', 'Configured model artifact is unavailable.');
+  var canonical = (fs.realpathSync.native || fs.realpathSync)(resolved), stat = fs.statSync(canonical);
+  if (!stat.isFile()) throw code('COMFYUI_MODEL_INVALID', 'Master-image checkpoint must be a file.');
+  return { canonicalPath: canonical, size: stat.size, mtimeMs: stat.mtimeMs, ctimeMs: stat.ctimeMs, dev: stat.dev, ino: stat.ino };
+}
+function checkpointCacheKey(workflowId, checkpointRole, metadata, expectedHash) {
+  return JSON.stringify([workflowId, checkpointRole, metadata.canonicalPath, metadata.size, metadata.mtimeMs, metadata.ctimeMs, metadata.dev, metadata.ino, String(expectedHash).toLowerCase()]);
+}
+function sameCheckpointMetadata(left, right) {
+  return left.canonicalPath === right.canonicalPath && left.size === right.size && left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs && left.dev === right.dev && left.ino === right.ino;
+}
+function verifiedCheckpointHash(workflowId, checkpointRole, modelPath, expectedHash) {
+  var before, key, cached;
+  try {
+    before = checkpointMetadata(modelPath);
+    key = checkpointCacheKey(workflowId, checkpointRole, before, expectedHash);
+    cached = checkpointVerificationCache.get(key);
+  } catch (error) {
+    checkpointVerificationCounters.failures += 1;
+    throw error;
+  }
+  if (cached) { checkpointVerificationCounters.hits += 1; return cached.sha256; }
+  checkpointVerificationCounters.misses += 1;
+  var actual;
+  try {
+    checkpointVerificationCounters.fullHashes += 1;
+    actual = hashPath(before.canonicalPath);
+    var after = checkpointMetadata(before.canonicalPath);
+    if (!sameCheckpointMetadata(before, after)) throw code('COMFYUI_MODEL_CHANGED_DURING_VERIFICATION', 'Master-image checkpoint changed during SHA-256 verification.');
+  } catch (error) {
+    checkpointVerificationCounters.failures += 1;
+    throw error;
+  }
+  if (actual !== String(expectedHash).toLowerCase()) { checkpointVerificationCounters.failures += 1; return actual; }
+  checkpointVerificationCache.set(key, { sha256: actual });
+  return actual;
+}
+function checkpointVerificationMetrics() { return { hits: checkpointVerificationCounters.hits, misses: checkpointVerificationCounters.misses, fullHashes: checkpointVerificationCounters.fullHashes, failures: checkpointVerificationCounters.failures, entries: checkpointVerificationCache.size }; }
+function resetCheckpointVerificationCache() { checkpointVerificationCache.clear(); checkpointVerificationCounters = { hits: 0, misses: 0, fullHashes: 0, failures: 0 }; }
+function workflow(model) {
+  var item = registry.workflows[model];
+  if (!item || item.role !== 'master-image-generate') throw code('COMFYUI_WORKFLOW_UNREGISTERED', 'No registered master-image workflow for ' + model + '.');
+  var file = path.resolve(__dirname, '..', '..', '..', item.workflowFile), bytes;
+  try { bytes = fs.readFileSync(file); } catch (_error) { throw code('COMFYUI_WORKFLOW_MISSING', 'Registered master-image workflow is unavailable.'); }
+  if (sha256(bytes) !== item.workflowSha256) throw code('COMFYUI_WORKFLOW_HASH_MISMATCH', 'Master-image workflow hash does not match the registry.');
+  var graph = JSON.parse(bytes.toString('utf8')), classes = Object.keys(graph).map(function(id) { return graph[id].class_type; });
+  if (classes.some(function(name) { return item.officialCoreNodeClasses.indexOf(name) < 0; }) || classes.indexOf('SaveImage') < 0) throw code('COMFYUI_WORKFLOW_NOT_CORE', 'Master-image workflow must contain only registered ComfyUI core nodes.');
+  var basePath = process.env[item.baseModel.pathEnv], baseHash = process.env[item.baseModel.sha256Env], refinerPath = process.env[item.refinerModel.pathEnv], refinerHash = process.env[item.refinerModel.sha256Env];
+  if (!basePath || !baseHash || !refinerPath || !refinerHash) throw code('COMFYUI_MODEL_PROVENANCE_MISSING', 'SDXL base and refiner paths and SHA-256 values are required.');
+  if (verifiedCheckpointHash(model, 'base', basePath, baseHash) !== String(baseHash).toLowerCase()) throw code('COMFYUI_MODEL_HASH_MISMATCH', 'Configured SDXL base SHA-256 does not match the checkpoint.');
+  if (verifiedCheckpointHash(model, 'refiner', refinerPath, refinerHash) !== String(refinerHash).toLowerCase()) throw code('COMFYUI_REFINER_HASH_MISMATCH', 'Configured SDXL refiner SHA-256 does not match the checkpoint.');
+  return { id: model, item: item, graph: graph, baseHash: baseHash, refinerHash: refinerHash };
+}
 function bind(registration, graph, field, value) { var bindings = registration.item.inputBindings[field]; if (!Array.isArray(bindings) || !bindings.length) throw code('COMFYUI_BINDING_INVALID', 'Master-image workflow does not bind ' + field + '.'); bindings.forEach(function(binding) { if (!graph[binding.nodeId] || !graph[binding.nodeId].inputs) throw code('COMFYUI_BINDING_INVALID', 'Master-image workflow has an invalid ' + field + ' binding.'); graph[binding.nodeId].inputs[binding.input] = value; }); }
 function prompt(registration, input) { var graph = clone(registration.graph), profile = registration.item.productionProfile; Object.keys(profile).forEach(function(field) { var definition = profile[field], value = input[field]; if (value === undefined) value = definition.default; if (definition.required && (value === undefined || value === null || String(value).trim() === '')) throw code('COMFYUI_PRODUCTION_INPUT_MISSING', 'Master-image workflow requires ' + field + '.'); if (definition.type === 'integer') value = Math.round(Number(value)); else if (definition.type === 'number') value = Number(value); else value = String(value); if (definition.minimum !== undefined) value = Math.max(definition.minimum, value); if (definition.maximum !== undefined) value = Math.min(definition.maximum, value); bind(registration, graph, field, value); }); bind(registration, graph, 'filenamePrefix', 'gamecastle-sdxl-' + String(input.requestId).replace(/[^A-Za-z0-9_-]/g, '_') + '-' + String(input.outputNonce).replace(/[^A-Za-z0-9_-]/g, '_')); return graph; }
 function request(context, route, options) { var endpoint = localEndpoint(context.config.endpoint), fetchImpl = context.fetchImpl || fetch; return fetchImpl(endpoint + route, Object.assign({}, options || {}, { signal: context.signal })); }
@@ -125,4 +181,4 @@ function createAssetProviderPorts(runtime, options) {
   };
 }
 
-module.exports = { invokeComfyUI: invokeComfyUI, health: health, cancel: cancel, createAssetProviderPorts: createAssetProviderPorts, _blobs: blobs, _pngInfo: pngInfo, _hashPath: hashPath, _findBlob: findBlob, _masterDimensions: masterDimensions };
+module.exports = { invokeComfyUI: invokeComfyUI, health: health, cancel: cancel, createAssetProviderPorts: createAssetProviderPorts, _blobs: blobs, _pngInfo: pngInfo, _hashPath: hashPath, _findBlob: findBlob, _masterDimensions: masterDimensions, _checkpointVerificationMetrics: checkpointVerificationMetrics, _resetCheckpointVerificationCache: resetCheckpointVerificationCache };

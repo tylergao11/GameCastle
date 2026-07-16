@@ -40,19 +40,20 @@ boundaries and truth audit](docs/module-boundaries.md).
 Pinned GDevelop source
   -> generated GDJS Semantic Dictionary
 
-LLM1 creative direction + product request
+Product request
   -> ProductDeliveryOrchestrator opens one persisted ProductDeliveryRun
-  -> Semantic Planner emits one semantic-dsl-v9 TaskPlan slot stream
+  -> Director Planner emits and freezes director-dsl-v1 only for semantic.design -> asset.realize -> assembly.verify
+  -> semantic.design: Semantic Planner emits one semantic-dsl-v9 TaskPlan slot stream
   -> Runtime freezes the plan and activates exactly one task at a time
   -> deterministic capability retrieval -> one atomic Draft-write batch -> deterministic acceptance
   -> next task -> Runtime validates, assembles, and completes deterministically
   -> GameSemanticSource v6 or GameSemanticRevision
-  -> dictionary-owned component expansion
+  -> asset.realize: dictionary-owned component expansion
   -> deterministic event + asset + layout compilation
   -> spatial assembly request + libGD project seed (no scene coordinates)
   -> complete accepted AssetWorld v4
   -> source-hash-checked asset-bound project seed
-  -> native geometry facts
+  -> assembly.verify: native geometry facts
   -> Spatial Planner input (accepted assets + geometry + generated GDJS spatial truth + scene canvas)
   -> derived planning space -> visual LLM spatial-dsl-v1 candidate -> Runtime validation -> GDJS candidate preview
   -> later ACCEPT -> canonical spatial resolution -> final GDJS projection
@@ -62,12 +63,12 @@ LLM1 creative direction + product request
 
 Assembly rejection
   -> source-bound factual semantic-feedback-batch
-  -> LLM2 plans a GameSemanticRevision through a new frozen TaskPlan
+  -> frozen Director repair route returns to semantic.design; LLM2 plans a GameSemanticRevision through a new frozen TaskPlan
   -> invalidate every downstream artifact from the prior source hash
   -> rerun asset, spatial, capture, and review
 ```
 
-Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth and is generated from one syntax registry. Planner uses typed target commands with globally unique target slots, capability aliases, and retrieval aliases; `plan-task.after` owns ordered dependencies and one event target slot owns its declared facet list. Model-visible context uses read-only DSL fact rows. `read` slots bind existing references, while `create`, `update`, and `delete` slots authorize mutation. Executor refers only to frozen slots and aliases. Runtime resolves semantic addresses and Dictionary handles, derives catalogs, validates scope, commits one-task transactions, materializes Source or Revision, completes deterministically, and emits factual feedback. Provider selection lives behind a Semantic Model Port, so DeepSeek and a distilled local model use the same Planner/Executor contracts. Every model call produces a distillation-ready training record with prompt hashes, raw output, parsed DSL, resolved commands, validation result, feedback, usage, and receipt. JSON bracket/brace output has no parser path.
+Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth and is generated from one syntax registry. Planner uses typed target commands with globally unique target slots, capability aliases, and retrieval aliases; `plan-task.after` owns ordered dependencies and one event target slot owns its declared facet list. Model-visible context uses read-only DSL fact rows. `read` slots bind existing references, while `create`, `update`, and `delete` slots authorize mutation. Executor refers only to frozen slots and aliases. Runtime resolves semantic addresses and Dictionary handles, derives catalogs, validates scope, commits one-task transactions, materializes Source or Revision, completes deterministically, and emits factual feedback. Provider selection lives behind a Semantic Model Port, so the local open-source model and simulated-local test adapter use the same Planner/Executor contracts. Every model call produces a distillation-ready training record with prompt hashes, raw output, parsed DSL, resolved commands, validation result, feedback, usage, and receipt. JSON bracket/brace output has no parser path.
 
 Common controls, abilities, and systems enter LLM2 as complete components. A component is admitted only when it encapsulates a frequent, bottom-up complex capability. LLM2 selects one component handle, target, configuration, and semantic bindings; Runtime expands its inherited dictionary blueprint into members, entities, behaviors, layout, and events. Jump and attack are action-button bindings, not parallel button component types. A cooldown skill binds one trigger and one effect. A state machine binds named transition conditions and optional effects. The editable Source retains only component instances; expanded GDJS facts are deterministic evidence tied to the same dictionary fingerprint.
 
@@ -91,7 +92,7 @@ npm run build
 
 `npm run check:project` is the only complete repository acceptance gate. It owns the semantic, asset, product, provider, assembly-feedback, multiplayer, and public-module evidence chains. The narrower `check:*` suites are diagnostic slices only and never establish project acceptance by themselves.
 
-Its semantic-loop slice runs the six `snake-layered-v2` tasks through the real internal Planner -> state machine -> task transaction -> completion path with a deterministic offline provider, then replays every recorded call and applies the independent semantic/runtime oracle. It does not call DeepSeek or claim a live-model pass rate.
+Its semantic-loop slice runs the six `snake-layered-v2` tasks through the real internal Planner -> state machine -> task transaction -> completion path with a deterministic offline provider, then replays every recorded call and applies the independent semantic/runtime oracle. It does not call a live provider or claim a live-model pass rate.
 
 `npm run check:network` is the single multiplayer verification entry. It covers tick policy/runtime, input replay, runtime binding, generated network code, snapshot/event/persistence modes, reconnect behavior, signaling protocol errors, transport integration, and the two-client bridge path.
 
@@ -104,13 +105,13 @@ $env:PRODUCT_ENGINE_TOKEN = '<local-secret>'
 npm run product:serve
 ```
 
-`apps/api/src/server.js` listens only on `127.0.0.1:3030` by default and requires `Authorization: Bearer $PRODUCT_ENGINE_TOKEN`. `POST /product/deliver` accepts only `deliveryId`, `projectId`, `userRequest`, and `creativeVision`. The product layer derives every run, Source-version, asset, preview, trace, and browser path beneath `PRODUCT_ENGINE_STORAGE_ROOT`; it also owns the fixed budgets and stage policy. The endpoint owns LLM2 design, official Asset and Spatial LangGraph execution, real-browser evidence, independent assembly review, and any source-bound LLM2 Revision cycle. HTTP callers cannot inject Source, AssetWorld, storage paths, budgets, stage options, or test adapters. The internal programmatic orchestrator may receive one fully validated Source for a trusted bootstrap or resume. `POST /semantic/execute` accepts only a complete `GameSemanticSource` and optional source-hash-checked `GameSemanticRevision`; it deterministically returns the libGD project seed and does not run LLM2 or any downstream product stage.
+`apps/api/src/server.js` listens only on `127.0.0.1:3030` by default and requires `Authorization: Bearer $PRODUCT_ENGINE_TOKEN`. `POST /product/deliver` accepts only `deliveryId`, `projectId`, and `userRequest`. The product layer derives every run, Source-version, asset, preview, trace, and browser path beneath `PRODUCT_ENGINE_STORAGE_ROOT`; it also owns the fixed budgets and stage policy. The endpoint owns semantic design, official Asset and Spatial LangGraph execution, real-browser evidence, independent assembly review, and any source-bound semantic Revision cycle. HTTP callers cannot inject Source, AssetWorld, storage paths, budgets, stage options, or test adapters. The internal programmatic orchestrator may receive one fully validated Source for a trusted bootstrap or resume. `POST /semantic/execute` accepts only a complete `GameSemanticSource` and optional source-hash-checked `GameSemanticRevision`; it deterministically returns the libGD project seed and does not run a model or any downstream product stage.
 
-Run the real DeepSeek probe with a configured local `DEEPSEEK_API_KEY` and explicit process authorization:
+Run the local Ollama semantic probe after starting its configured model:
 
 ```powershell
-$env:LLM_ALLOW_EXTERNAL = 'true'
-npm run debug:snake:live -- --skip-llm1 --benchmark-task=core-model --timeout-ms=300000
+$env:OLLAMA_ALLOW_LOCAL = 'true'
+npm run debug:snake:live -- --benchmark-task=core-model --timeout-ms=300000
 ```
 
 The semantic run has one hard total deadline of 300 seconds. There are no separate Planner, active-task, or finalization deadlines: every model call receives only the remaining total budget. Every Planner and Executor call receives an explicit 8196-token total output limit shared by reasoning and DSL; the same fact is present in both stable protocols so task decomposition can account for execution capacity. Deterministic capability retrieval adds no model call. The live Snake probe prints a heartbeat every 10 seconds, and every completed model call prints phase, active task, latency, stable-prefix hash/cache usage, raw output, and the state-machine result, then writes the hash-chained ledger and trace under `.gamecastle/output/semantic-live/`. The six `snake-layered-v2` tasks are a benchmark oracle only; no Snake rule enters production semantic modules.

@@ -9,7 +9,7 @@ var semanticModelPolicy = require('../../semantic/src/semantic-model-policy');
 var providerContract = require('../contracts/provider-runtime-contract.json');
 
 var ROLE_MODALITY = {
-  'creative-text': 'text', 'semantic-design': 'text',
+  'director-plan': 'text', 'semantic-design': 'text',
   'image-generate': 'image-generation', 'vision-review': 'vision-review', 'spatial-plan': 'vision-review'
 };
 
@@ -72,7 +72,8 @@ function createProviderRuntime(options) {
     return safe;
   }
   function configFor(request) {
-    if (request.role === 'spatial-plan') return governance.spatial({ provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) });
+    if (request.role === 'spatial-plan' || request.role === 'vision-review') return governance.spatial({ provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) });
+    if (request.role === 'director-plan') return governance.director({ provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) });
     var assetRole = ROLE_MODALITY[request.role] !== 'text';
     var overrides = { provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) };
     return assetRole ? governance.asset(overrides) : governance.semantic(overrides);
@@ -80,6 +81,7 @@ function createProviderRuntime(options) {
   function authorize(request, config) {
     var modality = ROLE_MODALITY[request.role];
     if (!modality) throw makeError('ROLE_UNSUPPORTED', 'Unsupported ProviderRuntime role: ' + request.role);
+    if (['director-plan', 'semantic-design', 'vision-review', 'spatial-plan'].indexOf(request.role) >= 0 && request.input && Object.prototype.hasOwnProperty.call(request.input, 'jsonSchema')) throw makeError('MODEL_JSON_PROTOCOL_FORBIDDEN', request.role + ' must use its deterministic DSL protocol, not jsonSchema.');
     if ((config.modalities || []).indexOf(modality) < 0) throw makeError('MODALITY_UNSUPPORTED', config.provider + ' does not support ' + modality);
     var estimated = request.estimatedCost === undefined ? Number(providerContract.roles[request.role].defaultEstimatedCost) : finite(request.estimatedCost, -1);
     if (!Number.isFinite(estimated) || estimated < 0) throw makeError('PROVIDER_COST_INVALID', 'Provider request requires a non-negative estimated cost');
@@ -92,7 +94,14 @@ function createProviderRuntime(options) {
   async function invokeRole(request) {
     request = clone(request || {});
     if (!request.requestId || !request.projectId || !request.role) throw makeError('PROVIDER_REQUEST_INVALID', 'Provider request requires requestId, projectId, and role');
-    var config = configFor(request);
+    var config;
+    try { config = configFor(request); }
+    catch (error) {
+      var requestedProvider = typeof request.provider === 'string' ? request.provider : request.provider && request.provider.provider || 'unresolved';
+      var deniedReceipt = makeReceipt({ requestId: safeId(request.requestId), projectId: safeId(request.projectId), role: request.role, modality: ROLE_MODALITY[request.role] || null, provider: safeId(requestedProvider), model: null, simulated: false, requestHash: hash({ role: request.role, input: redact(request.input || {}, []) }) });
+      deniedReceipt.status = 'denied'; deniedReceipt.failure = failure(error);
+      return { ok: false, receipt: persist(deniedReceipt), debt: debt(error) };
+    }
     var receipt = makeReceipt({ requestId: safeId(request.requestId), projectId: safeId(request.projectId), role: request.role, modality: ROLE_MODALITY[request.role], provider: config.provider, model: selectModel(config, request.role, request.model), simulated: !!config.simulated, requestHash: hash({ role: request.role, input: redact(request.input || {}, [config.apiKey] || []) }) });
     if (receipts.some(function(existing) { return existing.receiptId === receipt.receiptId; })) throw makeError('PROVIDER_REQUEST_ID_REUSED', 'Provider requestId has already produced an immutable receipt: ' + receipt.requestId);
     var reservation;
@@ -136,8 +145,8 @@ async function invokeHttpTransport(context) {
   var role = context.request.role;
   if (context.config.simulated) throw makeError('SIMULATED_TRANSPORT_NOT_CONFIGURED', 'Simulated calls must use an injected local transport');
   if (context.config.provider === 'comfyui-local') return require('../../assets/src/comfyui-local-provider').invokeComfyUI(context);
-  if ((role === 'creative-text' || role === 'semantic-design') && context.config.provider === 'deepseek') return invokeDeepSeekChat(context);
-  if (role === 'creative-text' || role === 'semantic-design' || role === 'vision-review' || role === 'spatial-plan') return invokeResponses(context);
+  if ((role === 'director-plan' || role === 'semantic-design') && (context.config.provider === 'deepseek' || context.config.provider === 'ollama')) return invokeChatCompletions(context);
+  if (role === 'director-plan' || role === 'semantic-design' || role === 'vision-review' || role === 'spatial-plan') return invokeResponses(context);
   if (role === 'image-generate') return invokeImageGeneration(context);
   throw makeError('ROLE_UNSUPPORTED', 'Unsupported HTTP role');
 }
@@ -151,25 +160,22 @@ async function invokeResponses(context) {
     messages = [{ role: 'user', content: content }];
   }
   var body = { model: context.model, input: messages, max_output_tokens: input.maxTokens || 4096, stream: true };
-  if (input.jsonSchema) body.text = { format: { type: 'json_schema', name: input.jsonSchema.name, strict: true, schema: input.jsonSchema.schema } };
   var result = await responsesClient.requestResponses({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
   return { output: (context.request.role === 'vision-review' || context.request.role === 'spatial-plan') ? { text: result.text, events: result.events } : { text: result.text, reasoningText: result.reasoningText, events: result.events }, usage: result.usage, cost: context.request.estimatedCost };
 }
-async function invokeDeepSeekChat(context) {
+async function invokeChatCompletions(context) {
   var input = context.request.input || {};
   var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
-  var creative = context.request.role === 'creative-text';
-  var profile = semanticModelPolicy.profile(creative ? 'creative' : 'executor');
+  var profile = semanticModelPolicy.profile(context.request.role === 'director-plan' ? 'planner' : 'executor');
   var thinking = input.thinking || profile.thinking;
   var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true }, thinking: thinking };
   if (thinking.type === 'enabled') body.reasoning_effort = input.reasoningEffort || profile.reasoningEffort;
   body.temperature = input.temperature === undefined ? profile.temperature : input.temperature;
-  if (input.jsonSchema) body.response_format = { type: 'json_object' };
   var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
-  return { output: { text: result.text, reasoningText: result.reasoningText, finishReason: result.finishReason, diagnostics: result.diagnostics, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: 'deepseek-chat-completions' } };
+  return { output: { text: result.text, reasoningText: result.reasoningText, finishReason: result.finishReason, diagnostics: result.diagnostics, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: context.config.provider + '-chat-completions' } };
 }
 async function invokeImageGeneration(context) {
   var input = context.request.input || {}; var requestFetch = context.fetchImpl || fetch; var response = await requestFetch(String(context.config.endpoint).replace(/\/$/, '') + '/images/generations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + context.config.apiKey }, body: JSON.stringify({ model: context.model, prompt: input.prompt, size: input.size || '1024x1024', background: input.transparent ? 'transparent' : undefined, response_format: 'b64_json' }), signal: context.signal });
   if (!response.ok) throw makeError('PROVIDER_HTTP_' + response.status, 'Image generation HTTP ' + response.status); var json = await response.json(); var image = (json.data || [])[0] || {}; return { output: { b64Json: image.b64_json, revisedPrompt: image.revised_prompt || null }, usage: json.usage || {}, cost: context.request.estimatedCost };
 }
-module.exports = { ROLE_MODALITY: clone(ROLE_MODALITY), createProviderRuntime: createProviderRuntime, invokeHttpTransport: invokeHttpTransport };
+module.exports = { ROLE_MODALITY: clone(ROLE_MODALITY), createProviderRuntime: createProviderRuntime, invokeHttpTransport: invokeHttpTransport, invokeChatCompletions: invokeChatCompletions };

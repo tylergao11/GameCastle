@@ -1,40 +1,33 @@
 var crypto = require('crypto');
 var productContract = require('../contracts/product-delivery-contract.json');
+var reviewDsl = require('./assembly-review-dsl');
 
 var OPTION_FIELDS = ['provider', 'estimatedCost', 'timeoutMs', 'maxAttempts', 'maxTokens'];
 var REVIEW_FIELDS = ['requestNamespace', 'projectId', 'source', 'assetCards', 'assetProductHash', 'spatialProductHash', 'resolutionHash', 'projectionHash', 'browserEvidence'];
 
-function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
-function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
-function digest(value) { return crypto.createHash('sha256').update(JSON.stringify(stable(value))).digest('hex'); }
+function clone(value) {
+  if (value === undefined || value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(clone);
+  return Object.keys(value).reduce(function(out, key) { out[key] = clone(value[key]); return out; }, {});
+}
+function canonical(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return 'text:' + reviewDsl.quote(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'number') return Number.isFinite(value) ? 'number:' + String(value) : 'nonfinite:' + String(value);
+  if (typeof value === 'bigint') return 'bigint:' + String(value);
+  if (Array.isArray(value)) return 'array[' + value.map(canonical).join(',') + ']';
+  if (typeof value === 'object') return 'object{' + Object.keys(value).sort().map(function(key) { return reviewDsl.quote(key) + ':' + canonical(value[key]); }).join(',') + '}';
+  return 'unsupported:' + reviewDsl.quote(String(value));
+}
+function digest(value) { return crypto.createHash('sha256').update(canonical(value)).digest('hex'); }
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'AssemblyReviewProviderPort'; throw error; }
 function allowed(value, fields, label) { Object.keys(value || {}).forEach(function(field) { if (fields.indexOf(field) < 0) fail('ASSEMBLY_REVIEW_PROVIDER_INPUT_INVALID', label + ' contains unknown field: ' + field); }); }
 function allowedOutput(value, fields, label) { Object.keys(value || {}).forEach(function(field) { if (fields.indexOf(field) < 0) fail('ASSEMBLY_REVIEW_PROVIDER_OUTPUT_INVALID', label + ' contains unknown field: ' + field); }); }
 function object(value, label) { if (!value || typeof value !== 'object' || Array.isArray(value)) fail('ASSEMBLY_REVIEW_PROVIDER_OUTPUT_INVALID', label + ' must be an object.'); return value; }
 function text(value, label) { if (typeof value !== 'string' || !value.trim()) fail('ASSEMBLY_REVIEW_PROVIDER_OUTPUT_INVALID', label + ' must be non-empty text.'); return value.trim(); }
 function finite(value, label) { if (!Number.isFinite(value)) fail('ASSEMBLY_REVIEW_PROVIDER_OUTPUT_INVALID', label + ' must be a finite number.'); return value; }
-
-var OUTPUT_SCHEMA = {
-  name: 'gamecastle_assembly_review',
-  schema: {
-    type: 'object', additionalProperties: false, required: ['decision', 'observations'],
-    properties: {
-      decision: { type: 'string', enum: ['accepted', 'rejected'] },
-      observations: {
-        type: 'array',
-        items: {
-          type: 'object', additionalProperties: false, required: ['code', 'description', 'targets', 'evidence'],
-          properties: {
-            code: { type: 'string', enum: productContract.semanticAssemblyObservationCodes.slice() },
-            description: { type: 'string', minLength: 1 },
-            targets: { type: 'array', minItems: 1, items: { type: 'object', additionalProperties: false, required: ['collection', 'semanticId'], properties: { collection: { type: 'string', enum: ['entities', 'components', 'events', 'assetIntents', 'layoutIntents'] }, semanticId: { type: 'string', minLength: 1 } } } },
-            evidence: { type: 'object', additionalProperties: false, required: ['visualFact', 'screenshotRegion'], properties: { visualFact: { type: 'string', minLength: 1 }, screenshotRegion: { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false, required: ['x', 'y', 'width', 'height'], properties: { x: { type: 'number', minimum: 0 }, y: { type: 'number', minimum: 0 }, width: { type: 'number', exclusiveMinimum: 0 }, height: { type: 'number', exclusiveMinimum: 0 } } }] } } }
-          }
-        }
-      }
-    }
-  }
-};
 
 function validateOutput(value) {
   object(value, 'Assembly Reviewer output');
@@ -76,22 +69,37 @@ function validateOutput(value) {
 }
 
 function prompt(input) {
+  var browserEvidence = input.browserEvidence || {};
+  var identity = {
+    assetProductHash: input.assetProductHash,
+    spatialProductHash: input.spatialProductHash,
+    resolutionHash: input.resolutionHash,
+    projectionHash: input.projectionHash,
+    browserCaptureHash: browserEvidence.contentHash,
+    runtimeBuildHash: browserEvidence.runtimeBuildHash
+  };
   return {
     systemPrompt: [
       'Role: independent Assembly Reviewer.',
       'Judge only the supplied screenshot of the real source-bound GDJS runtime build.',
       'Report observable product facts, never repair instructions, routing, task scope, or suggested fixes.',
       'Every rejected fact must target exact semantic ids already present in Source.',
-      'Accept only when composition, legibility, visual hierarchy, asset-role correctness, and layout intent are all coherent at the captured viewport.'
+      'Accept only when composition, legibility, visual hierarchy, asset-role correctness, and layout intent are all coherent at the captured viewport.',
+      'Return only ' + reviewDsl.LANGUAGE_ID + ' commands. Do not return JSON, Markdown, prose, or code fences.',
+      'Accepted review: ACCEPT',
+      'Rejected review: REJECT then one or more OBSERVE blocks:',
+      'OBSERVE code=ASSEMBLY_CODE description="observable fact"',
+      'EVIDENCE visualFact="pixels visible in the supplied capture"',
+      'REGION NONE or REGION x=0 y=0 width=1 height=1',
+      'TARGET collection="layoutIntents" semanticId="existing_semantic_id"',
+      'END'
     ].join('\n'),
     prompt: [
-      'Immutable identities:',
-      JSON.stringify({ assetProductHash: input.assetProductHash, spatialProductHash: input.spatialProductHash, resolutionHash: input.resolutionHash, projectionHash: input.projectionHash, browserCaptureHash: input.browserEvidence.contentHash, runtimeBuildHash: input.browserEvidence.runtimeBuildHash }),
-      'GameSemanticSource:',
-      JSON.stringify(input.source),
-      'Read-only AssetCards:',
-      JSON.stringify(input.assetCards || null),
-      'Return accepted with no observations, or rejected with factual source-targeted observations.'
+      'CONTEXT language=' + reviewDsl.quote(reviewDsl.LANGUAGE_ID),
+      reviewDsl.renderFactRows('identity', identity).join('\n'),
+      reviewDsl.renderFactRows('source', input.source).join('\n'),
+      reviewDsl.renderFactRows('assetCards', input.assetCards || null).join('\n'),
+      'RETURN one Assembly Reviewer program only.'
     ].join('\n')
   };
 }
@@ -113,14 +121,14 @@ function create(providerRuntime, options) {
       estimatedCost: options.estimatedCost,
       timeoutMs: options.timeoutMs,
       maxAttempts: options.maxAttempts,
-      input: { systemPrompt: request.systemPrompt, prompt: request.prompt, imagePath: input.browserEvidence && input.browserEvidence.imagePath, maxTokens: options.maxTokens || 2048, jsonSchema: OUTPUT_SCHEMA }
+      input: { systemPrompt: request.systemPrompt, prompt: request.prompt, imagePath: input.browserEvidence && input.browserEvidence.imagePath, maxTokens: options.maxTokens || 2048 }
     });
     if (!result || result.ok !== true || !result.output || typeof result.output.text !== 'string') {
       var debt = result && result.debt || {};
       fail(debt.code || 'ASSEMBLY_REVIEW_PROVIDER_FAILED', debt.message || 'Assembly review provider returned no structured result.');
     }
     var value;
-    try { value = JSON.parse(result.output.text); } catch (error) { fail('ASSEMBLY_REVIEW_PROVIDER_OUTPUT_INVALID', 'Assembly review provider returned invalid JSON: ' + error.message); }
+    try { value = reviewDsl.parseProgram(result.output.text); } catch (error) { fail('ASSEMBLY_REVIEW_PROVIDER_OUTPUT_INVALID', 'Assembly review provider returned invalid ' + reviewDsl.LANGUAGE_ID + ': ' + error.message); }
     value = validateOutput(value);
     var receipt = result.receipt || {};
     return {
@@ -133,4 +141,4 @@ function create(providerRuntime, options) {
   return { reviewAssembly: reviewAssembly };
 }
 
-module.exports = { create: create, OUTPUT_SCHEMA: clone(OUTPUT_SCHEMA), prompt: prompt, validateOutput: validateOutput };
+module.exports = { create: create, LANGUAGE_ID: reviewDsl.LANGUAGE_ID, prompt: prompt, validateOutput: validateOutput };
