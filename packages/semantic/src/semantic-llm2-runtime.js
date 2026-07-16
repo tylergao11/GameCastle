@@ -17,7 +17,8 @@ var dictionary = require('./capability-semantic-dictionary');
 var modelPolicy = require('./semantic-model-policy');
 var semanticModelPort = require('./semantic-model-port');
 var trainingLog = require('./semantic-training-log');
-var INPUT_FIELDS = ['requestId', 'projectId', 'estimatedCost', 'timeoutMs', 'maxTokens', 'userRequest', 'source', 'feedbackBatch', 'onSemanticEvent', 'index'];
+var dslGrammar = require('./semantic-dsl-gbnf');
+var INPUT_FIELDS = ['requestId', 'projectId', 'estimatedCost', 'timeoutMs', 'maxTokens', 'userRequest', 'planDsl', 'source', 'feedbackBatch', 'onSemanticEvent', 'index'];
 var HARD_TIMEOUT_MS = 300000;
 var MAX_TOKENS = modelPolicy.OUTPUT_TOKEN_LIMIT;
 var CALL_POLICY = Object.freeze({ planner: { maxTokens: MAX_TOKENS, expectedMode: 'task-plan' }, task: { maxTokens: MAX_TOKENS, expectedMode: 'draft-write' } });
@@ -64,6 +65,7 @@ function create(options) {
     ? semanticModelPort.assertPort(options.modelPort)
     : semanticModelPort.fromProviderRuntime(options.providerRuntime || providerRuntime.createProviderRuntime(), options.model || {});
   var trainingSink = options.trainingLogSink ? trainingLog.assertSink(options.trainingLogSink) : null;
+  var trainingProvenance = options.trainingProvenance === undefined ? null : clone(options.trainingProvenance);
 
   async function invoke(input) {
     input = input || {};
@@ -75,8 +77,10 @@ function create(options) {
     var requestedMaxTokens = input.maxTokens === undefined ? MAX_TOKENS : Number(input.maxTokens);
     if (!Number.isInteger(requestedMaxTokens) || requestedMaxTokens < 1 || requestedMaxTokens > MAX_TOKENS) throw fail('SEMANTIC_LLM2_TOKENS_INVALID', 'maxTokens must be an integer between 1 and ' + MAX_TOKENS + '.');
     if (typeof input.userRequest !== 'string' || !input.userRequest.trim()) throw fail('SEMANTIC_LLM2_REQUEST_INVALID', 'userRequest must be non-empty text.');
+    if (input.planDsl !== undefined && (typeof input.planDsl !== 'string' || !input.planDsl.trim())) throw fail('SEMANTIC_LLM2_PLAN_INVALID', 'planDsl must be non-empty Planner DSL text.');
 
     var request = input.userRequest.trim();
+    var externalPlanDsl = input.planDsl === undefined ? null : input.planDsl.trim();
     var runStartedAt = Date.now();
     var deadline = Date.now() + timeoutBudgetMs;
     var currentView = input.source ? sourceContract.structureView(input.source, { index: index }) : null;
@@ -136,6 +140,11 @@ function create(options) {
         taskId: call.taskId || null,
         languageId: parser.LANGUAGE_ID,
         protocolVersion: call.bundle && call.bundle.protocolVersion || null,
+        contract: {
+          grammarHash: promptBundle.hashText(dslGrammar.forPhase(call.phase === 'planner' ? 'planner' : 'executor')),
+          dictionarySource: clone(index.source || null)
+        },
+        provenance: clone(trainingProvenance),
         prompt: call.bundle ? { system: call.bundle.system, user: call.bundle.user, hashes: clone(call.bundle.hashes) } : null,
         output: { text: call.text || '', reasoningText: call.result && call.result.output && call.result.output.reasoningText || '', finishReason: call.result && call.result.output && call.result.output.finishReason || null },
         parsedCommands: clone(call.commands || []),
@@ -261,6 +270,24 @@ function create(options) {
       var view = stateMachine.project(ledger);
 
       if (view.state === stateMachine.STATES.PLANNING) {
+        if (externalPlanDsl) {
+          try {
+            var externalParsed = parser.parse(externalPlanDsl, { phase: 'planner' });
+            var externalValidation = pipeline.validate(externalParsed.commands, externalParsed.warnings, 'task-plan');
+            if (!externalValidation.ok) throw fail(externalValidation.code, externalValidation.message);
+            var externalPlan = taskPlanApi.create(externalParsed.commands);
+            taskPlanApi.assertFeasible(externalPlan, draftApi.materialize(draft), { revision: !!draft.baseSource });
+            assertFeedbackPlan(externalPlan, feedbackBatch);
+            externalPlan.tasks.forEach(function(task) { references.taskFacts(task); });
+            plan = externalPlan;
+            ledger = stateMachine.transition.acceptPlan(ledger, plan.planHash, plan.tasks.map(function(task) { return task.semanticId; }));
+          } catch (externalPlanError) {
+            externalPlanError.code = externalPlanError.code || 'SEMANTIC_LLM2_PLAN_INVALID';
+            externalPlanError.owner = externalPlanError.owner || 'SemanticLLM2Runtime';
+            throw traced(externalPlanError);
+          }
+          continue;
+        }
         var plannerContext = contextBuilder.planner(references, draft, request, commanderProjection(), feedbackBatch);
         var plannerCall = await callModel('planner', plannerContext, null, { deltaHash: view.headHash });
         if (!plannerCall.result || plannerCall.result.ok !== true) { failedProvider(plannerCall, 'plan', null); continue; }

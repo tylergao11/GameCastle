@@ -3,6 +3,8 @@ var fs = require('fs');
 var path = require('path');
 var derivation = require('./asset-derivation-pipeline');
 var frameSet = require('./frame-set');
+var styleDNA = require('./style-dna');
+var styleCohesion = require('./style-cohesion');
 var validator = require('./asset-production-contract-validator');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -59,6 +61,27 @@ function restoredUsable(result) { try { if (!result || !result.accepted || !resu
 function emptyLedger(plan, productionContextHash) { return { schemaVersion: 4, productionSetId: plan.productionSetId, planContentHash: plan.contentHash, productionContextHash: productionContextHash, workItems: {} }; }
 function readLedger(file, plan, productionContextHash) { if (!file || !fs.existsSync(file)) return emptyLedger(plan, productionContextHash); try { var value = JSON.parse(fs.readFileSync(file, 'utf8')); if (value.schemaVersion === 4 && value.productionSetId === plan.productionSetId && value.planContentHash === plan.contentHash && value.productionContextHash === productionContextHash) return value; } catch (_error) {} return emptyLedger(plan, productionContextHash); }
 function writeLedger(file, ledger) { if (!file) return; fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true }); fs.writeFileSync(file, JSON.stringify(ledger, null, 2)); }
+function withStyleAnchorPorts(ports, styleSession) {
+  if (!ports || typeof ports.generateMaster !== 'function') return ports || {};
+  return Object.assign({}, ports, {
+    generateMaster: async function(state) {
+      var slot = Object.assign({}, state.slot || {});
+      var constraints = slot.constraints || {};
+      var subject = slot.description || slot.subject || (slot.semanticTags || []).join(', ');
+      var promptOptions = {
+        transparent: constraints.transparent === true,
+        productionFamily: slot.productionFamily,
+        styleAnchor: !!(styleSession && styleSession.anchor)
+      };
+      if (!slot.generationPrompt) slot.generationPrompt = styleDNA.generationPrompt(slot.styleId, subject, promptOptions);
+      else if (styleSession && styleSession.anchor && slot.generationPrompt.indexOf('same cohesive GameCastle raster-toon art family') < 0) {
+        slot.generationPrompt = slot.generationPrompt + ', same cohesive GameCastle raster-toon art family as the established game cast, matching chunky silhouette language and limited color ramps';
+      }
+      return ports.generateMaster(Object.assign({}, state, { slot: slot, styleSession: styleSession }));
+    }
+  });
+}
+
 async function runProductionSet(input) {
   validator.validatePlan(input.plan); var context = [];
   assertDeadline(input.deadlineAt);
@@ -70,10 +93,42 @@ async function runProductionSet(input) {
     else context.push({ slotId: contextItem.slotId, source: 'generated', identity: await input.ports.productionFingerprint({ runId: input.runId, projectId: input.projectId, slot: contextItem.assetSpec, workItem: contextItem }), maxAttempts: input.maxAttempts === undefined ? null : input.maxAttempts, executionProfileHash: input.executionPolicy && input.executionPolicy.profileHash || null });
   }
   var productionContextHash = hash(context), ledger = readLedger(input.ledgerPath, input.plan, productionContextHash), results = [];
-  for (var index = 0; index < input.plan.workItems.length; index++) { assertDeadline(input.deadlineAt); var workItem = input.plan.workItems[index], restored = ledger.workItems[workItem.workItemPlanId], result = restoredUsable(restored) ? restored : await runWorkItem({ runId: input.runId, projectId: input.projectId, workItem: workItem, ports: input.ports, candidate: (input.candidates || {})[workItem.slotId], projectAssetDir: input.projectAssetDir, maxAttempts: input.maxAttempts, deadlineAt: input.deadlineAt }); results.push(result); ledger.workItems[workItem.workItemPlanId] = result; writeLedger(input.ledgerPath, ledger); }
+  var styleSession = { anchor: null };
+  var ports = withStyleAnchorPorts(input.ports, styleSession);
+  for (var index = 0; index < input.plan.workItems.length; index++) {
+    assertDeadline(input.deadlineAt);
+    var workItem = input.plan.workItems[index], restored = ledger.workItems[workItem.workItemPlanId];
+    var result = restoredUsable(restored) ? restored : await runWorkItem({ runId: input.runId, projectId: input.projectId, workItem: workItem, ports: ports, candidate: (input.candidates || {})[workItem.slotId], projectAssetDir: input.projectAssetDir, maxAttempts: input.maxAttempts, deadlineAt: input.deadlineAt });
+    results.push(result);
+    ledger.workItems[workItem.workItemPlanId] = result;
+    writeLedger(input.ledgerPath, ledger);
+    if (!styleSession.anchor) styleSession.anchor = styleCohesion.pickStyleAnchor([result]);
+  }
+  if (!styleSession.anchor) styleSession.anchor = styleCohesion.pickStyleAnchor(results);
   var accepted = results.filter(function(result) { return result.accepted; }), expected = input.plan.coveragePolicy.requiredTargetVisualSlotIds.slice().sort(), actual = accepted.map(function(result) { return result.workItem.targetVisualSlotId; }).sort(), complete = JSON.stringify(expected) === JSON.stringify(actual), byTarget = {}; accepted.forEach(function(result) { byTarget[result.workItem.targetVisualSlotId] = result.currentRevision.revisionId; });
-  var receipt = { productionSetId: input.plan.productionSetId, workItemAcceptanceReceiptIds: accepted.map(function(result) { return 'work-acceptance.' + hash(result.acceptanceReceipt).slice(0, 24); }), requiredSlotCoverage: { expectedTargetVisualSlotIds: expected, acceptedTargetVisualSlotIds: actual, missingTargetVisualSlotIds: expected.filter(function(target) { return actual.indexOf(target) < 0; }), complete: complete }, acceptedRevisionByTargetVisualSlotId: byTarget, decision: complete ? 'accepted' : 'debt' }; validator.validateSetAcceptance(receipt);
-  return { plan: input.plan, workItems: results, acceptanceReceipt: receipt, pass: complete, decision: complete ? 'pass' : 'blocked', debts: results.filter(function(result) { return result.debt; }).map(function(result) { return result.debt; }) };
+  var styleId = (input.plan.workItems[0] && input.plan.workItems[0].assetSpec && input.plan.workItems[0].assetSpec.styleId) || 'gamecastle.style-dna.v1';
+  var cohesionReceipt = null;
+  var debts = results.filter(function(result) { return result.debt; }).map(function(result) { return result.debt; });
+  if (complete) {
+    cohesionReceipt = await styleCohesion.evaluateProductionSet(results, { styleId: styleId, styleAnchor: styleSession.anchor });
+    if (cohesionReceipt.decision !== 'accepted') {
+      complete = false;
+      debts = debts.concat((cohesionReceipt.debts || []).map(function(debt) {
+        return Object.assign({ slotId: debt.slotId || debt.leftSlotId || input.plan.productionSetId, owner: 'StyleCohesion', message: debt.code }, debt);
+      }));
+    }
+  }
+  var receipt = {
+    productionSetId: input.plan.productionSetId,
+    workItemAcceptanceReceiptIds: accepted.map(function(result) { return 'work-acceptance.' + hash(result.acceptanceReceipt).slice(0, 24); }),
+    requiredSlotCoverage: { expectedTargetVisualSlotIds: expected, acceptedTargetVisualSlotIds: actual, missingTargetVisualSlotIds: expected.filter(function(target) { return actual.indexOf(target) < 0; }), complete: JSON.stringify(expected) === JSON.stringify(actual) },
+    acceptedRevisionByTargetVisualSlotId: byTarget,
+    styleCohesionReceipt: cohesionReceipt,
+    styleAnchor: styleSession.anchor,
+    decision: complete ? 'accepted' : 'debt'
+  };
+  validator.validateSetAcceptance(receipt);
+  return { plan: input.plan, workItems: results, acceptanceReceipt: receipt, pass: complete, decision: complete ? 'pass' : 'blocked', debts: debts, styleCohesionReceipt: cohesionReceipt, styleAnchor: styleSession.anchor };
 }
 
 module.exports = { runWorkItem: runWorkItem, runProductionSet: runProductionSet };

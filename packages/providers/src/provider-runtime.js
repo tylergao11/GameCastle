@@ -5,7 +5,6 @@ var path = require('path');
 var governance = require('./ai-provider-governance');
 var responsesClient = require('./responses-client');
 var chatCompletionsClient = require('./chat-completions-client');
-var semanticModelPolicy = require('../../semantic/src/semantic-model-policy');
 var providerContract = require('../contracts/provider-runtime-contract.json');
 
 var ROLE_MODALITY = {
@@ -73,10 +72,11 @@ function createProviderRuntime(options) {
   }
   function configFor(request) {
     if (request.role === 'spatial-plan' || request.role === 'vision-review') return governance.spatial({ provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) });
-    if (request.role === 'director-plan') return governance.director({ provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) });
+    var requestedProvider = typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider);
+    if (request.role === 'director-plan' || request.role === 'semantic-design') return governance.resolve(requestedProvider, { provider: requestedProvider, textModel: request.model, allowExternal: request.allowExternal === true }, governance.governance.assetDefaults);
     var assetRole = ROLE_MODALITY[request.role] !== 'text';
     var overrides = { provider: typeof request.provider === 'string' ? request.provider : ((request.provider || {}).provider) };
-    return assetRole ? governance.asset(overrides) : governance.semantic(overrides);
+    return governance.asset(overrides);
   }
   function authorize(request, config) {
     var modality = ROLE_MODALITY[request.role];
@@ -166,17 +166,16 @@ async function invokeResponses(context) {
 async function invokeChatCompletions(context) {
   var input = context.request.input || {};
   var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
-  var profile = semanticModelPolicy.profile(context.request.role === 'director-plan' ? 'planner' : 'executor');
-  var thinking = input.thinking || profile.thinking;
+  var thinking = input.thinking || { type: 'disabled' };
   var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true } };
   if (context.config.provider.indexOf('llama-cpp-') === 0) {
     body.chat_template_kwargs = { enable_thinking: thinking.type === 'enabled' };
     if (input.grammar) body.grammar = input.grammar;
   } else {
     body.thinking = thinking;
-    if (thinking.type === 'enabled') body.reasoning_effort = input.reasoningEffort || profile.reasoningEffort;
+    if (thinking.type === 'enabled' && input.reasoningEffort) body.reasoning_effort = input.reasoningEffort;
   }
-  body.temperature = input.temperature === undefined ? profile.temperature : input.temperature;
+  body.temperature = input.temperature === undefined ? 0 : input.temperature;
   var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
   return { output: { text: result.text, reasoningText: result.reasoningText, finishReason: result.finishReason, diagnostics: result.diagnostics, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: context.config.provider + '-chat-completions' } };
 }

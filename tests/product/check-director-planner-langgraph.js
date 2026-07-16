@@ -1,14 +1,11 @@
 var assert = require('assert');
 var domainApi = require('../../packages/product/src/planner-domain-api');
 var directorApi = require('../../packages/product/src/director-planner-langgraph');
+var directorModelPort = require('../../packages/product/src/director-model-port');
 var prompt = require('../../packages/product/src/director-planner-prompt');
+var dsl = require('../../packages/product/src/director-planner-dsl');
 
-var PROGRAM = [
-  'CALL id=semantic operation=semantic.design after=none',
-  'CALL id=asset operation=asset.realize after=semantic',
-  'CALL id=assembly operation=assembly.verify after=asset',
-  'REPAIR from=assembly.verify to=semantic.design'
-].join('\n');
+var PROGRAM = dsl.CANONICAL_PROGRAM;
 
 function makeSession(label, accepted) {
   return {
@@ -28,6 +25,12 @@ function makeSession(label, accepted) {
 }
 
 (async function() {
+  var providerInvocation = null;
+  var providerAdapter = directorModelPort.fromProviderRuntime({ invokeRole: async function(request) { providerInvocation = request; return { ok: true }; } });
+  await providerAdapter.invoke({ requestId: 'director-policy', projectId: 'project-policy', systemPrompt: 'Director DSL only.', prompt: 'Build.' });
+  assert.strictEqual(providerInvocation.provider, 'deepseek');
+  assert.strictEqual(providerInvocation.model, 'deepseek-v4-flash');
+  assert.strictEqual(providerInvocation.allowExternal, true);
   var calls = [], accepted = [], modelCalls = [];
   var domains = domainApi.create({
     semantic: { invoke: async function(input) { calls.push(input.operation); return { label: input.label }; } },
@@ -52,23 +55,24 @@ function makeSession(label, accepted) {
   assert(runs.every(function(run) { return run.trace.every(function(entry) { return !Object.prototype.hasOwnProperty.call(entry, 'input') && !Object.prototype.hasOwnProperty.call(entry, 'output'); }); }), 'Director trace must retain only orchestration evidence, never domain internals.');
   assert.strictEqual(director.metrics().graphInitializations, 1, 'Concurrent Director sessions share one compiled LangGraph.');
   assert.strictEqual(director.metrics().activeSessions, 0, 'Completed Director sessions release their ephemeral callback state.');
-  assert.strictEqual(modelCalls.length, 0, 'The fixed Director registry uses the deterministic canonical plan without model latency.');
-  assert.strictEqual(director.metrics().deterministicPlans, 2);
-  assert.strictEqual(runs.every(function(run) { return run.trace[0].stage === 'director-plan-deterministic'; }), true);
+  assert.strictEqual(modelCalls.length, 2, 'Every new Director run obtains its DSL plan through the model node in LangGraph.');
+  assert.strictEqual(director.metrics().modelPlans, 2);
+  assert.strictEqual(runs.every(function(run) { return run.trace[0].stage === 'director-plan'; }), true);
 
   var resumedAccepted = [];
   var resumed = await director.run({ requestId: 'director-resume', projectId: 'project-resume', userRequest: 'Resume without re-planning.', frozenPlan: { languageId: 'director-dsl-v1', program: PROGRAM, planHash: runs[0].planHash, receiptId: 'persisted.director', provider: 'fixture', model: 'director-fixture' }, session: makeSession('resume', resumedAccepted) });
   assert.strictEqual(resumed.trace[0].stage, 'director-plan-reused');
   assert.deepStrictEqual(resumedAccepted, ['resume']);
-  assert.strictEqual(modelCalls.length, 0, 'A persisted canonical DSL plan resumes without a model call.');
+  assert.strictEqual(modelCalls.length, 2, 'A persisted DSL plan resumes inside the same LangGraph without a second model call.');
 
   var built = prompt.build({ requestId: 'prompt', projectId: 'project', userRequest: 'Compose it.' });
   assert.strictEqual(built.systemPrompt.indexOf('JSON') >= 0, true, 'Director explicitly rejects JSON model output.');
+  assert.strictEqual(built.systemPrompt.indexOf('CALL id=semantic operation=semantic.design after=none') >= 0, true, 'Director prompt and parser share the canonical task ids.');
+  assert.strictEqual(built.systemPrompt.indexOf('REPAIR from=assembly.verify to=semantic.design') >= 0, true, 'Director prompt requires the complete repair line.');
   assert.strictEqual(built.prompt.indexOf('fact(path=') >= 0, true, 'Director model context is emitted as FACT rows.');
 
   var rejectingDirector = directorApi.create({
     domains: domains,
-    dynamicPlanning: true,
     modelPort: { invoke: async function() { return { ok: true, output: { text: '{"calls":[]}' }, receipt: null }; } }
   });
   await assert.rejects(function() { return rejectingDirector.run({ requestId: 'director-json', projectId: 'project-json', userRequest: 'Never JSON.', session: makeSession('json', []) }); }, function(error) { return error.code === 'DIRECTOR_DSL_JSON_FORBIDDEN'; });

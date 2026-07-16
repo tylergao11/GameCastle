@@ -4,7 +4,6 @@ var path = require('path');
 var dictionary = require('../../semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../semantic/src/game-semantic-source');
 var providerRuntimeApi = require('../../providers/src/provider-runtime');
-var providerGovernance = require('../../providers/src/ai-provider-governance');
 var semanticRuntimeApi = require('../../semantic/src/semantic-llm2-runtime');
 var assetPipeline = require('./semantic-asset-product-pipeline');
 var spatialPipeline = require('./spatial-product-pipeline');
@@ -62,9 +61,7 @@ function create(options) {
   var providerOptions = Object.assign({}, options.providerOptions || {});
   providerOptions.receiptDir = assertInside(storageRoot, path.join(storageRoot, 'provider-receipts'), 'provider receipt directory');
   var providerRuntime = options.providerRuntime || providerRuntimeApi.createProviderRuntime(providerOptions);
-  var semanticModelOptions = Object.assign({}, options.semanticModel || {});
-  var semanticProvider = providerGovernance.semantic(semanticModelOptions);
-  var semanticRuntime = options.semanticRuntime || semanticRuntimeApi.create({ providerRuntime: providerRuntime, model: { cachePolicy: semanticProvider.cachePolicy, roles: { planner: { provider: semanticProvider.provider, model: semanticProvider.textModel }, executor: { provider: semanticProvider.provider, model: semanticProvider.textModel } } } });
+  var semanticRuntime = options.semanticRuntime || semanticRuntimeApi.create({ providerRuntime: providerRuntime });
   var assetProductPipeline = options.assetPipeline || assetPipeline;
   var spatialProductPipeline = options.spatialPipeline || spatialPipeline;
   var reviewerPort = options.assemblyReviewerPort || (options.assemblyReviewer ? null : assemblyReviewProvider.create(providerRuntime, options.assemblyReviewerOptions || {}));
@@ -74,7 +71,7 @@ function create(options) {
   var spatialBase = Object.assign({}, options.spatialOptions || {});
   if (Object.prototype.hasOwnProperty.call(assetEngineBase, 'previousAssetWorld')) throw fail('PRODUCT_DELIVERY_STALE_ASSET_WORLD_FORBIDDEN', 'Product composition cannot configure a previous AssetWorld.');
   var domains = domainApi.create(domainAdapters.create({ semanticRuntime: semanticRuntime, assetPipeline: assetProductPipeline, spatialPipeline: spatialProductPipeline, browserCapture: captureProducer, assemblyReviewer: reviewer }));
-  var directorPlanner = options.directorPlanner || directorPlannerApi.create({ domains: domains, dynamicPlanning: options.directorDynamicPlanning === true, modelPort: options.directorModelPort || directorModelPortApi.fromProviderRuntime(providerRuntime, (function() { var config = providerGovernance.director(options.directorModel || {}); return { provider: config.provider, model: config.textModel, estimatedCost: options.directorModel && options.directorModel.estimatedCost, timeoutMs: options.directorModel && options.directorModel.timeoutMs, maxTokens: options.directorModel && options.directorModel.maxTokens }; })()) });
+  var directorPlanner = options.directorPlanner || directorPlannerApi.create({ domains: domains, modelPort: options.directorModelPort || directorModelPortApi.fromProviderRuntime(providerRuntime, options.directorModel || {}) });
 
   function pathsFor(projectId, deliveryId) {
     var deliveryRoot = assertInside(storageRoot, path.join(storageRoot, projectId, deliveryId), 'delivery root');

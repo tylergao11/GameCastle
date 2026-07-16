@@ -1,7 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 
-var SCHEMA_VERSION = 1;
+var SCHEMA_VERSION = 2;
 var RECORD_KIND = 'semantic-model-training-record';
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticTrainingLog'; throw error; }

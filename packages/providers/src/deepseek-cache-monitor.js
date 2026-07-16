@@ -33,6 +33,7 @@ async function runDeepSeekCacheDebug(options) {
   var threshold = Number(options.threshold); if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) threshold = 0.9;
   var turns = Array.isArray(options.dynamicTurns) ? options.dynamicTurns : [];
   if (!String(options.stablePrefix || '')) throw new Error('DeepSeek cache monitor requires a stablePrefix.');
+  if (!String(options.model || '')) throw new Error('DeepSeek cache monitor requires its caller-owned model.');
   if (turns.length < 2) throw new Error('DeepSeek cache monitor requires one warmup and at least one hot turn.');
   var invoke = options.invoke || function(body) {
     return chat.requestChatCompletions({ endpoint: options.endpoint || process.env.LLM_ENDPOINT || 'https://api.deepseek.com/v1', apiKey: options.apiKey || process.env.DEEPSEEK_API_KEY, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs || 120000, body: body });
@@ -41,7 +42,7 @@ async function runDeepSeekCacheDebug(options) {
   for (var i = 0; i < turns.length; i++) {
     var turn = turns[i] || {};
     var body = {
-      model: options.model || 'deepseek-v4-flash',
+      model: options.model,
       messages: [{ role: 'system', content: String(options.stablePrefix) }, { role: 'user', content: String(turn.userRequest || '') }],
       max_tokens: options.maxTokens || 32,
       stream: true,

@@ -4,12 +4,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$projectRoot = Split-Path -Parent $PSScriptRoot
+# scripts/assets -> repo root is two parents up
+$projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $workspaceRoot = Split-Path -Parent $projectRoot
 $portableRoot = Join-Path $workspaceRoot 'ComfyUI_windows_portable'
 $defaultRoot = Join-Path $portableRoot 'ComfyUI'
-$comfyRoot = if ($env:COMFYUI_ROOT) { [IO.Path]::GetFullPath((Join-Path $projectRoot $env:COMFYUI_ROOT)) } else { $defaultRoot }
-$python = if (Test-Path (Join-Path $portableRoot 'python_embeded\python.exe')) { Join-Path $portableRoot 'python_embeded\python.exe' } else { Join-Path $comfyRoot '.venv\Scripts\python.exe' }
+$comfyRoot = if ($env:COMFYUI_ROOT) {
+  if ([IO.Path]::IsPathRooted($env:COMFYUI_ROOT)) { [IO.Path]::GetFullPath($env:COMFYUI_ROOT) }
+  else { [IO.Path]::GetFullPath((Join-Path $projectRoot $env:COMFYUI_ROOT)) }
+} else { $defaultRoot }
+$embeddedPython = Join-Path $portableRoot 'python_embeded\python.exe'
+$venvPython = Join-Path $comfyRoot '.venv\Scripts\python.exe'
+$python = if (Test-Path $embeddedPython) { $embeddedPython } elseif (Test-Path $venvPython) { $venvPython } else { $embeddedPython }
 $pidFile = Join-Path $projectRoot '.gamecastle\comfyui.pid'
 $endpoint = if ($env:COMFYUI_ENDPOINT) { $env:COMFYUI_ENDPOINT.TrimEnd('/') } else { 'http://127.0.0.1:8188' }
 

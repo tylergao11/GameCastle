@@ -23,6 +23,9 @@
     "finalSemanticMargin": 0.005,
     "finalStyleMargin": -0.02
   },
+  "thresholdNotes": {
+    "finalStyleMargin": "Slightly negative on purpose: CLIP ViT-B/32 style margins are weak separators for raster-toon sprites. Style DNA prompt language and StyleCohesion (palette structure + pairwise family cohesion) carry the stronger multi-asset guarantee."
+  },
   "phasePolicy": {
     "master-candidate": {
       "hardGates": ["decodable-content", "semantic-margin", "composition-margin"],

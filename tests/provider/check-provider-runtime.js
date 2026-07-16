@@ -42,37 +42,37 @@ function request(role, id, extra) { return Object.assign({ requestId: id, projec
   assert.strictEqual(timeoutFailure.ok, false); assert.strictEqual(timeoutFailure.debt.code, 'PROVIDER_TIMEOUT'); assert(Date.now() - timeoutStarted < 1000, 'provider timeout must abort a hung transport promptly');
   var denied = await runtimeModule.createProviderRuntime().invokeRole(request('semantic-design', 'denied', { provider: 'openai' }));
   assert.strictEqual(denied.ok, false);
-  assert.strictEqual(denied.debt.code, 'OPEN_SOURCE_TEXT_PROVIDER_REQUIRED', 'Director and semantic roles cannot silently fall back to a proprietary text provider.');
+  assert.strictEqual(denied.debt.code, 'PROVIDER_NOT_AUTHORIZED', 'The shared runtime enforces authorization but does not own Semantic model selection.');
 
-  var ollamaSaved = { OLLAMA_ALLOW_LOCAL: process.env.OLLAMA_ALLOW_LOCAL, OLLAMA_ENDPOINT: process.env.OLLAMA_ENDPOINT, OLLAMA_TEXT_MODEL: process.env.OLLAMA_TEXT_MODEL };
+  var deepseekSaved = { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY, LLM_ENDPOINT: process.env.LLM_ENDPOINT };
   try {
-    process.env.OLLAMA_ALLOW_LOCAL = 'true'; process.env.OLLAMA_ENDPOINT = 'http://127.0.0.1:11434/v1'; process.env.OLLAMA_TEXT_MODEL = 'qwen3:8b';
+    process.env.DEEPSEEK_API_KEY = 'test-director-key'; process.env.LLM_ENDPOINT = 'https://api.deepseek.com/v1';
     var captured;
     var httpRuntime = runtimeModule.createProviderRuntime({ fetchImpl: async function(url, init) {
       captured = { url: url, body: JSON.parse(init.body) };
       return new Response('data: {"choices":[{"delta":{"content":"CALL id=semantic operation=semantic.design after=none"}}]}\n\ndata: {"usage":{"total_tokens":3},"choices":[]}\n\ndata: [DONE]\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
     } });
-    var live = await httpRuntime.invokeRole(request('director-plan', 'ollama-director-dsl', { provider: 'ollama', input: { systemPrompt: 'Director DSL only.', prompt: 'fact(path="director.request",value="build")' } }));
+    var live = await httpRuntime.invokeRole(request('director-plan', 'deepseek-director-dsl', { provider: 'deepseek', model: 'deepseek-v4-flash', allowExternal: true, input: { systemPrompt: 'Director DSL only.', prompt: 'fact(path="director.request",value="build")', thinking: { type: 'disabled' }, temperature: 0 } }));
     assert(live.ok);
-    assert.strictEqual(captured.url, 'http://127.0.0.1:11434/v1/chat/completions');
-    assert.strictEqual(captured.body.model, 'qwen3:8b');
+    assert.strictEqual(captured.url, 'https://api.deepseek.com/v1/chat/completions');
+    assert.strictEqual(captured.body.model, 'deepseek-v4-flash');
     assert.deepStrictEqual(captured.body.thinking, { type: 'disabled' });
     assert.strictEqual(captured.body.temperature, 0);
     assert.strictEqual(Object.prototype.hasOwnProperty.call(captured.body, 'response_format'), false);
     assert.strictEqual(Object.prototype.hasOwnProperty.call(captured.body, 'json_schema'), false);
     assert.strictEqual(live.output.text.indexOf('CALL id=semantic') === 0, true);
-  } finally { Object.keys(ollamaSaved).forEach(function(key) { if (ollamaSaved[key] === undefined) delete process.env[key]; else process.env[key] = ollamaSaved[key]; }); }
+  } finally { Object.keys(deepseekSaved).forEach(function(key) { if (deepseekSaved[key] === undefined) delete process.env[key]; else process.env[key] = deepseekSaved[key]; }); }
 
-  var llamaSaved = { LLAMA_CPP_SEMANTIC_ALLOW_LOCAL: process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL, LLAMA_CPP_SEMANTIC_ENDPOINT: process.env.LLAMA_CPP_SEMANTIC_ENDPOINT, SEMANTIC_DSL_MODEL: process.env.SEMANTIC_DSL_MODEL };
+  var llamaSaved = { LLAMA_CPP_SEMANTIC_ALLOW_LOCAL: process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL, LLAMA_CPP_SEMANTIC_ENDPOINT: process.env.LLAMA_CPP_SEMANTIC_ENDPOINT };
   try {
-    process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL = 'true'; process.env.LLAMA_CPP_SEMANTIC_ENDPOINT = 'http://127.0.0.1:8002/v1'; process.env.SEMANTIC_DSL_MODEL = 'Qwen/Qwen3.5-9B';
+    process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL = 'true'; process.env.LLAMA_CPP_SEMANTIC_ENDPOINT = 'http://127.0.0.1:8002/v1';
     var llamaCaptured;
     var llamaRuntime = runtimeModule.createProviderRuntime({ fetchImpl: async function(url, init) {
       llamaCaptured = { url: url, body: JSON.parse(init.body) };
       return new Response('data: {"choices":[{"delta":{"content":"project(gameId=\"grammar-test\")"}}]}\n\ndata: [DONE]\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
     } });
     var grammar = 'root ::= "project"';
-    var llamaResult = await llamaRuntime.invokeRole(request('semantic-design', 'llama-semantic-dsl', { provider: 'llama-cpp-semantic', input: { systemPrompt: 'Semantic DSL only.', prompt: 'Build.', grammar: grammar } }));
+    var llamaResult = await llamaRuntime.invokeRole(request('semantic-design', 'llama-semantic-dsl', { provider: 'llama-cpp-semantic', model: 'Qwen/Qwen3.5-9B', input: { systemPrompt: 'Semantic DSL only.', prompt: 'Build.', grammar: grammar, thinking: { type: 'disabled' }, temperature: 0 } }));
     assert(llamaResult.ok);
     assert.strictEqual(llamaCaptured.url, 'http://127.0.0.1:8002/v1/chat/completions');
     assert.strictEqual(llamaCaptured.body.model, 'Qwen/Qwen3.5-9B');
@@ -102,5 +102,5 @@ function request(role, id, extra) { return Object.assign({ requestId: id, projec
       assert.strictEqual(Object.prototype.hasOwnProperty.call(visionCaptured.body, 'text'), false, 'Vision DSL transport has no JSON response schema.');
     } finally { fs.rmSync(imageRoot, { recursive: true, force: true }); }
   } finally { Object.keys(visionSaved).forEach(function(key) { if (visionSaved[key] === undefined) delete process.env[key]; else process.env[key] = visionSaved[key]; }); }
-  console.log('[ProviderRuntime] open-source director and semantic DSL transport, receipts, authorization, and fail-closed JSON protocol passed');
+  console.log('[ProviderRuntime] Director and open-source Semantic DSL transport, receipts, authorization, and fail-closed JSON protocol passed');
 })().catch(function(error) { console.error(error); process.exit(1); });

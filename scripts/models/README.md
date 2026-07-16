@@ -16,12 +16,19 @@ npm run model:semantic:start
 ```
 
 The application sends `enable_thinking=false` per request and supplies the
-phase-specific GBNF grammar with every semantic call. The Director uses its
-canonical deterministic route by default, so the separate 4B Director model is
-not downloaded or started during the fast path. An explicit
-`dynamicPlanning: true` call is required before that model endpoint matters.
-The 8 GB single-GPU setup must not assume the 4B Director and 9B Semantic models
-can remain resident together.
+phase-specific GBNF grammar with every Semantic call. Director LLM1 is not a
+local model: it uses external DeepSeek `deepseek-v4-flash`. Semantic LLM2 alone
+uses the local GPU service, avoiding two resident text models on the 8 GB GPU.
+
+Director provider and model are fixed by `director-model-port.js`.
+`.env.local` stores only the private DeepSeek endpoint and key, and
+`npm run product:serve` loads them automatically. New terminals do not export
+variables manually:
+
+```powershell
+npm run model:director:check
+npm run model:director:smoke
+```
 
 Check readiness:
 

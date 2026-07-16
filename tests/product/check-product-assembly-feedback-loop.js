@@ -5,6 +5,7 @@ var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var orchestratorApi = require('../../packages/product/src/product-delivery-orchestrator');
+var directorDsl = require('../../packages/product/src/director-planner-dsl');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 
@@ -21,12 +22,7 @@ function clone(value) { return JSON.parse(JSON.stringify(value)); }
       tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } }
     }, { index: index });
     var sourceHashes = [], reviewCalls = 0, semanticCalls = 0, directorCalls = 0;
-    var directorProgram = [
-      'CALL id=semantic operation=semantic.design after=none',
-      'CALL id=asset operation=asset.realize after=semantic',
-      'CALL id=assembly operation=assembly.verify after=asset',
-      'REPAIR from=assembly.verify to=semantic.design'
-    ].join('\n');
+    var directorProgram = directorDsl.CANONICAL_PROGRAM;
     var fakeAsset = { run: async function(input) { var hash = sourceContract.sourceHash(input.source); sourceHashes.push(hash); return { schemaVersion: 2, documentKind: 'semantic-asset-product', sourceHash: hash, source: clone(input.source), contentHash: 'semantic-asset-product.' + hash, assembly: { assetRequirements: { requirements: [] }, componentExpansion: { contentHash: 'component.' + hash } }, assetState: { accepted: true, debts: [], assetWorld: { contentHash: 'asset-world.' + hash, productionSetId: 'production.' + hash, slots: [] } }, artifact: { contentHash: 'asset-bound-seed.' + hash } }; } };
     var fakeSpatial = { run: async function(input) { var hash = input.assetProduct.sourceHash; return { schemaVersion: 3, documentKind: 'semantic-spatial-product', sourceHash: hash, assetProductHash: input.assetProduct.contentHash, contentHash: 'semantic-spatial-product.' + hash, geometryFacts: { contentHash: 'geometry.' + hash }, resolution: { contentHash: 'resolution.' + hash }, acceptedProjection: { contentHash: 'projection.' + hash, assetWorldHash: 'asset-world.' + hash } }; } };
     var fakeCapture = { capture: async function(input) { return { contentHash: 'browser.' + input.assetProduct.sourceHash }; } };
@@ -57,7 +53,7 @@ function clone(value) { return JSON.parse(JSON.stringify(value)); }
     assert.strictEqual(sourceHashes.length, 2, 'Source Revision invalidates and reruns asset production instead of retaining stale downstream artifacts.');
     assert.notStrictEqual(sourceHashes[0], sourceHashes[1]);
     assert.strictEqual(product.source.layoutIntents[0].bounds.width, 64);
-    assert.strictEqual(directorCalls, 0, 'The deterministic Director fast path coordinates the semantic repair loop without a planning-model call.');
+    assert.strictEqual(directorCalls, 1, 'The Director LangGraph obtains one model plan and keeps the semantic repair loop inside that frozen schedule.');
     assert(product.deliveryRun.history.some(function(event) { return event.kind === 'observation' && event.code === 'ASSEMBLY_LEGIBILITY_FAILED'; }));
     console.log('[ProductAssemblyFeedbackLoop] browser assembly rejection -> factual Feedback -> LLM2 Revision -> full downstream invalidation -> re-review acceptance passed');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }

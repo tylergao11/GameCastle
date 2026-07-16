@@ -14,6 +14,8 @@
     "ComfyUI creates a multi-candidate SDXL batch whose latent denoising is split between the official base and refiner models",
     "AssetDerivationPipeline deterministically creates static assets and FrameSet revisions",
     "CLIPImageReviewer must accept the final derived pixels before ledger, GDJS, or outbox",
+    "StyleCohesion evaluates production-set palette structure and pairwise family cohesion after required slot coverage",
+    "Later image work items inherit Style DNA generation prompts anchored to the first accepted image style session",
     "GDJS binds only accepted project-local revisions",
     "accepted new revisions enter the asynchronous publication outbox"
   ],
@@ -52,6 +54,7 @@
     "MasterImageRevision": { "required": ["revisionId", "path", "sha256", "width", "height", "providerReceipt"] },
     "SemanticReviewReceipt": { "required": ["receiptId", "phase", "workItemPlanId", "targetVisualSlotId", "reviewPolicyFingerprint", "modelRevision", "modelFingerprint", "imageSha256s", "semanticMargin", "styleMargin", "decisions", "decision"] },
     "WorkItemAcceptanceReceipt": { "required": ["workItemPlanId", "finalRevisionId", "targetVisualSlotId", "deterministicEvidenceIds", "reviewReceiptId", "styleId", "decision"] },
-    "AssetProductionSetAcceptanceReceipt": { "required": ["productionSetId", "workItemAcceptanceReceiptIds", "requiredSlotCoverage", "acceptedRevisionByTargetVisualSlotId", "decision"] }
+    "AssetProductionSetAcceptanceReceipt": { "required": ["productionSetId", "workItemAcceptanceReceiptIds", "requiredSlotCoverage", "acceptedRevisionByTargetVisualSlotId", "decision"] },
+    "StyleCohesionReceipt": { "required": ["receiptId", "owner", "decision", "styleId", "styleFingerprint", "structure", "pairwise"] }
   }
 }

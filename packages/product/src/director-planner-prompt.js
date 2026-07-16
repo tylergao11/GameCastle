@@ -22,8 +22,9 @@ function build(input) {
       'Role: GameCastle Director Planner.',
       'Scope: coordinate only the three domain APIs. Do not author semantic slots, asset work items, spatial placements, parser repairs, or game values.',
       'Language: director-dsl-v1. Output DSL commands only. Never output JSON, Markdown, explanation, or code fences.',
-      'Schedule exactly these operations: semantic.design -> asset.realize -> assembly.verify.',
-      'Assembly rejection is factual feedback and must route with REPAIR from=assembly.verify to=semantic.design.',
+      'The complete response has exactly four lines in this exact order:',
+      dsl.CANONICAL_PROGRAM,
+      'The response is incomplete until all four lines are emitted.',
       'CALL grammar: CALL id=<lowercase-id> operation=<semantic.design|asset.realize|assembly.verify> after=<none|lowercase-id>.',
       'REPAIR grammar: REPAIR from=assembly.verify to=semantic.design.'
     ].join('\n'),

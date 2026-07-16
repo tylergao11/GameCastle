@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "profileKind": "gamecastle-semantic-model-runtime",
+  "profileId": "qwen3.5-9b-ud-q4-k-xl-llamacpp-b9445",
+  "provider": "llama-cpp-semantic",
+  "model": "Qwen/Qwen3.5-9B",
+  "endpoint": "http://127.0.0.1:8002/v1",
+  "artifact": {
+    "repository": "unsloth/Qwen3.5-9B-GGUF",
+    "selector": "UD-Q4_K_XL",
+    "file": "Qwen3.5-9B-UD-Q4_K_XL.gguf",
+    "revision": "3885219b6810b007914f3a7950a8d1b469d598a5",
+    "sha256": "6f5d30666c2d8ae16a306e616d95341dcf3cc46810df84d7e6f5a7d1e4c1b293",
+    "quantization": "UD-Q4_K_XL"
+  },
+  "runtime": {
+    "image": "ghcr.io/ggml-org/llama.cpp:server-cuda13-b9445",
+    "imageDigest": "sha256:56095506826cc6287d1b3a8448d8e89dbcef739adac92073967e68984d9c7ab5",
+    "contextTokens": 16384,
+    "parallelSlots": 1,
+    "flashAttention": true,
+    "multimodalProjector": false,
+    "kvCacheKeyType": "q8_0",
+    "kvCacheValueType": "q8_0"
+  },
+  "generation": {
+    "thinking": false,
+    "temperature": 0,
+    "modelProtocol": "semantic-dsl-v9"
+  }
+}

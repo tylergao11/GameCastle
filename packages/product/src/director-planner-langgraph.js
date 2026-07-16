@@ -28,7 +28,7 @@ function normalizeFrozenPlan(value) {
 
 function create(options) {
   options = options || {};
-  var domains = assertDomainApi(options.domains), dynamicPlanning = options.dynamicPlanning === true, modelPort = dynamicPlanning ? modelPortApi.assertPort(options.modelPort) : null, sessions = new Map(), compiledGraphPromise = null, metrics = { graphInitializations: 0, graphInitializationFailures: 0, invokes: 0, deterministicPlans: 0, modelPlans: 0 };
+  var domains = assertDomainApi(options.domains), modelPort = modelPortApi.assertPort(options.modelPort), sessions = new Map(), compiledGraphPromise = null, metrics = { graphInitializations: 0, graphInitializationFailures: 0, invokes: 0, modelPlans: 0 };
 
   function sessionFor(state) { var session = sessions.get(state.sessionId); if (!session) fail('DIRECTOR_SESSION_MISSING', 'Director execution session is unavailable.'); return session; }
   function append(state, entry) { state.trace = (state.trace || []).concat([entry]); }
@@ -47,16 +47,6 @@ function create(options) {
         state.planHash = state.frozenPlan.planHash;
         state.planReceipt = state.frozenPlan.receipt;
         append(state, { stage: 'director-plan-reused', planHash: state.planHash, receipt: state.planReceipt, operations: state.plan.calls.map(function(call) { return call.operation; }) });
-        if (typeof session.onPlan === 'function') await session.onPlan({ plan: state.plan, planHash: state.planHash, receipt: state.planReceipt });
-        state.nextTaskId = state.plan.calls[0].id;
-        return;
-      }
-      if (!dynamicPlanning) {
-        state.plan = dsl.canonicalPlan();
-        state.planHash = 'director-plan.' + hash(state.plan);
-        state.planReceipt = { receiptId: 'deterministic.' + state.planHash, provider: 'deterministic', model: dsl.LANGUAGE_ID, status: 'succeeded' };
-        metrics.deterministicPlans += 1;
-        append(state, { stage: 'director-plan-deterministic', planHash: state.planHash, receipt: state.planReceipt, operations: state.plan.calls.map(function(call) { return call.operation; }) });
         if (typeof session.onPlan === 'function') await session.onPlan({ plan: state.plan, planHash: state.planHash, receipt: state.planReceipt });
         state.nextTaskId = state.plan.calls[0].id;
         return;

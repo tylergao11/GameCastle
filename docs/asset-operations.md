@@ -138,6 +138,8 @@ files above.
 ## Acceptance and publication
 
 - Exact cloud image matches must satisfy the complete requirement fingerprint including current Style DNA content and pass hash verification after materialization. A reusable receipt must bind the current work item, target visual slot, review-policy fingerprint, model revision/fingerprint, exact image hashes, and every required composition check; otherwise the materialized pixels are reviewed again or rejected.
+- Style DNA generation prompts now carry executable palette anchors (`ink` / `paper` / accents). After the first accepted image in a production set, later generated masters inherit style-anchor prompt language so they ask for the same raster-toon family.
+- When every required slot is accepted, `StyleCohesion` evaluates deterministic palette structure and pairwise histogram similarity within sprite and scene groups. Failure becomes set-level debt (`ASSET_STYLE_COHESION_*`) even if each individual CLIP final review passed. CLIP `styleMargin` remains a weak per-asset floor; multi-asset family consistency is owned by StyleCohesion receipts on the production-set acceptance.
 - Image misses require one transient master-image batch followed by accepted derivation.
 - Non-image resources require an explicit local artifact with matching resource kind, format, and SHA-256.
 - `FrameSetRevision` owns animation states, ordered frames, timing, loop policy, canvas, and anchor. A sprite sheet is only a projection.

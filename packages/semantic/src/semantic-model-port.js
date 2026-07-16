@@ -2,8 +2,6 @@ var modelPolicy = require('./semantic-model-policy');
 var dslGrammar = require('./semantic-dsl-gbnf');
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticModelPort'; throw error; }
-function optionalText(value, label) { if (value === undefined || value === null) return undefined; if (typeof value !== 'string' || !value.trim()) fail('SEMANTIC_MODEL_PORT_INVALID', label + ' must be non-empty text.'); return value.trim(); }
-
 function assertPort(port) {
   if (!port || typeof port.invoke !== 'function') fail('SEMANTIC_MODEL_PORT_INVALID', 'Semantic model port requires invoke(request).');
   return port;
@@ -27,17 +25,16 @@ function fromProviderRuntime(runtime, options) {
   options = options || {};
   return assertPort({
     kind: 'provider-runtime-semantic-model-port',
-    cachePolicy: options.cachePolicy || null,
+    cachePolicy: modelPolicy.MODEL.cachePolicy,
     invoke: function(request) {
       if (!request || (request.phase !== 'planner' && request.phase !== 'executor')) fail('SEMANTIC_MODEL_PORT_INVALID', 'Semantic model request phase must be planner or executor.');
       var profile = modelPolicy.profile(request.phase);
-      var roleOptions = options.roles && options.roles[request.phase] || {};
-      var provider = optionalText(roleOptions.provider, request.phase + '.provider');
-      var model = optionalText(roleOptions.model, request.phase + '.model');
       var invocation = {
         requestId: request.requestId,
         projectId: request.projectId,
         role: 'semantic-design',
+        provider: modelPolicy.MODEL.provider,
+        model: modelPolicy.MODEL.model,
         estimatedCost: request.estimatedCost,
         timeoutMs: request.timeoutMs,
         maxAttempts: 1,
@@ -50,8 +47,6 @@ function fromProviderRuntime(runtime, options) {
           grammar: dslGrammar.forPhase(request.phase)
         }
       };
-      if (provider) invocation.provider = provider;
-      if (model) invocation.model = model;
       return runtime.invokeRole(invocation);
     }
   });

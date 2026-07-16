@@ -1,16 +1,18 @@
 var fs = require('fs');
 var path = require('path');
+var childProcess = require('child_process');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
-var providerGovernance = require('../../packages/providers/src/ai-provider-governance');
 var semanticRuntime = require('../../packages/semantic/src/semantic-llm2-runtime');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var trainingLog = require('../../packages/semantic/src/semantic-training-log');
 var semanticParser = require('../../packages/semantic/src/semantic-dsl-parser');
+var semanticPromptBundle = require('../../packages/semantic/src/semantic-prompt-bundle');
 var semanticDraft = require('../../packages/semantic/src/semantic-draft');
 var semanticReferences = require('../../packages/semantic/src/semantic-reference-runtime');
 var seedLoader = require('../../packages/semantic/src/semantic-seed-loader');
 var repositoryPath = require('../shared/repository-path');
 var snakeBenchmark = require('../../tests/benchmarks/snake-semantic-benchmark');
+var modelRuntimeProfile = require('../models/semantic-runtime-profile.json');
 
 var index = dictionary.loadIndex();
 var runId = 'snake-live-' + new Date().toISOString().replace(/[:.]/g, '-');
@@ -33,6 +35,22 @@ if (!semanticTask) throw new Error('--task must contain a task.');
 var seedSelection = benchmarkTask && benchmarkTask.seedFile ? { absolutePath: repositoryPath.fromLocator(benchmarkTask.seedFile, 'benchmark seedFile'), locator: benchmarkTask.seedFile } : seedFileArgument ? repositoryPath.fromCommandLine(seedFileArgument.slice('--seed-file='.length), '--seed-file') : null;
 var seedFile = seedSelection ? seedSelection.absolutePath : null;
 record.probe = { semanticTimeoutMs: semanticTimeoutMs, semanticMaxTokens: semanticMaxTokens, benchmarkId: benchmarkTask ? snakeBenchmark.contract.benchmarkId : null, benchmarkTaskId: benchmarkTask ? benchmarkTask.id : null, task: semanticTask, seedFile: seedSelection ? seedSelection.locator : null };
+
+function gitCommit() {
+  var result = childProcess.spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repositoryPath.root, encoding: 'utf8', windowsHide: true });
+  if (result.status !== 0 || !String(result.stdout || '').trim()) throw new Error('Snake live capture requires the current git commit.');
+  return String(result.stdout).trim();
+}
+
+record.provenance = {
+  schemaVersion: 1,
+  provenanceKind: 'snake-semantic-live-provenance',
+  capturedAt: new Date().toISOString(),
+  gitCommit: gitCommit(),
+  benchmark: benchmarkTask ? { benchmarkId: snakeBenchmark.contract.benchmarkId, benchmarkSchemaVersion: snakeBenchmark.contract.schemaVersion, taskId: benchmarkTask.id } : null,
+  semanticContract: { languageId: semanticParser.LANGUAGE_ID, promptVersions: semanticPromptBundle.PROFILE_VERSIONS, dictionarySource: index.source },
+  modelRuntime: modelRuntimeProfile
+};
 
 function loadSeedSource() {
   if (!seedFile) return null;
@@ -57,7 +75,6 @@ function writeModelOutput(role, sequence, requestId, output) {
 
 async function main() {
   var seedSource = loadSeedSource();
-  var semanticProvider = providerGovernance.semantic();
   writeResult(record);
 
   var result;
@@ -70,7 +87,7 @@ async function main() {
   try {
     var trainingSink = trainingLog.createFileSink({ directory: path.join(repositoryPath.root, '.gamecastle', 'output', 'semantic-training'), runId: runId });
     record.trainingLog = repositoryPath.relativeLocator(trainingSink.file, 'semantic training log');
-    result = await semanticRuntime.create({ trainingLogSink: trainingSink, model: { cachePolicy: semanticProvider.cachePolicy, roles: { planner: { provider: semanticProvider.provider, model: semanticProvider.textModel }, executor: { provider: semanticProvider.provider, model: semanticProvider.textModel } } } }).invoke({
+    result = await semanticRuntime.create({ trainingLogSink: trainingSink, trainingProvenance: record.provenance }).invoke({
       requestId: runId + '-semantic',
       projectId: runId,
       estimatedCost: 0.01,
@@ -93,6 +110,11 @@ async function main() {
     });
   } catch (error) {
     record.error = { code: error.code || error.name || 'FAILED', message: error.message, runTrace: error.runTrace || record.runTrace, runLedger: error.runLedger || null, runState: error.runState || null, taskPlan: error.taskPlan || null, cacheSummary: error.cacheSummary || null, document: error.document || null };
+    record.runTrace = error.runTrace || record.runTrace;
+    record.runLedger = error.runLedger || null;
+    record.runState = error.runState || null;
+    record.taskPlan = error.taskPlan || null;
+    record.cacheSummary = error.cacheSummary || null;
     error.outputFile = writeResult(record);
     throw error;
   } finally { clearInterval(heartbeat); }

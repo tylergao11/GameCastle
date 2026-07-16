@@ -51,6 +51,4 @@ function stringify(program) {
   return program.calls.map(function(call) { return 'CALL id=' + call.id + ' operation=' + call.operation + ' after=' + (call.after || 'none'); }).concat(['REPAIR from=assembly.verify to=semantic.design']).join('\n');
 }
 
-function canonicalPlan() { return parseProgram(CANONICAL_PROGRAM); }
-
-module.exports = { LANGUAGE_ID: LANGUAGE_ID, OPERATIONS: OPERATIONS, CANONICAL_PROGRAM: CANONICAL_PROGRAM, canonicalPlan: canonicalPlan, parseProgram: parseProgram, validateProgram: validateProgram, stringify: stringify };
+module.exports = { LANGUAGE_ID: LANGUAGE_ID, OPERATIONS: OPERATIONS, CANONICAL_PROGRAM: CANONICAL_PROGRAM, parseProgram: parseProgram, validateProgram: validateProgram, stringify: stringify };

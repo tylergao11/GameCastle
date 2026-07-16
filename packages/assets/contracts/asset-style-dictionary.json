@@ -31,8 +31,17 @@
         "uiLanguage": "high-contrast raster-toon game UI blocks with a strong contour, restrained shading, and one accent fill",
         "sceneLanguage": "layered broad silhouette masses and quiet play space; gameplay foreground must remain more readable than decoration"
       },
+      "cohesionPolicy": {
+        "maxColorFamilies": 5,
+        "minPairwisePaletteSimilarity": 0.28,
+        "minAssetsForPairwise": 2,
+        "minOpaquePixelRatio": 0.02,
+        "maxOpaquePixelRatio": 0.98,
+        "histogramBins": 6,
+        "principle": "Color-family structure counts mass-significant coarse histogram bins (>=2%), not fine anti-alias clusters. Pairwise palette cohesion is enforced within sprite/scene groups after required slots accept; CLIP styleMargin remains a weak per-asset floor."
+      },
       "promptContract": {
-        "requiredPhrases": ["2D raster-toon game sprite", "chunky readable silhouette", "limited color ramps", "controlled cartoon shading", "native-size readability"],
+        "requiredPhrases": ["2D raster-toon game sprite", "chunky readable silhouette", "limited color ramps", "controlled cartoon shading", "native-size readability", "dark readable outline mass"],
         "negativePhrases": ["photograph", "glossy 3D render", "text or watermark", "sprite sheet"],
         "productionFamilyPhrases": {
           "character": ["one expressive isolated cartoon character", "clear full-body pose"],
@@ -63,8 +72,14 @@
         "defaultProfile": {
           "semanticPositiveTexts": ["one correct role-specific game asset"],
           "semanticNegativeTexts": ["an unrelated subject", "a collection of unrelated objects or a different game asset"],
-          "stylePositiveTexts": ["expressive low-resolution raster-toon mobile game art with a strong silhouette, limited color ramps, and controlled organic cartoon shading"],
-          "styleNegativeTexts": ["photorealistic noisy detailed texture", "anime rendering or glossy plastic 3D art"]
+          "stylePositiveTexts": [
+            "chunky low-resolution 2D raster-toon mobile game sprite with a bold dark outline and limited flat color ramps",
+            "expressive western cartoon game art with compact readable silhouette masses and controlled two-to-four-tone shading"
+          ],
+          "styleNegativeTexts": [
+            "photorealistic photo, noisy natural texture, or camera capture",
+            "anime cel shading, glossy plastic 3D render, or dense microdetail that collapses at sprite size"
+          ]
         },
         "phaseProfiles": [
           {

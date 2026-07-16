@@ -9,6 +9,7 @@ var orchestratorApi = require('../../packages/product/src/product-delivery-orche
 var deliveryRunApi = require('../../packages/product/src/product-delivery-run');
 var providerRuntimeApi = require('../../packages/providers/src/provider-runtime');
 var directorModelPortApi = require('../../packages/product/src/director-model-port');
+var directorDsl = require('../../packages/product/src/director-planner-dsl');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
@@ -31,12 +32,7 @@ function productNamespace(deliveryId, projectId) { return 'product.' + crypto.cr
     };
     source = sourceContract.validateSource(source, { index: index });
     var assetCalls = [], semanticCalls = [], directorCalls = [], receipts = [], provider = { listReceipts: function() { return clone(receipts); } };
-    var directorProgram = [
-      'CALL id=semantic operation=semantic.design after=none',
-      'CALL id=asset operation=asset.realize after=semantic',
-      'CALL id=assembly operation=assembly.verify after=asset',
-      'REPAIR from=assembly.verify to=semantic.design'
-    ].join('\n');
+    var directorProgram = directorDsl.CANONICAL_PROGRAM;
     var fakeSemantic = { invoke: async function(input) {
       semanticCalls.push(input);
       assert.strictEqual(input.feedbackBatch.schemaVersion, 3);
@@ -93,6 +89,7 @@ function productNamespace(deliveryId, projectId) { return 'product.' + crypto.cr
     assert.strictEqual(product.deliveryRun.artifacts.browserCaptureHash, 'browser-capture.accepted');
     assert.strictEqual(product.deliveryRun.usage.settledCostUsd, 0.25, 'Provider receipts are isolated by the collision-resistant delivery namespace; unrelated concurrent costs are ignored.');
     assert.strictEqual(product.directorRun.languageId, 'director-dsl-v1');
+    assert.strictEqual(directorCalls.length, 1, 'Initial product delivery obtains and freezes exactly one Director model plan.');
     assert.strictEqual(product.deliveryRun.director.planHash, product.directorRun.planHash, 'The persisted product run binds the frozen Director plan, not individual domain internals.');
     assert(fs.existsSync(path.join(root, 'project-demo', 'delivery-demo', 'product-delivery-run.json')), 'ProductDeliveryRun path is derived below the product-owned root.');
     assert(fs.readdirSync(path.join(root, 'project-demo', 'delivery-demo', 'sources')).length >= 2, 'Every active source revision is persisted by sourceHash for crash-safe recovery.');
@@ -110,8 +107,7 @@ function productNamespace(deliveryId, projectId) { return 'product.' + crypto.cr
       index: index,
       budgets: budgets,
       providerRuntime: malformedProvider,
-      directorDynamicPlanning: true,
-      directorModelPort: directorModelPortApi.fromProviderRuntime(malformedProvider, { provider: 'simulated-local', model: 'simulated-text', estimatedCost: 0.01 }),
+      directorModelPort: directorModelPortApi.fromProviderRuntime(malformedProvider, { testDouble: true, estimatedCost: 0.01 }),
       semanticRuntime: fakeSemantic,
       assetPipeline: fakeAsset,
       spatialPipeline: fakeSpatial,
@@ -145,7 +141,9 @@ function productNamespace(deliveryId, projectId) { return 'product.' + crypto.cr
     assert.strictEqual(recovered.deliveryRun.usage.stageAttempts[sourceContract.sourceHash(recoverySource) + '/assembly'], 2, 'The second assembly attempt is the explicit bounded recovery allowance.');
     assert.strictEqual(recovered.deliveryRun.usage.settledCostUsd, 0.4, 'Recovery reconciles a durable provider settlement that landed before the interrupted ProductDeliveryRun write.');
     assert.strictEqual(recovered.directorRun.trace[0].stage, 'director-plan-reused', 'A recovered delivery reuses its persisted DSL plan without a second planner-model call.');
-    assert.strictEqual(directorCalls.length, 0, 'The canonical Director fast path is deterministic and remains model-free across retries and crash recovery.');
+    assert.strictEqual(directorCalls.length, 1, 'Crash recovery reuses the frozen Director DSL plan without a second planner-model call.');
     console.log('[ProductDeliveryOrchestrator] isolated provider accounting, asset retry, typed feedback, Revision invalidation, interrupted-assembly recovery, retest, and final acceptance passed');
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 })().catch(function(error) { console.error(error); process.exit(1); });

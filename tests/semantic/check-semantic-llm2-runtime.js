@@ -53,14 +53,26 @@ async function invoke(outputs, extra, calls) {
   assert.strictEqual(result.trainingRecords.every(function(item) { return item.languageId === 'semantic-dsl-v9'; }), true);
   assert.strictEqual(calls.some(function(call) { return /complete\(\)/.test(call.messages[0].content); }), false, 'Runtime completion consumes no model output');
 
+  var externalCalls = [];
+  var externallyPlanned = await invoke([WRITE], { planDsl: PLAN }, externalCalls);
+  assert.strictEqual(externallyPlanned.ok, true);
+  assert.strictEqual(externallyPlanned.modelCalls, 1, 'A Director-supplied plan bypasses the semantic model Planner role.');
+  assert.strictEqual(externalCalls[0].phase, 'executor');
+  assert.strictEqual(externallyPlanned.trainingRecords.length, 1);
+  assert.strictEqual(externallyPlanned.trainingRecords[0].phase, 'executor');
+
   var trainingDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'semantic-training-'));
   try {
     var sinkCalls = [], sink = trainingLog.createFileSink({ directory: trainingDirectory, runId: 'snake' });
-    var logged = await runtime.create({ modelPort: model([PLAN, WRITE], sinkCalls), trainingLogSink: sink }).invoke({ requestId: 'training', projectId: 'training', userRequest: 'Create a score game.', index: dictionary.loadIndex() });
+    var logged = await runtime.create({ modelPort: model([PLAN, WRITE], sinkCalls), trainingLogSink: sink, trainingProvenance: { provenanceKind: 'fixture-training-provenance', runId: 'snake' } }).invoke({ requestId: 'training', projectId: 'training', userRequest: 'Create a score game.', index: dictionary.loadIndex() });
     var lines = fs.readFileSync(sink.file, 'utf8').trim().split(/\r?\n/).map(JSON.parse);
     assert.strictEqual(logged.ok, true);
     assert.strictEqual(lines.length, 2);
     assert.strictEqual(lines[0].recordKind, 'semantic-model-training-record');
+    assert.strictEqual(lines[0].schemaVersion, 2);
+    assert.strictEqual(lines[0].provenance.runId, 'snake');
+    assert.strictEqual(lines[0].contract.grammarHash.length, 64);
+    assert.strictEqual(lines[0].contract.dictionarySource.sourceCommit, dictionary.loadIndex().source.sourceCommit);
     assert.strictEqual(lines[1].resolvedCommands[0].semanticId, 'demo');
   } finally { fs.rmSync(trainingDirectory, { recursive: true, force: true }); }
 

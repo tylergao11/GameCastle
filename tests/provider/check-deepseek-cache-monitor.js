@@ -62,6 +62,7 @@ async function main() {
 
   var calls = [];
   var report = await monitor.runDeepSeekCacheDebug({
+    model: 'cache-test-model',
     threshold: 0.9,
     endpoint: 'http://fake.local/v1',
     apiKey: 'test-key',
@@ -89,6 +90,7 @@ async function main() {
   assert.notStrictEqual(calls[0].body.messages[1].content, calls[1].body.messages[1].content, 'dynamic turn should vary after stable prefix');
 
   var failed = await monitor.runDeepSeekCacheDebug({
+    model: 'cache-test-model',
     threshold: 0.9,
     endpoint: 'http://fake.local/v1',
     apiKey: 'test-key',

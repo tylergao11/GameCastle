@@ -66,6 +66,7 @@ var semanticEngine = [
   ['tests/asset/test-asset-production-planner.js'],
   ['tests/asset/check-rembg-background-removal.js'],
   ['tests/asset/check-asset-production-pipeline.js'],
+  ['tests/asset/check-style-cohesion.js'],
   ['tests/asset/check-asset-engine-langgraph.js'],
   ['tests/asset/check-gamecastle-style-dna.js'],
   ['tests/asset/check-master-image-quality.js'],
