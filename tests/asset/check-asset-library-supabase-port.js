@@ -4,10 +4,10 @@ var fs = require('fs');
 var http = require('http');
 var os = require('os');
 var path = require('path');
-var libraryModule = require('../../ai/asset-library');
-var supabasePort = require('../../ai/asset-library-supabase-port');
-var frameSet = require('../../ai/frame-set');
-var png = require('../../ai/local-derivation-port');
+var libraryModule = require('../../packages/assets/src/asset-library');
+var supabasePort = require('../../packages/assets/src/asset-library-supabase-port');
+var frameSet = require('../../packages/assets/src/frame-set');
+var png = require('../../packages/assets/src/local-derivation-port');
 
 function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }
 function response(reply, status, value, headers) { reply.writeHead(status, Object.assign({ 'Content-Type': 'application/json' }, headers || {})); reply.end(Buffer.isBuffer(value) ? value : JSON.stringify(value)); }

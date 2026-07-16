@@ -3,9 +3,9 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
-var png = require('../../ai/local-derivation-port');
-var styleDNA = require('../../ai/style-dna');
-var reviewContract = require('../../shared/asset-semantic-review-contract.json');
+var png = require('../../packages/assets/src/local-derivation-port');
+var styleDNA = require('../../packages/assets/src/style-dna');
+var reviewContract = require('../../packages/assets/contracts/asset-semantic-review-contract.json');
 
 function createTestAssetEnginePorts(options) {
   var outputDir = path.resolve(options.outputDir);

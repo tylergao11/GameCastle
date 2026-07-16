@@ -1,11 +1,11 @@
 var assert = require('assert');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var runtime = require('../../ai/semantic-llm2-runtime');
-var sourceContract = require('../../ai/game-semantic-source');
-var stateMachine = require('../../ai/semantic-run-state-machine');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var runtime = require('../../packages/semantic/src/semantic-llm2-runtime');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var stateMachine = require('../../packages/semantic/src/semantic-run-state-machine');
 
 var index = dictionary.buildIndex();
-var references = require('../../ai/semantic-reference-runtime').create(index);
+var references = require('../../packages/semantic/src/semantic-reference-runtime').create(index);
 
 function fakeSequence(outputs, captured) {
   return {

@@ -1,5 +1,5 @@
 var assert = require("assert");
-var snapshotModule = require("../../ai/network-runtime/snapshot-sync");
+var snapshotModule = require("../../packages/network/src/snapshot-sync");
 var GameCastleSnapshotSyncSession = snapshotModule.GameCastleSnapshotSyncSession;
 var SnapshotSyncStrategy = snapshotModule.SnapshotSyncStrategy;
 var SNAPSHOT_SYNC_CHANNEL = snapshotModule.SNAPSHOT_SYNC_CHANNEL;

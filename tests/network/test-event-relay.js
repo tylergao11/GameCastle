@@ -1,5 +1,5 @@
 var assert = require("assert");
-var relayModule = require("../../ai/network-runtime/event-relay");
+var relayModule = require("../../packages/network/src/event-relay");
 var GameCastleEventRelaySession = relayModule.GameCastleEventRelaySession;
 var EventRelayStrategy = relayModule.EventRelayStrategy;
 

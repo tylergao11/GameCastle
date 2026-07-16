@@ -1,8 +1,8 @@
 var assert = require('assert');
 var path = require('path');
-var capabilityIr = require('../../ai/gdjs-capability-ir');
-var extensionLoader = require('../../ai/gdevelop-extension-loader');
-var runtimeCodegen = require('../../ai/runtime-codegen');
+var capabilityIr = require('../../packages/gdjs/src/gdjs-capability-ir');
+var extensionLoader = require('../../packages/gdjs/src/gdevelop-extension-loader');
+var runtimeCodegen = require('../../packages/gdjs/src/runtime-codegen');
 
 function metadataFor(gd, platform, capability, binding) {
   var owner = capability.owner || {};

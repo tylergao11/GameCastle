@@ -2,14 +2,14 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var assetPipeline = require('../../ai/semantic-asset-product-pipeline');
-var spatialPipeline = require('../../ai/spatial-product-pipeline');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var assetPipeline = require('../../packages/product/src/semantic-asset-product-pipeline');
+var spatialPipeline = require('../../packages/product/src/spatial-product-pipeline');
 var assetPorts = require('../fixtures/test-asset-engine-ports');
-var captureApi = require('../../ai/gdjs-browser-capture');
-var headlessPort = require('../../ai/gdjs-headless-browser-capture-port');
-var reviewerApi = require('../../ai/assembly-reviewer');
+var captureApi = require('../../packages/gdjs/src/gdjs-browser-capture');
+var headlessPort = require('../../packages/gdjs/src/gdjs-headless-browser-capture-port');
+var reviewerApi = require('../../packages/product/src/assembly-reviewer');
 
 (async function() {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-browser-capture-check-'));

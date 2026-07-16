@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { alphaBounds, cropToAlpha, inspectLocalRaster, removeLightEdgeBackground, solidifyClosedLineArt } from '../../shared/local-asset-ops.mjs';
+import { alphaBounds, cropToAlpha, inspectLocalRaster, removeLightEdgeBackground, solidifyClosedLineArt } from '../../packages/assets/src/local-asset-ops.mjs';
 
 function image(width, height, alphaPixels) {
   const data = new Uint8ClampedArray(width * height * 4);

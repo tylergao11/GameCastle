@@ -2,10 +2,10 @@
 
 ## Runtime entry and boundary
 
-`ai/product-delivery-orchestrator.js#run` is the product entry. It owns the persisted cross-stage run and invokes `ai/semantic-asset-product-pipeline.js#run` only as its asset stage. That stage validates the current Source, asks `semantic-runtime-linker.js` for one source-bound assembly, passes its exact `SemanticAssetRequirements` to `asset-engine-langgraph.js#runAssetEngine`, blocks on any asset debt, and resource-binds the complete accepted `AssetWorld` v4 to the project seed from the same source hash. No caller can submit a previous or partial AssetWorld.
+`packages/product/src/product-delivery-orchestrator.js#run` is the product entry. It owns the persisted cross-stage run and invokes `packages/product/src/semantic-asset-product-pipeline.js#run` only as its asset stage. That stage validates the current Source, asks `semantic-runtime-linker.js` for one source-bound assembly, passes its exact `SemanticAssetRequirements` to `asset-engine-langgraph.js#runAssetEngine`, blocks on any asset debt, and resource-binds the complete accepted `AssetWorld` v4 to the project seed from the same source hash. No caller can submit a previous or partial AssetWorld.
 
 ```js
-var productDelivery = require('./ai/product-delivery-orchestrator').create();
+var productDelivery = require('./packages/product/src/product-delivery-orchestrator').create();
 var product = await productDelivery.run({
   deliveryId: deliveryId,
   projectId: projectId,
@@ -51,7 +51,7 @@ The `Final semantic/style review` node is implemented inside `AssetProductionPip
 
 ## Official LangGraph
 
-The engine loads the official `@langchain/langgraph` package (currently `1.4.7`) and requires `Annotation.Root`, `StateGraph`, `START`, and `END`. The ordered graph and every stage's module exports are declared in `shared/asset-engine-contract.json`. Startup calls `describeGraph()` and fails closed when a stage id, module, or export is missing; handler ids must also exactly match the contract. `tests/asset/check-asset-engine-langgraph.js` executes the compiled graph, while the definition-resolution probe below proves that every declared export is callable before a real provider run.
+The engine loads the official `@langchain/langgraph` package (currently `1.4.7`) and requires `Annotation.Root`, `StateGraph`, `START`, and `END`. The ordered graph and every stage's module exports are declared in `packages/assets/contracts/asset-engine-contract.json`. Startup calls `describeGraph()` and fails closed when a stage id, module, or export is missing; handler ids must also exactly match the contract. `tests/asset/check-asset-engine-langgraph.js` executes the compiled graph, while the definition-resolution probe below proves that every declared export is callable before a real provider run.
 
 ```text
 START
@@ -68,7 +68,7 @@ START
 ```
 
 ```powershell
-node -e "const c=require('./shared/asset-engine-contract.json'); for(const [s,ds] of Object.entries(c.stageDefinitions)) for(const d of ds){const m=require('./'+d.module); for(const x of d.exports) if(typeof m[x]!=='function') throw new Error(s+' missing '+d.module+'#'+x)} console.log('all stageDefinitions resolve')"
+node -e "const c=require('./packages/assets/contracts/asset-engine-contract.json'); for(const [s,ds] of Object.entries(c.stageDefinitions)) for(const d of ds){const m=require('./'+d.module); for(const x of d.exports) if(typeof m[x]!=='function') throw new Error(s+' missing '+d.module+'#'+x)} console.log('all stageDefinitions resolve')"
 ```
 
 | Stage | Definition owner | Materialized state |
@@ -105,9 +105,9 @@ library miss
   -> accept or blocking debt
 ```
 
-`ai/comfyui-local-provider.js` owns the loopback ComfyUI protocol, the registered core-node workflow `gamecastle.master-image.sdxl-base-refiner.v1`, transient candidate storage, and CLIP review calls. The graph is derived from `comfyanonymous/ComfyUI_examples/sdxl`; model files, repository revisions, licenses, workflow bytes, and review model bytes are hash-pinned. It does not crop, remove backgrounds, resize, or animate.
+`packages/assets/src/comfyui-local-provider.js` owns the loopback ComfyUI protocol, the registered core-node workflow `gamecastle.master-image.sdxl-base-refiner.v1`, transient candidate storage, and CLIP review calls. The graph is derived from `comfyanonymous/ComfyUI_examples/sdxl`; model files, repository revisions, licenses, workflow bytes, and review model bytes are hash-pinned. It does not crop, remove backgrounds, resize, or animate.
 
-`ai/asset-derivation-pipeline.js` owns processing orchestration. `RembgBackgroundRemoval` owns opaque-background segmentation; `LocalDerivationKernel` owns deterministic PNG normalization, alpha trim, canvas fitting, anchors, and FrameSet transforms. Master images are transient, non-playable, and non-publishable.
+`packages/assets/src/asset-derivation-pipeline.js` owns processing orchestration. `RembgBackgroundRemoval` owns opaque-background segmentation; `LocalDerivationKernel` owns deterministic PNG normalization, alpha trim, canvas fitting, anchors, and FrameSet transforms. Master images are transient, non-playable, and non-publishable.
 
 ### Phase-specific quality boundary
 
@@ -121,11 +121,11 @@ Every failed candidate round is retained as metadata-only diagnostics with round
 
 Callers select `asset-engine-production.v1` or `asset-engine-test.v1`; they cannot pass loose `timeoutMs`, `batchSize`, `candidateRounds`, or `maxAttempts` through the AssetEngine API. The test profile is a general engine probe, not a snake rule: it refuses more than one generation-required work item before the first provider call and resolves to exactly one production attempt × one workflow submission × two candidates with a 180-second deadline propagated through Comfy requests, both CLIP phases, BiRefNet, and finalization. The registered workflow still owns the hard production ceiling; the profile owns the effective run budget.
 
-Background removal uses the MIT-licensed `vendor/rembg` submodule pinned to tag `v2.0.75` and commit `7b8de60ef9fc225af1768d81aa09da29db22a355`. `birefnet-general-lite.onnx` is accepted only when its SHA-256 matches `shared/background-removal-contract.json`.
+Background removal uses the MIT-licensed `vendor/rembg` submodule pinned to tag `v2.0.75` and commit `7b8de60ef9fc225af1768d81aa09da29db22a355`. `birefnet-general-lite.onnx` is accepted only when its SHA-256 matches `packages/assets/contracts/background-removal-contract.json`.
 
 ```powershell
 git submodule update --init --recursive
-powershell -ExecutionPolicy Bypass -File scripts/setup-rembg.ps1
+powershell -ExecutionPolicy Bypass -File scripts/assets/setup-rembg.ps1
 ```
 
 ## Acceptance and publication

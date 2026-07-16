@@ -1,5 +1,5 @@
 var assert = require('assert');
-var client = require('../../ai/chat-completions-client');
+var client = require('../../packages/providers/src/chat-completions-client');
 function stream(chunks) { var index = 0; return new ReadableStream({ pull: function(controller) { if (index >= chunks.length) return controller.close(); controller.enqueue(new TextEncoder().encode(chunks[index++])); } }); }
 (async function() {
   var captured = null;

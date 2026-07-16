@@ -1,6 +1,6 @@
 var assert = require('assert');
-var quality = require('../../ai/master-image-quality');
-var png = require('../../ai/local-derivation-port');
+var quality = require('../../packages/assets/src/master-image-quality');
+var png = require('../../packages/assets/src/local-derivation-port');
 
 function raster(width, height, color) { var data = new Uint8ClampedArray(width * height * 4); for (var pixel = 0; pixel < width * height; pixel++) { data[pixel * 4] = color[0]; data[pixel * 4 + 1] = color[1]; data[pixel * 4 + 2] = color[2]; data[pixel * 4 + 3] = 255; } return { width: width, height: height, data: data }; }
 function paint(value, left, top, right, bottom, color) { for (var y = top; y < bottom; y++) for (var x = left; x < right; x++) { var at = (y * value.width + x) * 4; value.data[at] = color[0]; value.data[at + 1] = color[1]; value.data[at + 2] = color[2]; } return value; }

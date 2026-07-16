@@ -10,7 +10,7 @@ var passed = 0, failed = 0;
 function pass(n) { passed++; console.log("PASS " + n); }
 function fl(n, why) { failed++; console.log("FAIL " + n + ": " + why); }
 
-var server = fork(path.join(__dirname, "..", "..", "server", "signaling-server.js"), [], {
+var server = fork(path.join(__dirname, "..", "..", "apps", "multiplayer", "src", "signaling-server.js"), [], {
   env: Object.assign({}, process.env, { PORT: String(PORT) }),
   silent: true,
 });

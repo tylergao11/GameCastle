@@ -3,8 +3,8 @@ var crypto = require('crypto');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var png = require('../../ai/local-derivation-port');
-var rembg = require('../../ai/rembg-background-removal');
+var png = require('../../packages/assets/src/local-derivation-port');
+var rembg = require('../../packages/assets/src/rembg-background-removal');
 
 (async function() {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-rembg-check-'));

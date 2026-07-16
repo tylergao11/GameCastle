@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 4,
+  "contractId": "gamecastle.semantic-asset-engine",
+  "sourceOfTruth": "GameSemanticSource assetIntents compiled to semantic-asset-requirements",
+  "defaults": {
+    "imageResource": { "resourceKind": "image", "acceptedFormats": ["png"] },
+    "executionProfileId": "asset-engine-production.v1"
+  },
+  "truthSources": {
+    "executionProfiles": "packages/assets/contracts/asset-engine-execution-profiles.json",
+    "styleDictionary": "packages/assets/contracts/asset-style-dictionary.json",
+    "productionPipeline": "packages/assets/contracts/asset-production-pipeline-contract.json",
+    "comfyuiWorkflows": "packages/assets/contracts/comfyui-workflow-registry.json"
+  },
+  "principles": [
+    "asset meaning is decided only by LLM2 semantic source",
+    "production family and recipe are pinned production truth",
+    "all accepted assets are sourceHash-bound",
+    "asset library keys require the complete reusable requirement",
+    "the asset library is an optional cross-project acceleration source",
+    "accepted local revisions complete creation before independent accumulation",
+    "semantic-asset-world exists only for a completely accepted production set and carries all acceptance and review or integrity receipts",
+    "asset library failure never changes semantic intent or invalidates accepted local output",
+    "missing capability or failed validation is explicit and blocks final assembly",
+    "execution limits are selected only through a named AssetEngine profile",
+    "a FrameSetRevision reaches runtime only through its verified projection adapter"
+  ],
+  "graph": [
+    "asset-intake",
+    "local-input-archive",
+    "asset-library-search",
+    "model-authorize",
+    "asset-production-plan",
+    "asset-resolve",
+    "asset-production",
+    "asset-finalize",
+    "asset-publication-enqueue"
+  ],
+  "stageDefinitions": {
+    "asset-intake": [
+      { "module": "packages/assets/src/asset-engine-langgraph.js", "exports": ["compileSpecs"] },
+      { "module": "packages/assets/src/asset-engine-execution-policy.js", "exports": ["resolve"] }
+    ],
+    "local-input-archive": [{ "module": "packages/assets/src/asset-engine-langgraph.js", "exports": ["archiveLocalInputs"] }],
+    "asset-library-search": [{ "module": "packages/assets/src/asset-library.js", "exports": ["create", "requirementFingerprint"] }],
+    "model-authorize": [
+      { "module": "packages/providers/src/model-policy-gate.js", "exports": ["authorizeModelPorts"] },
+      { "module": "packages/providers/src/provider-runtime-adapters.js", "exports": ["createAssetProviderPorts"] }
+    ],
+    "asset-production-plan": [{ "module": "packages/assets/src/asset-production-planner.js", "exports": ["compile"] }],
+    "asset-resolve": [{ "module": "packages/assets/src/asset-production-resolver.js", "exports": ["resolveProductionSet"] }],
+    "asset-production": [{ "module": "packages/assets/src/asset-production-pipeline.js", "exports": ["runProductionSet"] }],
+    "asset-finalize": [
+      { "module": "packages/assets/src/asset-engine-langgraph.js", "exports": ["bindingManifest", "productionProjection"] },
+      { "module": "packages/assets/src/asset-world.js", "exports": ["buildAcceptedAssetWorld", "validateAcceptedAssetWorld"] }
+    ],
+    "asset-publication-enqueue": [
+      { "module": "packages/assets/src/asset-engine-langgraph.js", "exports": ["libraryRequirementForWorkItem"] },
+      { "module": "packages/assets/src/asset-publication-outbox.js", "exports": ["create"] }
+    ]
+  },
+  "inputs": ["semantic-asset-requirements", "local-input", "optional asset-library accelerator port"],
+  "outputs": ["asset-manifest", "runtime-binding-manifest", "accepted semantic-asset-world or null on debt", "asset-production-report", "asset-library-acceleration-report", "asset-publication-outbox-entries"],
+  "forbidden": ["partial asset world", "unproved asset world", "template selection", "unverified library reuse", "placeholder asset", "downstream gameplay decision", "silent retry after debt", "parallel asset cache"]
+}

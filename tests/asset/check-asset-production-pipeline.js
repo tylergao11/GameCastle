@@ -2,10 +2,10 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var planner = require('../../ai/asset-production-planner');
-var pipeline = require('../../ai/asset-production-pipeline');
+var planner = require('../../packages/assets/src/asset-production-planner');
+var pipeline = require('../../packages/assets/src/asset-production-pipeline');
 var testPorts = require('../fixtures/test-asset-engine-ports');
-var frameSet = require('../../ai/frame-set');
+var frameSet = require('../../packages/assets/src/frame-set');
 
 function request() { return { requestId: 'pipeline-check', projectId: 'pipeline-project', sourceHash: 'semantic.pipeline-check', requirements: [
   { semanticId: 'hero', subject: 'hero', description: 'Hero sprite', semanticTags: ['hero'], productionFamily: 'character', recipeId: 'character-sprite.v1', styleId: 'gamecastle.style-dna.v1', constraints: { width: 24, height: 24, transparent: true }, gdjsBindings: [] },

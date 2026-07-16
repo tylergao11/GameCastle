@@ -3,20 +3,20 @@ var crypto = require('crypto');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var linker = require('../../ai/semantic-runtime-linker');
-var assemblyStage = require('../../ai/spatial-assembly-stage');
-var plannerDsl = require('../../ai/spatial-planner-dsl');
-var semanticDsl = require('../../ai/semantic-dsl-parser');
-var semanticRun = require('../../ai/semantic-run-pipeline');
-var plannerGraph = require('../../ai/spatial-planner-langgraph');
-var spatialProduct = require('../../ai/spatial-product-pipeline');
-var semanticAssetProduct = require('../../ai/semantic-asset-product-pipeline');
-var geometryProducer = require('../../ai/spatial-geometry-fact-producer');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var assemblyStage = require('../../packages/spatial/src/spatial-assembly-stage');
+var plannerDsl = require('../../packages/spatial/src/spatial-planner-dsl');
+var semanticDsl = require('../../packages/semantic/src/semantic-dsl-parser');
+var semanticRun = require('../../packages/semantic/src/semantic-run-pipeline');
+var plannerGraph = require('../../packages/spatial/src/spatial-planner-langgraph');
+var spatialProduct = require('../../packages/product/src/spatial-product-pipeline');
+var semanticAssetProduct = require('../../packages/product/src/semantic-asset-product-pipeline');
+var geometryProducer = require('../../packages/spatial/src/spatial-geometry-fact-producer');
 var assetEnginePorts = require('../fixtures/test-asset-engine-ports');
-var spatialEngine = require('../../runtime/spatial');
-var layoutDictionary = require('../../shared/semantic-layout-dictionary.json');
+var spatialEngine = require('../../packages/spatial/src/runtime');
+var layoutDictionary = require('../../packages/semantic/contracts/semantic-layout-dictionary.json');
 
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
 function seal(value, prefix) { var core = JSON.parse(JSON.stringify(value)); delete core.contentHash; value.contentHash = prefix + crypto.createHash('sha256').update(JSON.stringify(stable(core))).digest('hex').slice(0, 24); return value; }
@@ -28,10 +28,10 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
   assert.strictEqual(spatialEngine.contract.activationGates.geometryFactProducer.status, 'implemented', 'Canonical native geometry production is active before planning.');
   assert.strictEqual(spatialEngine.contract.activationGates.acceptanceOrdering.status, 'implemented', 'Acceptance ordering is part of the Spatial Engine contract.');
   assert.strictEqual(noRawCoordinates(layoutDictionary), false, 'Spatial dictionary records relations and constraints, not resolved coordinates.');
-  var previewSource = fs.readFileSync(path.join(__dirname, '..', '..', 'ai', 'gdjs-spatial-preview.js'), 'utf8');
+  var previewSource = fs.readFileSync(path.join(__dirname, '..', '..', 'packages', 'gdjs', 'src', 'gdjs-spatial-preview.js'), 'utf8');
   assert.strictEqual(previewSource.indexOf('drawFallback'), -1, 'Spatial preview has no placeholder renderer when an accepted resource is missing.');
   assert(previewSource.indexOf('GDJS_SPATIAL_PREVIEW_RESOURCE_MISSING') >= 0, 'Missing accepted preview resources fail closed before Spatial Planner acceptance.');
-  ['runtime/spatial/assembly.js', 'ai/spatial-assembly-stage.js', 'shared/spatial-engine-contract.json'].forEach(function(file) { assert.strictEqual(fs.readFileSync(path.join(__dirname, '..', '..', file), 'utf8').indexOf('environment') < 0, true, file + ' contains no legacy environment path.'); });
+  ['packages/spatial/src/runtime/assembly.js', 'packages/spatial/src/spatial-assembly-stage.js', 'packages/spatial/contracts/spatial-engine-contract.json'].forEach(function(file) { assert.strictEqual(fs.readFileSync(path.join(__dirname, '..', '..', file), 'utf8').indexOf('environment') < 0, true, file + ' contains no legacy environment path.'); });
   assert.throws(function() { plannerDsl.parseProgram('PLACE subject="player" x=1 y=1 width=1 height=1 angle=0 layer="" zOrder=0\nACCEPT'); }, function(error) { return error.code === 'SPATIAL_DSL_ACCEPTANCE_MIXED'; }, 'PLACE and ACCEPT cannot share a model response.');
   assert.notStrictEqual(plannerDsl.LANGUAGE_ID, semanticDsl.LANGUAGE_ID, 'Semantic and spatial model protocols have distinct language identities.');
   assert.throws(function() { plannerDsl.parseProgram('game(semanticId=demo, name="Demo")'); }, function(error) { return error.code === 'SPATIAL_DSL_INVALID'; }, 'Spatial parser rejects semantic-dsl-v1 commands.');

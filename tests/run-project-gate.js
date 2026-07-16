@@ -26,13 +26,13 @@ var productLoop = [
 ];
 
 var semanticEngine = [
-  ['scripts/extract-gdevelop-capability-universe.js', '--check'],
-  ['scripts/extract-official-capability-bindings.js', '--check'],
-  ['scripts/extract-gdevelop-event-grammar.js', '--check'],
-  ['scripts/extract-capability-semantic-index.js', '--check'],
-  ['scripts/extract-gdevelop-project-defaults.js', '--check'],
-  ['scripts/extract-gdevelop-spatial-coordinate-truth.js', '--check'],
-  ['scripts/extract-gdevelop-object-configuration-truth.js', '--check'],
+  ['scripts/gdevelop/extract-gdevelop-capability-universe.js', '--check'],
+  ['scripts/gdevelop/extract-official-capability-bindings.js', '--check'],
+  ['scripts/gdevelop/extract-gdevelop-event-grammar.js', '--check'],
+  ['scripts/gdevelop/extract-capability-semantic-index.js', '--check'],
+  ['scripts/gdevelop/extract-gdevelop-project-defaults.js', '--check'],
+  ['scripts/gdevelop/extract-gdevelop-spatial-coordinate-truth.js', '--check'],
+  ['scripts/gdevelop/extract-gdevelop-object-configuration-truth.js', '--check'],
   ['tests/semantic/check-capability-semantic-coverage.js'],
   ['tests/semantic/check-official-capability-metadata.js'],
   ['tests/semantic/check-components.js'],

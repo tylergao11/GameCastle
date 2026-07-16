@@ -1,2 +1,3 @@
-ai/gdevelop-truth/*.json text eol=lf
-ai/semantic-mapping/*.json text eol=lf
+packages/gdjs/generated/*.json text eol=lf
+packages/semantic/generated/*.json text eol=lf
+packages/assets/workflows/*.json text eol=lf

@@ -1,7 +1,7 @@
 var assert = require('assert');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var linker = require('../../ai/semantic-runtime-linker');
-var sourceContract = require('../../ai/game-semantic-source');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 
 var index = dictionary.buildIndex();
 var source = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'assembly_demo', name: 'Assembly Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [{ semanticId: 'health', roles: ['survival'], value: 100, bindings: [] }] }], components: [], events: [], assetIntents: [{ semanticId: 'player_visual', roles: ['player', 'visual'], subject: 'player', description: 'A readable player visual.', productionFamily: 'character', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, bindings: [] }], layoutIntents: [{ semanticId: 'player_layout', roles: ['world'], subject: 'player', bounds: { width: 64, height: 64 }, relations: [{ semanticId: 'initial_world', layoutRef: 'gc-layout://world/center', subjects: ['player'] }], bindings: [] }], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };

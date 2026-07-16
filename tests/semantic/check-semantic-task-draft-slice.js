@@ -1,8 +1,8 @@
 var assert = require('assert');
-var references = require('../../ai/semantic-reference-runtime').create();
-var draftApi = require('../../ai/semantic-draft');
-var taskPlan = require('../../ai/semantic-task-plan');
-var sliceApi = require('../../ai/semantic-task-draft-slice');
+var references = require('../../packages/semantic/src/semantic-reference-runtime').create();
+var draftApi = require('../../packages/semantic/src/semantic-draft');
+var taskPlan = require('../../packages/semantic/src/semantic-task-plan');
+var sliceApi = require('../../packages/semantic/src/semantic-task-draft-slice');
 
 function byId(items, semanticId) { return items.filter(function(item) { return item.semanticId === semanticId; })[0]; }
 function fact(slice, claim) { return slice.facts.filter(function(item) { return item.claim === claim; })[0]; }

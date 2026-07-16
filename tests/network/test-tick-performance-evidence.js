@@ -1,5 +1,5 @@
 var assert = require('assert');
-var GameCastleRuntimeAdapter = require('../../ai/network-runtime/runtime-adapter').GameCastleRuntimeAdapter;
+var GameCastleRuntimeAdapter = require('../../packages/network/src/runtime-adapter').GameCastleRuntimeAdapter;
 
 function installAnimationFrame() {
   var callbacks = [];

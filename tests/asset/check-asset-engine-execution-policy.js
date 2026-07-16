@@ -1,5 +1,5 @@
 var assert = require('assert');
-var policy = require('../../ai/asset-engine-execution-policy');
+var policy = require('../../packages/assets/src/asset-engine-execution-policy');
 
 var diagnostic = policy.resolve({ executionProfileId: 'asset-engine-test.v1', providerOptions: { provider: 'comfyui-local' } });
 assert.strictEqual(diagnostic.mode, 'diagnostic');

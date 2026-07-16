@@ -1,5 +1,5 @@
 var assert = require('assert');
-var resolver = require('../../ai/tick-policy-resolver');
+var resolver = require('../../packages/network/src/tick-policy-resolver');
 
 var local = resolver.resolve({ sync: 'local' });
 assert.strictEqual(local.simulationHz, 60);

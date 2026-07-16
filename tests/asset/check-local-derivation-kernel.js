@@ -1,6 +1,6 @@
 var assert = require('assert');
-var kernelModule = require('../../ai/local-derivation-kernel');
-var spec = { schemaVersion: require('../../shared/local-derivation-contract.json').schemaVersion, dictionaryId: 'gamecastle.asset-style-dictionary', styleId: 'gamecastle.style-dna.v1', operationId: 'op.sheet.1', op: 'sprite_sheet_split', input: { assetId: 'asset.sheet', contentHash: 'sha256.input' }, params: { columns: 3 }, output: { format: 'png', transparent: true }, scope: 'project-local' };
+var kernelModule = require('../../packages/assets/src/local-derivation-kernel');
+var spec = { schemaVersion: require('../../packages/assets/contracts/local-derivation-contract.json').schemaVersion, dictionaryId: 'gamecastle.asset-style-dictionary', styleId: 'gamecastle.style-dna.v1', operationId: 'op.sheet.1', op: 'sprite_sheet_split', input: { assetId: 'asset.sheet', contentHash: 'sha256.input' }, params: { columns: 3 }, output: { format: 'png', transparent: true }, scope: 'project-local' };
 (async function() {
   var kernel = kernelModule.createLocalDerivationKernel({});
   await assert.rejects(function() { return kernel.execute(spec); }, function(error) { return error.code === 'LOCAL_OPERATION_UNAVAILABLE'; });

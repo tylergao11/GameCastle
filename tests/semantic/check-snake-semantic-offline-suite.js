@@ -2,14 +2,14 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var parser = require('../../ai/semantic-dsl-parser');
-var draftApi = require('../../ai/semantic-draft');
-var referencesApi = require('../../ai/semantic-reference-runtime');
-var sourceContract = require('../../ai/game-semantic-source');
-var semanticRuntime = require('../../ai/semantic-llm2-runtime');
-var benchmark = require('../../benchmarks/snake-semantic-benchmark');
-var replaySuite = require('../../scripts/replay-semantic-live-suite');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var parser = require('../../packages/semantic/src/semantic-dsl-parser');
+var draftApi = require('../../packages/semantic/src/semantic-draft');
+var referencesApi = require('../../packages/semantic/src/semantic-reference-runtime');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var semanticRuntime = require('../../packages/semantic/src/semantic-llm2-runtime');
+var benchmark = require('../benchmarks/snake-semantic-benchmark');
+var replaySuite = require('../../scripts/semantic/replay-semantic-live-suite');
 
 function planTask(value) {
   return 'plan-task(' + [

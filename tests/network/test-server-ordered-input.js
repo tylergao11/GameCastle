@@ -1,6 +1,6 @@
 var assert = require("assert");
-var ServerOrderedInputSession = require("../../server/server-ordered-input").ServerOrderedInputSession;
-var GameLoop = require("../../server/game-loop").GameLoop;
+var ServerOrderedInputSession = require("../../apps/multiplayer/src/server-ordered-input").ServerOrderedInputSession;
+var GameLoop = require("../../apps/multiplayer/src/game-loop").GameLoop;
 
 function testSessionOrdersFramesAndDropsLateInputs() {
   var session = new ServerOrderedInputSession({ historySize: 3 });

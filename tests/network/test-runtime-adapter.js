@@ -1,5 +1,5 @@
 var assert = require("assert");
-var adapterModule = require("../../ai/network-runtime/runtime-adapter");
+var adapterModule = require("../../packages/network/src/runtime-adapter");
 
 var GameCastleRuntimeAdapter = adapterModule.GameCastleRuntimeAdapter;
 

@@ -3,12 +3,12 @@ var crypto = require('crypto');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var linker = require('../../ai/semantic-runtime-linker');
-var binder = require('../../ai/gdjs-project-asset-binder');
-var assetWorldContract = require('../../ai/asset-world');
-var png = require('../../ai/local-derivation-port');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var binder = require('../../packages/gdjs/src/gdjs-project-asset-binder');
+var assetWorldContract = require('../../packages/assets/src/asset-world');
+var png = require('../../packages/assets/src/local-derivation-port');
 
 function acceptedWorld(seed, spec) {
   var targetVisualSlotId = 'semantic.' + spec.subject + '.' + spec.semanticId;

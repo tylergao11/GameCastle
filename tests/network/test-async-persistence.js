@@ -1,5 +1,5 @@
 var assert = require("assert");
-var asyncModule = require("../../ai/network-runtime/async-persistence");
+var asyncModule = require("../../packages/network/src/async-persistence");
 var GameCastleAsyncPersistenceSession = asyncModule.GameCastleAsyncPersistenceSession;
 var AsyncPersistenceStrategy = asyncModule.AsyncPersistenceStrategy;
 

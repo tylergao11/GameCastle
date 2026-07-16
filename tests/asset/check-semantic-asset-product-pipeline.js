@@ -2,10 +2,10 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var pipeline = require('../../ai/semantic-asset-product-pipeline');
-var engineContract = require('../../shared/asset-engine-contract.json');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var pipeline = require('../../packages/product/src/semantic-asset-product-pipeline');
+var engineContract = require('../../packages/assets/contracts/asset-engine-contract.json');
 var enginePorts = require('../fixtures/test-asset-engine-ports');
 
 (async function() {

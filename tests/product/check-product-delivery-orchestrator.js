@@ -3,10 +3,10 @@ var crypto = require('crypto');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var orchestratorApi = require('../../ai/product-delivery-orchestrator');
-var deliveryRunApi = require('../../ai/product-delivery-run');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var orchestratorApi = require('../../packages/product/src/product-delivery-orchestrator');
+var deliveryRunApi = require('../../packages/product/src/product-delivery-run');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }

@@ -1,5 +1,5 @@
 var assert = require('assert');
-var frameSet = require('../../ai/frame-set');
+var frameSet = require('../../packages/assets/src/frame-set');
 var candidate = { schemaVersion: frameSet.contract.schemaVersion, documentKind: frameSet.contract.candidateDocumentKind, resourceKind: frameSet.contract.resource.resourceKind, format: frameSet.contract.resource.format, initialStateId: 'idle', canvas: { width: 64, height: 64 }, anchor: { x: 32, y: 64 }, frames: [{ frameId: 'idle.0', sha256: 'b'.repeat(64), path: 'idle-0.png', width: 64, height: 64, durationMs: 120 }, { frameId: 'idle.1', sha256: 'c'.repeat(64), path: 'idle-1.png', width: 64, height: 64, durationMs: 120 }], states: [{ stateId: 'idle', frameIds: ['idle.0', 'idle.1'], loop: true }], provenance: { source: 'test' } };
 var accepted = frameSet.accept(candidate, 'acceptance.frames.hero.idle.v1');
 assert.strictEqual(accepted.states[0].frameIds.length, 2);

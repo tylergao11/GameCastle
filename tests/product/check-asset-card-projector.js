@@ -1,8 +1,8 @@
 var assert = require('assert');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var delivery = require('../../ai/product-delivery-run');
-var projector = require('../../ai/asset-card-projector');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var delivery = require('../../packages/product/src/product-delivery-run');
+var projector = require('../../packages/product/src/asset-card-projector');
 
 var index = dictionary.buildIndex();
 var source = sourceContract.validateSource({

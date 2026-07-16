@@ -1,5 +1,5 @@
 var assert = require('assert');
-var derivation = require('../../ai/asset-derivation-pipeline');
+var derivation = require('../../packages/assets/src/asset-derivation-pipeline');
 
 function raster(width, height, alpha) {
   var value = { width: width, height: height, data: new Uint8ClampedArray(width * height * 4) };

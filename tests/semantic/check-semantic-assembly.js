@@ -1,7 +1,7 @@
 var assert = require('assert');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var linker = require('../../ai/semantic-runtime-linker');
-var sourceContract = require('../../ai/game-semantic-source');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 
 var index = dictionary.buildIndex();
 var source = {

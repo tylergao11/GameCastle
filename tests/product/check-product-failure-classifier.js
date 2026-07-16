@@ -1,5 +1,5 @@
 var assert = require('assert');
-var classifier = require('../../ai/product-failure-classifier');
+var classifier = require('../../packages/product/src/product-failure-classifier');
 
 function assetError(debts) {
   var error = new Error('asset stage rejected');

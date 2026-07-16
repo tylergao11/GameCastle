@@ -1,5 +1,5 @@
 var assert = require("assert");
-var codegen = require("../../ai/network-runtime/codegen");
+var codegen = require("../../packages/network/src/codegen");
 
 function render(sync) {
   return codegen.generate({

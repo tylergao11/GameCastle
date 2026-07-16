@@ -1,17 +1,17 @@
 var path = require("path");
 var { fork } = require("child_process");
-var GameCastleTransport = require(path.join(__dirname, "..", "..", "ai", "network-runtime", "transport.js"));
-var TickIntentRuntime = require(path.join(__dirname, "..", "..", "ai", "network-runtime", "tick-intent-runtime.js")).GameCastleTickIntentRuntime;
-var AsyncPersistenceStrategy = require(path.join(__dirname, "..", "..", "ai", "network-runtime", "async-persistence.js")).AsyncPersistenceStrategy;
-var EventRelayStrategy = require(path.join(__dirname, "..", "..", "ai", "network-runtime", "event-relay.js")).EventRelayStrategy;
-var ServerOrderedInputSession = require(path.join(__dirname, "..", "..", "server", "server-ordered-input.js")).ServerOrderedInputSession;
+var GameCastleTransport = require(path.join(__dirname, "..", "..", "packages", "network", "src", "transport.js"));
+var TickIntentRuntime = require(path.join(__dirname, "..", "..", "packages", "network", "src", "tick-intent-runtime.js")).GameCastleTickIntentRuntime;
+var AsyncPersistenceStrategy = require(path.join(__dirname, "..", "..", "packages", "network", "src", "async-persistence.js")).AsyncPersistenceStrategy;
+var EventRelayStrategy = require(path.join(__dirname, "..", "..", "packages", "network", "src", "event-relay.js")).EventRelayStrategy;
+var ServerOrderedInputSession = require(path.join(__dirname, "..", "..", "apps", "multiplayer", "src", "server-ordered-input.js")).ServerOrderedInputSession;
 
 var PORT = 3005;
 var passed = 0, failed = 0;
 function pass(n) { passed++; console.log("PASS " + n); }
 function fl(n, why) { failed++; console.log("FAIL " + n + ": " + why); }
 
-var server = fork(path.join(__dirname, "..", "..", "server", "signaling-server.js"), [], {
+var server = fork(path.join(__dirname, "..", "..", "apps", "multiplayer", "src", "signaling-server.js"), [], {
   env: Object.assign({}, process.env, { PORT: String(PORT) }),
   silent: true,
 });

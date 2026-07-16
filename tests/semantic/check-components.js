@@ -1,6 +1,6 @@
 var assert = require('assert');
-var catalogApi = require('../../ai/component-catalog');
-var dictionary = require('../../ai/capability-semantic-dictionary');
+var catalogApi = require('../../packages/semantic/src/component-catalog');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
 
 var catalog = catalogApi.loadComponentCatalog();
 var ids = catalog.components.map(function(component) { return component.id; }).sort();

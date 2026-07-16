@@ -1,5 +1,5 @@
 var assert = require('assert');
-var machine = require('../../ai/semantic-run-state-machine');
+var machine = require('../../packages/semantic/src/semantic-run-state-machine');
 
 function projection(ledger) { return machine.project(ledger); }
 function taskFailure(taskId, subjectHash, message) {

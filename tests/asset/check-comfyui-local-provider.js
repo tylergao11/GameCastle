@@ -3,12 +3,12 @@ var crypto = require('crypto');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var runtimeModule = require('../../ai/provider-runtime');
-var assetEngine = require('../../ai/asset-engine-langgraph');
-var comfy = require('../../ai/comfyui-local-provider');
-var semanticReviewer = require('../../ai/clip-image-reviewer');
+var runtimeModule = require('../../packages/providers/src/provider-runtime');
+var assetEngine = require('../../packages/assets/src/asset-engine-langgraph');
+var comfy = require('../../packages/assets/src/comfyui-local-provider');
+var semanticReviewer = require('../../packages/assets/src/clip-image-reviewer');
 var libraryPorts = require('../fixtures/test-asset-library-ports');
-var pngPort = require('../../ai/local-derivation-port');
+var pngPort = require('../../packages/assets/src/local-derivation-port');
 
 var raster = { width: 8, height: 8, data: new Uint8ClampedArray(8 * 8 * 4) };
 for (var pixel = 0; pixel < 64; pixel++) { raster.data[pixel * 4] = 245; raster.data[pixel * 4 + 1] = 245; raster.data[pixel * 4 + 2] = 245; raster.data[pixel * 4 + 3] = 255; }
@@ -43,7 +43,7 @@ function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[k
     assert.strictEqual(result.accepted, true, JSON.stringify({ debts: result.debts, calls: calls })); assert.strictEqual(submissions.length, 2, 'each library miss must run one official SDXL base-refiner workflow');
     submissions.forEach(function(graph) { assert.deepStrictEqual(Array.from(new Set(Object.keys(graph).map(function(id) { return graph[id].class_type; }))).sort(), ['CLIPTextEncode', 'CheckpointLoaderSimple', 'EmptyLatentImage', 'KSamplerAdvanced', 'SaveImage', 'VAEDecode'].sort()); assert.strictEqual(graph['4'].inputs.batch_size, 2); assert.strictEqual(graph['5'].inputs.end_at_step, 24); assert.strictEqual(graph['9'].inputs.start_at_step, 24); assert.strictEqual(graph['5'].inputs.return_with_leftover_noise, 'enable'); assert.strictEqual(graph['9'].inputs.add_noise, 'disable'); assert(graph['2'].inputs.text.length < 320); });
     assert.notStrictEqual(submissions[0]['5'].inputs.noise_seed, submissions[1]['5'].inputs.noise_seed, 'different requirements must not share one global seed');
-    assert.strictEqual(result.assetManifest.assets[0].source, 'deterministicDerivation'); assert(result.assetManifest.assets[0].path.indexOf(path.join('project-assets', 'static')) >= 0); assert.strictEqual(result.assetManifest.assets[1].frameSet.documentKind, require('../../shared/frame-set-contract.json').documentKind); assert(result.assetManifest.assets[1].frameSet.frames.every(function(frame) { return frame.path.indexOf(path.join('project-assets', 'frames')) >= 0; }));
+    assert.strictEqual(result.assetManifest.assets[0].source, 'deterministicDerivation'); assert(result.assetManifest.assets[0].path.indexOf(path.join('project-assets', 'static')) >= 0); assert.strictEqual(result.assetManifest.assets[1].frameSet.documentKind, require('../../packages/assets/contracts/frame-set-contract.json').documentKind); assert(result.assetManifest.assets[1].frameSet.frames.every(function(frame) { return frame.path.indexOf(path.join('project-assets', 'frames')) >= 0; }));
     assert(result.assetProduction.workItems.every(function(item) { return item.masterImage && item.masterImage.status === 'master' && item.masterImage.publishability.publishable === false; }));
     assert(result.assetProduction.workItems.every(function(item) { return item.masterImage.providerReceipt.provenance.candidateSelection.selectedIndex === 1 && item.masterImage.providerReceipt.provenance.baseModelId === 'sd_xl_base_1.0.safetensors' && item.masterImage.providerReceipt.provenance.resourceRelease.verifiedHealthy === true; }));
     assert(calls.some(function(url) { return url.endsWith('/free'); }), 'every completed Comfy generation must cross the registered model-release barrier before derivation');

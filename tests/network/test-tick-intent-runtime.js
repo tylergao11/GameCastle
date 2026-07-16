@@ -1,5 +1,5 @@
 var assert = require("assert");
-var TickIntent = require("../../ai/network-runtime/tick-intent-runtime").GameCastleTickIntentRuntime;
+var TickIntent = require("../../packages/network/src/tick-intent-runtime").GameCastleTickIntentRuntime;
 
 function testLockstepSlotsAndDelay() {
   var session = new TickIntent({ inputDelay: 0, redundancy: 2, localSlot: "p1", remoteSlot: "p2" });

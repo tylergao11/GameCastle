@@ -2,9 +2,9 @@ var assert = require("assert");
 var path = require("path");
 var childProcess = require("child_process");
 
-global.GameCastleRuntimeAdapter = require("../../ai/network-runtime/runtime-adapter").GameCastleRuntimeAdapter;
-var GameCastleTickIntentBridge = require("../../ai/network-runtime/tick-intent-bridge").GameCastleTickIntentBridge;
-var GameCastleTransport = require("../../ai/network-runtime/transport");
+global.GameCastleRuntimeAdapter = require("../../packages/network/src/runtime-adapter").GameCastleRuntimeAdapter;
+var GameCastleTickIntentBridge = require("../../packages/network/src/tick-intent-bridge").GameCastleTickIntentBridge;
+var GameCastleTransport = require("../../packages/network/src/transport");
 
 var PORT = 3007;
 var SIGNALING_URL = "ws://localhost:" + PORT;
@@ -94,7 +94,7 @@ async function waitFor(predicate, label, timeoutMs) {
 async function main() {
   installAnimationFrame();
 
-  var server = childProcess.fork(path.join(__dirname, "..", "..", "server", "signaling-server.js"), [], {
+  var server = childProcess.fork(path.join(__dirname, "..", "..", "apps", "multiplayer", "src", "signaling-server.js"), [], {
     env: Object.assign({}, process.env, { PORT: String(PORT) }),
     silent: true,
   });

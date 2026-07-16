@@ -2,7 +2,7 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var runtimeModule = require('../../ai/provider-runtime');
+var runtimeModule = require('../../packages/providers/src/provider-runtime');
 
 function request(role, id, extra) { return Object.assign({ requestId: id, projectId: 'provider-check', role: role, provider: 'simulated-local', estimatedCost: 0.1, input: { prompt: 'safe prompt' } }, extra || {}); }
 

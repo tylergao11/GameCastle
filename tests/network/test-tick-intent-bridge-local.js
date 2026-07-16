@@ -1,7 +1,7 @@
 var assert = require("assert");
 
-global.GameCastleRuntimeAdapter = require("../../ai/network-runtime/runtime-adapter").GameCastleRuntimeAdapter;
-var GameCastleTickIntentBridge = require("../../ai/network-runtime/tick-intent-bridge").GameCastleTickIntentBridge;
+global.GameCastleRuntimeAdapter = require("../../packages/network/src/runtime-adapter").GameCastleRuntimeAdapter;
+var GameCastleTickIntentBridge = require("../../packages/network/src/tick-intent-bridge").GameCastleTickIntentBridge;
 
 function installAnimationFrame() {
   var callbacks = [];

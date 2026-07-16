@@ -1,6 +1,6 @@
 var assert = require('assert');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var index = dictionary.readJson(require('path').join(__dirname, '..', '..', 'ai', 'semantic-mapping', 'capability-semantic-index.json'));
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var index = dictionary.readJson(require('path').join(__dirname, '..', '..', 'packages', 'semantic', 'generated', 'capability-semantic-index.json'));
 var universe = dictionary.readJson(dictionary.UNIVERSE_PATH);
 var bindings = dictionary.readJson(dictionary.OFFICIAL_BINDINGS_PATH);
 

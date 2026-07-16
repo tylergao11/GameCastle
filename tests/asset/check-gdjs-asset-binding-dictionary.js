@@ -3,14 +3,14 @@ var crypto = require('crypto');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var defaults = require('../../ai/gdevelop-truth/project-defaults.json');
-var configurationTruth = require('../../ai/gdevelop-truth/object-configuration-truth.json');
-var adapterDictionary = require('../../ai/gdjs-asset-binding-dictionary');
-var binder = require('../../ai/gdjs-project-asset-binder');
-var assetWorldContract = require('../../ai/asset-world');
-var png = require('../../ai/local-derivation-port');
-var spatialEngine = require('../../runtime/spatial');
-var layoutDictionary = require('../../shared/semantic-layout-dictionary.json');
+var defaults = require('../../packages/gdjs/generated/project-defaults.json');
+var configurationTruth = require('../../packages/gdjs/generated/object-configuration-truth.json');
+var adapterDictionary = require('../../packages/gdjs/src/gdjs-asset-binding-dictionary');
+var binder = require('../../packages/gdjs/src/gdjs-project-asset-binder');
+var assetWorldContract = require('../../packages/assets/src/asset-world');
+var png = require('../../packages/assets/src/local-derivation-port');
+var spatialEngine = require('../../packages/spatial/src/runtime');
+var layoutDictionary = require('../../packages/semantic/contracts/semantic-layout-dictionary.json');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function digest(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }

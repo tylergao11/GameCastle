@@ -1,6 +1,6 @@
 var assert = require('assert');
-var planner = require('../../ai/asset-production-planner');
-var productionTruth = require('../../shared/asset-production-pipeline-contract.json');
+var planner = require('../../packages/assets/src/asset-production-planner');
+var productionTruth = require('../../packages/assets/contracts/asset-production-pipeline-contract.json');
 
 function request() {
   return {

@@ -2,7 +2,7 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var delivery = require('../../ai/product-delivery-run');
+var delivery = require('../../packages/product/src/product-delivery-run');
 
 var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-product-delivery-run-'));
 try {

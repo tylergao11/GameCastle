@@ -1,7 +1,7 @@
 var assert = require('assert');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var api = require('../../server/product-engine-api');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var api = require('../../apps/api/src/server');
 
 var TOKEN = 'product-engine-test-token';
 function headers(withAuth) { var value = { 'Content-Type': 'application/json' }; if (withAuth !== false) value.Authorization = 'Bearer ' + TOKEN; return value; }

@@ -1,6 +1,6 @@
 var assert = require('assert');
-var dictionary = require('../../shared/asset-style-dictionary.json');
-var style = require('../../ai/style-dna');
+var dictionary = require('../../packages/assets/contracts/asset-style-dictionary.json');
+var style = require('../../packages/assets/src/style-dna');
 var id = dictionary.defaultStyleId;
 assert.strictEqual(id, 'gamecastle.style-dna.v1');
 assert.strictEqual(Object.prototype.hasOwnProperty.call(dictionary.styles, 'gamecastle.style-1'), false, 'old style id must not remain as a compatibility alias');

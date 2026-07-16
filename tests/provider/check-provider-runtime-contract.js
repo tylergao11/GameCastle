@@ -1,6 +1,6 @@
 var assert = require('assert');
-var contract = require('../../shared/provider-runtime-contract.json');
-var runtime = require('../../ai/provider-runtime');
+var contract = require('../../packages/providers/contracts/provider-runtime-contract.json');
+var runtime = require('../../packages/providers/src/provider-runtime');
 assert.strictEqual(contract.contractId, 'gamecastle.provider-runtime');
 assert.deepStrictEqual(Object.keys(contract.roles).sort(), Object.keys(runtime.ROLE_MODALITY).sort());
 Object.keys(contract.roles).forEach(function(role) { assert.strictEqual(contract.roles[role].modality, runtime.ROLE_MODALITY[role]); });

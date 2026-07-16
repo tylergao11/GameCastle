@@ -1,8 +1,8 @@
 var assert = require('assert');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var compiler = require('../../ai/semantic-compiler');
-var algebra = require('../../ai/semantic-event-algebra');
-var sourceContract = require('../../ai/game-semantic-source');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var compiler = require('../../packages/semantic/src/semantic-compiler');
+var algebra = require('../../packages/semantic/src/semantic-event-algebra');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var index = dictionary.buildIndex();
 var capabilities = Object.keys(index.by_capability).map(function(id) { return index.by_capability[id]; });
 var foundationIds = new Set(algebra.foundationCapabilityIds(index));

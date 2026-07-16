@@ -1,6 +1,6 @@
 var assert = require('assert');
 
-var monitor = require('../../ai/deepseek-cache-monitor');
+var monitor = require('../../packages/providers/src/deepseek-cache-monitor');
 
 function fakeResponse(usage, text) {
   return {

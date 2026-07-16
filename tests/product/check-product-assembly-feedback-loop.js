@@ -2,9 +2,9 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var orchestratorApi = require('../../ai/product-delivery-orchestrator');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var orchestratorApi = require('../../packages/product/src/product-delivery-orchestrator');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 

@@ -3,11 +3,11 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var assetEngine = require('../../ai/asset-engine-langgraph');
-var outboxModule = require('../../ai/asset-publication-outbox');
-var publisher = require('../../ai/asset-library-publisher');
-var providerRuntime = require('../../ai/provider-runtime');
-var supabaseAssetLibrary = require('../../ai/asset-library-supabase-port');
+var assetEngine = require('../../packages/assets/src/asset-engine-langgraph');
+var outboxModule = require('../../packages/assets/src/asset-publication-outbox');
+var publisher = require('../../packages/assets/src/asset-library-publisher');
+var providerRuntime = require('../../packages/providers/src/provider-runtime');
+var supabaseAssetLibrary = require('../../packages/assets/src/asset-library-supabase-port');
 
 ['GAMECASTLE_ASSET_LIBRARY_URL', 'GAMECASTLE_ASSET_LIBRARY_SERVICE_KEY', 'GAMECASTLE_ASSET_LIBRARY_BUCKET', 'COMFYUI_ENDPOINT', 'COMFYUI_ALLOW_LOCAL', 'COMFYUI_MODEL_PATH', 'COMFYUI_MODEL_SHA256'].forEach(function(name) {
   if (!process.env[name]) throw new Error('Cloud-library live smoke requires ' + name + '.');

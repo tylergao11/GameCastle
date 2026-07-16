@@ -1,8 +1,8 @@
 var assert = require('assert');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var feedback = require('../../ai/semantic-feedback-contract');
-var referencesApi = require('../../ai/semantic-reference-runtime');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var feedback = require('../../packages/semantic/src/semantic-feedback-contract');
+var referencesApi = require('../../packages/semantic/src/semantic-reference-runtime');
 
 var index = dictionary.buildIndex();
 var references = referencesApi.create(index);

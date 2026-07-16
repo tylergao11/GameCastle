@@ -1,5 +1,5 @@
 var assert = require('assert');
-var responsesClient = require('../../ai/responses-client');
+var responsesClient = require('../../packages/providers/src/responses-client');
 
 function makeStream(chunks) {
   var index = 0;

@@ -1,6 +1,6 @@
 # Spatial Planner and Runtime
 
-`shared/spatial-engine-contract.json` is the Spatial Engine contract. It keeps one spatial truth boundary while allowing a visual LLM to make the first layout decision.
+`packages/spatial/contracts/spatial-engine-contract.json` is the Spatial Engine contract. It keeps one spatial truth boundary while allowing a visual LLM to make the first layout decision.
 
 The first assembly coordinate space is the selected GDJS scene canvas: project width and height, selected scene, layers, and camera size/viewport facts. It is a project fact, not a device profile or a separate screen input.
 
@@ -36,7 +36,7 @@ flowchart LR
   T --> F["Final GDJS projection"]
 ```
 
-The graph is implemented in `ai/spatial-planner-langgraph.js`. Contract-declared nodes cover context, model invocation, candidate validation, GDJS candidate projection, preview, feedback, acceptance, and final projection.
+The graph is implemented in `packages/spatial/src/spatial-planner-langgraph.js`. Contract-declared nodes cover context, model invocation, candidate validation, GDJS candidate projection, preview, feedback, acceptance, and final projection.
 
 ## Planner input and output
 
@@ -71,7 +71,7 @@ These files exist for diagnosis and later training provenance. They are evidence
 
 ## Runtime guarantees
 
-`runtime/spatial/` never generates the first draft. It validates:
+`packages/spatial/src/runtime/` never generates the first draft. It validates:
 
 - source, dictionary, component expansion, AssetWorld, asset-bound project, and assembly-input identity;
 - the exact seed-owned spatial request, layout plan, reconstructed intent snapshot, and scene canvas at every Planner/Adapter boundary that holds the asset-bound seed;
@@ -91,6 +91,6 @@ After ACCEPT, Runtime creates `spatial-layout-resolution`; `createAcceptedProjec
 - Device adaptation remains later GDJS runtime behavior.
 - Training and distillation may replace the Planner model port later; they do not change the contracts or Runtime validator.
 
-`ai/spatial-product-pipeline.js#run` is the bridge from an accepted `semantic-asset-product` into this flow. It requires component-expansion evidence, geometry facts, a preview directory, an explicit round budget, and either Provider Runtime or an injected planner port.
+`packages/product/src/spatial-product-pipeline.js#run` is the bridge from an accepted `semantic-asset-product` into this flow. It requires component-expansion evidence, geometry facts, a preview directory, an explicit round budget, and either Provider Runtime or an injected planner port.
 
 The production role is `spatial-plan`. Configure `SPATIAL_MODEL_PROVIDER`, `SPATIAL_VISION_MODEL`, `SPATIAL_MODEL_MAX_COST`, and `SPATIAL_ALLOW_EXTERNAL` for a vision-capable provider. A text-only provider fails at the modality boundary.

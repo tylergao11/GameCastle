@@ -1,5 +1,5 @@
 var assert = require('assert');
-var governance = require('../../ai/ai-provider-governance');
+var governance = require('../../packages/providers/src/ai-provider-governance');
 
 var original = { AI_PROVIDER: process.env.AI_PROVIDER, LLM_PROVIDER: process.env.LLM_PROVIDER, ASSET_MODEL_PROVIDER: process.env.ASSET_MODEL_PROVIDER, OPENAI_API_KEY: process.env.OPENAI_API_KEY, OPENAI_IMAGE_MODEL: process.env.OPENAI_IMAGE_MODEL, ASSET_ALLOW_EXTERNAL: process.env.ASSET_ALLOW_EXTERNAL, ASSET_MODEL_MAX_COST: process.env.ASSET_MODEL_MAX_COST };
 try {

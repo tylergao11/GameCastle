@@ -1,7 +1,7 @@
 var assert = require('assert');
-var libraryModule = require('../../ai/asset-library');
+var libraryModule = require('../../packages/assets/src/asset-library');
 var ports = require('../fixtures/test-asset-library-ports');
-var frameSet = require('../../ai/frame-set');
+var frameSet = require('../../packages/assets/src/frame-set');
 var requirement = { semanticId: 'hero_visual', subject: 'hero', description: 'Hero sprite', roles: ['hero'], productionFamily: 'character', recipeId: 'character-sprite.v1', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, resourceKind: 'image', acceptedFormats: ['png'] };
 (async function() {
   var port = ports.createTestAssetLibraryPort(), library = libraryModule.create(port), revision = { revisionId: 'revision.hero.1', sha256: 'a'.repeat(64), resourceKind: 'image', format: 'png', path: 'fixture.png', status: 'accepted' };

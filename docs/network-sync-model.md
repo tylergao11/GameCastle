@@ -1,8 +1,8 @@
 # Network synchronization boundary
 
-`server/signaling-server.js` provides a WebSocket room service for signaling, state synchronization, events, and ordered game input after an accepted product exists. It is not a semantic compiler, asset engine, product orchestrator, or design decision maker.
+`apps/multiplayer/src/signaling-server.js` provides a WebSocket room service for signaling, state synchronization, events, and ordered game input after an accepted product exists. It is not a semantic compiler, asset engine, product orchestrator, or design decision maker.
 
-The product engine is a separate HTTP service at `server/product-engine-api.js`. Keep the boundaries separate:
+The product engine is a separate HTTP service at `apps/api/src/server.js`. Keep the boundaries separate:
 
 | Service | Owns | Does not own |
 | --- | --- | --- |

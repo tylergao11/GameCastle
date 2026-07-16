@@ -1,5 +1,5 @@
 var assert = require('assert');
-var validator = require('../../ai/asset-contract-validator');
+var validator = require('../../packages/assets/src/asset-contract-validator');
 var slot = { slotId: 'asset.hero', resourceKind: 'image', acceptedFormats: ['png'], styleId: 'gamecastle.style-dna.v1', semanticTags: ['hero'], styleTags: ['arcade'], constraints: { width: 32, height: 48, transparent: true } };
 var valid = { path: 'memory://hero', resourceKind: 'image', format: 'png', width: 32, height: 48, transparent: true, styleId: 'gamecastle.style-dna.v1', semanticTags: ['hero'], styleTags: ['arcade'], publishability: { playable: true, blocksFinalExport: false } };
 assert.equal(validator.validateAssetCandidate(slot, valid).pass, true);

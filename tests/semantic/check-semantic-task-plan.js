@@ -1,6 +1,6 @@
 var assert = require('assert');
-var taskPlan = require('../../ai/semantic-task-plan');
-var syntax = require('../../ai/semantic-dsl-syntax');
+var taskPlan = require('../../packages/semantic/src/semantic-task-plan');
+var syntax = require('../../packages/semantic/src/semantic-dsl-syntax');
 
 function planTask(overrides) {
   return Object.assign({

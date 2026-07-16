@@ -1,11 +1,11 @@
 var assert = require('assert');
 var crypto = require('crypto');
-var prompt = require('../../ai/semantic-llm2-prompt');
-var contextApi = require('../../ai/semantic-commander-context');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var draftApi = require('../../ai/semantic-draft');
-var referenceRuntime = require('../../ai/semantic-reference-runtime');
-var taskPlan = require('../../ai/semantic-task-plan');
+var prompt = require('../../packages/semantic/src/semantic-llm2-prompt');
+var contextApi = require('../../packages/semantic/src/semantic-commander-context');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var draftApi = require('../../packages/semantic/src/semantic-draft');
+var referenceRuntime = require('../../packages/semantic/src/semantic-reference-runtime');
+var taskPlan = require('../../packages/semantic/src/semantic-task-plan');
 
 function hash(value) { return crypto.createHash('sha256').update(value, 'utf8').digest('hex'); }
 function transition(sequence, state, mode, failure, activeTaskId) { return ['seq=' + sequence, 'event=TEST', 'state=' + state, 'mode=' + mode, 'task=' + (activeTaskId || '-'), 'code=' + (failure ? failure.code : '-'), 'failure=' + (failure ? failure.signature : '-')].join('|'); }

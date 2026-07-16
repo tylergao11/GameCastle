@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 5,
+  "registryId": "gamecastle.comfyui-master-image-workflows",
+  "owner": "ComfyUIMasterImageProvider",
+  "principles": [
+    "ComfyUI creates transient master images only",
+    "the workflow is derived from the official ComfyUI SDXL base and refiner example",
+    "only official ComfyUI core nodes are allowed",
+    "the base model creates noisy latents and the refiner owns the final denoising steps",
+    "final asset processing and FrameSet derivation remain local deterministic stages",
+    "workflow, model, and review provenance are immutable"
+  ],
+  "workflows": {
+    "gamecastle.master-image.sdxl-base-refiner.v1": {
+      "role": "master-image-generate",
+      "revision": "v1",
+      "workflowFormat": "comfyui-api-prompt",
+      "workflowFile": "packages/assets/workflows/master-image.sdxl-base-refiner.v1.json",
+      "workflowSha256": "bfb3207c6b060f077be0744ace229babecd0bfe40a9e40a85533dfe3bc758b5e",
+      "workflowSource": "https://github.com/comfyanonymous/ComfyUI_examples/tree/master/sdxl",
+      "officialCoreNodeClasses": ["CheckpointLoaderSimple", "CLIPTextEncode", "EmptyLatentImage", "KSamplerAdvanced", "VAEDecode", "SaveImage"],
+      "outputNodeId": "11",
+      "baseModel": {
+        "id": "sd_xl_base_1.0.safetensors",
+        "repository": "stabilityai/stable-diffusion-xl-base-1.0",
+        "revision": "f298da3c058bd8f1f1c62f3ecfa775244a243897",
+        "sha256Env": "COMFYUI_MODEL_SHA256",
+        "pathEnv": "COMFYUI_MODEL_PATH",
+        "licenseId": "OpenRAIL++"
+      },
+      "refinerModel": {
+        "id": "sd_xl_refiner_1.0.safetensors",
+        "repository": "stabilityai/stable-diffusion-xl-refiner-1.0",
+        "revision": "90b043f80e2517bdc1f15f53e0f776f31ce9ee1a",
+        "sha256Env": "COMFYUI_REFINER_SHA256",
+        "pathEnv": "COMFYUI_REFINER_PATH",
+        "licenseId": "OpenRAIL++"
+      },
+      "maxWidth": 1024,
+      "maxHeight": 1024,
+      "maxOutputBytes": 67108864,
+      "maxTimeoutMs": 900000,
+      "candidatePolicy": {
+        "defaultRounds": 1,
+        "maxRounds": 3,
+        "candidatesPerRound": 2,
+        "seedStride": 104729,
+        "retryableReviewCodes": ["MASTER_IMAGE_QUALITY_REJECTED"]
+      },
+      "resourceReleasePolicy": {
+        "route": "/free",
+        "healthRoute": "/system_stats",
+        "unloadModels": true,
+        "freeMemory": true,
+        "settleMs": 1000
+      },
+      "productionProfile": {
+        "prompt": { "type": "string", "required": true },
+        "negativePrompt": { "type": "string", "required": true },
+        "width": { "type": "integer", "default": 1024, "minimum": 512, "maximum": 1024 },
+        "height": { "type": "integer", "default": 1024, "minimum": 512, "maximum": 1024 },
+        "seed": { "type": "integer", "default": 1, "minimum": 0, "maximum": 4294967295 },
+        "batchSize": { "type": "integer", "default": 2, "minimum": 1, "maximum": 2 },
+        "steps": { "type": "integer", "default": 30, "minimum": 20, "maximum": 50 },
+        "cfg": { "type": "number", "default": 7, "minimum": 1, "maximum": 15 },
+        "samplerName": { "type": "string", "default": "euler" },
+        "scheduler": { "type": "string", "default": "normal" },
+        "baseEndStep": { "type": "integer", "default": 24, "minimum": 1, "maximum": 49 },
+        "refinerStartStep": { "type": "integer", "default": 24, "minimum": 1, "maximum": 49 }
+      },
+      "inputBindings": {
+        "prompt": [{ "nodeId": "2", "input": "text" }, { "nodeId": "7", "input": "text" }],
+        "negativePrompt": [{ "nodeId": "3", "input": "text" }, { "nodeId": "8", "input": "text" }],
+        "width": [{ "nodeId": "4", "input": "width" }],
+        "height": [{ "nodeId": "4", "input": "height" }],
+        "batchSize": [{ "nodeId": "4", "input": "batch_size" }],
+        "seed": [{ "nodeId": "5", "input": "noise_seed" }],
+        "steps": [{ "nodeId": "5", "input": "steps" }, { "nodeId": "9", "input": "steps" }],
+        "cfg": [{ "nodeId": "5", "input": "cfg" }, { "nodeId": "9", "input": "cfg" }],
+        "samplerName": [{ "nodeId": "5", "input": "sampler_name" }, { "nodeId": "9", "input": "sampler_name" }],
+        "scheduler": [{ "nodeId": "5", "input": "scheduler" }, { "nodeId": "9", "input": "scheduler" }],
+        "baseEndStep": [{ "nodeId": "5", "input": "end_at_step" }],
+        "refinerStartStep": [{ "nodeId": "9", "input": "start_at_step" }],
+        "filenamePrefix": [{ "nodeId": "11", "input": "filename_prefix" }]
+      }
+    }
+  }
+}

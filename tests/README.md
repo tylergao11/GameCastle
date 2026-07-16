@@ -9,7 +9,8 @@ The domain folders contain the gate's executable evidence:
 - `product/`: delivery orchestration, AssetCard projection, browser capture, assembly review, and feedback reruns.
 - `provider/`: provider governance, transports, receipts, and cache observations.
 - `network/`: multiplayer runtime, signaling, replay, persistence, and end-to-end bridge checks.
-- `fixtures/`: reusable test-only ports. Production modules must not import this directory.
+- `fixtures/`: reusable test-only ports and semantic seed documents. Production modules must not import this directory.
+- `benchmarks/`: benchmark definitions consumed by the canonical semantic suites; it is not a second test entrypoint.
 - `live/`: explicitly authorized external probes. These are not part of offline project acceptance.
 
-Narrower npm suites are diagnostic slices only. They do not establish project acceptance. Do not add test entrypoints under `ai/`, `server/`, `scripts/`, or `benchmarks/`.
+Narrower npm suites are diagnostic slices only. They do not establish project acceptance. Do not add test entrypoints under `apps/`, `packages/`, `scripts/`, or `tests/benchmarks/`.

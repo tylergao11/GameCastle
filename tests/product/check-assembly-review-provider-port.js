@@ -1,5 +1,5 @@
 var assert = require('assert');
-var providerPort = require('../../ai/assembly-review-provider-port');
+var providerPort = require('../../packages/product/src/assembly-review-provider-port');
 
 (async function() {
   var observed = null;

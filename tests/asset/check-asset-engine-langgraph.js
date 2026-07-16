@@ -2,13 +2,13 @@ var assert = require('assert');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var engine = require('../../ai/asset-engine-langgraph');
-var outboxModule = require('../../ai/asset-publication-outbox');
-var publisher = require('../../ai/asset-library-publisher');
+var engine = require('../../packages/assets/src/asset-engine-langgraph');
+var outboxModule = require('../../packages/assets/src/asset-publication-outbox');
+var publisher = require('../../packages/assets/src/asset-library-publisher');
 var portsModule = require('../fixtures/test-asset-engine-ports');
 var libraryPorts = require('../fixtures/test-asset-library-ports');
-var engineContract = require('../../shared/asset-engine-contract.json');
-var assetWorldContract = require('../../ai/asset-world');
+var engineContract = require('../../packages/assets/contracts/asset-engine-contract.json');
+var assetWorldContract = require('../../packages/assets/src/asset-world');
 
 function requirements() {
   return {

@@ -3,11 +3,11 @@ var crypto = require('crypto');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
-var dictionary = require('../../ai/capability-semantic-dictionary');
-var sourceContract = require('../../ai/game-semantic-source');
-var linker = require('../../ai/semantic-runtime-linker');
-var engine = require('../../ai/asset-engine-langgraph');
-var binder = require('../../ai/gdjs-project-asset-binder');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var sourceContract = require('../../packages/semantic/src/game-semantic-source');
+var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var engine = require('../../packages/assets/src/asset-engine-langgraph');
+var binder = require('../../packages/gdjs/src/gdjs-project-asset-binder');
 var libraryPorts = require('../fixtures/test-asset-library-ports');
 
 function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }

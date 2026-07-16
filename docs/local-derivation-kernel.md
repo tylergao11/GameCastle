@@ -1,6 +1,6 @@
 # Local Derivation Kernel
 
-`ai/local-derivation-kernel.js` executes only registered, project-local deterministic operations described by an `OperationSpec`.
+`packages/assets/src/local-derivation-kernel.js` executes only registered, project-local deterministic operations described by an `OperationSpec`.
 
 The caller provides a complete operation specification. The kernel validates the operation, dispatches only to its registered handler, and returns an immutable receipt. An unregistered operation fails with `LOCAL_OPERATION_UNAVAILABLE`; it is not redirected to a cloud service or a model.
 

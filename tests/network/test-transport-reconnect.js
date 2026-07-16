@@ -25,7 +25,7 @@ FakeWebSocket.prototype.close = function() {
 };
 
 global.WebSocket = FakeWebSocket;
-var GameCastleTransport = require("../../ai/network-runtime/transport");
+var GameCastleTransport = require("../../packages/network/src/transport");
 
 function sleep(ms) {
   return new Promise(function(resolve) { setTimeout(resolve, ms); });
