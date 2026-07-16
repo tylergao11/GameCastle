@@ -9,6 +9,7 @@ assert(executor.indexOf('"entity"') >= 0);
 assert(executor.indexOf('"plan-task"') < 0);
 assert(executor.indexOf('cmd-entity ::= "entity"') >= 0);
 assert(executor.indexOf('"slot" ws "="') >= 0, 'Command fields are grammar-constrained rather than left to the model.');
+assert(executor.indexOf('text ::= quoted\n') >= 0, 'Model-authored text is always quoted so spaces cannot be silently discarded.');
 assert(planner.indexOf('record ::=') >= 0);
 assert(planner.indexOf('list ::=') >= 0);
 assert.throws(function() { grammar.forPhase('unknown'); }, function(error) { return error.code === 'SEMANTIC_DSL_GRAMMAR_INVALID'; });

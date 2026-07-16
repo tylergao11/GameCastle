@@ -32,3 +32,10 @@ DSL parser together:
 ```powershell
 npm run model:semantic:smoke
 ```
+
+Measure basic Planner/Executor command syntax, exact-value following,
+non-thinking behavior, and per-command latency:
+
+```powershell
+npm run model:semantic:benchmark
+```

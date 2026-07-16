@@ -15,7 +15,7 @@ var runtimeApi = require('../../packages/providers/src/provider-runtime');
     input: {
       messages: [
         { role: 'system', content: 'Output semantic-dsl-v9 only. Preserve every provided identifier exactly. Do not explain.' },
-        { role: 'user', content: 'Emit exactly this command: entity(slot=head,roles=list(player),kind=sprite,behaviors=list())' }
+        { role: 'user', content: 'Emit exactly this command: entity(slot=head,roles=list("player"),kind=sprite,behaviors=list())' }
       ],
       maxTokens: 128,
       thinking: { type: 'disabled' },
