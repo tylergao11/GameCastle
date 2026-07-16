@@ -58,9 +58,16 @@ assert.strictEqual(afterWrite.events[0].actions[1].argumentFact.semanticArgument
 assert.deepStrictEqual(afterWrite.events[0].actions[1].argumentFact.values, { target: 'actor', value: 5 });
 
 var plan = taskPlan.create([
-  { type: 'plan-task', semanticId: 'model', goal: 'Own actor metadata.', dependsOn: [], targets: [{ kind: 'entity', semanticId: 'actor', intent: 'update' }], uses: [], catalogs: ['entity-kinds'], retrieves: [] },
-  { type: 'plan-task', semanticId: 'stats', goal: 'Own actor speed.', dependsOn: ['model'], targets: [{ kind: 'member', owner: 'actor', semanticId: 'speed', intent: 'update' }], uses: [], catalogs: [], retrieves: [] },
-  { type: 'plan-task', semanticId: 'edit', goal: 'Edit exact existing facts.', dependsOn: ['stats'], targets: [{ kind: 'game', semanticId: 'demo', intent: 'update' }, { kind: 'member', owner: 'GameState', semanticId: 'score', intent: 'update' }, { kind: 'policy', semanticId: 'slight', intent: 'update' }, { kind: 'event', semanticId: 'loop', intent: 'update', facets: ['metadata', 'actions'] }], uses: ['object.y.add'], catalogs: ['event-kinds'], retrieves: [] }
+  { type: 'plan-task', semanticId: 'model', goal: 'Own actor metadata.', after: [] },
+  { type: 'plan-entity', task: 'model', slot: 'actorEntity', semanticId: 'actor', intent: 'update' },
+  { type: 'plan-task', semanticId: 'stats', goal: 'Own actor speed.', after: ['model'] },
+  { type: 'plan-member', task: 'stats', slot: 'speedMember', owner: 'actor', semanticId: 'speed', intent: 'update' },
+  { type: 'plan-task', semanticId: 'edit', goal: 'Edit exact existing facts.', after: ['stats'] },
+  { type: 'plan-game', task: 'edit', slot: 'gameRoot', semanticId: 'demo', intent: 'update' },
+  { type: 'plan-member', task: 'edit', slot: 'scoreMember', owner: 'GameState', semanticId: 'score', intent: 'update' },
+  { type: 'plan-policy', task: 'edit', slot: 'slightPolicy', semanticId: 'slight', intent: 'update' },
+  { type: 'plan-event', task: 'edit', slot: 'loopEvent', semanticId: 'loop', intent: 'update', facets: ['metadata', 'actions'] },
+  { type: 'plan-use', task: 'edit', alias: 'moveY', use: 'object.y.add' },
 ]);
 var entityOnlySlice = sliceApi.create(draft, plan, 'model');
 assert.strictEqual(fact(entityOnlySlice, 'entity/actor').value.members, undefined, 'entity claim is metadata-only and cannot bypass member claims');

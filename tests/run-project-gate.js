@@ -4,17 +4,20 @@ var path = require('path');
 var root = path.resolve(__dirname, '..');
 
 var semanticLoop = [
+  ['tests/semantic/check-semantic-dsl-parser.js'],
   ['tests/semantic/check-semantic-task-plan.js'],
   ['tests/semantic/check-semantic-run-state-machine.js'],
   ['tests/semantic/check-semantic-prompt-bundle.js'],
   ['tests/semantic/check-semantic-task-draft-slice.js'],
   ['tests/semantic/check-semantic-run-observer.js'],
   ['tests/semantic/check-semantic-llm2-runtime.js'],
+  ['tests/semantic/check-semantic-model-port.js'],
   ['tests/semantic/check-snake-semantic-benchmark.js'],
   ['tests/semantic/check-snake-semantic-offline-suite.js']
 ];
 
 var productLoop = [
+  ['tests/product/check-planner-domain-api.js'],
   ['tests/product/check-product-delivery-run.js'],
   ['tests/product/check-product-failure-classifier.js'],
   ['tests/product/check-asset-card-projector.js'],

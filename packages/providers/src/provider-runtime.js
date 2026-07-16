@@ -159,7 +159,7 @@ async function invokeDeepSeekChat(context) {
   var input = context.request.input || {};
   var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
   var creative = context.request.role === 'creative-text';
-  var profile = creative ? semanticModelPolicy.LLM1 : semanticModelPolicy.LLM2;
+  var profile = semanticModelPolicy.profile(creative ? 'creative' : 'executor');
   var thinking = input.thinking || profile.thinking;
   var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true }, thinking: thinking };
   if (thinking.type === 'enabled') body.reasoning_effort = input.reasoningEffort || profile.reasoningEffort;

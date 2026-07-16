@@ -42,23 +42,27 @@ function percentile(values, fraction) {
   if (!values.length) return null;
   return values[Math.min(values.length - 1, Math.floor((values.length - 1) * fraction))];
 }
-function summarize(trace, threshold) {
+function summarize(trace, threshold, cachePolicy) {
   threshold = Number(threshold); if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) threshold = 0.9;
+  var warmupRequests = Number(cachePolicy && cachePolicy.commonPrefixWarmupRequests); if (!Number.isInteger(warmupRequests) || warmupRequests < 1) warmupRequests = 1;
   var seen = Object.create(null), eligible = [];
   (trace || []).forEach(function(entry) {
     var stablePrefixHash = entry.hashes && entry.hashes.stablePrefixHash;
     if (!stablePrefixHash) return;
-    if (seen[stablePrefixHash]) eligible.push(entry); else seen[stablePrefixHash] = true;
+    seen[stablePrefixHash] = (seen[stablePrefixHash] || 0) + 1;
+    if (seen[stablePrefixHash] > warmupRequests) eligible.push(entry);
   });
   var totals = eligible.reduce(function(out, entry) { out.hit += number(entry.cache && entry.cache.hitTokens); out.miss += number(entry.cache && entry.cache.missTokens); return out; }, { hit: 0, miss: 0 });
-  var total = totals.hit + totals.miss, rate = total ? totals.hit / total : 0;
+  var total = totals.hit + totals.miss, applicable = eligible.length > 0, rate = total ? totals.hit / total : null;
   return {
     threshold: threshold,
+    commonPrefixWarmupRequests: warmupRequests,
+    applicable: applicable,
     eligibleCalls: eligible.length,
     hitTokens: totals.hit,
     missTokens: totals.miss,
     cacheHitRate: rate,
-    passed: eligible.length > 0 && total > 0 && rate >= threshold,
+    passed: !applicable || total > 0 && rate >= threshold,
     zeroHitAnomalies: eligible.filter(function(entry) { return entry.cache && entry.cache.totalTokens > 0 && entry.cache.hitTokens === 0; }).map(function(entry) { return entry.sequence; }),
     p50FirstContentMs: percentile(eligible.map(function(entry) { return entry.firstContentMs; }), 0.5),
     p50ElapsedMs: percentile(eligible.map(function(entry) { return entry.elapsedMs; }), 0.5)

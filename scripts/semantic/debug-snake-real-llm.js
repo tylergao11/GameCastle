@@ -2,12 +2,15 @@ var fs = require('fs');
 var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
 var llmProvider = require('../../packages/providers/src/llm-provider');
+var providerGovernance = require('../../packages/providers/src/ai-provider-governance');
 var semanticRuntime = require('../../packages/semantic/src/semantic-llm2-runtime');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var modelPolicy = require('../../packages/semantic/src/semantic-model-policy');
+var trainingLog = require('../../packages/semantic/src/semantic-training-log');
 var semanticParser = require('../../packages/semantic/src/semantic-dsl-parser');
 var semanticDraft = require('../../packages/semantic/src/semantic-draft');
 var semanticReferences = require('../../packages/semantic/src/semantic-reference-runtime');
+var seedLoader = require('../../packages/semantic/src/semantic-seed-loader');
 var repositoryPath = require('../shared/repository-path');
 var snakeBenchmark = require('../../tests/benchmarks/snake-semantic-benchmark');
 
@@ -22,10 +25,10 @@ var taskArgument = process.argv.filter(function(argument) { return argument.inde
 var seedFileArgument = process.argv.filter(function(argument) { return argument.indexOf('--seed-file=') === 0; })[0] || null;
 var benchmarkTaskArgument = process.argv.filter(function(argument) { return argument.indexOf('--benchmark-task=') === 0; })[0] || null;
 var skipLlm1 = process.argv.indexOf('--skip-llm1') >= 0;
-var semanticTimeoutMs = timeoutArgument ? Number(timeoutArgument.slice('--timeout-ms='.length)) : 120000;
-var semanticMaxTokens = maxTokensArgument ? Number(maxTokensArgument.slice('--max-tokens='.length)) : 4096;
-if (!Number.isFinite(semanticTimeoutMs) || semanticTimeoutMs < 1 || semanticTimeoutMs > 120000) throw new Error('--timeout-ms must be between 1 and the 120000 ms semantic hard limit.');
-if (!Number.isInteger(semanticMaxTokens) || semanticMaxTokens < 1 || semanticMaxTokens > 4096) throw new Error('--max-tokens must be between 1 and 4096.');
+var semanticTimeoutMs = timeoutArgument ? Number(timeoutArgument.slice('--timeout-ms='.length)) : semanticRuntime.HARD_TIMEOUT_MS;
+var semanticMaxTokens = maxTokensArgument ? Number(maxTokensArgument.slice('--max-tokens='.length)) : semanticRuntime.MAX_TOKENS;
+if (!Number.isFinite(semanticTimeoutMs) || semanticTimeoutMs < 1 || semanticTimeoutMs > semanticRuntime.HARD_TIMEOUT_MS) throw new Error('--timeout-ms must be between 1 and the ' + semanticRuntime.HARD_TIMEOUT_MS + ' ms semantic hard limit.');
+if (!Number.isInteger(semanticMaxTokens) || semanticMaxTokens < 1 || semanticMaxTokens > semanticRuntime.MAX_TOKENS) throw new Error('--max-tokens must be between 1 and ' + semanticRuntime.MAX_TOKENS + '.');
 if (benchmarkTaskArgument && (taskArgument || seedFileArgument)) throw new Error('--benchmark-task owns task and seed; do not combine it with --task or --seed-file.');
 var benchmarkTask = benchmarkTaskArgument ? snakeBenchmark.tasks.find(function(task) { return task.id === benchmarkTaskArgument.slice('--benchmark-task='.length); }) : null;
 if (benchmarkTaskArgument && !benchmarkTask) throw new Error('Unknown --benchmark-task. Select one task id from tests/benchmarks/snake-semantic-contract.json.');
@@ -37,12 +40,7 @@ record.probe = { semanticTimeoutMs: semanticTimeoutMs, semanticMaxTokens: semant
 
 function loadSeedSource() {
   if (!seedFile) return null;
-  var parsed = semanticParser.parse(fs.readFileSync(seedFile, 'utf8'));
-  if (parsed.warnings.length) throw new Error('Seed DSL is invalid: ' + parsed.warnings.join(' | '));
-  var references = semanticReferences.create(index);
-  var draft = semanticDraft.create(references, null);
-  parsed.commands.forEach(function(command) { semanticDraft.execute(draft, command); });
-  return sourceContract.validateSource(semanticDraft.materialize(draft), { index: index });
+  return seedLoader.load(fs.readFileSync(seedFile, 'utf8'), index);
 }
 
 function writeResult(value) {
@@ -63,6 +61,7 @@ function writeDeepSeekOutput(role, sequence, requestId, output) {
 
 async function main() {
   var seedSource = loadSeedSource();
+  var semanticProvider = providerGovernance.semantic();
   var creativeVision;
   if (skipLlm1) {
     creativeVision = '';
@@ -76,7 +75,7 @@ async function main() {
   } else creativeVision = await llmProvider.callTextModel(
       'Create a compact creative vision for a 2D Snake game. Cover player fantasy, grid atmosphere, readable snake and food art direction, score progression, growth rhythm, loss moment, and restart energy. Write concise production-ready prose.',
       'You are LLM1, the creative director for GameCastle. Produce a vivid game vision that gives LLM2 clear artistic and experiential direction.',
-      { agentRole: 'creative', provider: modelPolicy.LLM1.provider, model: modelPolicy.LLM1.model, projectId: runId + '-creative', requestId: runId + '-creative', estimatedCost: 0.01, timeoutMs: 30000, maxTokens: 1200, thinking: modelPolicy.LLM1.thinking, reasoningEffort: modelPolicy.LLM1.reasoningEffort, temperature: modelPolicy.LLM1.temperature },
+      Object.assign({ agentRole: 'creative', provider: semanticProvider.provider, model: semanticProvider.textModel, projectId: runId + '-creative', requestId: runId + '-creative', estimatedCost: 0.01, timeoutMs: 30000, maxTokens: 1200 }, modelPolicy.profile('creative')),
       function(message) { process.stdout.write(message + '\n'); }
     );
   if (!skipLlm1 && !creativeVision) throw new Error('LLM1 did not return a creative vision.');
@@ -85,8 +84,16 @@ async function main() {
   writeResult(record);
 
   var result;
+  var semanticStartedAt = Date.now();
+  var lastObservedSequence = null;
+  var lastObservedAt = semanticStartedAt;
+  var heartbeat = setInterval(function() {
+    process.stdout.write('[SnakeLive] heartbeat elapsedMs=' + (Date.now() - semanticStartedAt) + ' lastSequence=' + (lastObservedSequence === null ? '-' : lastObservedSequence) + ' lastEventAgeMs=' + (Date.now() - lastObservedAt) + '\n');
+  }, 10000);
   try {
-    result = await semanticRuntime.create().invoke({
+    var trainingSink = trainingLog.createFileSink({ directory: path.join(repositoryPath.root, '.gamecastle', 'output', 'semantic-training'), runId: runId });
+    record.trainingLog = repositoryPath.relativeLocator(trainingSink.file, 'semantic training log');
+    result = await semanticRuntime.create({ trainingLogSink: trainingSink, model: { cachePolicy: semanticProvider.cachePolicy, roles: { planner: { provider: semanticProvider.provider, model: semanticProvider.textModel }, executor: { provider: semanticProvider.provider, model: semanticProvider.textModel } } } }).invoke({
       requestId: runId + '-semantic',
       projectId: runId,
       estimatedCost: 0.01,
@@ -96,6 +103,8 @@ async function main() {
       creativeVision: creativeVision,
       source: seedSource,
       onSemanticEvent: function(entry) {
+        lastObservedSequence = entry.sequence;
+        lastObservedAt = Date.now();
         record.runTrace.push(entry);
         writeResult(record);
         writeDeepSeekOutput('LLM2', entry.sequence, entry.requestId, entry.output);
@@ -110,7 +119,7 @@ async function main() {
     record.error = { code: error.code || error.name || 'FAILED', message: error.message, runTrace: error.runTrace || record.runTrace, runLedger: error.runLedger || null, runState: error.runState || null, taskPlan: error.taskPlan || null, cacheSummary: error.cacheSummary || null, document: error.document || null };
     error.outputFile = writeResult(record);
     throw error;
-  }
+  } finally { clearInterval(heartbeat); }
   record.result = result;
   record.runTrace = result.runTrace || record.runTrace;
   record.runLedger = result.runLedger || null;

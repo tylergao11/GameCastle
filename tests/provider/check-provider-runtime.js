@@ -74,8 +74,8 @@ function request(role, id, extra) { return Object.assign({ requestId: id, projec
     assert.deepStrictEqual(deepSeekBodies[0].thinking, { type: 'enabled' });
     assert.strictEqual(deepSeekBodies[0].reasoning_effort, 'medium');
     assert.strictEqual(deepSeekBodies[0].temperature, 1.5);
-    assert.deepStrictEqual(deepSeekBodies[1].thinking, { type: 'enabled' });
-    assert.strictEqual(deepSeekBodies[1].reasoning_effort, 'high');
+    assert.deepStrictEqual(deepSeekBodies[1].thinking, { type: 'disabled' });
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(deepSeekBodies[1], 'reasoning_effort'), false);
     assert.strictEqual(deepSeekBodies[1].temperature, 0);
     assert.strictEqual(deepSeekBodies[1].response_format.type, 'json_object');
   } finally { Object.keys(deepSeekSaved).forEach(function(key) { if (deepSeekSaved[key] === undefined) delete process.env[key]; else process.env[key] = deepSeekSaved[key]; }); }

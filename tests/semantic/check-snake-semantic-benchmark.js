@@ -10,12 +10,11 @@ assert.strictEqual(new Set(ids).size, ids.length, 'canonical benchmark task ids 
 function call(kind, phase, protocolVersion, ok) { return { kind: kind, phase: phase, protocolVersion: protocolVersion, result: { ok: ok !== false } }; }
 var valid = [
   call('task-plan', 'planner', benchmark.contract.requiredProtocolVersions.planner),
-  call('draft-write', 'task', benchmark.contract.requiredProtocolVersions.executor),
-  call('completion', 'finalization', benchmark.contract.requiredProtocolVersions.executor)
+  call('draft-write', 'task', benchmark.contract.requiredProtocolVersions.executor)
 ];
-assert.strictEqual(benchmark.closedLoopPhases(valid, benchmark.contract.requiredRuntimePhases), true, 'canonical planner-task-completion loop passes');
+assert.strictEqual(benchmark.closedLoopPhases(valid, benchmark.contract.requiredRuntimePhases), true, 'canonical planner-task loop passes with deterministic Runtime completion');
 assert.strictEqual(benchmark.closedLoopPhases(valid.slice(1), benchmark.contract.requiredRuntimePhases), false, 'missing TaskPlan cannot pass');
-assert.strictEqual(benchmark.closedLoopPhases([valid[0], call('task-retrieve', 'task', benchmark.contract.requiredProtocolVersions.executor), valid[1], valid[2]], benchmark.contract.requiredRuntimePhases), false, 'model-driven retrieve phase cannot enter the closed loop');
+assert.strictEqual(benchmark.closedLoopPhases([valid[0], call('task-retrieve', 'task', benchmark.contract.requiredProtocolVersions.executor), valid[1]], benchmark.contract.requiredRuntimePhases), false, 'model-driven retrieve phase cannot enter the closed loop');
 
 var evaluator = path.join(__dirname, '..', '..', 'scripts', 'semantic', 'evaluate-snake-semantic-benchmark.js');
 var partial = childProcess.spawnSync(process.execPath, [evaluator, 'only-one-artifact.json'], { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' });

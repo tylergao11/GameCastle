@@ -1,12 +1,21 @@
 var assert = require('assert');
 var observer = require('../../packages/semantic/src/semantic-run-observer');
-function entry(sequence, prefix, hit, miss) { return observer.observe({ sequence: sequence, phase: 'executor', state: 'TASK_ACTIVE', activeTaskId: 'movement', remainingMs: 1000, bundle: { protocolVersion: 'v2', hashes: { stablePrefixHash: prefix }, bytes: { system: 12, user: 8 } }, result: { receipt: { receiptId: 'r' + sequence, usage: { prompt_cache_hit_tokens: hit, prompt_cache_miss_tokens: miss } }, output: { finishReason: 'stop', diagnostics: { elapsedMs: sequence * 10, firstContentMs: sequence * 4 } } }, text: 'complete()' }); }
+function entry(sequence, prefix, hit, miss) { return observer.observe({ sequence: sequence, phase: 'executor', state: 'TASK_ACTIVE', activeTaskId: 'movement', remainingMs: 1000, bundle: { protocolVersion: 'v2', hashes: { stablePrefixHash: prefix }, bytes: { system: 12, user: 8 } }, result: { receipt: { receiptId: 'r' + sequence, usage: { prompt_cache_hit_tokens: hit, prompt_cache_miss_tokens: miss } }, output: { finishReason: 'stop', diagnostics: { elapsedMs: sequence * 10, firstContentMs: sequence * 4 } } }, text: 'entity(semanticId=snakeHead,roles=list(player),kind=sprite,behaviors=list())' }); }
 var trace = [entry(1, 'planner', 0, 100), entry(2, 'executor', 0, 100), entry(3, 'executor', 95, 5), entry(4, 'executor', 90, 10)];
 var summary = observer.summarize(trace, 0.9);
 assert.strictEqual(summary.eligibleCalls, 2);
+assert.strictEqual(summary.applicable, true);
 assert.strictEqual(summary.cacheHitRate, 0.925);
 assert.strictEqual(summary.passed, true);
 assert.deepStrictEqual(summary.zeroHitAnomalies, []);
+var deepSeekSummary = observer.summarize(trace, 0.9, { commonPrefixWarmupRequests: 2 });
+assert.strictEqual(deepSeekSummary.eligibleCalls, 1);
+assert.strictEqual(deepSeekSummary.cacheHitRate, 0.9);
+assert.strictEqual(deepSeekSummary.passed, true);
 assert.strictEqual(trace[2].activeTaskId, 'movement');
 assert.strictEqual(trace[2].hashes.stablePrefixHash, 'executor');
+var coldOnly = observer.summarize([entry(1, 'planner-once', 0, 100), entry(2, 'executor-once', 0, 100)], 0.9);
+assert.strictEqual(coldOnly.applicable, false);
+assert.strictEqual(coldOnly.cacheHitRate, null);
+assert.strictEqual(coldOnly.passed, true, 'a run with no repeated stable prefix has no cache opportunity and passes as not applicable');
 console.log('[SemanticRunObserver] cache, latency, and stable-prefix observations passed');

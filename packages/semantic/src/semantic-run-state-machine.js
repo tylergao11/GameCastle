@@ -21,7 +21,6 @@ var EVENT_TYPES = Object.freeze({
   TASK_COMMITTED: 'TASK_COMMITTED',
   TASK_RETRY_STARTED: 'TASK_RETRY_STARTED',
   FAILURE_RECORDED: 'FAILURE_RECORDED',
-  FINALIZATION_RETRY_STARTED: 'FINALIZATION_RETRY_STARTED',
   RUN_COMPLETED: 'RUN_COMPLETED',
   RUN_EXPIRED: 'RUN_EXPIRED'
 });
@@ -30,7 +29,7 @@ var ALLOWED_MODES = Object.freeze({
   PLAN: 'plan',
   TASK_START: 'task-start',
   TASK_IO: 'write',
-  COMPLETION: 'completion',
+  FINALIZE: 'finalize',
   NONE: 'none'
 });
 
@@ -135,7 +134,7 @@ function allowedMode(state) {
   if (state === STATES.PLANNING || state === STATES.PLAN_REPAIR) return ALLOWED_MODES.PLAN;
   if (state === STATES.TASK_READY) return ALLOWED_MODES.TASK_START;
   if (state === STATES.TASK_ACTIVE || state === STATES.TASK_REPAIR) return ALLOWED_MODES.TASK_IO;
-  if (state === STATES.FINALIZING) return ALLOWED_MODES.COMPLETION;
+  if (state === STATES.FINALIZING) return ALLOWED_MODES.FINALIZE;
   return ALLOWED_MODES.NONE;
 }
 
@@ -183,7 +182,7 @@ function validatePayload(type, payload, view) {
     });
     return;
   }
-  if (type === EVENT_TYPES.PLAN_RETRY_STARTED || type === EVENT_TYPES.FINALIZATION_RETRY_STARTED) {
+  if (type === EVENT_TYPES.PLAN_RETRY_STARTED) {
     exactFields(payload, [], type + '.payload');
     return;
   }
@@ -213,7 +212,7 @@ function validatePayload(type, payload, view) {
     ['phase', 'code', 'owner', 'message', 'subjectHash'].forEach(function(field) {
       if (!Object.prototype.hasOwnProperty.call(payload, field)) fail('SEMANTIC_RUN_EVENT_PAYLOAD_INVALID', type + '.payload is missing field: ' + field);
     });
-    if (['plan', 'task', 'finalization'].indexOf(payload.phase) < 0) fail('SEMANTIC_RUN_FAILURE_INVALID', 'Failure phase must be plan, task, or finalization.');
+    if (['plan', 'task'].indexOf(payload.phase) < 0) fail('SEMANTIC_RUN_FAILURE_INVALID', 'Failure phase must be plan or task.');
     text(payload.code, 'failure.code');
     text(payload.owner, 'failure.owner');
     text(payload.message, 'failure.message');
@@ -300,7 +299,7 @@ function applyEvent(view, event) {
     else if (payload.phase === 'task') {
       assertState(view, STATES.TASK_ACTIVE, type);
       assertActiveTask(view, payload.taskId, type);
-    } else assertState(view, STATES.FINALIZING, type);
+    }
     signature = failureSignature(payload);
     view.failureCount = view.failureSignature === signature ? view.failureCount + 1 : 1;
     view.failureSignature = signature;
@@ -308,10 +307,6 @@ function applyEvent(view, event) {
     if (view.failureCount >= 2) view.state = STATES.FUSED;
     else if (payload.phase === 'plan') view.state = STATES.PLAN_REPAIR;
     else if (payload.phase === 'task') view.state = STATES.TASK_REPAIR;
-    else view.state = STATES.FINALIZING;
-  } else if (type === EVENT_TYPES.FINALIZATION_RETRY_STARTED) {
-    assertState(view, STATES.FINALIZING, type);
-    if (!view.lastFailure || view.lastFailure.phase !== 'finalization') fail('SEMANTIC_RUN_TRANSITION_INVALID', 'FINALIZATION_RETRY_STARTED requires a finalization failure.');
   } else if (type === EVENT_TYPES.RUN_COMPLETED) {
     assertState(view, STATES.FINALIZING, type);
     view.state = STATES.COMPLETED;
@@ -441,7 +436,6 @@ var transition = Object.freeze({
   commitTask: function(ledger, taskId, receiptHash, draftBeforeHash, draftAfterHash) { return append(ledger, EVENT_TYPES.TASK_COMMITTED, { taskId: taskId, receiptHash: receiptHash, draftBeforeHash: draftBeforeHash, draftAfterHash: draftAfterHash }); },
   retryTask: function(ledger, taskId) { return append(ledger, EVENT_TYPES.TASK_RETRY_STARTED, { taskId: taskId }); },
   recordFailure: function(ledger, failure) { return append(ledger, EVENT_TYPES.FAILURE_RECORDED, failure); },
-  retryFinalization: function(ledger) { return append(ledger, EVENT_TYPES.FINALIZATION_RETRY_STARTED, {}); },
   completeRun: function(ledger, sourceHash, receiptHash) { return append(ledger, EVENT_TYPES.RUN_COMPLETED, { sourceHash: sourceHash, receiptHash: receiptHash }); },
   expireRun: function(ledger, reason) { return append(ledger, EVENT_TYPES.RUN_EXPIRED, { reason: reason }); }
 });

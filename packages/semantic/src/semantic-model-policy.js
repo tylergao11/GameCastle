@@ -1,20 +1,16 @@
-var PROVIDER = 'deepseek';
-var MODEL = 'deepseek-v4-flash';
+var OUTPUT_TOKEN_LIMIT = 8196;
+var REASONING_TOKEN_LIMIT = 0;
+var DSL_TOKEN_RESERVE = OUTPUT_TOKEN_LIMIT - REASONING_TOKEN_LIMIT;
 
-var LLM1 = Object.freeze({
-  provider: PROVIDER,
-  model: MODEL,
-  thinking: Object.freeze({ type: 'enabled' }),
-  reasoningEffort: 'medium',
-  temperature: 1.5
+var PROFILES = Object.freeze({
+  creative: Object.freeze({ thinking: Object.freeze({ type: 'enabled' }), reasoningEffort: 'medium', temperature: 1.5 }),
+  planner: Object.freeze({ thinking: Object.freeze({ type: 'disabled' }), reasoningEffort: null, temperature: 0 }),
+  executor: Object.freeze({ thinking: Object.freeze({ type: 'disabled' }), reasoningEffort: null, temperature: 0 })
 });
 
-var LLM2 = Object.freeze({
-  provider: PROVIDER,
-  model: MODEL,
-  thinking: Object.freeze({ type: 'enabled' }),
-  reasoningEffort: 'high',
-  temperature: 0
-});
+function profile(role) {
+  if (!PROFILES[role]) { var error = new Error('Unknown semantic model role: ' + role); error.code = 'SEMANTIC_MODEL_ROLE_INVALID'; throw error; }
+  return PROFILES[role];
+}
 
-module.exports = { PROVIDER: PROVIDER, MODEL: MODEL, LLM1: LLM1, LLM2: LLM2 };
+module.exports = { OUTPUT_TOKEN_LIMIT: OUTPUT_TOKEN_LIMIT, REASONING_TOKEN_LIMIT: REASONING_TOKEN_LIMIT, DSL_TOKEN_RESERVE: DSL_TOKEN_RESERVE, PROFILES: PROFILES, profile: profile };

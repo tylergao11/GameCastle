@@ -7,6 +7,7 @@ var referenceRuntime = require('../../packages/semantic/src/semantic-reference-r
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var semanticRuntime = require('../../packages/semantic/src/semantic-llm2-runtime');
 var taskPlanApi = require('../../packages/semantic/src/semantic-task-plan');
+var seedLoader = require('../../packages/semantic/src/semantic-seed-loader');
 var repositoryPath = require('../shared/repository-path');
 
 function fail(message) { throw new Error(message); }
@@ -18,11 +19,7 @@ function loadSeedSource(record, index) {
   var seedLocator = record.probe && record.probe.seedFile;
   if (!seedLocator) return null;
   var seedFile = repositoryPath.fromLocator(seedLocator, 'probe.seedFile');
-  var parsed = parser.parse(fs.readFileSync(seedFile, 'utf8'));
-  if (parsed.warnings.length) fail('Seed DSL is invalid: ' + parsed.warnings.join(' | '));
-  var draft = draftApi.create(referenceRuntime.create(index), null);
-  parsed.commands.forEach(function(command) { draftApi.execute(draft, command); });
-  return sourceContract.validateSource(draftApi.materialize(draft), { index: index });
+  return seedLoader.load(fs.readFileSync(seedFile, 'utf8'), index);
 }
 function metrics(trace, baseDraft, finalDraft, ledger) {
   var entries = trace || [], results = [];
@@ -72,7 +69,7 @@ async function replay(file, index) {
   var baseDraft = draftApi.structure(draftApi.create(references, source));
   var result = null, error = null;
   try {
-    result = await semanticRuntime.create({ providerRuntime: provider }).invoke({ requestId: 'semantic.replay', projectId: 'semantic-replay', timeoutMs: 120000, maxTokens: record.probe && record.probe.semanticMaxTokens || 4096, userRequest: record.probe && record.probe.task || '', creativeVision: record.creativeVision || '', source: source, index: index });
+    result = await semanticRuntime.create({ providerRuntime: provider }).invoke({ requestId: 'semantic.replay', projectId: 'semantic-replay', timeoutMs: record.probe && record.probe.semanticTimeoutMs || semanticRuntime.HARD_TIMEOUT_MS, maxTokens: record.probe && record.probe.semanticMaxTokens || semanticRuntime.MAX_TOKENS, userRequest: record.probe && record.probe.task || '', creativeVision: record.creativeVision || '', source: source, index: index });
   } catch (caught) { error = caught; }
   if (cursor !== recordedTrace.length) fail(file.locator + ' replay consumed ' + cursor + ' of ' + recordedTrace.length + ' recorded model calls.');
   var trace = result && result.runTrace || error && error.runTrace || [];

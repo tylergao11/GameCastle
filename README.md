@@ -42,10 +42,10 @@ Pinned GDevelop source
 
 LLM1 creative direction + product request
   -> ProductDeliveryOrchestrator opens one persisted ProductDeliveryRun
-  -> LLM2 Planner emits one generic semantic-dsl-v2 TaskPlan batch
+  -> Semantic Planner emits one semantic-dsl-v9 TaskPlan slot stream
   -> Runtime freezes the plan and activates exactly one task at a time
   -> deterministic capability retrieval -> one atomic Draft-write batch -> deterministic acceptance
-  -> next task -> final complete()
+  -> next task -> Runtime validates, assembles, and completes deterministically
   -> GameSemanticSource v6 or GameSemanticRevision
   -> dictionary-owned component expansion
   -> deterministic event + asset + layout compilation
@@ -67,7 +67,7 @@ Assembly rejection
   -> rerun asset, spatial, capture, and review
 ```
 
-LLM2 owns all semantic design choices. DeepSeek thinking stays enabled with high reasoning effort. A versioned Planner prefix contains discovery facts and `plan-task(...)`; a separate versioned Executor prefix contains write/completion forms. Requests, the frozen plan, exact active-task capability facts, the task-safe Draft slice, and append-only transition rows stay in ordered user-context layers, so state changes do not rewrite either stable system prefix. TaskPlan is LLM2's only mutation scope. Runtime owns plan sealing, dictionary binding, deterministic retrieval, one-task transactions, Source materialization, compilation, and factual feedback. Feedback is a source-bound fact batch returned to LLM2; it contains no `changeScope`, `maxRounds`, owner selection, repair route, or other execution control.
+Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth and is generated from one syntax registry. Planner uses typed target commands with globally unique target slots, capability aliases, and retrieval aliases; `plan-task.after` owns ordered dependencies and one event target slot owns its declared facet list. Model-visible context uses read-only DSL fact rows. `read` slots bind existing references, while `create`, `update`, and `delete` slots authorize mutation. Executor refers only to frozen slots and aliases. Runtime resolves semantic addresses and Dictionary handles, derives catalogs, validates scope, commits one-task transactions, materializes Source or Revision, completes deterministically, and emits factual feedback. Provider selection lives behind a Semantic Model Port, so DeepSeek and a distilled local model use the same Planner/Executor contracts. Every model call produces a distillation-ready training record with prompt hashes, raw output, parsed DSL, resolved commands, validation result, feedback, usage, and receipt. JSON bracket/brace output has no parser path.
 
 Common controls, abilities, and systems enter LLM2 as complete components. A component is admitted only when it encapsulates a frequent, bottom-up complex capability. LLM2 selects one component handle, target, configuration, and semantic bindings; Runtime expands its inherited dictionary blueprint into members, entities, behaviors, layout, and events. Jump and attack are action-button bindings, not parallel button component types. A cooldown skill binds one trigger and one effect. A state machine binds named transition conditions and optional effects. The editable Source retains only component instances; expanded GDJS facts are deterministic evidence tied to the same dictionary fingerprint.
 
@@ -110,10 +110,10 @@ Run the real DeepSeek probe with a configured local `DEEPSEEK_API_KEY` and expli
 
 ```powershell
 $env:LLM_ALLOW_EXTERNAL = 'true'
-npm run debug:snake:live -- --skip-llm1 --benchmark-task=core-model
+npm run debug:snake:live -- --skip-llm1 --benchmark-task=core-model --timeout-ms=300000
 ```
 
-The semantic run has one hard total deadline of 120 seconds; callers cannot widen it. Planner, active-task, and finalization calls are additionally capped at 25, 20, and 8 seconds. Deterministic capability retrieval adds no model call. Every model call prints phase, active task, latency, stable-prefix hash/cache usage, raw output, and the state-machine result, then writes the hash-chained ledger and trace under `.gamecastle/output/semantic-live/`. The six `snake-layered-v2` tasks are a benchmark oracle only; no Snake rule enters production semantic modules.
+The semantic run has one hard total deadline of 300 seconds. There are no separate Planner, active-task, or finalization deadlines: every model call receives only the remaining total budget. Every Planner and Executor call receives an explicit 8196-token total output limit shared by reasoning and DSL; the same fact is present in both stable protocols so task decomposition can account for execution capacity. Deterministic capability retrieval adds no model call. The live Snake probe prints a heartbeat every 10 seconds, and every completed model call prints phase, active task, latency, stable-prefix hash/cache usage, raw output, and the state-machine result, then writes the hash-chained ledger and trace under `.gamecastle/output/semantic-live/`. The six `snake-layered-v2` tasks are a benchmark oracle only; no Snake rule enters production semantic modules.
 
 The web app can be built with `npm run build` or developed with `npm --prefix apps/web run dev`.
 

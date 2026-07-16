@@ -70,7 +70,7 @@ function check(checks, id, passed, evidence) { checks.push({ id: id, passed: !!p
 function successfulCalls(trace) { return (trace || []).filter(function(entry) { return entry.protocolVersion && entry.result && entry.result.ok === true; }); }
 function closedLoopPhases(trace, required) {
   var phases = successfulCalls(trace).map(function(entry) { return entry.kind; });
-  return phases.length >= 3 && phases[0] === required[0] && phases[phases.length - 1] === required[2] && phases.slice(1, -1).every(function(phase) { return phase === required[1]; });
+  return phases.length >= 2 && phases[0] === required[0] && phases.slice(1).every(function(phase) { return phase === required[1]; });
 }
 function closedLoopEvidence(execution) {
   var result = execution.result || null, ledger = result && result.runLedger || execution.error && execution.error.runLedger || null, state = result && result.runState || execution.error && execution.error.runState || null, plan = result && result.taskPlan || execution.error && execution.error.taskPlan || null;
@@ -86,8 +86,8 @@ function closedLoopEvidence(execution) {
   };
 }
 function protocolEvidence(trace) {
-  var calls = successfulCalls(trace), planner = calls.filter(function(entry) { return entry.phase === 'planner'; }), executor = calls.filter(function(entry) { return entry.phase === 'task' || entry.phase === 'finalization'; });
-  return { planner: planner.length === 1 && planner.every(function(entry) { return entry.protocolVersion === contract.requiredProtocolVersions.planner; }), executor: executor.length >= 2 && executor.every(function(entry) { return entry.protocolVersion === contract.requiredProtocolVersions.executor; }), versions: calls.map(function(entry) { return entry.protocolVersion; }) };
+  var calls = successfulCalls(trace), planner = calls.filter(function(entry) { return entry.phase === 'planner'; }), executor = calls.filter(function(entry) { return entry.phase === 'task'; });
+  return { planner: planner.length === 1 && planner.every(function(entry) { return entry.protocolVersion === contract.requiredProtocolVersions.planner; }), executor: executor.length >= 1 && executor.every(function(entry) { return entry.protocolVersion === contract.requiredProtocolVersions.executor; }), versions: calls.map(function(entry) { return entry.protocolVersion; }) };
 }
 function taskById(id) { return contract.tasks.find(function(task) { return task.id === id; }) || null; }
 function evaluate(task, execution) {
@@ -103,7 +103,7 @@ function evaluate(task, execution) {
   check(checks, 'runtime.protocol-profiles', protocols.planner && protocols.executor, protocols);
   check(checks, 'runtime.first-pass-batches', execution.report.runtimeBatchAccepted === true, { accepted: execution.report.acceptedBatchCount, total: execution.report.batchCount });
   check(checks, 'runtime.atomic', execution.report.rollbackBatchCount ? execution.report.failedBatchRollbackVerified === true : loop.taskReceipts, { rollbackBatchCount: execution.report.rollbackBatchCount, verified: execution.report.failedBatchRollbackVerified, commits: loop.commitTaskIds });
-  check(checks, 'runtime.cache', cache.passed === true && cache.cacheHitRate >= contract.minimumCacheHitRate, cache);
+  check(checks, 'runtime.cache', cache.passed === true && (cache.applicable === false || cache.cacheHitRate >= contract.minimumCacheHitRate), cache);
   check(checks, 'runtime.latency', execution.report.modelElapsedMs <= contract.hardTimeoutMs, { modelElapsedMs: execution.report.modelElapsedMs, hardTimeoutMs: contract.hardTimeoutMs });
   check(checks, 'runtime.replay-parity', parity.planHash === true && parity.taskReceipts === true && parity.sourceHash === true, parity);
   check(checks, 'draft.existing-source-preserved', !!finalSource && preserved.passed, preserved);

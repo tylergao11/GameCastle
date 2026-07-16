@@ -1,2 +1,5 @@
-game(semanticId=crudProbe,name="CRUD Probe")
-entity(semanticId=snakeHead,roles=["snake-head"],kind=sprite,behaviors=[])
+plan-task(semanticId=seedCrud,goal="Create the CRUD seed",after=list())
+plan-game(task=seedCrud,slot=gameRoot,semanticId=crudProbe,intent=create)
+plan-entity(task=seedCrud,slot=headEntity,semanticId=snakeHead,intent=create)
+game(slot=gameRoot,name="CRUD Probe")
+entity(slot=headEntity,roles=list("snake-head"),kind=sprite,behaviors=list())

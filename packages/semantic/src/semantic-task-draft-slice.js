@@ -50,7 +50,7 @@ function dependencyTasks(plan, task) {
 function create(draft, plan, taskId) {
   if (!draft || !draft.references) fail('SEMANTIC_TASK_SLICE_DRAFT_INVALID', 'A semantic Draft is required.');
   var activeTask = taskPlan.taskById(plan, taskId), structure = draftApi.taskStructure(draft), claims = [];
-  dependencyTasks(plan, activeTask).forEach(function(task) { task.targets.forEach(function(target) { taskPlan.targetClaims(target).forEach(function(claim) { if (claims.indexOf(claim) < 0) claims.push(claim); }); }); });
+  dependencyTasks(plan, activeTask).forEach(function(task) { taskPlan.targetsForTask(task).forEach(function(target) { taskPlan.targetClaims(target).forEach(function(claim) { if (claims.indexOf(claim) < 0) claims.push(claim); }); }); });
   claims.sort();
   var facts = claims.map(function(claim) { var value = valueForClaim(structure, claim); return value === undefined ? { claim: claim, exists: false } : { claim: claim, exists: true, value: value }; });
   var slice = { schemaVersion: 1, documentKind: 'semantic-task-draft-slice', taskId: activeTask.semanticId, baseDraftHash: taskPlan.documentHash(draftApi.materialize(draft)), index: compactIndex(structure), facts: facts };

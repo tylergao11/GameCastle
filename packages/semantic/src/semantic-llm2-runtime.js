@@ -15,11 +15,12 @@ var feedbackContract = require('./semantic-feedback-contract');
 var providerRuntime = require('../../providers/src/provider-runtime');
 var dictionary = require('./capability-semantic-dictionary');
 var modelPolicy = require('./semantic-model-policy');
+var semanticModelPort = require('./semantic-model-port');
+var trainingLog = require('./semantic-training-log');
 var INPUT_FIELDS = ['requestId', 'projectId', 'estimatedCost', 'timeoutMs', 'maxTokens', 'userRequest', 'creativeVision', 'source', 'feedbackBatch', 'onSemanticEvent', 'index'];
-var HARD_TIMEOUT_MS = 120000;
-var DEFAULT_TIMEOUT_MS = HARD_TIMEOUT_MS;
-var MAX_TOKENS = 4096;
-var CALL_POLICY = Object.freeze({ planner: { timeoutMs: 25000, maxTokens: 3072, expectedMode: 'task-plan' }, task: { timeoutMs: 20000, maxTokens: 3072, expectedMode: 'draft-write' }, finalization: { timeoutMs: 8000, maxTokens: 512, expectedMode: 'completion' } });
+var HARD_TIMEOUT_MS = 300000;
+var MAX_TOKENS = modelPolicy.OUTPUT_TOKEN_LIMIT;
+var CALL_POLICY = Object.freeze({ planner: { maxTokens: MAX_TOKENS, expectedMode: 'task-plan' }, task: { maxTokens: MAX_TOKENS, expectedMode: 'draft-write' } });
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticLLM2Runtime'; return error; }
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -52,22 +53,25 @@ function assertFeedbackPlan(plan, feedbackBatch) {
   if (!feedbackBatch) return;
   var allowed = Object.create(null), covered = Object.create(null);
   feedbackBatch.entries.forEach(function(entry) { entry.targets.forEach(function(target) { allowed[feedbackKey(target)] = true; }); });
-  plan.tasks.forEach(function(task) { task.targets.forEach(function(target) { var key = planFeedbackKey(target); if (!key || !allowed[key]) throw fail('SEMANTIC_FEEDBACK_PLAN_SCOPE_INVALID', 'TaskPlan target is outside source-bound feedback: ' + taskPlanApi.targetClaims(target).join(',')); covered[key] = true; }); });
+  plan.tasks.forEach(function(task) { taskPlanApi.targetsForTask(task).forEach(function(target) { var key = planFeedbackKey(target); if (!key || !allowed[key]) throw fail('SEMANTIC_FEEDBACK_PLAN_SCOPE_INVALID', 'TaskPlan target is outside source-bound feedback: ' + taskPlanApi.targetClaims(target).join(',')); covered[key] = true; }); });
   Object.keys(allowed).forEach(function(key) { if (!covered[key]) throw fail('SEMANTIC_FEEDBACK_PLAN_INCOMPLETE', 'TaskPlan does not own feedback target: ' + key); });
 }
 function taskReceiptHashes(ledger) { return ledger.events.filter(function(event) { return event.type === stateMachine.EVENT_TYPES.TASK_COMMITTED; }).map(function(event) { return event.payload.receiptHash; }); }
 
 function create(options) {
   options = options || {};
-  var provider = options.providerRuntime || providerRuntime.createProviderRuntime();
+  var modelPort = options.modelPort
+    ? semanticModelPort.assertPort(options.modelPort)
+    : semanticModelPort.fromProviderRuntime(options.providerRuntime || providerRuntime.createProviderRuntime(), options.model || {});
+  var trainingSink = options.trainingLogSink ? trainingLog.assertSink(options.trainingLogSink) : null;
 
   async function invoke(input) {
     input = input || {};
     Object.keys(input).forEach(function(field) { if (INPUT_FIELDS.indexOf(field) < 0) throw fail('SEMANTIC_LLM2_INPUT_INVALID', 'Unsupported semantic runtime input field: ' + field); });
     var index = input.index || dictionary.loadIndex();
     var references = referenceRuntime.create(index);
-    var timeoutBudgetMs = input.timeoutMs === undefined ? DEFAULT_TIMEOUT_MS : Number(input.timeoutMs);
-    if (!Number.isFinite(timeoutBudgetMs) || timeoutBudgetMs < 1 || timeoutBudgetMs > HARD_TIMEOUT_MS) throw fail('SEMANTIC_LLM2_TIMEOUT_INVALID', 'timeoutMs must be between 1 and the 120000 ms semantic hard limit.');
+    var timeoutBudgetMs = input.timeoutMs === undefined ? HARD_TIMEOUT_MS : Number(input.timeoutMs);
+    if (!Number.isFinite(timeoutBudgetMs) || timeoutBudgetMs < 1 || timeoutBudgetMs > HARD_TIMEOUT_MS) throw fail('SEMANTIC_LLM2_TIMEOUT_INVALID', 'timeoutMs must be between 1 and the ' + HARD_TIMEOUT_MS + ' ms semantic hard limit.');
     var requestedMaxTokens = input.maxTokens === undefined ? MAX_TOKENS : Number(input.maxTokens);
     if (!Number.isInteger(requestedMaxTokens) || requestedMaxTokens < 1 || requestedMaxTokens > MAX_TOKENS) throw fail('SEMANTIC_LLM2_TOKENS_INVALID', 'maxTokens must be an integer between 1 and ' + MAX_TOKENS + '.');
     if (typeof input.userRequest !== 'string' || !input.userRequest.trim()) throw fail('SEMANTIC_LLM2_REQUEST_INVALID', 'userRequest must be non-empty text.');
@@ -84,6 +88,7 @@ function create(options) {
     var trace = [];
     var providerCalls = 0;
     var observerWarnings = [];
+    var trainingRecords = [];
 
     function diagnostics() {
       return {
@@ -92,10 +97,11 @@ function create(options) {
         runState: clone(stateMachine.project(ledger)),
         taskPlan: clone(plan),
         draft: draftApi.structure(draft),
-        cacheSummary: observer.summarize(trace, 0.9),
+        cacheSummary: observer.summarize(trace, 0.9, modelPort.cachePolicy),
         modelCalls: providerCalls,
         totalElapsedMs: Date.now() - runStartedAt,
-        observerWarnings: clone(observerWarnings)
+        observerWarnings: clone(observerWarnings),
+        trainingRecords: clone(trainingRecords)
       };
     }
     function commanderProjection() { return stateMachine.promptProjection(ledger); }
@@ -125,6 +131,29 @@ function create(options) {
       entry.kind = call.mode || call.phase;
       entry.results = clone(results || []);
       trace.push(entry);
+      var trainingRecord = trainingLog.record({
+        sequence: call.sequence,
+        phase: call.phase === 'planner' ? 'planner' : 'executor',
+        taskId: call.taskId || null,
+        languageId: parser.LANGUAGE_ID,
+        protocolVersion: call.bundle && call.bundle.protocolVersion || null,
+        prompt: call.bundle ? { system: call.bundle.system, user: call.bundle.user, hashes: clone(call.bundle.hashes) } : null,
+        output: { text: call.text || '', reasoningText: call.result && call.result.output && call.result.output.reasoningText || '', finishReason: call.result && call.result.output && call.result.output.finishReason || null },
+        parsedCommands: clone(call.commands || []),
+        resolvedCommands: clone(call.resolvedCommands || []),
+        warnings: clone(call.warnings || []),
+        outcome: clone(outcome),
+        accepted: !!(outcome && outcome.ok),
+        feedback: stateMachine.project(ledger).lastFailure,
+        usage: clone(call.result && call.result.receipt && call.result.receipt.usage || call.result && call.result.usage || {}),
+        receipt: clone(call.result && call.result.receipt || null),
+        elapsedMs: call.elapsedMs
+      });
+      trainingRecords.push(trainingRecord);
+      if (trainingSink) {
+        try { trainingSink.append(trainingRecord); }
+        catch (trainingError) { observerWarnings.push({ code: trainingError.code || 'SEMANTIC_TRAINING_LOG_WRITE_FAILED', owner: trainingError.owner || 'SemanticTrainingLog', message: trainingError.message || String(trainingError), sequence: entry.sequence }); }
+      }
       var observerWarning = report(input, entry);
       if (observerWarning) {
         observerWarning.sequence = entry.sequence;
@@ -162,29 +191,21 @@ function create(options) {
       providerCalls += 1;
       var startedAt = Date.now();
       var result;
-      var callTimeoutMs = Math.max(1, Math.min(remainingMs, policy.timeoutMs));
-      try { result = await invokeBeforeDeadline(function() { return provider.invokeRole({
+      var callTimeoutMs = Math.max(1, remainingMs);
+      try { result = await invokeBeforeDeadline(function() { return modelPort.invoke({
+        phase: phase === 'planner' ? 'planner' : 'executor',
         requestId: (input.requestId || 'semantic-llm2') + ':' + phase + ':round-' + providerCalls,
         projectId: input.projectId || 'local-session',
-        role: 'semantic-design',
-        provider: modelPolicy.LLM2.provider,
-        model: modelPolicy.LLM2.model,
         estimatedCost: input.estimatedCost,
         timeoutMs: callTimeoutMs,
-        maxAttempts: 1,
-        input: {
-          messages: [{ role: 'system', content: bundle.system }, { role: 'user', content: bundle.user }],
-          maxTokens: Math.min(requestedMaxTokens, policy.maxTokens),
-          thinking: modelPolicy.LLM2.thinking,
-          reasoningEffort: modelPolicy.LLM2.reasoningEffort,
-          temperature: modelPolicy.LLM2.temperature
-        }
+        messages: [{ role: 'system', content: bundle.system }, { role: 'user', content: bundle.user }],
+        maxTokens: Math.min(requestedMaxTokens, policy.maxTokens)
       }); }, callTimeoutMs); }
       catch (providerFailure) { result = { ok: false, debt: { code: providerFailure.code || 'SEMANTIC_PROVIDER_THROWN', owner: providerFailure.owner || 'ProviderRuntime', message: providerFailure.message } }; }
       var text = String(result && result.output && result.output.text || '').trim();
       var parsed = { commands: [], warnings: [] };
       if (result && result.ok === true) {
-        try { parsed = parser.parse(text); }
+        try { parsed = parser.parse(text, { phase: phase === 'planner' ? 'planner' : 'executor' }); }
         catch (error) { parsed = { commands: [], warnings: [error.message], parseError: error }; }
       }
       var call = { sequence: providerCalls, phase: phase, taskId: taskId || null, bundle: bundle, remainingMs: remainingMs, elapsedMs: Date.now() - startedAt, result: result, text: text, commands: parsed.commands || [], warnings: parsed.warnings || [], parseError: parsed.parseError || null, mode: null };
@@ -220,9 +241,9 @@ function create(options) {
     function retrieveActiveTask(taskId) {
       var task = taskPlanApi.taskById(plan, taskId);
       var resolved = references.taskFacts(task);
-      var facts = resolved.retrieved.map(function(raw) { return { group: raw.group, kind: raw.kind, facts: raw }; });
+      var facts = resolved.retrieved.map(function(raw) { var value = clone(raw); delete value.slot; return { slot: raw.slot, group: raw.group, kind: raw.kind, facts: value }; });
       taskPlanApi.assertRetrievesSatisfied(plan, taskId, facts);
-      if (!stateMachine.project(ledger).retrievals.some(function(item) { return item.taskId === taskId; })) ledger = stateMachine.transition.recordRetrieve(ledger, taskId, 'semantic.task-query.' + promptBundle.hashCanonical({ uses: task.uses, catalogs: task.catalogs, retrieves: task.retrieves }), 'semantic.task-facts.' + promptBundle.hashCanonical(contextBuilder.taskFacts(references, task, facts)));
+      if (!stateMachine.project(ledger).retrievals.some(function(item) { return item.taskId === taskId; })) ledger = stateMachine.transition.recordRetrieve(ledger, taskId, 'semantic.task-query.' + promptBundle.hashCanonical({ capabilities: task.capabilities, catalogs: task.catalogs, retrievals: task.retrievals }), 'semantic.task-facts.' + promptBundle.hashCanonical(contextBuilder.taskFacts(references, task, facts)));
       return facts;
     }
     function prepareAutomaticTransitions() {
@@ -231,7 +252,6 @@ function create(options) {
         if (view.state === stateMachine.STATES.PLAN_REPAIR) { ledger = stateMachine.transition.retryPlan(ledger); continue; }
         if (view.state === stateMachine.STATES.TASK_REPAIR) { ledger = stateMachine.transition.retryTask(ledger, view.activeTaskId); continue; }
         if (view.state === stateMachine.STATES.TASK_READY) { ledger = stateMachine.transition.startTask(ledger, view.activeTaskId); continue; }
-        if (view.state === stateMachine.STATES.FINALIZING && view.lastFailure) { ledger = stateMachine.transition.retryFinalization(ledger); }
         return;
       }
     }
@@ -287,17 +307,19 @@ function create(options) {
           semanticFailure(taskCall, 'task', taskId, taskValidationError);
           continue;
         }
-        var candidate = draftApi.fork(draft), beforeDocument = draftApi.materialize(draft), stagedResults = [], writeError = null;
+        var candidate = draftApi.fork(draft), beforeDocument = draftApi.materialize(draft), stagedResults = [], writeError = null, resolvedCommands = [];
         try {
-          taskPlanApi.assertBatchScope(plan, taskId, taskCall.commands);
-          taskPlanApi.assertCapabilityFacts(plan, taskId, taskCall.commands, exactFacts);
-          taskPlanApi.assertDeclaredUses(plan, taskId, taskCall.commands, retrievedUses(retrievedFacts));
-          taskCall.commands.forEach(function(command) {
+          resolvedCommands = taskPlanApi.resolveBatch(plan, taskId, taskCall.commands);
+          taskCall.resolvedCommands = clone(resolvedCommands);
+          taskPlanApi.assertBatchScope(plan, taskId, resolvedCommands);
+          taskPlanApi.assertCapabilityFacts(plan, taskId, resolvedCommands, exactFacts);
+          taskPlanApi.assertDeclaredUses(plan, taskId, resolvedCommands, retrievedUses(retrievedFacts));
+          resolvedCommands.forEach(function(command) {
             var applied = draftApi.execute(candidate, command);
             stagedResults.push({ ok: true, summary: applied.summary });
           });
           var afterDocument = draftApi.materialize(candidate);
-          var taskReceipt = taskPlanApi.verifyBatch(plan, taskId, taskCall.commands, beforeDocument, afterDocument);
+          var taskReceipt = taskPlanApi.verifyBatch(plan, taskId, resolvedCommands, beforeDocument, afterDocument);
           if (view.completedTaskIds.length + 1 === plan.tasks.length) {
             var candidateSource = candidate.baseSource ? sourceContract.applyRevision(candidate.baseSource, draftApi.revision(candidate), { index: index }) : sourceContract.validateSource(afterDocument, { index: index });
             runtimeLinker.assemble(candidateSource, { index: index });
@@ -317,33 +339,19 @@ function create(options) {
       }
 
       if (view.state === stateMachine.STATES.FINALIZING) {
-        var source, revision = null, assembly, finalCandidate;
+        var source, revision = null, assembly, finalFacts;
         try {
           if (draft.baseSource) {
             revision = draftApi.revision(draft);
             source = sourceContract.applyRevision(draft.baseSource, revision, { index: index });
           } else source = sourceContract.validateSource(draftApi.materialize(draft), { index: index });
           assembly = runtimeLinker.assemble(source, { index: index });
-          finalCandidate = { draftHash: taskPlanApi.documentHash(draftApi.materialize(draft)), sourceHash: sourceContract.sourceHash(source), taskReceiptHashes: taskReceiptHashes(ledger) };
-        } catch (finalBuildError) {
-          var buildCall = { sequence: providerCalls, phase: 'finalization', taskId: null, bundle: null, remainingMs: Math.max(0, deadline - Date.now()), elapsedMs: 0, result: {}, text: '', commands: [], warnings: [], mode: 'finalization' };
-          semanticFailure(buildCall, 'finalization', null, finalBuildError);
-          continue;
-        }
-        var finalContext = contextBuilder.finalize(plan, commanderProjection(), { request: request, creativeVision: creativeVision, feedback: feedbackBatch }, finalCandidate);
-        var finalCall = await callModel('finalization', finalContext, null, { planHash: plan.planHash, baseDraftHash: finalCandidate.draftHash, deltaHash: view.headHash });
-        if (!finalCall.result || finalCall.result.ok !== true) { failedProvider(finalCall, 'finalization', null); continue; }
-        var completionValidation = pipeline.validate(finalCall.commands, finalCall.warnings, 'completion');
-        finalCall.mode = completionValidation.ok ? completionValidation.mode : 'invalid';
-        if (!completionValidation.ok) {
-          var completionError = finalCall.parseError || fail(completionValidation.code, completionValidation.message); completionError.code = completionError.code || completionValidation.code; completionError.owner = completionError.owner || 'SemanticRunPipeline';
-          semanticFailure(finalCall, 'finalization', null, completionError);
-          continue;
-        }
-        var completionReceiptHash = 'semantic.completion-receipt.' + promptBundle.hashCanonical({ sourceHash: finalCandidate.sourceHash, taskReceiptHashes: finalCandidate.taskReceiptHashes, providerReceiptId: finalCall.result.receipt && finalCall.result.receipt.receiptId || null, bundleHash: finalCall.bundle.hashes.bundleHash });
-        ledger = stateMachine.transition.completeRun(ledger, finalCandidate.sourceHash, completionReceiptHash);
-        appendTrace(finalCall, { ok: true, sourceHash: finalCandidate.sourceHash, receiptHash: completionReceiptHash }, [{ ok: true, summary: 'Semantic Source validated and assembled', componentExpansion: clone(assembly.componentExpansion.components) }]);
-        return Object.assign({ ok: true, document: revision ? { source: source, revision: revision, assembly: assembly } : { source: source, assembly: assembly }, receipt: finalCall.result.receipt }, diagnostics());
+          finalFacts = { draftHash: taskPlanApi.documentHash(draftApi.materialize(draft)), sourceHash: sourceContract.sourceHash(source), taskReceiptHashes: taskReceiptHashes(ledger) };
+        } catch (finalBuildError) { throw traced(finalBuildError); }
+        var completionReceiptHash = 'semantic.completion-receipt.' + promptBundle.hashCanonical({ planHash: plan.planHash, draftHash: finalFacts.draftHash, sourceHash: finalFacts.sourceHash, taskReceiptHashes: finalFacts.taskReceiptHashes });
+        ledger = stateMachine.transition.completeRun(ledger, finalFacts.sourceHash, completionReceiptHash);
+        var completionReceipt = { receiptId: completionReceiptHash, owner: 'SemanticLLM2Runtime', status: 'accepted', planHash: plan.planHash, draftHash: finalFacts.draftHash, sourceHash: finalFacts.sourceHash, taskReceiptHashes: clone(finalFacts.taskReceiptHashes) };
+        return Object.assign({ ok: true, document: revision ? { source: source, revision: revision, assembly: assembly } : { source: source, assembly: assembly }, receipt: completionReceipt }, diagnostics());
       }
 
       if (view.state === stateMachine.STATES.FUSED) throw traced(fail('SEMANTIC_RUN_FUSED', 'Semantic runtime is fused.'));

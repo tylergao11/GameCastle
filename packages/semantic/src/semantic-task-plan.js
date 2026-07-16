@@ -1,23 +1,27 @@
 var crypto = require('crypto');
 var semanticAlgebra = require('./semantic-event-algebra');
+var syntax = require('./semantic-dsl-syntax');
 
-var SCHEMA_VERSION = 1;
+var SCHEMA_VERSION = 8;
 var DOCUMENT_KIND = 'semantic-task-plan';
-var LANGUAGE_ID = 'semantic-dsl-v2';
-var PLAN_COMMAND = 'plan-task';
-var PLAN_COMMANDS = Object.freeze([PLAN_COMMAND]);
-var MAX_TASKS = 16;
-var PLAN_LINES = Object.freeze([
-  'plan-task(semanticId=...semanticId, goal=...text, dependsOn=...stringArray, targets=...taskTargetArray, uses=...stringArray, catalogs=...catalogArray, retrieves=...retrieveArray)'
-]);
-var TARGET_KINDS = ['game', 'entity', 'member', 'component', 'event', 'asset', 'layout', 'policy'];
-var TARGET_INTENTS = ['create', 'update', 'delete'];
-var EVENT_FACETS = ['metadata', 'conditions', 'actions'];
+var LANGUAGE_ID = syntax.LANGUAGE_ID;
+var PLAN_COMMANDS = syntax.PLAN_COMMANDS;
+var TARGET_KINDS = syntax.TARGET_KINDS;
+var TARGET_INTENTS = syntax.TARGET_INTENTS;
+var EVENT_FACETS = syntax.EVENT_FACETS;
 var CATALOGS = ['entity-kinds', 'behavior-kinds', 'event-kinds', 'layouts', 'asset-families', 'asset-styles', 'component-library'];
 var RETRIEVE_CATALOG = 'extension-groups';
 var PLANNER_CATALOGS = CATALOGS.concat([RETRIEVE_CATALOG]);
-var RETRIEVE_KINDS = ['object', 'behavior', 'event', 'action', 'condition', 'number-expression', 'string-expression'];
-var REMOVABLE_KINDS = ['entity', 'component', 'event', 'asset', 'layout'];
+var RETRIEVE_KINDS = syntax.RETRIEVE_KINDS;
+var REMOVABLE_KINDS = ['entity-record', 'component', 'event', 'asset', 'layout'];
+var DERIVED_CATALOGS_BY_TARGET = Object.freeze({
+  'entity-record': Object.freeze(['entity-kinds', 'behavior-kinds']),
+  'event#metadata': Object.freeze(['event-kinds']),
+  component: Object.freeze(['component-library']),
+  asset: Object.freeze(['asset-families', 'asset-styles']),
+  layout: Object.freeze(['layouts'])
+});
+var DERIVED_CATALOG_LINES = Object.freeze(Object.keys(DERIVED_CATALOGS_BY_TARGET).map(function(target) { return target + '=>catalogs(' + DERIVED_CATALOGS_BY_TARGET[target].join(',') + ')'; }));
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticTaskPlan'; throw error; }
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -71,8 +75,42 @@ function normalizeTarget(value, label) {
   return target;
 }
 
+function normalizeSlot(value, label) {
+  object(value, label);
+  required(value, ['slot', 'kind', 'semanticId', 'intent'], label);
+  allowed(value, ['slot', 'kind', 'semanticId', 'owner', 'facets', 'intent'], label);
+  var slot = { slot: id(value.slot, label + '.slot'), kind: text(value.kind, label + '.kind'), semanticId: id(value.semanticId, label + '.semanticId'), intent: text(value.intent, label + '.intent') };
+  if (TARGET_KINDS.indexOf(slot.kind) < 0) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.kind is not a semantic target kind: ' + slot.kind);
+  if (TARGET_INTENTS.indexOf(slot.intent) < 0) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.intent must be read, create, update, or delete.');
+  if (slot.intent === 'delete' && REMOVABLE_KINDS.indexOf(slot.kind) < 0) fail('SEMANTIC_TASK_TARGET_INVALID', label + ' cannot delete a ' + slot.kind + '.');
+  if (slot.kind === 'member') {
+    if (!Object.prototype.hasOwnProperty.call(value, 'owner')) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.owner is required for a member slot.');
+    slot.owner = id(value.owner, label + '.owner');
+  } else if (Object.prototype.hasOwnProperty.call(value, 'owner')) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.owner is only valid for a member slot.');
+  if (slot.kind === 'event' && slot.intent !== 'delete') {
+    if (!Object.prototype.hasOwnProperty.call(value, 'facets')) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.facets is required for a non-delete event slot.');
+    slot.facets = normalizeUniqueStrings(value.facets, label + '.facets', function(item, itemLabel) {
+      var facet = text(item, itemLabel);
+      if (EVENT_FACETS.indexOf(facet) < 0) fail('SEMANTIC_TASK_TARGET_INVALID', itemLabel + ' is not an event facet: ' + facet);
+      return facet;
+    }, function(left, right) { return orderIndex(EVENT_FACETS, left) - orderIndex(EVENT_FACETS, right); });
+    if (!slot.facets.length) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.facets requires at least one event facet.');
+  } else if (Object.prototype.hasOwnProperty.call(value, 'facets')) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.facets is only valid for a non-delete event slot.');
+  return slot;
+}
+
+function targetFromSlot(slot) {
+  var target = { kind: slot.kind, semanticId: slot.semanticId, intent: slot.intent };
+  if (slot.owner) target.owner = slot.owner;
+  if (slot.facets) target.facets = slot.facets.slice();
+  return target;
+}
+
+function targetsForTask(task) { return array(task.slots, 'task ' + task.semanticId + '.slots').map(targetFromSlot); }
+
 function baseTargetKey(target) {
   if (target.kind === 'member') return 'member/' + target.owner + '/' + target.semanticId;
+  if (target.kind === 'entity-record') return 'entity/' + target.semanticId;
   return target.kind + '/' + target.semanticId;
 }
 function targetClaims(target) {
@@ -100,48 +138,95 @@ function normalizeRetrieve(value, label) {
   return result;
 }
 function retrieveKey(value) { return value.group + '/' + value.kind; }
+function derivedCatalogsForTarget(target) {
+  if (target.intent === 'delete' || target.intent === 'read') return [];
+  var key = target.kind === 'event' ? target.facets && target.facets.indexOf('metadata') >= 0 ? 'event#metadata' : null : target.kind;
+  return key && DERIVED_CATALOGS_BY_TARGET[key] ? DERIVED_CATALOGS_BY_TARGET[key].slice() : [];
+}
+function derivedCatalogsForTargets(targets) {
+  var found = Object.create(null);
+  targets.forEach(function(target) { derivedCatalogsForTarget(target).forEach(function(catalog) { found[catalog] = true; }); });
+  return CATALOGS.filter(function(catalog) { return found[catalog]; });
+}
 
 function create(commands) {
   array(commands, 'plan commands');
   if (!commands.length) fail('SEMANTIC_TASK_PLAN_EMPTY', 'A semantic task plan requires at least one plan-task command.');
-  if (commands.length > MAX_TASKS) fail('SEMANTIC_TASK_PLAN_TOO_LARGE', 'A semantic task plan supports at most ' + MAX_TASKS + ' atomic tasks.');
-  var seenTasks = Object.create(null), claims = [], taskPosition = Object.create(null);
-  var tasks = commands.map(function(command, position) {
-    var label = 'plan-task[' + position + ']';
-    object(command, label);
-    required(command, ['type', 'semanticId', 'goal', 'dependsOn', 'targets', 'uses', 'catalogs', 'retrieves'], label);
-    allowed(command, ['type', 'semanticId', 'goal', 'dependsOn', 'targets', 'uses', 'catalogs', 'retrieves'], label);
-    if (command.type !== PLAN_COMMAND) fail('SEMANTIC_TASK_PLAN_COMMAND_INVALID', label + ' must use ' + PLAN_COMMAND + '(...).');
+  var builders = Object.create(null), taskOrder = [], taskPosition = Object.create(null), claims = [], planSlots = Object.create(null);
+  commands.forEach(function(command, position) {
+    var label = 'plan-command[' + position + ']'; object(command, label); required(command, ['type'], label);
+    if (PLAN_COMMANDS.indexOf(command.type) < 0) fail('SEMANTIC_TASK_PLAN_COMMAND_INVALID', label + ' is not a current Plan DSL command: ' + command.type);
+    syntax.validateCommand(command, 'planner');
+    if (command.type !== 'plan-task') return;
+    required(command, ['semanticId', 'goal', 'after'], label); allowed(command, ['type', 'semanticId', 'goal', 'after'], label);
     var semanticId = id(command.semanticId, label + '.semanticId');
-    if (seenTasks[semanticId]) fail('SEMANTIC_TASK_PLAN_DUPLICATE', 'Task plan duplicates semanticId ' + semanticId + '.');
-    seenTasks[semanticId] = true; taskPosition[semanticId] = position;
-    var dependencies = normalizeUniqueStrings(command.dependsOn, label + '.dependsOn', id);
-    dependencies.forEach(function(dependency) { if (!Object.prototype.hasOwnProperty.call(taskPosition, dependency) || dependency === semanticId) fail('SEMANTIC_TASK_PLAN_DEPENDENCY_INVALID', label + ' dependency must identify an earlier task: ' + dependency); });
+    if (builders[semanticId]) fail('SEMANTIC_TASK_PLAN_DUPLICATE', 'Task plan duplicates semanticId ' + semanticId + '.');
+    taskPosition[semanticId] = taskOrder.length; taskOrder.push(semanticId);
+    builders[semanticId] = { semanticId: semanticId, goal: text(command.goal, label + '.goal'), dependsOn: command.after.slice(), slots: [], capabilities: [], retrievals: [] };
+  });
+  if (!taskOrder.length) fail('SEMANTIC_TASK_PLAN_EMPTY', 'A semantic task plan requires at least one plan-task command.');
+
+  function selected(command, label) {
+    var taskId = id(command.task, label + '.task');
+    if (!builders[taskId]) fail('SEMANTIC_TASK_MISSING', label + ' names an undeclared task: ' + taskId);
+    return builders[taskId];
+  }
+  commands.forEach(function(command, position) {
+    if (command.type === 'plan-task') return;
+    var label = command.type + '[' + position + ']', task;
+    if (syntax.COMMANDS[command.type].planTarget) {
+      task = selected(command, label);
+      var targetSlot = { slot: command.slot, kind: syntax.COMMANDS[command.type].planTarget.kind, semanticId: command.semanticId, intent: command.intent };
+      if (Object.prototype.hasOwnProperty.call(command, 'owner')) targetSlot.owner = command.owner;
+      if (Object.prototype.hasOwnProperty.call(command, 'facets')) targetSlot.facets = command.facets;
+      task.slots.push(targetSlot);
+    } else if (command.type === 'plan-use') {
+      required(command, ['task', 'alias', 'use'], label); allowed(command, ['type', 'task', 'alias', 'use'], label); selected(command, label).capabilities.push({ alias: command.alias, use: command.use });
+    } else if (command.type === 'plan-retrieve') {
+      required(command, ['task', 'alias', 'group', 'kind'], label); allowed(command, ['type', 'task', 'alias', 'group', 'kind'], label); selected(command, label).retrievals.push({ alias: command.alias, group: command.group, kind: command.kind });
+    }
+  });
+
+  var tasks = taskOrder.map(function(taskId) {
+    var builder = builders[taskId], label = 'task[' + taskId + ']';
+    var dependencies = normalizeUniqueStrings(builder.dependsOn, label + '.dependsOn', id);
+    dependencies.forEach(function(dependency) { if (!builders[dependency] || dependency === taskId || taskPosition[dependency] >= taskPosition[taskId]) fail('SEMANTIC_TASK_PLAN_DEPENDENCY_INVALID', label + ' after must identify an earlier task: ' + dependency); });
     dependencies.sort(function(left, right) { return taskPosition[left] - taskPosition[right]; });
-    var targets = array(command.targets, label + '.targets').map(function(target, targetPosition) { return normalizeTarget(target, label + '.targets[' + targetPosition + ']'); });
-    if (!targets.length) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.targets requires at least one semantic target.');
+    var slots = builder.slots.map(function(slotValue, slotPosition) { return normalizeSlot(slotValue, label + '.slots[' + slotPosition + ']'); });
+    if (!slots.length) fail('SEMANTIC_TASK_TARGET_INVALID', label + '.slots requires at least one semantic target slot.');
     var localClaims = [];
-    targets.forEach(function(target) {
-      targetClaims(target).forEach(function(claim) {
-        if (localClaims.some(function(existing) { return conflict(existing.claim, claim, existing.target, target); })) fail('SEMANTIC_TASK_PLAN_DUPLICATE', label + ' contains overlapping target claim ' + claim + '.');
-        if (claims.some(function(existing) { return conflict(existing.claim, claim, existing.target, target); })) fail('SEMANTIC_TASK_PLAN_TARGET_CONFLICT', label + ' target ' + claim + ' conflicts with task ' + claims.filter(function(existing) { return conflict(existing.claim, claim, existing.target, target); })[0].taskId + '.');
-        localClaims.push({ claim: claim, target: target }); claims.push({ claim: claim, target: target, taskId: semanticId });
+    slots.forEach(function(slotValue) {
+      if (planSlots[slotValue.slot]) fail('SEMANTIC_TASK_PLAN_DUPLICATE', label + ' duplicates plan slot ' + slotValue.slot + '.');
+      planSlots[slotValue.slot] = { taskId: taskId, kind: 'target' };
+      var targetValue = targetFromSlot(slotValue);
+      if (targetValue.intent === 'read') return;
+      targetClaims(targetValue).forEach(function(claim) {
+        if (localClaims.some(function(existing) { return conflict(existing.claim, claim, existing.target, targetValue); })) fail('SEMANTIC_TASK_PLAN_DUPLICATE', label + ' contains overlapping target claim ' + claim + '.');
+        if (claims.some(function(existing) { return conflict(existing.claim, claim, existing.target, targetValue); })) fail('SEMANTIC_TASK_PLAN_TARGET_CONFLICT', label + ' target ' + claim + ' conflicts with task ' + claims.filter(function(existing) { return conflict(existing.claim, claim, existing.target, targetValue); })[0].taskId + '.');
+        localClaims.push({ claim: claim, target: targetValue }); claims.push({ claim: claim, target: targetValue, taskId: taskId });
       });
     });
-    targets.sort(function(left, right) { return targetSortKey(left).localeCompare(targetSortKey(right)); });
-    var uses = normalizeUniqueStrings(command.uses, label + '.uses', id);
-    var catalogs = normalizeUniqueStrings(command.catalogs, label + '.catalogs', function(item, itemLabel) {
-      var catalog = text(item, itemLabel);
-      if (CATALOGS.indexOf(catalog) < 0) fail('SEMANTIC_TASK_CATALOG_INVALID', itemLabel + ' is not an allowed capability catalog: ' + catalog);
-      return catalog;
-    }, function(left, right) { return orderIndex(CATALOGS, left) - orderIndex(CATALOGS, right); });
+    slots.sort(function(left, right) { return left.slot.localeCompare(right.slot); });
+    var capabilities = builder.capabilities.map(function(item, capabilityPosition) {
+      var capabilityLabel = label + '.capabilities[' + capabilityPosition + ']';
+      var value = { alias: id(item.alias, capabilityLabel + '.alias'), use: id(item.use, capabilityLabel + '.use') };
+      if (planSlots[value.alias]) fail('SEMANTIC_TASK_PLAN_DUPLICATE', capabilityLabel + ' duplicates plan name ' + value.alias + '.');
+      planSlots[value.alias] = { taskId: taskId, kind: 'capability' };
+      return value;
+    }).sort(function(left, right) { return left.alias.localeCompare(right.alias); });
+    var targets = targetsForTask({ semanticId: taskId, slots: slots });
+    var catalogs = derivedCatalogsForTargets(targets);
     var retrieveSeen = Object.create(null);
-    var retrieves = array(command.retrieves, label + '.retrieves').map(function(item, retrievePosition) {
-      var normalized = normalizeRetrieve(item, label + '.retrieves[' + retrievePosition + ']'), key = retrieveKey(normalized);
+    var retrievals = builder.retrievals.map(function(item, retrievePosition) {
+      var retrievalLabel = label + '.retrievals[' + retrievePosition + ']';
+      var normalized = normalizeRetrieve({ group: item.group, kind: item.kind }, retrievalLabel), key = retrieveKey(normalized);
+      normalized.alias = id(item.alias, retrievalLabel + '.alias');
+      if (planSlots[normalized.alias]) fail('SEMANTIC_TASK_PLAN_DUPLICATE', retrievalLabel + ' duplicates plan name ' + normalized.alias + '.');
+      planSlots[normalized.alias] = { taskId: taskId, kind: 'retrieval' };
       if (retrieveSeen[key]) fail('SEMANTIC_TASK_PLAN_DUPLICATE', label + '.retrieves duplicates ' + key + '.');
       retrieveSeen[key] = true; return normalized;
     }).sort(function(left, right) { return retrieveKey(left).localeCompare(retrieveKey(right)); });
-    return { semanticId: semanticId, goal: text(command.goal, label + '.goal'), dependsOn: dependencies, targets: targets, uses: uses, catalogs: catalogs, retrieves: retrieves };
+    return { semanticId: taskId, goal: builder.goal, dependsOn: dependencies, slots: slots, capabilities: capabilities, catalogs: catalogs, retrievals: retrievals };
   });
   var document = { schemaVersion: SCHEMA_VERSION, documentKind: DOCUMENT_KIND, languageId: LANGUAGE_ID, tasks: tasks };
   document.planHash = planHash(document);
@@ -161,23 +246,18 @@ function taskById(plan, taskId) {
 }
 
 function targetForCommand(command) {
-  object(command, 'Draft-write command');
-  var type = command.type, target;
-  if (type === 'game') target = { kind: 'game', semanticId: id(command.semanticId, 'game.semanticId'), facet: null, operation: 'upsert' };
-  else if (type === 'entity') target = { kind: 'entity', semanticId: id(command.semanticId, 'entity.semanticId'), facet: null, operation: 'upsert' };
-  else if (type === 'member') target = { kind: 'member', owner: id(command.entity, 'member.entity'), semanticId: id(command.semanticId, 'member.semanticId'), facet: null, operation: 'upsert' };
-  else if (type === 'component') target = { kind: 'component', semanticId: id(command.semanticId, 'component.semanticId'), facet: null, operation: 'upsert' };
-  else if (type === 'event') target = { kind: 'event', semanticId: id(command.semanticId, 'event.semanticId'), facet: 'metadata', operation: 'upsert' };
-  else if (type === 'when') target = { kind: 'event', semanticId: id(command.event, 'when.event'), facet: 'conditions', operation: 'upsert' };
-  else if (type === 'then') target = { kind: 'event', semanticId: id(command.event, 'then.event'), facet: 'actions', operation: 'upsert' };
-  else if (type === 'asset') target = { kind: 'asset', semanticId: id(command.semanticId, 'asset.semanticId'), facet: null, operation: 'upsert' };
-  else if (type === 'layout') target = { kind: 'layout', semanticId: id(command.semanticId, 'layout.semanticId'), facet: null, operation: 'upsert' };
-  else if (type === 'policy') target = { kind: 'policy', semanticId: id(command.degree, 'policy.degree'), facet: null, operation: 'upsert' };
-  else if (type === 'remove') {
-    var collectionKinds = { entities: 'entity', components: 'component', events: 'event', assetIntents: 'asset', layoutIntents: 'layout' };
-    var kind = collectionKinds[command.collection];
-    if (!kind) fail('SEMANTIC_TASK_COMMAND_UNMAPPED', 'remove.collection has no TaskPlan target mapping: ' + command.collection);
-    target = { kind: kind, semanticId: id(command.semanticId, 'remove.semanticId'), facet: null, operation: 'delete' };
+  object(command, 'resolved Draft-write command');
+  var type = command.type, target, spec = syntax.COMMANDS[type], rule = spec && spec.target;
+  if (rule) {
+    if (rule.delete) {
+      var collectionKinds = { entities: 'entity-record', components: 'component', events: 'event', assetIntents: 'asset', layoutIntents: 'layout' };
+      var kind = collectionKinds[command.collection];
+      if (!kind) fail('SEMANTIC_TASK_COMMAND_UNMAPPED', 'remove.collection has no TaskPlan target mapping: ' + command.collection);
+      target = { kind: kind, semanticId: id(command.semanticId, 'remove.semanticId'), facet: null, operation: 'delete' };
+    } else {
+      target = { kind: rule.kind, semanticId: id(command[rule.semanticIdField], type + '.' + rule.semanticIdField), facet: rule.facet || null, operation: 'upsert' };
+      if (rule.ownerField) target.owner = id(command[rule.ownerField], type + '.' + rule.ownerField);
+    }
   } else fail('SEMANTIC_TASK_COMMAND_UNMAPPED', 'Command is not a Draft-write command owned by a TaskPlan target: ' + type);
   target.claim = target.kind === 'member' ? 'member/' + target.owner + '/' + target.semanticId : target.kind + '/' + target.semanticId + (target.facet ? '#' + target.facet : '');
   return target;
@@ -185,16 +265,112 @@ function targetForCommand(command) {
 
 function commandMatchesTarget(reference, target) {
   if (reference.kind !== target.kind || reference.semanticId !== target.semanticId || (reference.owner || null) !== (target.owner || null)) return false;
+  if (target.intent === 'read') return false;
   if (reference.operation === 'delete') return target.intent === 'delete';
   if (target.intent === 'delete') return false;
   return reference.kind !== 'event' || target.facets.indexOf(reference.facet) >= 0;
 }
+
+function dependencyClosure(plan, task) {
+  var visible = Object.create(null);
+  function add(taskId) {
+    if (visible[taskId]) return;
+    visible[taskId] = true;
+    taskById(plan, taskId).dependsOn.forEach(add);
+  }
+  add(task.semanticId);
+  return visible;
+}
+function visibleTargetSlot(plan, task, slotId, expectedKind) {
+  var visible = dependencyClosure(plan, task), found = null;
+  plan.tasks.forEach(function(candidate) {
+    if (!visible[candidate.semanticId]) return;
+    candidate.slots.forEach(function(slot) { if (slot.slot === slotId) found = slot; });
+  });
+  if (!found) fail('SEMANTIC_TASK_SLOT_MISSING', 'Task ' + task.semanticId + ' cannot reference target slot ' + slotId + '.');
+  if (expectedKind && found.kind !== expectedKind) fail('SEMANTIC_TASK_SLOT_KIND_INVALID', 'Slot ' + slotId + ' must identify ' + expectedKind + ', received ' + found.kind + '.');
+  return found;
+}
+function slotReference(slot) {
+  if (slot.kind === 'member') return slot.owner + '.' + slot.semanticId;
+  return slot.semanticId;
+}
+function resolveOperationArguments(plan, task, use, command) {
+  var operation = semanticAlgebra.operationForUse(use);
+  if (!operation) return;
+  function resolveValue(type, value, label) {
+    if (type === 'entity') return slotReference(visibleTargetSlot(plan, task, id(value, label), 'entity-record'));
+    if (type === 'Entity.member') return slotReference(visibleTargetSlot(plan, task, id(value, label), 'member'));
+    if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.use === 'string') {
+      var expressionCapability = task.capabilities.filter(function(item) { return item.alias === value.use; })[0];
+      if (!expressionCapability) fail('SEMANTIC_TASK_CAPABILITY_ALIAS_MISSING', label + ' expression has no capability alias ' + value.use + '.');
+      var expression = semanticAlgebra.operationForUse(expressionCapability.use);
+      var resolved = clone(value); resolved.use = expressionCapability.use;
+      if (expression) Object.keys(expression.fields || {}).forEach(function(name) { if (Object.prototype.hasOwnProperty.call(resolved, name)) resolved[name] = resolveValue(expression.fields[name], resolved[name], label + '.' + name); });
+      return resolved;
+    }
+    return value;
+  }
+  var sources = [];
+  if (command.arguments && typeof command.arguments === 'object' && !Array.isArray(command.arguments)) sources.push(command.arguments);
+  sources.push(command);
+  Object.keys(operation.fields || {}).forEach(function(name) {
+    var container = sources.filter(function(candidate) { return Object.prototype.hasOwnProperty.call(candidate, name); })[0];
+    if (!container) return;
+    var type = operation.fields[name];
+    container[name] = resolveValue(type, container[name], command.type + '.' + name);
+  });
+}
+function resolveComponentBindings(task, command) {
+  if (!command.bindings || typeof command.bindings !== 'object' || Array.isArray(command.bindings)) return;
+  Object.keys(command.bindings).forEach(function(name) {
+    var binding = command.bindings[name];
+    if (!binding || typeof binding !== 'object' || Array.isArray(binding)) return;
+    if (!binding.capability) fail('SEMANTIC_TASK_CAPABILITY_ALIAS_MISSING', 'component.bindings.' + name + ' requires a capability alias.');
+    var capability = task.capabilities.filter(function(item) { return item.alias === binding.capability; })[0];
+    if (!capability) fail('SEMANTIC_TASK_CAPABILITY_ALIAS_MISSING', 'Task ' + task.semanticId + ' has no capability alias ' + binding.capability + '.');
+    binding.use = capability.use;
+    delete binding.capability;
+  });
+}
+function resolveBatch(plan, taskId, commands) {
+  var task = taskById(plan, taskId);
+  return array(commands, 'Executor command batch').map(function(raw, position) {
+    syntax.validateCommand(raw, 'executor');
+    var command = clone(raw), slot = task.slots.filter(function(item) { return item.slot === command.slot; })[0];
+    if (!slot) fail('SEMANTIC_TASK_SLOT_MISSING', 'Executor command[' + position + '] must reference an active-task target slot: ' + command.slot);
+    var spec = syntax.COMMANDS[command.type], targetRule = spec.target;
+    if (command.type === 'remove') {
+      if (slot.intent !== 'delete') fail('SEMANTIC_TASK_SLOT_INTENT_INVALID', 'remove requires a delete target slot: ' + slot.slot);
+      var collections = { 'entity-record': 'entities', component: 'components', event: 'events', asset: 'assetIntents', layout: 'layoutIntents' };
+      if (!collections[slot.kind]) fail('SEMANTIC_TASK_SLOT_KIND_INVALID', 'Slot ' + slot.slot + ' cannot be removed through Semantic DSL.');
+      command.collection = collections[slot.kind]; command.semanticId = slot.semanticId;
+    } else {
+      if (!targetRule || targetRule.kind !== slot.kind || (targetRule.facet && (!slot.facets || slot.facets.indexOf(targetRule.facet) < 0))) fail('SEMANTIC_TASK_SLOT_KIND_INVALID', command.type + ' cannot write target slot ' + slot.slot + '.');
+      if (slot.intent === 'delete') fail('SEMANTIC_TASK_SLOT_INTENT_INVALID', command.type + ' cannot write delete target slot ' + slot.slot + '.');
+      command[targetRule.semanticIdField] = slot.semanticId;
+      if (targetRule.ownerField) command[targetRule.ownerField] = slot.owner;
+    }
+    delete command.slot;
+    if (command.targetSlot !== undefined) { command.target = slotReference(visibleTargetSlot(plan, task, id(command.targetSlot, command.type + '.targetSlot'), 'entity-record')); delete command.targetSlot; }
+    if (command.parentSlot !== undefined) { command.parent = slotReference(visibleTargetSlot(plan, task, id(command.parentSlot, command.type + '.parentSlot'), 'event')); delete command.parentSlot; }
+    if (spec.capabilityField) {
+      var alias = command[spec.capabilityField];
+      var capability = task.capabilities.filter(function(item) { return item.alias === alias; })[0];
+      if (!capability) fail('SEMANTIC_TASK_CAPABILITY_ALIAS_MISSING', 'Task ' + task.semanticId + ' has no capability alias ' + alias + '.');
+      command.use = capability.use; delete command[spec.capabilityField];
+      resolveOperationArguments(plan, task, capability.use, command);
+    }
+    if (command.type === 'component') resolveComponentBindings(task, command);
+    return command;
+  });
+}
 function assertBatchScope(plan, taskId, commands) {
-  var task = taskById(plan, taskId); array(commands, 'Draft-write batch');
+  var task = taskById(plan, taskId), targets = targetsForTask(task); array(commands, 'Draft-write batch');
   if (!commands.length) fail('SEMANTIC_TASK_BATCH_EMPTY', 'An active task requires a non-empty Draft-write batch.');
   return commands.map(function(command, position) {
     var reference = targetForCommand(command);
-    if (!task.targets.some(function(target) { return commandMatchesTarget(reference, target); })) fail('SEMANTIC_TASK_SCOPE_VIOLATION', 'Draft-write command[' + position + '] targets undeclared active-task scope: ' + reference.claim);
+    if (!targets.some(function(target) { return commandMatchesTarget(reference, target); })) fail('SEMANTIC_TASK_SCOPE_VIOLATION', 'Draft-write command[' + position + '] targets undeclared active-task scope: ' + reference.claim);
     return reference;
   });
 }
@@ -206,7 +382,7 @@ function assertRetrievesSatisfied(plan, taskId, retrieved) {
     if (raw.type !== undefined && raw.type !== 'retrieve') fail('SEMANTIC_TASK_RETRIEVE_INVALID', 'retrieved[' + position + '] is not a retrieve fact.');
     var query = normalizeRetrieve({ group: raw.group, kind: raw.kind }, 'retrieved[' + position + ']'); available[retrieveKey(query)] = true;
   });
-  task.retrieves.forEach(function(query) { if (!available[retrieveKey(query)]) fail('SEMANTIC_TASK_RETRIEVE_INCOMPLETE', 'Active task requires retrieve ' + retrieveKey(query) + ' before its Draft-write batch.'); });
+  task.retrievals.forEach(function(query) { if (!available[retrieveKey(query)]) fail('SEMANTIC_TASK_RETRIEVE_INCOMPLETE', 'Active task requires retrieve ' + retrieveKey(query) + ' before its Draft-write batch.'); });
   return true;
 }
 
@@ -232,7 +408,7 @@ function commandUses(commands) {
 }
 function assertDeclaredUses(plan, taskId, commands, retrievedUses) {
   var task = taskById(plan, taskId), allowedUses = Object.create(null);
-  task.uses.forEach(function(use) { allowedUses[use] = true; });
+  task.capabilities.forEach(function(capability) { allowedUses[capability.use] = true; });
   normalizeUniqueStrings(retrievedUses || [], 'retrieved uses', id).forEach(function(use) { allowedUses[use] = true; });
   commandUses(commands).forEach(function(use) { if (!allowedUses[use]) fail('SEMANTIC_TASK_USE_UNDECLARED', 'Draft-write batch uses capability outside active-task slicing truth: ' + use); });
   return true;
@@ -269,7 +445,7 @@ function assertCapabilityFacts(plan, taskId, commands, facts) {
   exactCapabilityFields(facts, ['uses', 'catalogs', 'retrieves'], 'task capability facts');
   var factUses = capabilityFactsObject(facts.uses, 'task capability facts.uses');
   var factCatalogs = capabilityFactsObject(facts.catalogs, 'task capability facts.catalogs');
-  if (!sameKeys(Object.keys(factUses), task.uses)) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', 'Capability fact uses must exactly match the active task declaration.');
+  if (!sameKeys(Object.keys(factUses), task.capabilities.map(function(item) { return item.alias; }))) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', 'Capability fact aliases must exactly match the active task declaration.');
   if (!sameKeys(Object.keys(factCatalogs), task.catalogs)) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', 'Capability fact catalogs must exactly match the active task declaration.');
   Object.keys(factUses).forEach(function(use) {
     if (typeof factUses[use] !== 'string' || !factUses[use].trim()) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', 'Capability fact use ' + use + ' must contain its declared row.');
@@ -296,14 +472,14 @@ function assertCapabilityFacts(plan, taskId, commands, facts) {
   task.catalogs.forEach(function(catalog) { addCapabilityRows(catalogDestinations[catalog], factCatalogs[catalog], 'task capability facts.catalogs.' + catalog); });
 
   var plannedRetrieves = Object.create(null), seenRetrieves = Object.create(null);
-  task.retrieves.forEach(function(query) { plannedRetrieves[retrieveKey(query)] = query; });
+  task.retrievals.forEach(function(query) { plannedRetrieves[query.alias] = query; });
   capabilityFactsArray(facts.retrieves, 'task capability facts.retrieves').forEach(function(item, position) {
     var label = 'task capability facts.retrieves[' + position + ']';
-    item = capabilityFactsObject(item, label); exactCapabilityFields(item, ['group', 'kind', 'facts'], label);
-    var query = normalizeRetrieve({ group: item.group, kind: item.kind }, label), key = retrieveKey(query);
-    if (!plannedRetrieves[key]) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', label + ' is outside the active task declaration: ' + key);
-    if (seenRetrieves[key]) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', label + ' duplicates ' + key + '.');
-    seenRetrieves[key] = true;
+    item = capabilityFactsObject(item, label); exactCapabilityFields(item, ['alias', 'group', 'kind', 'facts'], label);
+    var query = normalizeRetrieve({ group: item.group, kind: item.kind }, label), planned = plannedRetrieves[item.alias];
+    if (!planned || planned.group !== query.group || planned.kind !== query.kind) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', label + ' is outside the active task declaration alias: ' + item.alias);
+    if (seenRetrieves[item.alias]) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', label + ' duplicates alias ' + item.alias + '.');
+    seenRetrieves[item.alias] = true;
     var retrieved = capabilityFactsObject(item.facts, label + '.facts'), rowsField;
     if (query.kind === 'object') rowsField = 'entityKinds';
     else if (query.kind === 'behavior') rowsField = 'behaviorKinds';
@@ -316,7 +492,7 @@ function assertCapabilityFacts(plan, taskId, commands, facts) {
     else if (query.kind === 'event') addCapabilityRows(allowedCapabilities.event, retrieved.eventKinds, label + '.facts.eventKinds');
     else addCapabilityRows(Object.create(null), retrieved.operations, label + '.facts.operations');
   });
-  Object.keys(plannedRetrieves).forEach(function(key) { if (!seenRetrieves[key]) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', 'Capability facts are missing declared retrieve ' + key + '.'); });
+  Object.keys(plannedRetrieves).forEach(function(alias) { if (!seenRetrieves[alias]) fail('SEMANTIC_TASK_CAPABILITY_FACTS_INVALID', 'Capability facts are missing declared retrieval alias ' + alias + '.'); });
 
   function authorize(destination, value, label) {
     if (typeof value !== 'string' || !value.trim() || !destination[value.trim()]) fail('SEMANTIC_TASK_CAPABILITY_UNDECLARED', label + ' is outside the active task capability facts: ' + String(value));
@@ -378,7 +554,7 @@ function assertFeasible(plan, beforeDocument, options) {
   if (typeof options.revision !== 'boolean') fail('SEMANTIC_TASK_PLAN_INFEASIBLE', 'task plan feasibility options.revision must be a boolean.');
   var gameTargets = [], policyTargets = [];
   tasks.forEach(function(task) {
-    array(task.targets, 'task ' + task.semanticId + '.targets').forEach(function(target) {
+    targetsForTask(task).filter(function(target) { return target.intent !== 'read'; }).forEach(function(target) {
       if (target.kind === 'game') gameTargets.push(target);
       if (target.kind === 'policy') policyTargets.push(target);
     });
@@ -412,34 +588,33 @@ function assertFeasible(plan, beforeDocument, options) {
     visit(rootId);
     return descendants;
   }
-  function hasCatalog(task, catalog) { return task.catalogs.indexOf(catalog) >= 0; }
-  function hasRetrieve(task, kind) { return task.retrieves.some(function(query) { return query.kind === kind; }); }
-  function hasFoundationUse(task, kind) { return task.uses.some(function(use) { var operation = semanticAlgebra.operationForUse(use); return operation && operation.kind === kind; }); }
+  function hasRetrieve(task, kind) { return task.retrievals.some(function(query) { return query.kind === kind; }); }
+  function hasFoundationUse(task, kind) { return task.capabilities.some(function(capability) { var operation = semanticAlgebra.operationForUse(capability.use); return operation && operation.kind === kind; }); }
   tasks.forEach(function(task) {
+    var allTargets = targetsForTask(task), targets = allTargets.filter(function(target) { return target.intent !== 'read'; });
+    allTargets.filter(function(target) { return target.intent === 'read'; }).forEach(function(target) {
+      targetClaims(target).forEach(function(claim) { if (!present(claim)) infeasible('Task ' + task.semanticId + ' cannot bind missing read slot ' + claim + '.'); });
+    });
+    if (JSON.stringify(task.catalogs) !== JSON.stringify(derivedCatalogsForTargets(targets))) infeasible('Task ' + task.semanticId + ' derived catalogs diverge from target truth.');
     var entityCreates = Object.create(null), eventMetadataCreates = Object.create(null), eventDeletes = Object.create(null), deleteDescendants = Object.create(null);
-    task.targets.forEach(function(target) {
+    targets.forEach(function(target) {
       if (target.intent === 'delete') return;
-      if (target.kind === 'entity' && !hasCatalog(task, 'entity-kinds') && !hasRetrieve(task, 'object')) infeasible('Task ' + task.semanticId + ' requires entity-kinds or an object retrieve before its entity ' + target.intent + ' target can execute.');
-      if (target.kind === 'event' && target.facets.indexOf('metadata') >= 0 && !hasCatalog(task, 'event-kinds') && !hasRetrieve(task, 'event')) infeasible('Task ' + task.semanticId + ' requires event-kinds or an event retrieve before its event metadata target can execute.');
       if (target.kind === 'event' && target.facets.indexOf('conditions') >= 0 && !hasFoundationUse(task, 'condition') && !hasRetrieve(task, 'condition')) infeasible('Task ' + task.semanticId + ' requires a declared condition use or condition retrieve before its event conditions target can execute.');
       if (target.kind === 'event' && target.facets.indexOf('actions') >= 0 && !hasFoundationUse(task, 'action') && !hasRetrieve(task, 'action')) infeasible('Task ' + task.semanticId + ' requires a declared action use or action retrieve before its event actions target can execute.');
-      if (target.kind === 'component' && !hasCatalog(task, 'component-library')) infeasible('Task ' + task.semanticId + ' requires component-library before its component ' + target.intent + ' target can execute.');
-      if (target.kind === 'asset' && (!hasCatalog(task, 'asset-families') || !hasCatalog(task, 'asset-styles'))) infeasible('Task ' + task.semanticId + ' requires both asset-families and asset-styles before its asset ' + target.intent + ' target can execute.');
-      if (target.kind === 'layout' && !hasCatalog(task, 'layouts')) infeasible('Task ' + task.semanticId + ' requires layouts before its layout ' + target.intent + ' target can execute.');
     });
-    task.targets.forEach(function(target) {
-      if (target.kind === 'entity' && target.intent === 'create') entityCreates[target.semanticId] = true;
+    targets.forEach(function(target) {
+      if (target.kind === 'entity-record' && target.intent === 'create') entityCreates[target.semanticId] = true;
       if (target.kind === 'event' && target.intent === 'create' && target.facets.indexOf('metadata') >= 0) eventMetadataCreates[target.semanticId] = true;
       if (target.kind === 'event' && target.intent === 'delete') eventDeletes[target.semanticId] = true;
     });
-    task.targets.forEach(function(target) {
+    targets.forEach(function(target) {
       if (target.kind !== 'event' || target.intent !== 'delete') return;
       var descendants = eventDescendants(target.semanticId); deleteDescendants[target.semanticId] = descendants;
       descendants.forEach(function(descendantId) {
         if (!eventDeletes[descendantId]) infeasible('Task ' + task.semanticId + ' must declare descendant event delete target ' + descendantId + ' when deleting parent event ' + target.semanticId + '.');
       });
     });
-    task.targets.forEach(function(target) {
+    targets.forEach(function(target) {
       if (target.kind === 'member' && !present('entity/' + target.owner) && !entityCreates[target.owner]) infeasible('Task ' + task.semanticId + ' member target requires an existing or same-task entity owner: ' + target.owner);
       if (target.kind === 'event' && target.intent !== 'delete' && target.facets.some(function(facet) { return facet !== 'metadata'; }) && !present('event/' + target.semanticId + '#metadata') && !eventMetadataCreates[target.semanticId]) infeasible('Task ' + task.semanticId + ' event facet requires existing or same-task event metadata: ' + target.semanticId);
       var claims = target.kind === 'event' && target.intent === 'delete' ? ['event/' + target.semanticId + '#metadata'] : targetClaims(target);
@@ -449,10 +624,10 @@ function assertFeasible(plan, beforeDocument, options) {
       });
       if (target.kind === 'game' && target.intent === 'create' && Object.keys(existing).some(function(claim) { return claim.indexOf('game/') === 0; })) infeasible('Task ' + task.semanticId + ' cannot create a second singleton game identity.');
     });
-    task.targets.forEach(function(target) {
+    targets.forEach(function(target) {
       var claims = target.kind === 'event' && target.intent === 'delete' ? ['event/' + target.semanticId + '#metadata'] : targetClaims(target);
       claims.forEach(function(claim) { if (target.intent === 'delete') delete existing[claim]; else if (target.intent === 'create') existing[claim] = true; });
-      if (target.kind === 'entity' && target.intent === 'delete') Object.keys(existing).forEach(function(claim) { if (claim.indexOf('member/' + target.semanticId + '/') === 0) delete existing[claim]; });
+      if (target.kind === 'entity-record' && target.intent === 'delete') Object.keys(existing).forEach(function(claim) { if (claim.indexOf('member/' + target.semanticId + '/') === 0) delete existing[claim]; });
       if (target.kind === 'event' && target.intent === 'delete') {
         var deletedEvents = Object.create(null); deletedEvents[target.semanticId] = true;
         (deleteDescendants[target.semanticId] || []).forEach(function(descendantId) { deletedEvents[descendantId] = true; });
@@ -473,7 +648,7 @@ function changedClaims(before, after) {
 function targetAllowsClaim(target, claim) {
   if (targetClaims(target).indexOf(claim) >= 0) return true;
   if (target.intent === 'delete' && target.kind === 'event') return claim.indexOf('event/' + target.semanticId + '#') === 0;
-  if (target.intent === 'delete' && target.kind === 'entity') return claim.indexOf('member/' + target.semanticId + '/') === 0;
+  if (target.intent === 'delete' && target.kind === 'entity-record') return claim.indexOf('member/' + target.semanticId + '/') === 0;
   return false;
 }
 function assertIntent(target, claim, before, after) {
@@ -483,12 +658,12 @@ function assertIntent(target, claim, before, after) {
   if (target.intent === 'delete' && (!beforePresent || afterPresent)) fail('SEMANTIC_TASK_DELTA_INVALID', claim + ' must be present before and absent after a delete task.');
 }
 function verifyBatch(plan, taskId, commands, beforeDocument, afterDocument) {
-  var task = taskById(plan, taskId);
+  var task = taskById(plan, taskId), targets = targetsForTask(task);
   assertBatchScope(plan, taskId, commands);
   var before = snapshot(beforeDocument), after = snapshot(afterDocument), changed = changedClaims(before, after);
   if (!changed.length) fail('SEMANTIC_TASK_DELTA_EMPTY', 'Active-task Draft-write batch produced no semantic delta.');
-  changed.forEach(function(claim) { if (!task.targets.some(function(target) { return targetAllowsClaim(target, claim); })) fail('SEMANTIC_TASK_SCOPE_VIOLATION', 'Draft-write batch changed undeclared semantic scope: ' + claim); });
-  task.targets.forEach(function(target) {
+  changed.forEach(function(claim) { if (!targets.some(function(target) { return targetAllowsClaim(target, claim); })) fail('SEMANTIC_TASK_SCOPE_VIOLATION', 'Draft-write batch changed undeclared semantic scope: ' + claim); });
+  targets.forEach(function(target) {
     targetClaims(target).forEach(function(claim) {
       if (target.kind === 'event' && target.intent === 'delete') claim += '#metadata';
       assertIntent(target, claim, before, after);
@@ -501,10 +676,7 @@ module.exports = {
   SCHEMA_VERSION: SCHEMA_VERSION,
   DOCUMENT_KIND: DOCUMENT_KIND,
   LANGUAGE_ID: LANGUAGE_ID,
-  PLAN_COMMAND: PLAN_COMMAND,
   PLAN_COMMANDS: PLAN_COMMANDS,
-  MAX_TASKS: MAX_TASKS,
-  PLAN_LINES: PLAN_LINES,
   TARGET_KINDS: TARGET_KINDS,
   TARGET_INTENTS: TARGET_INTENTS,
   EVENT_FACETS: EVENT_FACETS,
@@ -512,12 +684,18 @@ module.exports = {
   RETRIEVE_CATALOG: RETRIEVE_CATALOG,
   PLANNER_CATALOGS: PLANNER_CATALOGS,
   RETRIEVE_KINDS: RETRIEVE_KINDS,
+  DERIVED_CATALOGS_BY_TARGET: DERIVED_CATALOGS_BY_TARGET,
+  DERIVED_CATALOG_LINES: DERIVED_CATALOG_LINES,
+  derivedCatalogsForTarget: derivedCatalogsForTarget,
+  derivedCatalogsForTargets: derivedCatalogsForTargets,
   create: create,
   planHash: planHash,
   documentHash: documentHash,
   taskById: taskById,
+  targetsForTask: targetsForTask,
   targetClaims: targetClaims,
   targetForCommand: targetForCommand,
+  resolveBatch: resolveBatch,
   assertBatchScope: assertBatchScope,
   assertRetrievesSatisfied: assertRetrievesSatisfied,
   commandUses: commandUses,

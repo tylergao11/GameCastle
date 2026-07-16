@@ -112,7 +112,7 @@ var completedLedger = machine.transition.startTask(modelCommitted, 'rules');
 completedLedger = machine.transition.commitTask(completedLedger, 'rules', 'receipt.rules', 'draft.before.rules', 'draft.after.rules');
 assert.strictEqual(projection(completedLedger).state, machine.STATES.FINALIZING);
 assert.strictEqual(projection(completedLedger).activeTaskId, null);
-assert.strictEqual(projection(completedLedger).allowedMode, machine.ALLOWED_MODES.COMPLETION);
+assert.strictEqual(projection(completedLedger).allowedMode, machine.ALLOWED_MODES.FINALIZE);
 completedLedger = machine.transition.completeRun(completedLedger, 'semantic.source.final', 'receipt.complete');
 var completedView = projection(completedLedger);
 assert.strictEqual(completedView.state, machine.STATES.COMPLETED);
@@ -134,15 +134,9 @@ assert.strictEqual(projection(planRepair).state, machine.STATES.PLANNING);
 planRepair = machine.transition.recordFailure(planRepair, planFailure('candidate.plan.bad'));
 assert.strictEqual(projection(planRepair).state, machine.STATES.FUSED, 'identical plan failure also uses the single fuse rule');
 
-var finalFailure = machine.transition.acceptPlan(machine.create('Finalize safely.'), 'semantic.plan.final', ['only']);
-finalFailure = machine.transition.startTask(finalFailure, 'only');
-finalFailure = machine.transition.commitTask(finalFailure, 'only', 'receipt.only', 'draft.before', 'draft.after');
-var finalFailureFact = { phase: 'finalization', code: 'SEMANTIC_FINAL_INVALID', owner: 'StateMachineCheck', message: 'exact final failure', subjectHash: 'source.bad' };
-finalFailure = machine.transition.recordFailure(finalFailure, finalFailureFact);
-assert.strictEqual(projection(finalFailure).state, machine.STATES.FINALIZING);
-finalFailure = machine.transition.retryFinalization(finalFailure);
-finalFailure = machine.transition.recordFailure(finalFailure, finalFailureFact);
-assert.strictEqual(projection(finalFailure).state, machine.STATES.FUSED, 'finalization uses the same consecutive-identical fuse truth');
+assert.throws(function() {
+  machine.transition.recordFailure(machine.transition.commitTask(machine.transition.startTask(machine.transition.acceptPlan(machine.create('Finalize deterministically.'), 'semantic.plan.final', ['only']), 'only'), 'only', 'receipt.only', 'draft.before', 'draft.after'), { phase: 'finalization', code: 'SEMANTIC_FINAL_INVALID', owner: 'StateMachineCheck', message: 'obsolete model finalization failure', subjectHash: 'source.bad' });
+}, function(error) { return error.code === 'SEMANTIC_RUN_FAILURE_INVALID'; }, 'deterministic Runtime finalization has no model repair path');
 
 var expired = machine.transition.expireRun(machine.create('Expire deterministically.'), 'total runtime deadline reached');
 assert.strictEqual(projection(expired).state, machine.STATES.EXPIRED);
@@ -163,4 +157,4 @@ assert.deepStrictEqual(projection(modelCommitted), projection(modelCommitted), '
 assert.strictEqual(projection(modelCommitted).transitionLog.length, modelCommitted.events.length, 'every event produces one canonical transition line');
 assert.strictEqual(projection(modelCommitted).transitionLog[projection(modelCommitted).transitionLog.length - 1].indexOf('state=TASK_READY') >= 0, true, 'last transition line is current state truth');
 
-console.log('[SemanticRunStateMachine] append-only hash chain, pure projection, sealed plan order, task-local retrieve, atomic receipts, completion, expiry, and single identical-failure fuse passed');
+console.log('[SemanticRunStateMachine] append-only hash chain, pure projection, sealed plan order, task-local retrieve, atomic receipts, deterministic Runtime completion, expiry, and single identical-failure fuse passed');

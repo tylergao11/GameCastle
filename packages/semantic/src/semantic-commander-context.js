@@ -89,7 +89,7 @@ function planner(references, draft, request, creativeVision, machineProjection, 
     contextKind: CONTEXT_KIND,
     phase: 'planner',
     l1: plannerCatalog(references),
-    l2: { request: text(request, 'request'), creativeVision: String(creativeVision || ''), baseDraftHash: base.baseDraftHash, baseDraftIndex: base.index, feedback: feedback === undefined ? null : clone(feedback) },
+    l2: { request: text(request, 'request'), creativeVision: String(creativeVision || ''), sourceMode: draft.baseSource ? 'revision' : 'new', baseDraftHash: base.baseDraftHash, baseDraftIndex: base.index, feedback: feedback === undefined ? null : clone(feedback) },
     l4: { transitionLines: machine(machineProjection, null) },
   };
 }
@@ -99,16 +99,16 @@ function taskFacts(references, task, retrievedFacts) {
   var rows = references.foundationOperationLines(), byUse = {};
   rows.forEach(function(row) { var fields = String(row).split('|'); byUse[fields[1]] = String(row); });
   var uses = {};
-  task.uses.forEach(function(use) { if (!byUse[use]) fail('SEMANTIC_CONTEXT_TASK_USE_MISSING', 'Task use is absent from foundation operation truth: ' + use); uses[use] = byUse[use]; });
+  task.capabilities.forEach(function(capability) { if (!byUse[capability.use]) fail('SEMANTIC_CONTEXT_TASK_USE_MISSING', 'Task use is absent from foundation operation truth: ' + capability.use); uses[capability.alias] = capability.alias + '|' + byUse[capability.use]; });
   var parameters = references.parameterContext(), catalogs = {};
   task.catalogs.forEach(function(name) { var field = CATALOG_FIELD[name]; if (!field) fail('SEMANTIC_CONTEXT_CATALOG_INVALID', 'Unknown task catalog: ' + name); catalogs[name] = clone(parameters[field] || []); });
   var planned = {};
-  task.retrieves.forEach(function(item) { planned[item.group + '|' + item.kind] = true; });
+  task.retrievals.forEach(function(item) { planned[item.alias] = item; });
   var retrieves = (retrievedFacts || []).map(function(item, index) {
     item = object(item, 'retrievedFacts[' + index + ']');
-    exactFields(item, ['group', 'kind', 'facts'], 'retrievedFacts[' + index + ']');
-    var key = item.group + '|' + item.kind;
-    if (!planned[key]) fail('SEMANTIC_CONTEXT_RETRIEVE_OUTSIDE_TASK', 'Retrieved facts are outside the active task: ' + key);
+    exactFields(item, ['alias', 'group', 'kind', 'facts'], 'retrievedFacts[' + index + ']');
+    var plannedItem = planned[item.alias];
+    if (!plannedItem || plannedItem.group !== item.group || plannedItem.kind !== item.kind) fail('SEMANTIC_CONTEXT_RETRIEVE_OUTSIDE_TASK', 'Retrieved facts are outside the active task alias: ' + item.alias);
     return clone(item);
   });
   return { uses: uses, catalogs: catalogs, retrieves: retrieves };
@@ -119,13 +119,13 @@ function validateFacts(task, facts) {
   exactFields(facts, ['uses', 'catalogs', 'retrieves'], 'facts');
   object(facts.uses, 'facts.uses'); object(facts.catalogs, 'facts.catalogs');
   if (!Array.isArray(facts.retrieves)) fail('SEMANTIC_CONTEXT_INVALID', 'facts.retrieves must be an array.');
-  var useKeys = Object.keys(facts.uses).sort(), expectedUses = task.uses.slice().sort();
+  var useKeys = Object.keys(facts.uses).sort(), expectedUses = task.capabilities.map(function(item) { return item.alias; }).sort();
   var catalogKeys = Object.keys(facts.catalogs).sort(), expectedCatalogs = task.catalogs.slice().sort();
-  if (!equal(useKeys, expectedUses)) fail('SEMANTIC_CONTEXT_TASK_FACTS_DIVERGED', 'facts.uses must exactly match activeTask.uses.');
+  if (!equal(useKeys, expectedUses)) fail('SEMANTIC_CONTEXT_TASK_FACTS_DIVERGED', 'facts.uses must exactly match activeTask capability aliases.');
   if (!equal(catalogKeys, expectedCatalogs)) fail('SEMANTIC_CONTEXT_TASK_FACTS_DIVERGED', 'facts.catalogs must exactly match activeTask.catalogs.');
-  var planned = {}; task.retrieves.forEach(function(item) { planned[item.group + '|' + item.kind] = true; });
+  var planned = {}; task.retrievals.forEach(function(item) { planned[item.alias] = item; });
   var seen = {};
-  facts.retrieves.forEach(function(item, index) { item = object(item, 'facts.retrieves[' + index + ']'); exactFields(item, ['group', 'kind', 'facts'], 'facts.retrieves[' + index + ']'); var key = item.group + '|' + item.kind; if (!planned[key]) fail('SEMANTIC_CONTEXT_RETRIEVE_OUTSIDE_TASK', 'facts.retrieves contains an unplanned retrieval: ' + key); if (seen[key]) fail('SEMANTIC_CONTEXT_RETRIEVE_DUPLICATE', 'facts.retrieves repeats: ' + key); seen[key] = true; });
+  facts.retrieves.forEach(function(item, index) { item = object(item, 'facts.retrieves[' + index + ']'); exactFields(item, ['alias', 'group', 'kind', 'facts'], 'facts.retrieves[' + index + ']'); var expected = planned[item.alias]; if (!expected || expected.group !== item.group || expected.kind !== item.kind) fail('SEMANTIC_CONTEXT_RETRIEVE_OUTSIDE_TASK', 'facts.retrieves contains an unplanned retrieval alias: ' + item.alias); if (seen[item.alias]) fail('SEMANTIC_CONTEXT_RETRIEVE_DUPLICATE', 'facts.retrieves repeats alias: ' + item.alias); seen[item.alias] = true; });
   return clone(facts);
 }
 
@@ -147,26 +147,6 @@ function task(draftSlice, plan, machineProjection, activeTask, facts, feedback, 
   };
 }
 
-function finalize(plan, machineProjection, run, finalCandidate) {
-  plan = object(plan, 'plan'); run = object(run, 'run'); finalCandidate = object(finalCandidate, 'finalCandidate');
-  exactFields(run, ['request', 'creativeVision', 'feedback'], 'run');
-  exactFields(finalCandidate, ['draftHash', 'sourceHash', 'taskReceiptHashes'], 'finalCandidate');
-  text(finalCandidate.draftHash, 'finalCandidate.draftHash'); text(finalCandidate.sourceHash, 'finalCandidate.sourceHash');
-  stringArray(finalCandidate.taskReceiptHashes, 'finalCandidate.taskReceiptHashes');
-  if (finalCandidate.taskReceiptHashes.length !== plan.tasks.length) fail('SEMANTIC_CONTEXT_FINAL_CANDIDATE_INVALID', 'finalCandidate requires one task receipt hash per frozen plan task.');
-  var transitions = machine(machineProjection, null);
-  if (machineProjection.state !== stateMachine.STATES.FINALIZING || machineProjection.allowedMode !== stateMachine.ALLOWED_MODES.COMPLETION) fail('SEMANTIC_CONTEXT_FINAL_STATE_INVALID', 'Final candidate requires the state machine FINALIZING completion projection.');
-  if (!equal(machineProjection.completedTaskIds, plan.tasks.map(function(item) { return item.semanticId; }))) fail('SEMANTIC_CONTEXT_FINAL_STATE_INVALID', 'Final candidate requires every frozen plan task to be completed in order.');
-  return {
-    schemaVersion: SCHEMA_VERSION,
-    contextKind: CONTEXT_KIND,
-    phase: 'executor',
-    l2: { request: text(run.request, 'run.request'), creativeVision: String(run.creativeVision || ''), plan: clone(plan), feedback: run.feedback === undefined ? null : clone(run.feedback) },
-    l3: { finalCandidate: clone(finalCandidate) },
-    l4: { transitionLines: transitions },
-  };
-}
-
 module.exports = {
   SCHEMA_VERSION: SCHEMA_VERSION,
   CONTEXT_KIND: CONTEXT_KIND,
@@ -176,5 +156,4 @@ module.exports = {
   taskFacts: taskFacts,
   planner: planner,
   task: task,
-  finalize: finalize,
 };

@@ -4,6 +4,7 @@ var path = require('path');
 var dictionary = require('../../semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../semantic/src/game-semantic-source');
 var providerRuntimeApi = require('../../providers/src/provider-runtime');
+var providerGovernance = require('../../providers/src/ai-provider-governance');
 var semanticRuntimeApi = require('../../semantic/src/semantic-llm2-runtime');
 var assetPipeline = require('./semantic-asset-product-pipeline');
 var spatialPipeline = require('./spatial-product-pipeline');
@@ -56,7 +57,8 @@ function create(options) {
   var providerOptions = Object.assign({}, options.providerOptions || {});
   providerOptions.receiptDir = assertInside(storageRoot, path.join(storageRoot, 'provider-receipts'), 'provider receipt directory');
   var providerRuntime = options.providerRuntime || providerRuntimeApi.createProviderRuntime(providerOptions);
-  var semanticRuntime = options.semanticRuntime || semanticRuntimeApi.create({ providerRuntime: providerRuntime });
+  var semanticProvider = providerGovernance.semantic(options.semanticModel || {});
+  var semanticRuntime = options.semanticRuntime || semanticRuntimeApi.create({ providerRuntime: providerRuntime, model: { cachePolicy: semanticProvider.cachePolicy, roles: { planner: { provider: semanticProvider.provider, model: semanticProvider.textModel }, executor: { provider: semanticProvider.provider, model: semanticProvider.textModel } } } });
   var assetProductPipeline = options.assetPipeline || assetPipeline;
   var spatialProductPipeline = options.spatialPipeline || spatialPipeline;
   var reviewerPort = options.assemblyReviewerPort || (options.assemblyReviewer ? null : assemblyReviewProvider.create(providerRuntime, options.assemblyReviewerOptions || {}));

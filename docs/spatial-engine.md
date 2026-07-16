@@ -61,7 +61,7 @@ ACCEPT
 
 A PLACE program contains every scene-instance subject. `ACCEPT` is a standalone later-round response for an already projected and previewed candidate.
 
-`spatial-dsl-v1` and LLM2's `semantic-dsl-v2` are separate languages with separate parsers, runtimes, errors, and traces. Their prompts share the same concise slot-oriented discipline, not commands or parser paths. The Spatial Planner never emits GDJS JSON: the GDJS Spatial Adapter alone projects an accepted spatial resolution into `layout.instances`.
+`spatial-dsl-v1` and `semantic-dsl-v9` are separate languages with separate parsers, runtimes, errors, and traces. Their prompts share concise slot-oriented discipline, while commands and parser paths remain domain-owned. The Spatial Planner emits spatial commands, and the GDJS Spatial Adapter alone projects an accepted spatial resolution into `layout.instances`.
 
 ## External-round trace
 
