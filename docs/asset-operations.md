@@ -128,6 +128,14 @@ git submodule update --init --recursive
 powershell -ExecutionPolicy Bypass -File scripts/assets/setup-rembg.ps1
 ```
 
+The repository gate uses a checksum-verified deterministic test double for the
+background-removal port so it can exercise the ComfyUI-to-derivation handoff
+without downloading a model. It proves port wiring, receipts, alpha handling,
+and hash rejection; it is not evidence that BiRefNet is installed or ran on
+the current machine. A real local production run that needs opaque-background
+removal must complete `setup-rembg.ps1` and retain the pinned runtime/model
+files above.
+
 ## Acceptance and publication
 
 - Exact cloud image matches must satisfy the complete requirement fingerprint including current Style DNA content and pass hash verification after materialization. A reusable receipt must bind the current work item, target visual slot, review-policy fingerprint, model revision/fingerprint, exact image hashes, and every required composition check; otherwise the materialized pixels are reviewed again or rejected.

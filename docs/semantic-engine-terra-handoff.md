@@ -92,7 +92,12 @@ Layout realization, local LLM2 revisions, and seven game-family semantic assembl
 
 ## Client boundary
 
-The frontend calls the Product Engine API and consumes accepted delivery products. `AssetLibrary` is the only cross-project asset reuse and publication boundary, and remains server-side; the frontend cannot submit AssetWorld, stage state, feedback routing, or storage credentials.
+The checked-in web application is currently a static shell; it does not yet call
+the Product Engine API or consume accepted delivery products. The API remains
+the only supported future integration boundary. `AssetLibrary` is the only
+cross-project asset reuse and publication boundary, and remains server-side;
+the frontend cannot submit AssetWorld, stage state, feedback routing, or
+storage credentials.
 
 ## Gate
 

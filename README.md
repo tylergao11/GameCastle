@@ -14,6 +14,26 @@ GameCastle turns an LLM2 design decision into one source-bound, evidence-gated G
 | Platform | Small Vite/React shell. It does not emulate a deleted local runtime. |
 | Multiplayer server | Separate WebSocket signaling and room synchronization service. It is not part of semantic compilation. |
 
+## Public module boundaries
+
+The repository now exposes three private npm workspaces for focused integration
+and verification. They are supported façades for new boundary-level code; the
+existing `semantic`, `assets`, `gdjs`, `spatial`, and `product` folders remain
+the canonical implementation owners during migration. Complete product delivery
+still enters through the legacy runtime linker until its distinct assembly and
+seed identities have a persisted-run migration.
+
+| Workspace | Input -> output | Focused command |
+| --- | --- | --- |
+| `@gamecastle/semantic-module` | `GameSemanticSource` / `GameSemanticRevision` -> hash-bound `SemanticAssembly` | `npm run check:semantic-module` |
+| `@gamecastle/asset-engine` | `AssetRequirementSet` -> accepted `AssetWorld` v4 (deterministic offline conformance) | `npm run check:asset-module` |
+| `@gamecastle/assembly-module` | `SemanticAssembly` + accepted `AssetWorld` -> GDJS seed, bound seed, canonical spatial handoff | `npm run check:assembly-module` |
+
+Run all three boundary checks plus the legacy/public compatibility gate with
+`npm run check:modules`. Their executable examples, contract limits, and staged
+migration status are documented in their package READMEs and in [Module
+boundaries and truth audit](docs/module-boundaries.md).
+
 ## Core flow
 
 ```text
@@ -55,6 +75,11 @@ Asset production follows one official LangGraph path: semantic asset requirement
 
 ## Quick start
 
+Before preparing the runtime, configure a checksum-verified GDevelop source
+and libGD binary pair as described in [Pinned GDJS runtime
+assets](docs/gdevelop-runtime.md). The preparation and runtime code both fail
+closed when those pinned inputs do not match.
+
 ```powershell
 git submodule update --init --recursive
 npm install
@@ -64,7 +89,7 @@ npm run check:project
 npm run build
 ```
 
-`npm run check:project` is the only complete repository acceptance gate. It owns the semantic, asset, product, provider, assembly-feedback, and multiplayer evidence chain. The narrower `check:*` suites are diagnostic slices only and never establish project acceptance by themselves.
+`npm run check:project` is the only complete repository acceptance gate. It owns the semantic, asset, product, provider, assembly-feedback, multiplayer, and public-module evidence chains. The narrower `check:*` suites are diagnostic slices only and never establish project acceptance by themselves.
 
 Its semantic-loop slice runs the six `snake-layered-v2` tasks through the real internal Planner -> state machine -> task transaction -> completion path with a deterministic offline provider, then replays every recorded call and applies the independent semantic/runtime oracle. It does not call DeepSeek or claim a live-model pass rate.
 
@@ -102,6 +127,7 @@ The web app can be built with `npm run build` or developed with `npm --prefix ap
 - [Local deterministic derivation](docs/local-derivation-kernel.md)
 - [Network synchronization boundary](docs/network-sync-model.md)
 - [Pinned GDJS runtime assets](docs/gdevelop-runtime.md)
+- [Module boundaries and truth audit](docs/module-boundaries.md)
 - [Core package ownership](packages/README.md)
 - [Application boundaries](apps/README.md)
 
@@ -109,7 +135,7 @@ The web app can be built with `npm run build` or developed with `npm --prefix ap
 
 ```text
 apps/      independently started web, API, and multiplayer applications
-packages/  semantic, asset, spatial, product, provider, GDJS, and network capabilities
+packages/  legacy implementation owners plus semantic-module, asset-engine, and assembly-module public workspaces
 tests/     the single project gate, domain evidence, fixtures, and benchmarks
 scripts/   repository automation grouped by GDevelop, assets, semantic diagnostics, and Docker
 vendor/    pinned third-party Git submodules

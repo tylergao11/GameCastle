@@ -1,0 +1,25 @@
+{
+  "name": "@gamecastle/assembly-module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Public SemanticAssembly to GDJS assembly boundary.",
+  "main": "index.js",
+  "exports": "./index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "@gamecastle/asset-engine": "0.1.0",
+    "@gamecastle/semantic-module": "0.1.0"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "examples"
+  ],
+  "scripts": {
+    "example": "node examples/semantic-assembly-to-project-seed.js",
+    "test": "node ../../tests/modules/check-assembly-module.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

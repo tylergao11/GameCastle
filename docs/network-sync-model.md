@@ -10,4 +10,12 @@ The product engine is a separate HTTP service at `apps/api/src/server.js`. Keep 
 | Deterministic sub-boundary `POST /semantic/execute` | Strict Source/Revision validation and libGD project-seed compilation | AssetWorld input, model calls, assets, spatial assembly, browser evidence, product acceptance |
 | WebSocket server | Rooms, player membership, relay, synchronization, ordered input | Semantic Source mutation, LLM calls, product delivery, asset or spatial binding |
 
-Only a product accepted by `ProductDeliveryOrchestrator`—with one source hash binding its complete AssetWorld, accepted spatial projection, browser capture, and assembly review—may be delivered to a multiplayer runtime. Multiplayer messages can drive that runtime behavior; they cannot alter TaskPlan, Source/Revision, product feedback, compilation contracts, or delivery evidence.
+The intended deployment contract is that only a product accepted by
+`ProductDeliveryOrchestrator`—with one source hash binding its complete
+AssetWorld, accepted spatial projection, browser capture, and assembly
+review—may be delivered to a multiplayer runtime. The current signaling server
+does not yet validate a delivery attestation or source hash at room creation;
+the deployment adapter must enforce admission until that protocol field is
+implemented. Multiplayer messages can drive runtime behavior, but they cannot
+alter TaskPlan, Source/Revision, product feedback, compilation contracts, or
+delivery evidence.

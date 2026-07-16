@@ -2,6 +2,11 @@
   "name": "gamecastle",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/semantic-module",
+    "packages/asset-engine",
+    "packages/assembly-module"
+  ],
   "scripts": {
     "build": "npm --prefix apps/web run build",
     "product:serve": "node apps/api/src/server.js",
@@ -25,6 +30,10 @@
     "check:semantic-loop": "node tests/run-project-gate.js semantic-loop",
     "check:product-loop": "node tests/run-project-gate.js product-loop",
     "check:semantic-engine": "node tests/run-project-gate.js semantic-engine",
+    "check:semantic-module": "npm --workspace @gamecastle/semantic-module run test",
+    "check:asset-module": "npm --workspace @gamecastle/asset-engine run check",
+    "check:assembly-module": "npm --workspace @gamecastle/assembly-module run test",
+    "check:modules": "node tests/run-project-gate.js modules",
     "check:project": "node tests/run-project-gate.js project",
     "check:llm-transport": "node tests/run-project-gate.js llm-transport",
     "check:provider": "node tests/run-project-gate.js provider",

@@ -4,16 +4,28 @@ var https = require('https');
 var path = require('path');
 
 var ROOT_DIR = require('../shared/repository-path').root;
-var BASE_URL = 'https://s3.amazonaws.com/gdevelop-gdevelop.js/master/latest';
 var SOURCE_MANIFEST = require(path.join(ROOT_DIR, 'packages', 'gdjs', 'generated', 'gdevelop-codegen-source.json'));
-var EXPECTED_SHA256 = {
-  'libGD.js': 'a79feb4afb1b5ec64d288fb7f7847da2adced7533a538e98d52a5aa67e28ffde',
-  'libGD.wasm': '5ae69ae0e2b09d559a6d3fea1187b6f4fc0481c8e898bf76e48d885b6294fef9'
-};
+var BINARY_CONTRACT = require(path.join(ROOT_DIR, 'packages', 'gdjs', 'contracts', 'gdevelop-codegen-binary-contract.json'));
+var BASE_URL = BINARY_CONTRACT.fallbackDownloadBaseUrl;
+var EXPECTED_SHA256 = BINARY_CONTRACT.files;
 var OUT_DIR = path.resolve(
   process.env.GAMECASTLE_GDEVELOP_CODEGEN_DIR ||
   path.join(ROOT_DIR, '.gamecastle', 'cache', 'gdevelop', 'codegen')
 );
+var LOCAL_BINARY_SOURCE_DIR = process.env.GAMECASTLE_LIBGD_SOURCE_DIR
+  ? path.resolve(process.env.GAMECASTLE_LIBGD_SOURCE_DIR)
+  : null;
+
+function assertBinaryContract() {
+  if (BINARY_CONTRACT.schemaVersion !== 1 || typeof BASE_URL !== 'string' || !/^https:\/\//.test(BASE_URL)) {
+    throw new Error('Pinned libGD binary contract is malformed.');
+  }
+  ['libGD.js', 'libGD.wasm'].forEach(function(fileName) {
+    if (typeof EXPECTED_SHA256[fileName] !== 'string' || !/^[a-f0-9]{64}$/.test(EXPECTED_SHA256[fileName])) {
+      throw new Error('Pinned libGD binary contract is missing a SHA-256 for ' + fileName + '.');
+    }
+  });
+}
 
 function sha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
@@ -33,7 +45,8 @@ function download(url, destination, redirectsLeft, expectedHash) {
         response.resume();
         return reject(new Error('Download failed (' + response.statusCode + '): ' + url));
       }
-      var temporary = destination + '.download';
+      // Parallel preparation processes must never share a partial-download path.
+      var temporary = destination + '.download.' + process.pid + '.' + crypto.randomBytes(8).toString('hex');
       var output = fs.createWriteStream(temporary);
       response.pipe(output);
       output.on('finish', function() {
@@ -41,7 +54,7 @@ function download(url, destination, redirectsLeft, expectedHash) {
           var actualHash = sha256(temporary);
           if (actualHash !== expectedHash) {
             fs.unlinkSync(temporary);
-            return reject(new Error('Pinned libGD checksum mismatch for ' + url + ': expected ' + expectedHash + ', received ' + actualHash));
+            return reject(new Error('Pinned libGD checksum mismatch for ' + url + ': expected ' + expectedHash + ', received ' + actualHash + '. Supply a checksum-verified binary pair with GAMECASTLE_LIBGD_SOURCE_DIR instead of accepting a mutable download.'));
           }
           fs.renameSync(temporary, destination);
           resolve();
@@ -60,12 +73,40 @@ async function ensureDownload(url, destination, expectedHash) {
   await download(url, destination, 5, expectedHash);
 }
 
+function copyVerifiedLocalBinary(fileName, destination, expectedHash) {
+  var source = path.join(LOCAL_BINARY_SOURCE_DIR, fileName);
+  if (!fs.existsSync(source)) throw new Error('Pinned local libGD source is missing ' + fileName + ': ' + source);
+  if (sha256(source) !== expectedHash) throw new Error('Pinned local libGD checksum mismatch for ' + source + '.');
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  var temporary = destination + '.copy.' + process.pid;
+  fs.copyFileSync(source, temporary);
+  if (sha256(temporary) !== expectedHash) {
+    fs.rmSync(temporary, { force: true });
+    throw new Error('Pinned local libGD copy checksum mismatch for ' + source + '.');
+  }
+  fs.renameSync(temporary, destination);
+}
+
+async function ensureBinary(fileName, destination, expectedHash) {
+  if (fs.existsSync(destination) && sha256(destination) === expectedHash) {
+    console.log('[GDevelopCodegen] Verified pinned ' + path.relative(OUT_DIR, destination));
+    return;
+  }
+  if (LOCAL_BINARY_SOURCE_DIR) {
+    console.log('[GDevelopCodegen] Copying verified local ' + fileName + ' from ' + LOCAL_BINARY_SOURCE_DIR);
+    copyVerifiedLocalBinary(fileName, destination, expectedHash);
+    return;
+  }
+  await download(BASE_URL + '/' + fileName, destination, 5, expectedHash);
+}
+
 async function main() {
+  assertBinaryContract();
   fs.mkdirSync(OUT_DIR, { recursive: true });
   for (var fileName of ['libGD.js', 'libGD.wasm']) {
     var destination = path.join(OUT_DIR, fileName);
-    console.log('[GDevelopCodegen] Downloading ' + BASE_URL + '/' + fileName);
-    await ensureDownload(BASE_URL + '/' + fileName, destination, EXPECTED_SHA256[fileName]);
+    if (!LOCAL_BINARY_SOURCE_DIR) console.log('[GDevelopCodegen] Downloading ' + BASE_URL + '/' + fileName);
+    await ensureBinary(fileName, destination, EXPECTED_SHA256[fileName]);
   }
   await Promise.all(SOURCE_MANIFEST.files.map(function(sourceFile) {
     var relative = sourceFile.path.replace(/^Extensions\//, '');

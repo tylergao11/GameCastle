@@ -1,0 +1,13 @@
+{
+  "name": "@gamecastle/semantic-module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Narrow public entry point for deterministic GameCastle semantic assembly.",
+  "main": "index.js",
+  "exports": "./index.js",
+  "type": "commonjs",
+  "scripts": {
+    "example": "node examples/game-semantic-source-to-semantic-assembly.js",
+    "test": "node ../../tests/modules/check-semantic-module.js"
+  }
+}

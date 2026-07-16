@@ -175,7 +175,24 @@ async function runAssetEngine(input) {
         }
       }
     },
-    'model-authorize': function(state) { var candidatePorts = state.providerRuntime ? providerRuntimeAdapters.createAssetProviderPorts(state.providerRuntime, state.providerOptions) : state.ports; var authorized = modelPolicyGate.authorizeModelPorts(candidatePorts, state.modelPolicy); state.authorizedPorts = authorized.ports; state.modelPolicyReceipt = authorized.receipt; var requestedMaxCost = state.maxCost === undefined ? Infinity : Number(state.maxCost); state.maxCost = Math.min(requestedMaxCost, authorized.receipt.maxCost); if (state.maxCost <= 0) { delete state.authorizedPorts.generateMaster; state.modelPolicyReceipt = Object.assign({}, state.modelPolicyReceipt, { allowed: false, code: 'MODEL_BUDGET_EXHAUSTED' }); } },
+    'model-authorize': function(state) {
+      // ProviderRuntime owns generation/review ports, while state.ports may carry
+      // deterministic local pipeline ports such as the pinned background-removal
+      // implementation. Preserve those local ports without letting them override
+      // provider-owned model ports.
+      var candidatePorts = state.providerRuntime
+        ? Object.assign({}, state.ports, providerRuntimeAdapters.createAssetProviderPorts(state.providerRuntime, state.providerOptions))
+        : state.ports;
+      var authorized = modelPolicyGate.authorizeModelPorts(candidatePorts, state.modelPolicy);
+      state.authorizedPorts = authorized.ports;
+      state.modelPolicyReceipt = authorized.receipt;
+      var requestedMaxCost = state.maxCost === undefined ? Infinity : Number(state.maxCost);
+      state.maxCost = Math.min(requestedMaxCost, authorized.receipt.maxCost);
+      if (state.maxCost <= 0) {
+        delete state.authorizedPorts.generateMaster;
+        state.modelPolicyReceipt = Object.assign({}, state.modelPolicyReceipt, { allowed: false, code: 'MODEL_BUDGET_EXHAUSTED' });
+      }
+    },
     'asset-production-plan': function(state) {
       state.productionPlan = productionPlanner.compile({ request: state.productionRequest });
     },

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "contractId": "gamecastle.gdevelop-libgd-binary",
+  "owner": "GDevelopCodegen",
+  "fallbackDownloadBaseUrl": "https://s3.amazonaws.com/gdevelop-gdevelop.js/master/latest",
+  "files": {
+    "libGD.js": "a79feb4afb1b5ec64d288fb7f7847da2adced7533a538e98d52a5aa67e28ffde",
+    "libGD.wasm": "5ae69ae0e2b09d559a6d3fea1187b6f4fc0481c8e898bf76e48d885b6294fef9"
+  }
+}

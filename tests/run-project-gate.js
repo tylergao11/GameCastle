@@ -33,6 +33,7 @@ var semanticEngine = [
   ['scripts/gdevelop/extract-gdevelop-project-defaults.js', '--check'],
   ['scripts/gdevelop/extract-gdevelop-spatial-coordinate-truth.js', '--check'],
   ['scripts/gdevelop/extract-gdevelop-object-configuration-truth.js', '--check'],
+  ['tests/semantic/check-libgd-codegen-integrity.js'],
   ['tests/semantic/check-capability-semantic-coverage.js'],
   ['tests/semantic/check-official-capability-metadata.js'],
   ['tests/semantic/check-components.js'],
@@ -72,6 +73,12 @@ var assetEngineExecution = [
   ['tests/asset/check-local-derivation-handlers.js'],
   ['tests/asset/check-local-asset-ops.mjs']
 ];
+var modules = [
+  ['tests/modules/check-semantic-module.js'],
+  ['tests/modules/check-asset-engine-module.js'],
+  ['tests/modules/check-assembly-module.js'],
+  ['tests/modules/check-legacy-public-assembly-compatibility.js']
+];
 var provider = [
   ['tests/provider/check-ai-provider-governance.js'],
   ['tests/provider/check-provider-runtime-contract.js'],
@@ -98,13 +105,16 @@ var network = [
   ['tests/network/test-all.js'],
   ['tests/network/test-shooter-bridge-e2e.js']
 ];
-var project = semanticEngine.concat(assetEngineExecution, provider, network);
+// semanticEngine already contains the persisted product loop. Project
+// acceptance additionally proves the three public module boundaries.
+var project = semanticEngine.concat(assetEngineExecution, modules, provider, network);
 
 var suites = {
   'semantic-loop': semanticLoop,
   'product-loop': productLoop,
   'semantic-engine': semanticEngine,
   'asset-engine-execution': assetEngineExecution,
+  'modules': modules,
   'project': project,
   'provider': provider,
   'network': network,

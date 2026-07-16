@@ -24,6 +24,11 @@ function authorizeModelPorts(ports, policy) {
   if (ports && typeof ports.discardCandidate === 'function') wrapped.discardCandidate = ports.discardCandidate;
   if (ports && typeof ports.reviewCandidate === 'function') wrapped.reviewCandidate = ports.reviewCandidate;
   if (ports && typeof ports.productionFingerprint === 'function') wrapped.productionFingerprint = ports.productionFingerprint;
+  // Background removal is a separately pinned deterministic local operation, not
+  // a model-generation capability. Keep its supplied port so the derivation
+  // pipeline can use the verified local implementation (or an explicit test
+  // double) after model authorization.
+  if (ports && ports.backgroundRemoval && typeof ports.backgroundRemoval.remove === 'function') wrapped.backgroundRemoval = ports.backgroundRemoval;
   return { ports: wrapped, receipt: { allowed: !denied, code: denied, provider: normalized.provider, simulated: normalized.simulated, maxCost: normalized.maxCost, scope: normalized.allowedScopes[0] } };
 }
 
