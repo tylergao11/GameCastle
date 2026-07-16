@@ -6,7 +6,9 @@ GameCastle turns an LLM2 design decision into one source-bound, evidence-gated G
 
 | Area | Responsibility |
 | --- | --- |
+| Director Planner | Uses one compiled LangGraph to coordinate only `semantic.design`, `asset.realize`, and `assembly.verify`. The default path freezes the canonical `director-dsl-v1` plan locally and makes no model call. |
 | Semantic engine | Validates `GameSemanticSource` or `GameSemanticRevision` against the generated GDJS dictionary, then compiles events, assets, layout, and a libGD-validated project seed. |
+| Semantic model runtime | Runs the open-source `Qwen/Qwen3.5-9B` model through pinned CUDA llama.cpp. Planner and Executor requests disable thinking and carry a phase- and field-specific GBNF grammar for `semantic-dsl-v9`. |
 | Asset engine | Searches the cloud library, runs the pinned official-core SDXL Base→Refiner workflow on a miss, selects a reviewed transient master candidate, deterministically derives a static asset or FrameSet, reviews the final pixels, binds accepted revisions locally, and enqueues them for asynchronous cross-project publication. It also accepts type-checked local resources such as fonts, video, models, Spine data, and JSON. |
 | Spatial Planner | Runs after asset acceptance. A configured vision LLM proposes scene/UI coordinates inside an explicit GDJS coordinate frame, layer stack, and legal pixel regions; Runtime validates and accepts only previewed candidates. |
 | Cloud library | A private, pinned [Supabase Storage](https://github.com/supabase/storage) service backed by PostgreSQL metadata and MinIO/S3 objects. It accelerates creation; it never chooses a game's semantic intent. |
@@ -42,7 +44,7 @@ Pinned GDevelop source
 
 Product request
   -> ProductDeliveryOrchestrator opens one persisted ProductDeliveryRun
-  -> Director Planner emits and freezes director-dsl-v1 only for semantic.design -> asset.realize -> assembly.verify
+  -> Director Planner locally freezes the canonical director-dsl-v1 route: semantic.design -> asset.realize -> assembly.verify
   -> semantic.design: Semantic Planner emits one semantic-dsl-v9 TaskPlan slot stream
   -> Runtime freezes the plan and activates exactly one task at a time
   -> deterministic capability retrieval -> one atomic Draft-write batch -> deterministic acceptance
@@ -68,7 +70,9 @@ Assembly rejection
   -> rerun asset, spatial, capture, and review
 ```
 
-Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth and is generated from one syntax registry. Planner uses typed target commands with globally unique target slots, capability aliases, and retrieval aliases; `plan-task.after` owns ordered dependencies and one event target slot owns its declared facet list. Model-visible context uses read-only DSL fact rows. `read` slots bind existing references, while `create`, `update`, and `delete` slots authorize mutation. Executor refers only to frozen slots and aliases. Runtime resolves semantic addresses and Dictionary handles, derives catalogs, validates scope, commits one-task transactions, materializes Source or Revision, completes deterministically, and emits factual feedback. Provider selection lives behind a Semantic Model Port, so the local open-source model and simulated-local test adapter use the same Planner/Executor contracts. Every model call produces a distillation-ready training record with prompt hashes, raw output, parsed DSL, resolved commands, validation result, feedback, usage, and receipt. JSON bracket/brace output has no parser path.
+Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth and is generated from one syntax registry. Planner uses typed target commands with globally unique target slots, capability aliases, and retrieval aliases; `plan-task.after` owns ordered dependencies and one event target slot owns its declared facet list. Model-visible context uses read-only DSL fact rows. `read` slots bind existing references, while `create`, `update`, and `delete` slots authorize mutation. Executor refers only to frozen slots and aliases. Runtime resolves semantic addresses and Dictionary handles, derives catalogs, validates scope, commits one-task transactions, materializes Source or Revision, completes deterministically, and emits factual feedback. Provider selection lives behind a Semantic Model Port. The current local adapter is pinned CUDA llama.cpp serving `Qwen/Qwen3.5-9B`; simulated-local supplies deterministic tests through the same contracts. Every request disables Qwen thinking and includes the exact Planner or Executor GBNF generated from the syntax registry. The grammar constrains command names, field order, field types, list/record shapes, and quoted text before the parser performs semantic validation. Every model call produces a distillation-ready training record with prompt hashes, raw output, parsed DSL, resolved commands, validation result, feedback, usage, and receipt. JSON bracket/brace output has no model-protocol parser path; JSON used inside the HTTP transport envelope is infrastructure only.
+
+Director Planner has a separate boundary from Semantic LLM2. By default it does not invoke a model: it freezes the canonical three-domain program and reuses the compiled LangGraph across runs. `Qwen/Qwen3-4B-Instruct-2507` and port `8001` are configuration reservations for an explicit future `dynamicPlanning: true` mode. That 4B model is not downloaded or resident in the current 8 GB single-GPU fast path.
 
 Common controls, abilities, and systems enter LLM2 as complete components. A component is admitted only when it encapsulates a frequent, bottom-up complex capability. LLM2 selects one component handle, target, configuration, and semantic bindings; Runtime expands its inherited dictionary blueprint into members, entities, behaviors, layout, and events. Jump and attack are action-button bindings, not parallel button component types. A cooldown skill binds one trigger and one effect. A state machine binds named transition conditions and optional effects. The editable Source retains only component instances; expanded GDJS facts are deterministic evidence tied to the same dictionary fingerprint.
 
@@ -107,10 +111,29 @@ npm run product:serve
 
 `apps/api/src/server.js` listens only on `127.0.0.1:3030` by default and requires `Authorization: Bearer $PRODUCT_ENGINE_TOKEN`. `POST /product/deliver` accepts only `deliveryId`, `projectId`, and `userRequest`. The product layer derives every run, Source-version, asset, preview, trace, and browser path beneath `PRODUCT_ENGINE_STORAGE_ROOT`; it also owns the fixed budgets and stage policy. The endpoint owns semantic design, official Asset and Spatial LangGraph execution, real-browser evidence, independent assembly review, and any source-bound semantic Revision cycle. HTTP callers cannot inject Source, AssetWorld, storage paths, budgets, stage options, or test adapters. The internal programmatic orchestrator may receive one fully validated Source for a trusted bootstrap or resume. `POST /semantic/execute` accepts only a complete `GameSemanticSource` and optional source-hash-checked `GameSemanticRevision`; it deterministically returns the libGD project seed and does not run a model or any downstream product stage.
 
-Run the local Ollama semantic probe after starting its configured model:
+Start or restore the pinned local Semantic model service. Docker Desktop, an
+NVIDIA GPU, and the NVIDIA container runtime are required; the first start
+downloads the GGUF into the persistent `gamecastle-llm-cache` volume:
 
 ```powershell
-$env:OLLAMA_ALLOW_LOCAL = 'true'
+npm run model:semantic:start
+npm run model:semantic:smoke
+npm run model:semantic:benchmark
+```
+
+The smoke test exercises the real ProviderRuntime, disabled thinking, GBNF,
+and DSL parser. The command-following benchmark covers twelve basic Planner
+and Executor commands and reports syntax validity, exact-value following,
+reasoning leakage, and latency. The latest local RTX 5070 Laptop GPU run
+produced 12/12 valid DSL commands, 12/12 without thinking, 11/12 strict
+literal matches, and a 770 ms warm average. These numbers are diagnostic
+evidence for that machine and prompt cache state, not a cross-machine SLA.
+Detailed operations are in [Local text-model runtime](scripts/models/README.md).
+
+Run the layered live semantic diagnostic when a complete model-backed task is
+needed rather than a command-level probe:
+
+```powershell
 npm run debug:snake:live -- --benchmark-task=core-model --timeout-ms=300000
 ```
 
