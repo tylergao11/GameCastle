@@ -5,7 +5,8 @@ var os = require('os');
 var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
-var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var semantic = require('@gamecastle/semantic-module');
+var assemblyModule = require('@gamecastle/assembly-module');
 var binder = require('../../packages/gdjs/src/gdjs-project-asset-binder');
 var assetWorldContract = require('../../packages/assets/src/asset-world');
 var png = require('../../packages/assets/src/local-derivation-port');
@@ -23,11 +24,11 @@ function acceptedWorld(seed, spec) {
   return assetWorldContract.buildAcceptedAssetWorld({ assetManifest: manifest, productionSetAcceptanceReceipt: setReceipt, workItemAcceptanceReceipts: [workReceipt], reviewReceipts: [reviewReceipt] });
 }
 
-var index = dictionary.buildIndex();
+var index = dictionary.loadIndex();
 var source = {
   schemaVersion: sourceContract.SCHEMA_VERSION,
   documentKind: 'game-semantic-source',
-  dictionarySource: index.source,
+  dictionarySource: semantic.dictionary.source,
   game: { semanticId: 'asset_binding_demo', name: 'Asset Binding Demo' },
   entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }],
   components: [],
@@ -43,7 +44,7 @@ try {
   var digest = crypto.createHash('sha256').update(bytes).digest('hex');
   var imagePath = path.join(root, digest + '.png');
   fs.writeFileSync(imagePath, bytes);
-  var seed = linker.assemble(source, { index: index }).projectSeed;
+  var seed = assemblyModule.createProjectSeed({ source: source });
   var assetWorld = acceptedWorld(seed, { semanticId: 'player_visual', subject: 'player', path: imagePath, sha256: digest });
   var bound = binder.bindResources(seed, assetWorld);
   assert.strictEqual(bound.documentKind, 'gdjs-asset-bound-project-seed');

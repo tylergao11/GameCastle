@@ -18,12 +18,11 @@ GameCastle turns an LLM2 design decision into one source-bound, evidence-gated G
 
 ## Public module boundaries
 
-The repository now exposes three private npm workspaces for focused integration
-and verification. They are supported façades for new boundary-level code; the
-existing `semantic`, `assets`, `gdjs`, `spatial`, and `product` folders remain
-the canonical implementation owners during migration. Complete product delivery
-still enters through the legacy runtime linker until its distinct assembly and
-seed identities have a persisted-run migration.
+Product assembly uses one public path. The three private npm workspaces are the
+sole Source to SemanticAssembly to GDJS seed / asset-bound seed / spatial handoff
+entries. Internal packages (`semantic`, `assets`, `gdjs`, `spatial`, `product`)
+remain the implementation owners behind those facades. There is no parallel
+runtime-linker assembly identity.
 
 | Workspace | Input -> output | Focused command |
 | --- | --- | --- |
@@ -31,10 +30,9 @@ seed identities have a persisted-run migration.
 | `@gamecastle/asset-engine` | `AssetRequirementSet` -> accepted `AssetWorld` v4 (deterministic offline conformance) | `npm run check:asset-module` |
 | `@gamecastle/assembly-module` | `SemanticAssembly` + accepted `AssetWorld` -> GDJS seed, bound seed, canonical spatial handoff | `npm run check:assembly-module` |
 
-Run all three boundary checks plus the legacy/public compatibility gate with
-`npm run check:modules`. Their executable examples, contract limits, and staged
-migration status are documented in their package READMEs and in [Module
-boundaries and truth audit](docs/module-boundaries.md).
+Run all three boundary checks plus the single public-assembly identity gate with
+`npm run check:modules`. Package READMEs and [Module boundaries and truth
+audit](docs/module-boundaries.md) document the contracts.
 
 ## Core flow
 

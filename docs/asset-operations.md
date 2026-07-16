@@ -2,7 +2,7 @@
 
 ## Runtime entry and boundary
 
-`packages/product/src/product-delivery-orchestrator.js#run` is the product entry. It owns the persisted cross-stage run and invokes `packages/product/src/semantic-asset-product-pipeline.js#run` only as its asset stage. That stage validates the current Source, asks `semantic-runtime-linker.js` for one source-bound assembly, passes its exact `SemanticAssetRequirements` to `asset-engine-langgraph.js#runAssetEngine`, blocks on any asset debt, and resource-binds the complete accepted `AssetWorld` v4 to the project seed from the same source hash. No caller can submit a previous or partial AssetWorld.
+`packages/product/src/product-delivery-orchestrator.js#run` is the product entry. It owns the persisted cross-stage run and invokes `packages/product/src/semantic-asset-product-pipeline.js#run` only as its asset stage. That stage validates the current Source, compiles one public SemanticAssembly and project seed through `@gamecastle/semantic-module` and `@gamecastle/assembly-module`, passes its exact `SemanticAssetRequirements` to `asset-engine-langgraph.js#runAssetEngine`, blocks on any asset debt, and resource-binds the complete accepted `AssetWorld` v4 to the project seed from the same source hash. No caller can submit a previous or partial AssetWorld.
 
 ```js
 var productDelivery = require('./packages/product/src/product-delivery-orchestrator').create();
@@ -19,7 +19,7 @@ var product = await productDelivery.run({
 
 ```mermaid
 flowchart TD
-  A["GameSemanticSource\nsemantic asset intent"] --> B["SemanticRuntimeLinker\nexact AssetRequirements"]
+  A["GameSemanticSource\nsemantic asset intent"] --> B["SemanticModule + AssemblyModule\nSemanticAssembly + AssetRequirements"]
   B --> C["Official Asset LangGraph"]
   C --> D{"Exact AssetLibrary match?"}
   D -->|yes| E["Hash-verified\nproject materialization"]

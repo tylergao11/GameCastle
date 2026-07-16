@@ -51,6 +51,7 @@ function createProviderRuntime(options) {
   options = options || {};
   var invokeTransport = options.invokeTransport || invokeHttpTransport;
   var fetchImpl = options.fetchImpl || null;
+  var httpTransports = options.httpTransports && typeof options.httpTransports === 'object' ? options.httpTransports : Object.create(null);
   var receiptDir = options.receiptDir ? path.resolve(options.receiptDir) : null;
   var receipts = loadReceiptStore(receiptDir);
   var active = new Map();
@@ -113,7 +114,7 @@ function createProviderRuntime(options) {
       for (var index = 0; index < attempts; index++) {
         var attempt = { index: index + 1, startedAt: now() }, requestTimeoutMs = Math.max(1, Number(request.timeoutMs || 30000)), timedOut = false, timeoutHandle = setTimeout(function() { timedOut = true; controller.abort(); }, requestTimeoutMs);
         try {
-          var result = await invokeTransport({ request: request, config: config, model: receipt.model, signal: controller.signal, timeoutMs: requestTimeoutMs, fetchImpl: fetchImpl });
+          var result = await invokeTransport({ request: request, config: config, model: receipt.model, signal: controller.signal, timeoutMs: requestTimeoutMs, fetchImpl: fetchImpl, httpTransports: httpTransports });
           attempt.status = 'succeeded'; attempt.finishedAt = now(); receipt.attempts.push(attempt);
           receipt.status = 'succeeded'; receipt.finishedAt = now(); receipt.usage = redact(result.usage || {}, [config.apiKey]); receipt.cost.settled = finite(result.cost, reservation);
           spent += receipt.cost.settled - reservation;
@@ -144,7 +145,13 @@ function debt(error) { var value = { code: error.code || 'PROVIDER_INVOKE_FAILED
 async function invokeHttpTransport(context) {
   var role = context.request.role;
   if (context.config.simulated) throw makeError('SIMULATED_TRANSPORT_NOT_CONFIGURED', 'Simulated calls must use an injected local transport');
-  if (context.config.provider === 'comfyui-local') return require('../../assets/src/comfyui-local-provider').invokeComfyUI(context);
+  // Domain transports (e.g. comfyui-local) are injected at runtime construction — providers never require assets.
+  if (context.httpTransports && typeof context.httpTransports[context.config.provider] === 'function') {
+    return context.httpTransports[context.config.provider](context);
+  }
+  if (context.config.provider === 'comfyui-local') {
+    throw makeError('PROVIDER_TRANSPORT_UNREGISTERED', 'comfyui-local requires createProviderRuntime({ httpTransports: { "comfyui-local": invokeComfyUI } }) from the asset composition layer.');
+  }
   if ((role === 'director-plan' || role === 'semantic-design') && (context.config.provider === 'deepseek' || context.config.provider === 'ollama' || context.config.provider.indexOf('llama-cpp-') === 0)) return invokeChatCompletions(context);
   if (role === 'director-plan' || role === 'semantic-design' || role === 'vision-review' || role === 'spatial-plan') return invokeResponses(context);
   if (role === 'image-generate') return invokeImageGeneration(context);

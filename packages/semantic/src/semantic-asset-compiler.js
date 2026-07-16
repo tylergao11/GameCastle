@@ -2,9 +2,17 @@ var crypto = require('crypto');
 var sourceContract = require('./game-semantic-source');
 var assetProductionTruth = require('../../assets/contracts/asset-production-pipeline-contract.json');
 var dictionary = require('./capability-semantic-dictionary');
-var assetBindings = require('../../gdjs/src/gdjs-asset-binding-dictionary');
+// Binding dictionary is GDJS-owned contract data loaded as data, not a gdjs code module.
+var assetBindingDocument = require('../../gdjs/contracts/gdjs-asset-binding-dictionary.json');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
+function resolveAssetAdapter(configurationType, frameSet) {
+  var adapters = frameSet
+    ? (assetBindingDocument.frameSetAdapters || {})
+    : (assetBindingDocument.adapters || {});
+  var adapter = adapters[configurationType];
+  return adapter ? clone(adapter) : null;
+}
 function bindingRefs(bindings) { return (bindings || []).reduce(function(out, binding) { (binding.semanticRefs || []).forEach(function(reference) { if (out.indexOf(reference) < 0) out.push(reference); }); return out; }, []); }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
 function hash(value) { return crypto.createHash('sha256').update(JSON.stringify(stable(value))).digest('hex').slice(0, 24); }
@@ -21,7 +29,9 @@ function compile(source, options) {
     if (!recipe || ['single-resource', 'frame-set'].indexOf(recipe.artifactKind) < 0) throw new Error('Pinned asset production truth has no declared artifact kind for: ' + intent.productionFamily);
     var subject = entities[intent.subject];
     var objectType = subject && subject.objectTypeRef && dictionary.resolveObjectType(index, subject.objectTypeRef);
-    var adapter = objectType && objectType.configuration && (recipe.artifactKind === 'frame-set' ? assetBindings.resolveFrameSet(objectType.configuration.configurationType) : assetBindings.resolve(objectType.configuration.configurationType));
+    var adapter = objectType && objectType.configuration && (recipe.artifactKind === 'frame-set'
+      ? resolveAssetAdapter(objectType.configuration.configurationType, true)
+      : resolveAssetAdapter(objectType.configuration.configurationType, false));
     if (objectType && !adapter) throw new Error('SEMANTIC_ASSET_BINDING_UNSUPPORTED: ' + intent.subject + ' has no official asset adapter.');
     if (adapter && adapter.mode !== recipe.artifactKind) throw new Error('SEMANTIC_ASSET_BINDING_NOT_APPLICABLE: ' + intent.subject + ' does not consume ' + recipe.artifactKind + '.');
     return {

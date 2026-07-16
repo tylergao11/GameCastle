@@ -62,7 +62,7 @@ function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[k
         fs.writeFileSync(outputFile, pngPort.encodePng(output));
       }
     });
-    var runtime = runtimeModule.createProviderRuntime({ maxCost: 10, fetchImpl: fetchImpl });
+    var runtime = runtimeModule.createProviderRuntime({ maxCost: 10, fetchImpl: fetchImpl, httpTransports: { 'comfyui-local': comfy.invokeComfyUI } });
     assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'character-part', constraints: { width: 32, height: 32 } }), { width: 1024, height: 1024 });
     assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'ui', constraints: { width: 192, height: 64 } }), { width: 1024, height: 512 });
     assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'background', constraints: { width: 640, height: 640 } }), { width: 1024, height: 1024 });

@@ -3,6 +3,8 @@ var spatialAssembly = require('../../spatial/src/spatial-assembly-stage');
 var spatialPlanner = require('../../spatial/src/spatial-planner-langgraph');
 var geometryProducer = require('../../spatial/src/spatial-geometry-fact-producer');
 var assetWorld = require('../../assets/src/asset-world');
+var spatialPreview = require('../../gdjs/src/gdjs-spatial-preview');
+var providerAdapters = require('../../providers/src/provider-runtime-adapters');
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SpatialProductPipeline'; throw error; }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
@@ -17,7 +19,25 @@ async function run(input) {
   var acceptedWorld = assetWorld.validateAcceptedAssetWorld(assetProduct.assetState.assetWorld, { sourceHash: assetProduct.sourceHash });
   var geometryFacts = geometryProducer.produce({ assetBoundSeed: assetProduct.artifact, assetWorld: acceptedWorld });
   var spatialInput = spatialAssembly.prepare(assetProduct.artifact, acceptedWorld, { componentExpansion: assetProduct.assembly.componentExpansion, geometryFacts: geometryFacts });
-  var plannerRun = await spatialPlanner.runSpatialPlanner({ runId: input.runId, projectId: input.projectId, spatialInput: spatialInput, assetBoundSeed: assetProduct.artifact, assetWorld: acceptedWorld, semanticSource: assetProduct.source, previewDir: input.previewDir, traceDir: input.traceDir, maxRounds: input.maxRounds, maxTokens: input.maxTokens, plannerPort: input.plannerPort, providerRuntime: input.providerRuntime, providerOptions: input.providerOptions, onSpatialRound: input.onSpatialRound });
+  // Product composition wires cross-domain ports; spatial does not require providers/gdjs.
+  var plannerPort = input.plannerPort || (input.providerRuntime
+    ? providerAdapters.createSpatialPlannerPort(input.providerRuntime, input.providerOptions || {})
+    : null);
+  var plannerRun = await spatialPlanner.runSpatialPlanner({
+    runId: input.runId,
+    projectId: input.projectId,
+    spatialInput: spatialInput,
+    assetBoundSeed: assetProduct.artifact,
+    assetWorld: acceptedWorld,
+    semanticSource: assetProduct.source,
+    previewDir: input.previewDir,
+    traceDir: input.traceDir,
+    maxRounds: input.maxRounds,
+    maxTokens: input.maxTokens,
+    plannerPort: plannerPort,
+    previewPort: input.previewPort || spatialPreview,
+    onSpatialRound: input.onSpatialRound
+  });
   if (!plannerRun || plannerRun.status !== 'accepted' || !plannerRun.resolution || !plannerRun.acceptedProjection) {
     var error = new Error('Spatial Planner did not produce one accepted resolution and GDJS projection.');
     error.code = 'SPATIAL_PRODUCT_BLOCKED'; error.owner = 'SpatialProductPipeline'; error.plannerRun = plannerRun || null; throw error;

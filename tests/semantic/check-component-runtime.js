@@ -4,10 +4,11 @@ var referencesApi = require('../../packages/semantic/src/semantic-reference-runt
 var draftApi = require('../../packages/semantic/src/semantic-draft');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var expander = require('../../packages/semantic/src/component-expander');
-var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var semantic = require('@gamecastle/semantic-module');
+var assemblyModule = require('@gamecastle/assembly-module');
 var spatialPlannerContext = require('../../packages/spatial/src/spatial-planner-context');
 
-var index = dictionary.buildIndex();
+var index = dictionary.loadIndex();
 var references = referencesApi.create(index);
 var componentRows = references.parameterContext().components;
 var joystickHandle = componentRows.filter(function(row) { return row.indexOf('|Virtual Joystick|') >= 0; })[0].split('|')[0];
@@ -44,14 +45,15 @@ assert.deepStrictEqual(horizontal.components[0].generatedEvents, ['MoveControl.d
 
 draftApi.execute(joystickDraft, { type: 'component', semanticId: 'MoveControl', kind: joystickHandle, target: 'Player', config: { direction: 'omnidirectional', shape: 'rectangle' }, bindings: {} });
 var omnidirectionalSource = sourceContract.validateSource(draftApi.materialize(joystickDraft), { index: index });
-var linked = linker.assemble(omnidirectionalSource, { index: index });
-assert.strictEqual(linked.componentExpansion.components[0].generatedEvents.length, 5, 'one joystick config change selects rectangle plus four direction branches');
-assert.strictEqual(linked.eventGraph.events.length, 5, 'Runtime compiles every selected component branch into GDJS events');
-assert.strictEqual(linked.projectSeed.objectDeclarations.filter(function(item) { return item.semanticId === 'MoveControl.surface'; }).length, 1, 'Runtime materializes one component-expanded control object');
-assert.strictEqual(linked.projectSeed.project.layouts[0].instances.length, 0, 'component controls stay unresolved until asset-aware spatial assembly');
-assert(linked.projectSeed.spatialAssemblyRequest.subjects.some(function(subject) { return subject.subject === 'MoveControl.surface' && subject.reservation.width === 96 && subject.reservation.height === 96; }), 'component expansion preserves its control reservation without inventing a GDJS origin');
-assert.strictEqual(linked.sourceHash, sourceContract.sourceHash(omnidirectionalSource), 'assembly identity remains the component source truth hash');
-assert.notStrictEqual(linked.realizedSourceHash, linked.sourceHash, 'derived realization has a separate evidence hash, not a second editable truth');
+var linkedSemantic = semantic.compileSemanticAssembly(omnidirectionalSource);
+var linkedSeed = assemblyModule.createProjectSeed({ semanticAssembly: linkedSemantic });
+assert.strictEqual(linkedSemantic.componentExpansion.components[0].generatedEvents.length, 5, 'one joystick config change selects rectangle plus four direction branches');
+assert.strictEqual(linkedSemantic.eventGraph.events.length, 5, 'Runtime compiles every selected component branch into GDJS events');
+assert.strictEqual(linkedSeed.objectDeclarations.filter(function(item) { return item.semanticId === 'MoveControl.surface'; }).length, 1, 'Runtime materializes one component-expanded control object');
+assert.strictEqual(linkedSeed.project.layouts[0].instances.length, 0, 'component controls stay unresolved until asset-aware spatial assembly');
+assert(linkedSeed.spatialAssemblyRequest.subjects.some(function(subject) { return subject.subject === 'MoveControl.surface' && subject.reservation.width === 96 && subject.reservation.height === 96; }), 'component expansion preserves its control reservation without inventing a GDJS origin');
+assert.strictEqual(linkedSemantic.sourceHash, sourceContract.sourceHash(omnidirectionalSource), 'assembly identity remains the component source truth hash');
+assert.notStrictEqual(linkedSemantic.realizedSourceHash, linkedSemantic.sourceHash, 'derived realization has a separate evidence hash, not a second editable truth');
 
 var buttonDraft = baseDraft();
 draftApi.execute(buttonDraft, { type: 'component', semanticId: 'ActionControl', kind: buttonHandle, target: 'Player', config: { pressMode: 'released' }, bindings: { action: { use: 'object.hide', arguments: { target: 'Player' } } } });

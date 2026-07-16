@@ -2,7 +2,6 @@ var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
 var png = require('../../assets/src/local-derivation-port');
-var spatialEngine = require('../../spatial/src/runtime');
 var assetWorldApi = require('../../assets/src/asset-world');
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -109,7 +108,11 @@ function validatePreview(value, projection) {
 }
 async function renderPreview(input) {
   input = input || {};
-  object(input, 'GDJS spatial preview input'); allowed(input, ['spatialInput', 'assetBoundSeed', 'assetWorld', 'projection', 'outputDir'], 'GDJS spatial preview input');
+  object(input, 'GDJS spatial preview input'); allowed(input, ['spatialInput', 'assetBoundSeed', 'assetWorld', 'projection', 'outputDir', 'spatialEngine'], 'GDJS spatial preview input');
+  var spatialEngine = input.spatialEngine;
+  if (!spatialEngine || typeof spatialEngine.validateAssemblyInput !== 'function' || typeof spatialEngine.validateProjection !== 'function') {
+    fail('GDJS_SPATIAL_PREVIEW_ENGINE_REQUIRED', 'GDJS spatial preview requires an injected Spatial Runtime (composition layer).');
+  }
   var spatialInput = spatialEngine.validateAssemblyInput(input.spatialInput), projection = spatialEngine.validateProjection(spatialInput, input.assetBoundSeed, input.projection);
   if (projection.basis.documentKind !== 'spatial-layout-candidate') fail('GDJS_SPATIAL_PREVIEW_BASIS_INVALID', 'GDJS preview requires a provisional candidate projection');
   object(input.assetWorld, 'accepted AssetWorld');

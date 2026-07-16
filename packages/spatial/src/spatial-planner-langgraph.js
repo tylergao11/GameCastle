@@ -6,8 +6,7 @@ var plannerContext = require('./spatial-planner-context');
 var plannerPrompt = require('./spatial-planner-prompt');
 var plannerDsl = require('./spatial-planner-dsl');
 var plannerTrace = require('./spatial-planner-trace');
-var preview = require('../../gdjs/src/gdjs-spatial-preview');
-var providerAdapters = require('../../providers/src/provider-runtime-adapters');
+var previewPortApi = require('./spatial-preview-port');
 
 var compiledSpatialGraphCache = { signature: null, promise: null };
 var compiledSpatialGraphCounters = { compiles: 0, cacheHits: 0, invocations: 0 };
@@ -122,7 +121,14 @@ function spatialGraphHandlers() {
     },
     'preview': async function(state) {
       try {
-        var rendered = await preview.renderPreview({ spatialInput: state.spatialInput, assetBoundSeed: state.assetBoundSeed, assetWorld: state.assetWorld, projection: state.pendingProjection, outputDir: state.previewDir });
+        var rendered = await state.previewPort.renderPreview({
+          spatialInput: state.spatialInput,
+          assetBoundSeed: state.assetBoundSeed,
+          assetWorld: state.assetWorld,
+          projection: state.pendingProjection,
+          outputDir: state.previewDir,
+          spatialEngine: spatialEngine
+        });
         state.lastCandidate = state.pendingCandidate;
         state.lastCandidateProjection = state.pendingProjection;
         state.lastPreview = rendered;
@@ -195,8 +201,12 @@ async function prewarmGraph() { var graphDefinition = describeGraph(); await com
 async function runSpatialPlanner(input) {
   input = input || {};
   if (!input.runId || !input.projectId || !input.spatialInput || !input.assetBoundSeed || !input.assetWorld || !input.semanticSource || !input.previewDir) fail('SPATIAL_PLANNER_INPUT_INVALID', 'Spatial Planner requires runId, projectId, spatialInput, assetBoundSeed, assetWorld, semanticSource, and previewDir.');
-  var maxRounds = positiveInteger(input.maxRounds, 'Spatial Planner maxRounds'), plannerPort = input.plannerPort || (input.providerRuntime && providerAdapters.createSpatialPlannerPort(input.providerRuntime, input.providerOptions || {}));
-  if (!plannerPort || typeof plannerPort.invoke !== 'function') fail('SPATIAL_PLANNER_PORT_UNAVAILABLE', 'Spatial Planner requires a configured planner port or ProviderRuntime.');
+  var maxRounds = positiveInteger(input.maxRounds, 'Spatial Planner maxRounds');
+  var plannerPort = input.plannerPort;
+  if (!plannerPort || typeof plannerPort.invoke !== 'function') {
+    fail('SPATIAL_PLANNER_PORT_UNAVAILABLE', 'Spatial Planner requires plannerPort from product composition (ProviderRuntime adapters live outside spatial).');
+  }
+  var previewPort = previewPortApi.assertPreviewPort(input.previewPort);
   if (input.onSpatialRound !== undefined && typeof input.onSpatialRound !== 'function') fail('SPATIAL_PLANNER_INPUT_INVALID', 'Spatial Planner onSpatialRound must be a function when supplied.');
   var graphDefinition = describeGraph();
   var initial = {
@@ -211,6 +221,7 @@ async function runSpatialPlanner(input) {
     maxRounds: maxRounds,
     maxTokens: input.maxTokens,
     plannerPort: plannerPort,
+    previewPort: previewPort,
     onSpatialRound: input.onSpatialRound || null,
     round: 0,
     context: null,

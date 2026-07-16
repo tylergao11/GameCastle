@@ -28,7 +28,7 @@ validateAcceptedAssetWorld(acceptedAssetWorld, {
 The package exposes exactly `contracts`, `createOfflineRequirementSet`,
 `runProduction`, `runOffline`, and `validateAcceptedAssetWorld`.
 
-`runProduction(input)` delegates without adapting input or output to `packages/assets/src/asset-engine-langgraph.js#runAssetEngine`. It is the only public production entry and retains that implementation's provider authorization, named execution profile, ledger, acceptance, and outbox behavior. The legacy product pipeline still calls the canonical implementation directly during the staged migration.
+`runProduction(input)` delegates without adapting input or output to `packages/assets/src/asset-engine-langgraph.js#runAssetEngine`. It is the only public production entry and retains that implementation's provider authorization, named execution profile, ledger, acceptance, and outbox behavior. Product delivery calls this production facade or the same canonical Asset LangGraph through the sole public assembly path.
 
 The semantic-to-asset bridge is intentionally limited to `runOffline`; it does
 not redirect the existing production orchestrator or imply that an arbitrary

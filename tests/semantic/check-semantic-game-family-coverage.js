@@ -1,9 +1,8 @@
 var assert = require('assert');
-var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
-var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var semantic = require('@gamecastle/semantic-module');
+var assemblyModule = require('@gamecastle/assembly-module');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 
-var index = dictionary.buildIndex();
 var families = [
   { id: 'stardew', name: 'Farm Life', roles: ['farmer', 'crop'], assetFamily: 'prop', layoutRef: 'gc-layout://world/center' },
   { id: 'moba', name: 'Arena Battle', roles: ['hero', 'skill'], assetFamily: 'character', layoutRef: 'gc-layout://world/left-middle' },
@@ -18,7 +17,7 @@ families.forEach(function(family) {
   var source = {
     schemaVersion: sourceContract.SCHEMA_VERSION,
     documentKind: 'game-semantic-source',
-    dictionarySource: index.source,
+    dictionarySource: semantic.dictionary.source,
     game: { semanticId: family.id, name: family.name },
     entities: [{ semanticId: 'player', roles: family.roles, objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [{ semanticId: 'primary_value', roles: ['gameplay'], value: 1, bindings: [] }] }],
     components: [],
@@ -27,12 +26,12 @@ families.forEach(function(family) {
     layoutIntents: [{ semanticId: 'player_layout', roles: family.roles, subject: 'player', bounds: { width: 64, height: 64 }, relations: [{ semanticId: 'primary_anchor', layoutRef: family.layoutRef, subjects: ['player'] }], bindings: [] }],
     tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } }
   };
-  var assembly = linker.assemble(source, { index: index });
-  assert.strictEqual(assembly.projectSeed.project.properties.name, family.name, family.id + ' project seed must preserve game source identity');
-  assert.strictEqual(assembly.projectSeed.assetBindingRequirements[0].productionFamily, family.assetFamily, family.id + ' asset intent must remain source-bound');
-  assert.strictEqual(assembly.projectSeed.project.layouts[0].instances.length, 0, family.id + ' seed must defer spatial instances until the asset-aware assembly stage');
-  assert.strictEqual(assembly.projectSeed.spatialAssemblyRequest.subjects.length, 1, family.id + ' preserves one spatial assembly request subject');
-  assert.strictEqual(assembly.projectSeed.generatedCode.length, 1, family.id + ' project seed must compile through official libGD');
+  var projectSeed = assemblyModule.createProjectSeed({ source: source });
+  assert.strictEqual(projectSeed.project.properties.name, family.name, family.id + ' project seed must preserve game source identity');
+  assert.strictEqual(projectSeed.assetBindingRequirements[0].productionFamily, family.assetFamily, family.id + ' asset intent must remain source-bound');
+  assert.strictEqual(projectSeed.project.layouts[0].instances.length, 0, family.id + ' seed must defer spatial instances until the asset-aware assembly stage');
+  assert.strictEqual(projectSeed.spatialAssemblyRequest.subjects.length, 1, family.id + ' preserves one spatial assembly request subject');
+  assert.strictEqual(projectSeed.generatedCode.length, 1, family.id + ' project seed must compile through official libGD');
 });
 
-console.log('[SemanticGameFamilyCoverage] seven game-family semantic sources assemble through assets, layout, project seed, and official libGD');
+console.log('[SemanticGameFamilyCoverage] seven game-family semantic sources assemble through the sole public SemanticAssembly and project-seed path');

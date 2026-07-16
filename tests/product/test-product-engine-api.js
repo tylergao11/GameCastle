@@ -1,5 +1,6 @@
 var assert = require('assert');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var semantic = require('@gamecastle/semantic-module');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var api = require('../../apps/api/src/server');
 
@@ -7,8 +8,8 @@ var TOKEN = 'product-engine-test-token';
 function headers(withAuth) { var value = { 'Content-Type': 'application/json' }; if (withAuth !== false) value.Authorization = 'Bearer ' + TOKEN; return value; }
 
 (async function() {
-  var index = dictionary.buildIndex();
-  var source = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'api_demo', name: 'API Demo' }, entities: [], components: [], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+  var index = dictionary.loadIndex();
+  var source = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: semantic.dictionary.source, game: { semanticId: 'api_demo', name: 'API Demo' }, entities: [], components: [], events: [], assetIntents: [], layoutIntents: [], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
   var productInput = null, prewarmCalls = 0;
   var server = api.createServer({ authToken: TOKEN, index: index, productOrchestrator: { prewarm: async function() { prewarmCalls += 1; }, run: async function(input) { productInput = input; if (input.deliveryId === 'blocked-api') { var error = new Error('Blocked fixture.'); error.code = 'PRODUCT_DELIVERY_BLOCKED'; error.issue = { code: 'SPATIAL_PROVIDER_FAILED', owner: 'SpatialPlanner', stage: 'spatial', message: 'Provider unavailable.', evidenceHash: 'evidence.fixture', privateEvidence: { localPath: 'C:\\secret\\trace.json' } }; error.deliveryRun = { deliveryId: input.deliveryId, projectId: input.projectId, status: 'blocked', currentSourceHash: 'semantic.api', budgets: { secret: true }, usage: { secret: true }, history: [{ localPath: 'C:\\secret\\trace.json' }], blocked: error.issue, contentHash: 'product-delivery-run.blocked' }; throw error; } return { schemaVersion: 1, documentKind: 'product-delivery-product', deliveryId: input.deliveryId, projectId: input.projectId, sourceHash: 'semantic.api', source: source, assetCards: { documentKind: 'asset-card-set' }, deliveryRun: { status: 'accepted', artifacts: { sourceHash: 'semantic.api' }, contentHash: 'product-delivery-run.fixture' }, browserCapture: { imagePath: 'C:\\secret\\capture.png', pageUrl: 'http://127.0.0.1/?capture=secret' }, contentHash: 'product-delivery-product.fixture' }; } } });
   await new Promise(function(resolve) { server.listen(0, '127.0.0.1', resolve); });

@@ -5,7 +5,8 @@ var os = require('os');
 var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
-var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var semantic = require('@gamecastle/semantic-module');
+var assemblyModule = require('@gamecastle/assembly-module');
 var engine = require('../../packages/assets/src/asset-engine-langgraph');
 var binder = require('../../packages/gdjs/src/gdjs-project-asset-binder');
 var libraryPorts = require('../fixtures/test-asset-library-ports');
@@ -13,11 +14,11 @@ var libraryPorts = require('../fixtures/test-asset-library-ports');
 function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }
 
 (async function() {
-  var index = dictionary.buildIndex();
+  var index = dictionary.loadIndex();
   var source = {
     schemaVersion: sourceContract.SCHEMA_VERSION,
     documentKind: 'game-semantic-source',
-    dictionarySource: index.source,
+    dictionarySource: semantic.dictionary.source,
     game: { semanticId: 'font_resource_demo', name: 'Font Resource Demo' },
     entities: [{ semanticId: 'caption', roles: ['ui', 'text'], objectTypeRef: 'gdjs://object/TextObject::Text', behaviorTypeRefs: [], members: [] }],
     components: [],
@@ -26,7 +27,9 @@ function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('h
     layoutIntents: [{ semanticId: 'caption_layout', roles: ['ui'], subject: 'caption', bounds: { width: 240, height: 48 }, relations: [{ semanticId: 'caption_anchor', layoutRef: 'gc-layout://screen/top-center', subjects: ['caption'] }], bindings: [] }],
     tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } }
   };
-  var assembly = linker.assemble(source, { index: index });
+  var semanticAssembly = semantic.compileSemanticAssembly(source);
+var projectSeed = assemblyModule.createProjectSeed({ semanticAssembly: semanticAssembly });
+var assembly = Object.assign({}, semanticAssembly, { projectSeed: projectSeed });
   var requirement = assembly.assetRequirements.requirements[0];
   assert.strictEqual(requirement.resourceKind, 'font');
   assert.deepStrictEqual(requirement.acceptedFormats, ['ttf', 'otf', 'woff', 'woff2']);

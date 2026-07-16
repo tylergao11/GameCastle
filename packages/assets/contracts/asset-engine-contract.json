@@ -44,8 +44,8 @@
     "local-input-archive": [{ "module": "packages/assets/src/asset-engine-langgraph.js", "exports": ["archiveLocalInputs"] }],
     "asset-library-search": [{ "module": "packages/assets/src/asset-library.js", "exports": ["create", "requirementFingerprint"] }],
     "model-authorize": [
-      { "module": "packages/providers/src/model-policy-gate.js", "exports": ["authorizeModelPorts"] },
-      { "module": "packages/providers/src/provider-runtime-adapters.js", "exports": ["createAssetProviderPorts"] }
+      { "module": "packages/assets/src/asset-model-policy.js", "exports": ["authorizeModelPorts"] },
+      { "module": "packages/assets/src/asset-provider-ports.js", "exports": ["createAssetProviderPorts"] }
     ],
     "asset-production-plan": [{ "module": "packages/assets/src/asset-production-planner.js", "exports": ["compile"] }],
     "asset-resolve": [{ "module": "packages/assets/src/asset-production-resolver.js", "exports": ["resolveProductionSet"] }],

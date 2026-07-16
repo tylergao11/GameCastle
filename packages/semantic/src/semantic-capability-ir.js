@@ -1,7 +1,7 @@
 var fs = require('fs');
 var path = require('path');
-var runtimeNames = require('../../semantic/src/semantic-runtime-names');
-var variableSerializer = require('./gdjs-variable-serializer');
+var runtimeNames = require('./semantic-runtime-names');
+var variableSerializer = require('./semantic-variable-serializer');
 
 var UNIVERSE_PATH = path.join(__dirname, '..', 'generated', 'capability-universe.json');
 var SEMANTIC_INDEX_PATH = path.join(__dirname, '..', '..', 'semantic', 'generated', 'capability-semantic-index.json');
@@ -172,7 +172,7 @@ function compileEventConnection(registry, connection) {
   if (!connection || typeof connection !== 'object') throw new Error('Semantic event connection must be an object');
   var eventTypeRef = connection.eventTypeRef;
   if (typeof eventTypeRef !== 'string' || !eventTypeRef) throw new Error('Semantic event connection requires an eventTypeRef');
-  var eventType = require('../../semantic/src/capability-semantic-dictionary').resolveEventType(registry.semanticIndex, eventTypeRef);
+  var eventType = require('./capability-semantic-dictionary').resolveEventType(registry.semanticIndex, eventTypeRef);
   var conditions = connection.conditions || [];
   var actions = connection.actions || [];
   if (!Array.isArray(conditions) || !Array.isArray(actions)) {

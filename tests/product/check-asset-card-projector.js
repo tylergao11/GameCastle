@@ -1,14 +1,15 @@
 var assert = require('assert');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var semantic = require('@gamecastle/semantic-module');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var delivery = require('../../packages/product/src/product-delivery-run');
 var projector = require('../../packages/product/src/asset-card-projector');
 
-var index = dictionary.buildIndex();
+var index = dictionary.loadIndex();
 var source = sourceContract.validateSource({
   schemaVersion: sourceContract.SCHEMA_VERSION,
   documentKind: 'game-semantic-source',
-  dictionarySource: index.source,
+  dictionarySource: semantic.dictionary.source,
   game: { semanticId: 'asset_card_demo', name: 'Asset Card Demo' },
   entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }],
   components: [],

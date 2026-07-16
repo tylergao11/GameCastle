@@ -36,7 +36,7 @@ Product request + Planner discovery catalog
   -> GameSemanticSource / GameSemanticRevision
   -> asset.realize: dictionary-owned component realization
   -> event compiler + asset requirement compiler + layout compiler
-  -> RuntimeLinker + spatial assembly request + official libGD project seed
+  -> public SemanticAssembly + assembly-module project seed + spatial assembly request
   -> complete accepted AssetWorld v4
   -> GDJS resource binder + asset-bound project seed
   -> assembly.verify: native geometry facts
@@ -72,13 +72,13 @@ Exact event references are runtime output: LLM2 sees foundation entity, behavior
 
 ## Spatial contracts
 
-`packages/spatial/contracts/spatial-engine-contract.json` separates intent from accepted layout. The semantic layout dictionary names relations and constraints; it has no resolved scene coordinates. `semantic-layout-compiler.js` derives a `reservation` from Source layout bounds and `semantic-runtime-linker.js` emits a `spatial-assembly-request`. Neither produces an instance position.
+`packages/spatial/contracts/spatial-engine-contract.json` separates intent from accepted layout. The semantic layout dictionary names relations and constraints; it has no resolved scene coordinates. `semantic-layout-compiler.js` derives a `reservation` from Source layout bounds and `assembly-module` / spatial runtime emit a `spatial-assembly-request` from the layout plan. Neither produces an instance position.
 
 The selected GDJS scene canvas is derived from the exact asset-bound project: scene, project width/height, layers, and complete camera size/viewport facts. It is not an external device-screen input. `packages/spatial/src/spatial-planner-langgraph.js` gives one hash-bound semantic/component view and explicitly ordered accepted-image references to a visual LLM, which emits direct object-origin coordinate candidates. Dictionary anchors are preferences; Runtime validates safe regions, reservations, layers, z-order ranges, overlap, geometry, projection, and preview evidence without generating a first layout. Candidate GDJS projection feeds the same-path preview; only a later standalone ACCEPT with the actual projection and preview creates `spatial-layout-resolution`, the sole accepted spatial truth. Every external round is also persisted as diagnostic trace evidence. Final GDJS projection derives from the resolution. The project assembler and resource binder only carry facts across this boundary. They do not contain spatial math, asset-origin fallbacks, or a parallel object-coordinate dictionary. See [Spatial Planner and Runtime](spatial-engine.md).
 
 ## Asset contracts
 
-The asset creation runtime is the official LangGraph in `packages/assets/src/asset-engine-langgraph.js`. `packages/assets/contracts/asset-engine-contract.json` owns both its ordered nine-stage graph and a resolvable module/export definition for every stage. `packages/assets/contracts/asset-engine-execution-profiles.json` is the only public execution-limit selector: production inherits pinned contract ceilings, while `asset-engine-test.v1` permits one generation-required work item, one production attempt, one two-candidate round, and one 180-second end-to-end deadline. Loose public timeout, batch, round, or attempt overrides are rejected. Graph startup validates the LangGraph runtime, resolves every declared definition, rejects extra or missing handlers, and then invokes the compiled graph. `SemanticRuntimeLinker.assetRequirements` is its only semantic-intent input; the complete accepted `AssetWorld` v4 and matching project seed are the only inputs to the GDJS resource binder. A caller cannot inject a previous or partial world.
+The asset creation runtime is the official LangGraph in `packages/assets/src/asset-engine-langgraph.js`. `packages/assets/contracts/asset-engine-contract.json` owns both its ordered nine-stage graph and a resolvable module/export definition for every stage. `packages/assets/contracts/asset-engine-execution-profiles.json` is the only public execution-limit selector: production inherits pinned contract ceilings, while `asset-engine-test.v1` permits one generation-required work item, one production attempt, one two-candidate round, and one 180-second end-to-end deadline. Loose public timeout, batch, round, or attempt overrides are rejected. Graph startup validates the LangGraph runtime, resolves every declared definition, rejects extra or missing handlers, and then invokes the compiled graph. The public SemanticAssembly `assetRequirements` is its only semantic-intent input; the complete accepted `AssetWorld` v4 and matching project seed are the only inputs to the GDJS resource binder. A caller cannot inject a previous or partial world.
 
 The binding dictionary enumerates every official object configuration. Each record either declares no external resource or declares one exact resource kind, accepted formats, and official configuration operation.
 

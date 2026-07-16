@@ -84,7 +84,8 @@ var modules = [
   ['tests/modules/check-semantic-module.js'],
   ['tests/modules/check-asset-engine-module.js'],
   ['tests/modules/check-assembly-module.js'],
-  ['tests/modules/check-legacy-public-assembly-compatibility.js']
+  ['tests/modules/check-public-assembly-identity.js'],
+  ['tests/modules/check-package-boundaries.js']
 ];
 var provider = [
   ['tests/provider/check-ai-provider-governance.js'],

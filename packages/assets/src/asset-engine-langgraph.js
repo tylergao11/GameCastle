@@ -5,8 +5,8 @@ var assetWorld = require('./asset-world');
 var engineContract = require('../contracts/asset-engine-contract.json');
 var assetLibraryModule = require('./asset-library');
 var publicationOutbox = require('./asset-publication-outbox');
-var modelPolicyGate = require('../../providers/src/model-policy-gate');
-var providerRuntimeAdapters = require('../../providers/src/provider-runtime-adapters');
+var modelPolicyGate = require('./asset-model-policy');
+var assetProviderPorts = require('./asset-provider-ports');
 var executionPolicyModule = require('./asset-engine-execution-policy');
 var productionPlanner = require('./asset-production-planner');
 var productionResolver = require('./asset-production-resolver');
@@ -145,7 +145,7 @@ function assetGraphHandlers() {
       // implementation. Preserve those local ports without letting them override
       // provider-owned model ports.
       var candidatePorts = state.providerRuntime
-        ? Object.assign({}, state.ports, providerRuntimeAdapters.createAssetProviderPorts(state.providerRuntime, state.providerOptions))
+        ? Object.assign({}, state.ports, assetProviderPorts.createAssetProviderPorts(state.providerRuntime, state.providerOptions))
         : state.ports;
       var authorized = modelPolicyGate.authorizeModelPorts(candidatePorts, state.modelPolicy);
       state.authorizedPorts = authorized.ports;

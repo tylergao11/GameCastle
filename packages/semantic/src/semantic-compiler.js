@@ -1,5 +1,5 @@
 var dictionary = require('./capability-semantic-dictionary');
-var capabilityIr = require('../../gdjs/src/gdjs-capability-ir');
+var capabilityIr = require('./semantic-capability-ir');
 var sourceContract = require('./game-semantic-source');
 
 function eventConnection(event) {

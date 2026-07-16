@@ -5,7 +5,8 @@ var os = require('os');
 var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
-var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var semantic = require('@gamecastle/semantic-module');
+var assemblyModule = require('@gamecastle/assembly-module');
 var assemblyStage = require('../../packages/spatial/src/spatial-assembly-stage');
 var plannerDsl = require('../../packages/spatial/src/spatial-planner-dsl');
 var semanticDsl = require('../../packages/semantic/src/semantic-dsl-parser');
@@ -42,11 +43,11 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
   assert.strictEqual(semanticRun.validate(semanticParseOfSpatial.commands, semanticParseOfSpatial.warnings).code, 'SEMANTIC_DSL_PARSE_INCOMPLETE', 'Semantic parser pipeline rejects spatial-dsl-v1 commands.');
   assert.deepStrictEqual(plannerGraph.describeGraph().stages.map(function(stage) { return stage.stage; }), spatialEngine.contract.graph, 'LangGraph stages are declared by the one Spatial Engine contract.');
 
-  var index = dictionary.buildIndex();
+  var index = dictionary.loadIndex();
   var source = {
     schemaVersion: sourceContract.SCHEMA_VERSION,
     documentKind: 'game-semantic-source',
-    dictionarySource: index.source,
+    dictionarySource: semantic.dictionary.source,
     game: { semanticId: 'spatial_planner_demo', name: 'Spatial Planner Demo' },
     entities: [
       { semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] },
@@ -64,7 +65,9 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
     ],
     tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } }
   };
-  var assembly = linker.assemble(source, { index: index });
+  var semanticAssembly = semantic.compileSemanticAssembly(source);
+var projectSeed = assemblyModule.createProjectSeed({ semanticAssembly: semanticAssembly });
+var assembly = Object.assign({}, semanticAssembly, { projectSeed: projectSeed });
   assert.strictEqual(assembly.projectSeed.project.layouts[0].instances.length, 0, 'Project seed contains no early materialized layout.');
   assert(assembly.projectSeed.project.layouts[0].layers.some(function(layer) { return layer.name === 'ui'; }), 'Dictionary-declared UI layer is materialized before planning without inventing coordinates.');
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-spatial-planner-'));
@@ -126,6 +129,7 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
       previewDir: path.join(root, 'preview'),
       maxRounds: 2,
       onSpatialRound: function(entry) { observedDsl.push(entry.dsl); },
+      previewPort: require('../../packages/gdjs/src/gdjs-spatial-preview'),
       plannerPort: { invoke: async function(request) { plannerCalls.push(request); return { ok: true, output: { text: outputs.shift() }, receipt: { receiptId: 'fixture.' + plannerCalls.length, provider: 'fixture', model: 'fixture-vision', status: 'succeeded', provenance: { simulated: false } } }; } }
     });
     assert.strictEqual(run.status, 'accepted', 'The visual planner completes after a previewed candidate is accepted in a later round: ' + JSON.stringify(run.trace));
@@ -170,6 +174,7 @@ function noRawCoordinates(value) { if (Array.isArray(value)) return value.some(n
     var failedRun = await plannerGraph.runSpatialPlanner({
       runId: 'spatial-provider-failure-check', projectId: 'spatial-provider-failure-check', spatialInput: spatialInput, assetBoundSeed: assetBound, assetWorld: assetWorld, semanticSource: source,
       previewDir: path.join(root, 'provider-failure-preview'), maxRounds: 1,
+      previewPort: require('../../packages/gdjs/src/gdjs-spatial-preview'),
       plannerPort: { invoke: async function() { throw Object.assign(new Error('fixture provider failure'), { code: 'FIXTURE_PROVIDER_FAILED', owner: 'FixtureProvider' }); } }
     });
     assert.strictEqual(failedRun.status, 'provider-failed');

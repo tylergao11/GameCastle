@@ -13,23 +13,14 @@ The underlying delivery authorities are singular within each accepted path:
 | Geometry and coordinates | generated GDJS coordinate truth plus canonical geometry producer | `spatial-assembly-input` |
 | Full product acceptance | `ProductDeliveryRun` | exact build, capture, review, and feedback evidence |
 
-There is one important migration distinction that must not be hidden. The
-existing `ProductDeliveryOrchestrator` and semantic executor still use
-`semantic-runtime-linker`, which constructs a `semantic-runtime-assembly` and
-its seed identity. The public workspaces construct a `semantic-assembly` and
-adapt it to a public seed identity. Both paths delegate to the same generated
-dictionary, Source validation, compilers, GDJS binder, AssetWorld, and spatial
-owners; their semantic, seed, asset-binding, and spatial projections are
-covered by an executable compatibility check. Their assembly and seed hashes
-are deliberately different today, however, so the public path is not yet the
-sole product-delivery path and must not be substituted for persisted legacy
-runs without an explicit identity migration.
+Product delivery, semantic execution, and LLM2 finalization all enter through
+the public workspaces: `compileSemanticAssembly` then `assembly-module`
+seed/bind/spatial handoff. There is no parallel `semantic-runtime-linker`
+identity. Project seed `assemblyHash` equals `SemanticAssembly.contentHash`.
 
-The legacy implementation packages also retain cross-package imports and are
-not yet an acyclic publishable graph. The three public workspaces are therefore
-a safe boundary extraction rather than a duplicated rewrite. They do not
-introduce another dictionary, AssetWorld, GDJS compiler/binder, or geometry
-producer, but they remain focused façades until the product migration lands.
+Implementation packages still retain cross-package imports and are not yet an
+acyclic publishable graph. The public workspaces are facades over singular
+owners (dictionary, compilers, AssetWorld, GDJS binder, geometry producer).
 
 Runtime preparation is also an evidence boundary: the pinned GDevelop source
 and libGD binary must be checksum-verified. See [Pinned GDJS runtime
@@ -80,8 +71,8 @@ npm run check:semantic-module
 This is the only new public consumer of both other workspaces. It verifies a
 `SemanticAssembly`, validates an accepted AssetWorld against the same source
 hash, then delegates project generation, resource binding, geometry facts, and
-spatial handoff to their canonical internal owners. It never accepts
-caller-supplied geometry and does not call `semantic-runtime-linker`.
+spatial handoff to their canonical internal owners. It never accepts caller-supplied geometry. Product delivery uses this module
+as the only seed and binding entry.
 
 ```powershell
 npm run runtime:prepare
@@ -112,11 +103,7 @@ existing full semantic, asset, product, provider, and network acceptance gate.
 The module checks establish the three boundary contracts; only the project gate
 establishes complete product acceptance.
 
-`tests/modules/check-legacy-public-assembly-compatibility.js` is the migration
-gate. It proves that the legacy linker and public facades produce equal semantic
-compiler evidence, spatial requests, executable GDJS seed projection, and
-asset-bound seed projection for a component-bearing source and a source
-revision. It also asserts that their current assembly/seed identities differ.
-Before the public path replaces the legacy product entry, that identity
-difference needs a persisted-run migration plan and a shared compiler-core
-change, followed by this gate and the complete project gate.
+`tests/modules/check-public-assembly-identity.js` is the assembly identity
+gate. It proves that Source and SemanticAssembly routes share one seed hash,
+that asset binding binds that hash, and that the deleted runtime-linker file
+cannot reappear as a second path.

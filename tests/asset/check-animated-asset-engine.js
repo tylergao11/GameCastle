@@ -4,7 +4,8 @@ var os = require('os');
 var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
-var linker = require('../../packages/semantic/src/semantic-runtime-linker');
+var semantic = require('@gamecastle/semantic-module');
+var assemblyModule = require('@gamecastle/assembly-module');
 var engine = require('../../packages/assets/src/asset-engine-langgraph');
 var outboxModule = require('../../packages/assets/src/asset-publication-outbox');
 var publisher = require('../../packages/assets/src/asset-library-publisher');
@@ -13,12 +14,14 @@ var libraryPorts = require('../fixtures/test-asset-library-ports');
 var enginePorts = require('../fixtures/test-asset-engine-ports');
 var binder = require('../../packages/gdjs/src/gdjs-project-asset-binder');
 
-var index = dictionary.buildIndex();
-var source = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: index.source, game: { semanticId: 'animated_asset_demo', name: 'Animated Asset Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }], components: [], events: [], assetIntents: [{ semanticId: 'player_animation', roles: ['player', 'visual'], subject: 'player', description: 'A readable player movement animation.', productionFamily: 'character-animation', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, animation: { initialStateId: 'idle', states: [{ stateId: 'idle', loop: true, frameCount: 4, frameDurationMs: 120, derivationProfileId: 'idle-bob' }, { stateId: 'move', loop: true, frameCount: 4, frameDurationMs: 90, derivationProfileId: 'move-bob' }] }, bindings: [] }], layoutIntents: [{ semanticId: 'player_layout', roles: ['world'], subject: 'player', bounds: { width: 64, height: 64 }, relations: [{ semanticId: 'player_anchor', layoutRef: 'gc-layout://world/center', subjects: ['player'] }], bindings: [] }], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
+var index = dictionary.loadIndex();
+var source = { schemaVersion: sourceContract.SCHEMA_VERSION, documentKind: 'game-semantic-source', dictionarySource: semantic.dictionary.source, game: { semanticId: 'animated_asset_demo', name: 'Animated Asset Demo' }, entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }], components: [], events: [], assetIntents: [{ semanticId: 'player_animation', roles: ['player', 'visual'], subject: 'player', description: 'A readable player movement animation.', productionFamily: 'character-animation', styleId: 'gamecastle.style-dna.v1', constraints: { transparent: true }, animation: { initialStateId: 'idle', states: [{ stateId: 'idle', loop: true, frameCount: 4, frameDurationMs: 120, derivationProfileId: 'idle-bob' }, { stateId: 'move', loop: true, frameCount: 4, frameDurationMs: 90, derivationProfileId: 'move-bob' }] }, bindings: [] }], layoutIntents: [{ semanticId: 'player_layout', roles: ['world'], subject: 'player', bounds: { width: 64, height: 64 }, relations: [{ semanticId: 'player_anchor', layoutRef: 'gc-layout://world/center', subjects: ['player'] }], bindings: [] }], tuningPolicies: { relativeChange: { slight: { mode: 'percentage', value: 0.1 } } } };
 var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-animated-asset-engine-'));
 (async function() {
   try {
-    var assembly = linker.assemble(source, { index: index });
+    var semanticAssembly = semantic.compileSemanticAssembly(source);
+var projectSeed = assemblyModule.createProjectSeed({ semanticAssembly: semanticAssembly });
+var assembly = Object.assign({}, semanticAssembly, { projectSeed: projectSeed });
     assert.strictEqual(assembly.assetRequirements.requirements[0].artifactKind, 'frame-set');
     var libraryPort = libraryPorts.createTestAssetLibraryPort();
     var result = await engine.runAssetEngine({ runId: 'animated-asset-first', assetRequirementContract: assembly.assetRequirements, ports: enginePorts.createTestAssetEnginePorts({ outputDir: path.join(root, 'generated') }), assetLibraryPort: libraryPort, modelPolicy: { provider: 'deepseek', simulated: true }, projectAssetDir: path.join(root, 'assets') });

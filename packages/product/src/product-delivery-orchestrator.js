@@ -4,10 +4,12 @@ var path = require('path');
 var dictionary = require('../../semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../semantic/src/game-semantic-source');
 var providerRuntimeApi = require('../../providers/src/provider-runtime');
+var comfyuiLocalProvider = require('../../assets/src/comfyui-local-provider');
 var semanticRuntimeApi = require('../../semantic/src/semantic-llm2-runtime');
 var assetPipeline = require('./semantic-asset-product-pipeline');
 var spatialPipeline = require('./spatial-product-pipeline');
 var browserCapture = require('../../gdjs/src/gdjs-browser-capture');
+var spatialRuntime = require('../../spatial/src/runtime');
 var assemblyReviewer = require('./assembly-reviewer');
 var assemblyReviewProvider = require('./assembly-review-provider-port');
 var deliveryRunApi = require('./product-delivery-run');
@@ -60,12 +62,17 @@ function create(options) {
   allowed(semanticSettings, SEMANTIC_SETTING_FIELDS, 'semanticSettings');
   var providerOptions = Object.assign({}, options.providerOptions || {});
   providerOptions.receiptDir = assertInside(storageRoot, path.join(storageRoot, 'provider-receipts'), 'provider receipt directory');
+  if (!providerOptions.httpTransports) {
+    providerOptions.httpTransports = { 'comfyui-local': comfyuiLocalProvider.invokeComfyUI };
+  } else if (!providerOptions.httpTransports['comfyui-local']) {
+    providerOptions.httpTransports = Object.assign({}, providerOptions.httpTransports, { 'comfyui-local': comfyuiLocalProvider.invokeComfyUI });
+  }
   var providerRuntime = options.providerRuntime || providerRuntimeApi.createProviderRuntime(providerOptions);
   var semanticRuntime = options.semanticRuntime || semanticRuntimeApi.create({ providerRuntime: providerRuntime });
   var assetProductPipeline = options.assetPipeline || assetPipeline;
   var spatialProductPipeline = options.spatialPipeline || spatialPipeline;
   var reviewerPort = options.assemblyReviewerPort || (options.assemblyReviewer ? null : assemblyReviewProvider.create(providerRuntime, options.assemblyReviewerOptions || {}));
-  var captureProducer = options.browserCapture || browserCapture.create(options.browserCaptureOptions || {});
+  var captureProducer = options.browserCapture || browserCapture.create(Object.assign({}, options.browserCaptureOptions || {}, { spatialEngine: spatialRuntime }));
   var reviewer = options.assemblyReviewer || assemblyReviewer.create({ captureVerifier: captureProducer.verifyAttestation, reviewerPort: reviewerPort });
   var assetEngineBase = Object.assign({}, options.assetEngineOptions || {});
   var spatialBase = Object.assign({}, options.spatialOptions || {});

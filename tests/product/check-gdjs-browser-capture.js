@@ -3,6 +3,7 @@ var fs = require('fs');
 var os = require('os');
 var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var semantic = require('@gamecastle/semantic-module');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var assetPipeline = require('../../packages/product/src/semantic-asset-product-pipeline');
 var spatialPipeline = require('../../packages/product/src/spatial-product-pipeline');
@@ -14,11 +15,11 @@ var reviewerApi = require('../../packages/product/src/assembly-reviewer');
 (async function() {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-browser-capture-check-'));
   try {
-    var index = dictionary.buildIndex();
+    var index = dictionary.loadIndex();
     var source = sourceContract.validateSource({
       schemaVersion: sourceContract.SCHEMA_VERSION,
       documentKind: 'game-semantic-source',
-      dictionarySource: index.source,
+      dictionarySource: semantic.dictionary.source,
       game: { semanticId: 'browser_capture_demo', name: 'Browser Capture Demo' },
       entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }],
       components: [],
@@ -38,9 +39,9 @@ var reviewerApi = require('../../packages/product/src/assembly-reviewer');
       previewDir: path.join(root, 'preview'), maxRounds: 2,
       plannerPort: { invoke: async function() { return { ok: true, output: { text: outputs.shift() }, receipt: { receiptId: 'browser-capture.fixture', provider: 'fixture', model: 'fixture-vision', status: 'succeeded', provenance: { simulated: false } } }; } }
     });
-    assert.throws(function() { headlessPort.create({ capturePort: {} }); }, function(error) { return error.code === 'GDJS_BROWSER_CAPTURE_INPUT_INVALID'; }, 'The retired caller capturePort is not a browser option.');
-    await assert.rejects(function() { return captureApi.capture({ assetProduct: assetProduct, spatialProduct: spatialProduct, outputDir: path.join(root, 'capture'), capturePort: {} }); }, function(error) { return error.code === 'GDJS_BROWSER_CAPTURE_INVALID'; }, 'The public capture boundary rejects capturePort injection.');
-    var captureAuthority = captureApi.create({ timeoutMs: 30000, settleMs: 200 });
+    assert.throws(function() { headlessPort.create({ capturePort: {} }); }, function(error) { return error.code === 'GDJS_BROWSER_CAPTURE_ENGINE_REQUIRED' || error.code === 'GDJS_BROWSER_CAPTURE_INPUT_INVALID'; }, 'Browser capture options reject missing spatial engine and retired capturePort.');
+    assert.throws(function() { captureApi.create({ timeoutMs: 30000 }); }, function(error) { return error.code === 'GDJS_BROWSER_CAPTURE_ENGINE_REQUIRED'; }, 'Capture construction fails closed without Spatial Runtime injection.');
+    var captureAuthority = captureApi.create({ timeoutMs: 30000, settleMs: 200, spatialEngine: require('../../packages/spatial/src/runtime') });
     var capture = await captureAuthority.capture({ assetProduct: assetProduct, spatialProduct: spatialProduct, outputDir: path.join(root, 'capture') });
     assert.strictEqual(capture.schemaVersion, 3);
     assert.strictEqual(capture.sourceHash, assetProduct.sourceHash);
@@ -52,7 +53,8 @@ var reviewerApi = require('../../packages/product/src/assembly-reviewer');
     assert.deepStrictEqual(capture.viewport, { width: 800, height: 600 });
     assert.deepStrictEqual(capture.consoleErrors, []);
     assert.strictEqual(captureAuthority.verifyAttestation(capture), true);
-    assert.throws(function() { captureApi.create().verifyAttestation(capture); }, function(error) { return error.code === 'GDJS_BROWSER_CAPTURE_ATTESTATION_INVALID'; }, 'A different capture authority cannot attest this browser evidence.');
+    var otherAuthority = captureApi.create({ spatialEngine: require('../../packages/spatial/src/runtime') });
+    assert.throws(function() { otherAuthority.verifyAttestation(capture); }, function(error) { return error.code === 'GDJS_BROWSER_CAPTURE_ATTESTATION_INVALID'; }, 'A different capture authority cannot attest this browser evidence.');
     var reviewer = reviewerApi.create({ captureVerifier: captureAuthority.verifyAttestation, reviewerPort: { reviewAssembly: async function(input) {
       assert.strictEqual(input.assetProductHash, assetProduct.contentHash);
       assert.strictEqual(input.spatialProductHash, spatialProduct.contentHash);

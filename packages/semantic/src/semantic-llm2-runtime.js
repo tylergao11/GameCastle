@@ -10,9 +10,8 @@ var taskSliceApi = require('./semantic-task-draft-slice');
 var stateMachine = require('./semantic-run-state-machine');
 var observer = require('./semantic-run-observer');
 var sourceContract = require('./game-semantic-source');
-var runtimeLinker = require('./semantic-runtime-linker');
+var semanticAssemblyApi = require('./semantic-assembly');
 var feedbackContract = require('./semantic-feedback-contract');
-var providerRuntime = require('../../providers/src/provider-runtime');
 var dictionary = require('./capability-semantic-dictionary');
 var modelPolicy = require('./semantic-model-policy');
 var semanticModelPort = require('./semantic-model-port');
@@ -61,9 +60,15 @@ function taskReceiptHashes(ledger) { return ledger.events.filter(function(event)
 
 function create(options) {
   options = options || {};
-  var modelPort = options.modelPort
-    ? semanticModelPort.assertPort(options.modelPort)
-    : semanticModelPort.fromProviderRuntime(options.providerRuntime || providerRuntime.createProviderRuntime(), options.model || {});
+  var modelPort;
+  if (options.modelPort) {
+    modelPort = semanticModelPort.assertPort(options.modelPort);
+  } else if (options.providerRuntime && typeof options.providerRuntime.invokeRole === 'function') {
+    // Composition root (product/apps) injects ProviderRuntime; semantic does not own providers.
+    modelPort = semanticModelPort.fromProviderRuntime(options.providerRuntime, options.model || {});
+  } else {
+    throw fail('SEMANTIC_LLM2_PORT_REQUIRED', 'SemanticLLM2Runtime.create requires modelPort or providerRuntime from the product composition root.');
+  }
   var trainingSink = options.trainingLogSink ? trainingLog.assertSink(options.trainingLogSink) : null;
   var trainingProvenance = options.trainingProvenance === undefined ? null : clone(options.trainingProvenance);
 
@@ -348,7 +353,8 @@ function create(options) {
           var taskReceipt = taskPlanApi.verifyBatch(plan, taskId, resolvedCommands, beforeDocument, afterDocument);
           if (view.completedTaskIds.length + 1 === plan.tasks.length) {
             var candidateSource = candidate.baseSource ? sourceContract.applyRevision(candidate.baseSource, draftApi.revision(candidate), { index: index }) : sourceContract.validateSource(afterDocument, { index: index });
-            runtimeLinker.assemble(candidateSource, { index: index });
+            // Semantic domain ends at SemanticAssembly; GDJS seed is product/assembly-module work.
+            semanticAssemblyApi.compileSemanticAssembly(candidateSource);
           }
           var receiptHash = 'semantic.task-receipt.' + promptBundle.hashCanonical(taskReceipt);
           ledger = stateMachine.transition.commitTask(ledger, taskId, receiptHash, taskReceipt.beforeDraftHash, taskReceipt.afterDraftHash);
@@ -371,7 +377,9 @@ function create(options) {
             revision = draftApi.revision(draft);
             source = sourceContract.applyRevision(draft.baseSource, revision, { index: index });
           } else source = sourceContract.validateSource(draftApi.materialize(draft), { index: index });
-          assembly = runtimeLinker.assemble(source, { index: index });
+          var semanticAssembly = semanticAssemblyApi.compileSemanticAssembly(source);
+          // Semantic design output is Source + SemanticAssembly only; project seed is not this domain.
+          assembly = semanticAssembly;
           finalFacts = { draftHash: taskPlanApi.documentHash(draftApi.materialize(draft)), sourceHash: sourceContract.sourceHash(source), taskReceiptHashes: taskReceiptHashes(ledger) };
         } catch (finalBuildError) { throw traced(finalBuildError); }
         var completionReceiptHash = 'semantic.completion-receipt.' + promptBundle.hashCanonical({ planHash: plan.planHash, draftHash: finalFacts.draftHash, sourceHash: finalFacts.sourceHash, taskReceiptHashes: finalFacts.taskReceiptHashes });

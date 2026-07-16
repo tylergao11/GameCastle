@@ -1,7 +1,7 @@
 var crypto = require('crypto');
 var http = require('http');
 var path = require('path');
-var semanticExecutor = require('../../../packages/semantic/src/semantic-product-executor');
+var semanticExecutor = require('../../../packages/product/src/semantic-product-executor');
 var productOrchestratorApi = require('../../../packages/product/src/product-delivery-orchestrator');
 
 var PRODUCT_FIELDS = ['deliveryId', 'projectId', 'userRequest'];

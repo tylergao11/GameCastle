@@ -9,9 +9,8 @@ var WebSocket = require('ws');
 var assetWorldApi = require('../../assets/src/asset-world');
 var projectExporter = require('./gdjs-html-project-exporter');
 var png = require('../../assets/src/local-derivation-port');
-var spatialEngine = require('../../spatial/src/runtime');
 
-var OPTION_FIELDS = ['browserExecutable', 'runtimeDir', 'timeoutMs', 'settleMs'];
+var OPTION_FIELDS = ['browserExecutable', 'runtimeDir', 'timeoutMs', 'settleMs', 'spatialEngine'];
 var INPUT_FIELDS = ['assetProduct', 'spatialProduct', 'outputDir'];
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
@@ -250,6 +249,10 @@ async function captureWithBrowser(input, options, build, marker, viewport, outpu
 function create(options) {
   options = options || {};
   allowed(options, OPTION_FIELDS, 'GDJS browser capture options');
+  var spatialEngine = options.spatialEngine;
+  if (!spatialEngine || typeof spatialEngine.validateAssemblyInput !== 'function' || typeof spatialEngine.validateSpatialResolution !== 'function' || typeof spatialEngine.validateProjection !== 'function') {
+    fail('GDJS_BROWSER_CAPTURE_ENGINE_REQUIRED', 'GDJS browser capture requires an injected Spatial Runtime (composition layer).');
+  }
   async function captureAcceptedProjection(input) {
     input = input || {};
     allowed(input, INPUT_FIELDS, 'GDJS browser capture input');

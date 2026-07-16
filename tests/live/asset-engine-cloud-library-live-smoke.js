@@ -71,7 +71,8 @@ function failureSummary(result) {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-cloud-library-live-'));
   try {
     var libraryPort = supabaseAssetLibrary.create();
-    var runtime = providerRuntime.createProviderRuntime({ maxCost: 2 });
+    var comfyui = require('../../packages/assets/src/comfyui-local-provider');
+var runtime = providerRuntime.createProviderRuntime({ maxCost: 2, httpTransports: { 'comfyui-local': comfyui.invokeComfyUI } });
     var created = await assetEngine.runAssetEngine(input('cloud-library-create-' + Date.now(), 'cloud-library-project-a', path.join(root, 'project-a'), libraryPort, runtime));
     if (!created.accepted) throw new Error('ComfyUI creation must complete acceptance before publication: ' + JSON.stringify(failureSummary(created)));
     assert.equal(created.assetPublicationOutboxEntries.length, 2, 'The first project must enqueue the static and FrameSet revisions: ' + JSON.stringify({ entries: created.assetPublicationOutboxEntries.length, assets: created.assetManifest.assets.map(function(asset) { return { slotId: asset.slotId, source: asset.source, frameSet: !!asset.frameSet }; }), events: created.assetLibraryAccelerationReport.events }));

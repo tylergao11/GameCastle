@@ -3,58 +3,69 @@
 `packages/` contains reusable product capabilities. Package code must not import
 from `apps/`, `tests/`, or `scripts/`.
 
+## Call chain (composition root)
+
+```text
+apps/api  (HTTP)
+   |
+   v
+product   ProductDeliveryOrchestrator  <--- composition root
+   |-- semantic.design  --> semantic LLM2  (injected modelPort/providerRuntime)
+   |-- asset.realize    --> semantic-asset-product-pipeline
+   |                         |-- @gamecastle/semantic-module
+   |                         |-- @gamecastle/assembly-module
+   |                         '-- assets Asset LangGraph
+   |-- assembly.verify  --> spatial-product-pipeline
+                             |-- spatial (plannerPort + previewPort injected here)
+                             |-- gdjs browser capture (spatialEngine injected)
+                             '-- assembly review
+```
+
+Product is the only layer that wires cross-domain ports. Domain packages do not
+default-construct each other's transports.
+
 ## Public workspaces
 
-New focused integrations and boundary verification use these three private npm
-workspaces. `npm install` links them under `node_modules/@gamecastle/` and
-`npm run check:modules` proves their public APIs through the workspace names.
-The existing product delivery entry still uses the legacy runtime linker until
-the compatibility-tested identity migration is complete.
-
-| Workspace | Public authority | Example and focused verification |
+| Workspace | Public authority | Focused check |
 | --- | --- | --- |
-| `@gamecastle/semantic-module` | One generated dictionary, Source/Revision validation, and deterministic `SemanticAssembly`. It intentionally stops before libGD and spatial work. | `packages/semantic-module/examples/game-semantic-source-to-semantic-assembly.js`; `npm run check:semantic-module` |
-| `@gamecastle/asset-engine` | Production Asset LangGraph facade plus deterministic offline `AssetRequirementSet -> AcceptedAssetWorld` conformance. | `packages/asset-engine/examples/deterministic-offline.js`; `npm run check:asset-module` |
-| `@gamecastle/assembly-module` | `SemanticAssembly` plus an accepted AssetWorld to a GDJS seed, resource-bound seed, and canonical spatial handoff. | `packages/assembly-module/examples/semantic-assembly-to-project-seed.js`; `npm run check:assembly-module` |
-
-Their public dependency direction is intentionally small:
+| `@gamecastle/semantic-module` | Dictionary + Source/Revision + `SemanticAssembly` | `npm run check:semantic-module` |
+| `@gamecastle/asset-engine` | Asset LangGraph façade + offline AssetWorld | `npm run check:asset-module` |
+| `@gamecastle/assembly-module` | Seed + bind + spatial handoff | `npm run check:assembly-module` |
 
 ```text
 semantic-module ----> asset-engine --+
-       +-------------------------------+--> assembly-module --> internal GDJS/spatial adapters
+       +-------------------------------+--> assembly-module --> gdjs/spatial adapters
 ```
 
-`asset-engine` declares `semantic-module` only for its constrained offline
-semantic-to-asset converter; its production facade still delegates to the
-canonical Asset LangGraph. `assembly-module` declares both public workspace
-dependencies. Within this public path it does not call the legacy
-`semantic-runtime-linker`.
-
-## Canonical implementation owners
+## Canonical owners
 
 | Package | Authority |
 | --- | --- |
-| `semantic` | LLM2 TaskPlan loop, semantic DSL, Source/Revision validation, component expansion, compilation, and the generated semantic dictionary. |
-| `assets` | Official Asset LangGraph, AssetWorld, deterministic derivation, review, library publication, contracts, and pinned workflows. |
-| `spatial` | Visual Planner LangGraph, candidate validation, deterministic spatial runtime, and the sole accepted spatial resolution. |
-| `product` | ProductDeliveryRun and the complete asset -> spatial -> browser assembly -> factual feedback -> LLM2 Revision loop. |
-| `providers` | Provider governance, model transports, authorization, receipts, and runtime adapters. |
-| `gdjs` | Pinned GDevelop truth, libGD compilation, resource binding, spatial projection, HTML export, and browser capture. |
-| `network` | Multiplayer client/runtime synchronization, protocol contract, and generated network templates. |
+| `semantic` | LLM2 TaskPlan, DSL, Source/Revision, SemanticAssembly compile |
+| `assets` | Asset LangGraph, AssetWorld, derivation, library, asset model policy |
+| `spatial` | Spatial planner/runtime (ports injected) |
+| `product` | ProductDeliveryRun and full delivery composition |
+| `providers` | Transport, receipts, governance (no asset/domain adapters) |
+| `gdjs` | libGD seed, resource bind, HTML export, capture, spatial preview renderer |
+| `network` | Multiplayer only |
 
-Each contract, generated truth, component manifest, workflow, and template is
-colocated with its canonical implementation owner. There is no repository-wide
-`shared`, `runtime`, `contracts`, or `generated` truth directory.
+## Dependency rules (enforced)
 
-## Migration status
+`tests/modules/check-package-boundaries.js` (via `npm run check:modules`):
 
-This is a boundary extraction, not a claim that the historical implementation
-packages are already acyclic or independently publishable. They still contain
-cross-package imports, especially among `semantic`, `assets`, `providers`,
-`gdjs`, and `spatial`. The public workspaces deliberately delegate to those
-owners instead of copying contracts or generated data. The underlying owners
-remain singular, but the legacy and public assembly documents currently have
-different identities; `tests/modules/check-legacy-public-assembly-compatibility.js`
-proves their executable projections agree. Removing the legacy internal cycles
-and migrating persisted product identities are later, separately verifiable
-migrations.
+- **acyclic** code requires among packages
+- **forbidden reverse edges** (examples):
+  - no `semantic -> providers|assets|gdjs|spatial|product`
+  - no `assets -> providers` (policy lives in assets; ProviderRuntime is injected)
+  - no `providers -> assets|semantic|gdjs|spatial|product`
+  - no `spatial -> providers` (plannerPort from product)
+  - no `gdjs -> spatial` (spatialEngine injected into capture/preview)
+
+Contract JSON data under another package may still be read; the gate ignores `*.json`.
+
+## Sole assembly identity
+
+- Owner: `packages/semantic/src/semantic-assembly.js`
+- Façade: `@gamecastle/semantic-module` re-exports only
+- Seed identity: `projectSeed.assemblyHash === SemanticAssembly.contentHash`
+- Gate: `tests/modules/check-public-assembly-identity.js`

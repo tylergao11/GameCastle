@@ -118,7 +118,7 @@
     "planner-invoke": [{ "module": "packages/spatial/src/spatial-planner-prompt.js", "exports": ["buildPrompt"] }, { "module": "packages/spatial/src/spatial-planner-dsl.js", "exports": ["parseProgram"] }],
     "candidate-validate": [{ "module": "packages/spatial/src/runtime", "exports": ["createLayoutCandidate", "validateLayoutCandidate"] }],
     "candidate-gdjs-project": [{ "module": "packages/spatial/src/runtime", "exports": ["createCandidateProjection"] }],
-    "preview": [{ "module": "packages/gdjs/src/gdjs-spatial-preview.js", "exports": ["renderPreview"] }],
+    "preview": [{ "module": "packages/spatial/src/spatial-preview-port.js", "exports": ["assertPreviewPort"] }],
     "planner-feedback": [{ "module": "packages/spatial/src/spatial-planner-prompt.js", "exports": ["buildFeedback"] }],
     "acceptance": [{ "module": "packages/spatial/src/runtime", "exports": ["acceptCandidate"] }],
     "accepted-gdjs-project": [{ "module": "packages/spatial/src/runtime", "exports": ["createAcceptedProjection"] }]

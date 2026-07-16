@@ -1,6 +1,6 @@
 var assert = require('assert');
 var path = require('path');
-var capabilityIr = require('../../packages/gdjs/src/gdjs-capability-ir');
+var capabilityIr = require('../../packages/semantic/src/semantic-capability-ir');
 var extensionLoader = require('../../packages/gdjs/src/gdevelop-extension-loader');
 var runtimeCodegen = require('../../packages/gdjs/src/runtime-codegen');
 

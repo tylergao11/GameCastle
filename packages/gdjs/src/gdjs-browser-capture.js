@@ -77,5 +77,4 @@ function create(options) {
   return { capture: capture, verifyAttestation: verifyAttestation };
 }
 
-var defaultCapture = create();
-module.exports = { create: create, capture: defaultCapture.capture, verifyAttestation: defaultCapture.verifyAttestation };
+module.exports = { create: create };

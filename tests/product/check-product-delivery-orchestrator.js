@@ -4,6 +4,7 @@ var fs = require('fs');
 var os = require('os');
 var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var semantic = require('@gamecastle/semantic-module');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var orchestratorApi = require('../../packages/product/src/product-delivery-orchestrator');
 var deliveryRunApi = require('../../packages/product/src/product-delivery-run');
@@ -18,11 +19,11 @@ function productNamespace(deliveryId, projectId) { return 'product.' + crypto.cr
 (async function() {
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamecastle-product-orchestrator-'));
   try {
-    var index = dictionary.buildIndex();
+    var index = dictionary.loadIndex();
     var source = {
       schemaVersion: sourceContract.SCHEMA_VERSION,
       documentKind: 'game-semantic-source',
-      dictionarySource: index.source,
+      dictionarySource: semantic.dictionary.source,
       game: { semanticId: 'product_loop_demo', name: 'Product Loop Demo' },
       entities: [{ semanticId: 'player', roles: ['player'], objectTypeRef: 'gdjs://object/Sprite::Sprite', behaviorTypeRefs: [], members: [] }],
       components: [], events: [],
