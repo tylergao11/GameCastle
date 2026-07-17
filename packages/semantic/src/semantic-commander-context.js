@@ -424,7 +424,8 @@ function emptyTaskFacts() {
     eventEnvelopes: [],
     components: [],
     assetFamilies: [],
-    assetStyles: []
+    assetStyles: [],
+    layouts: []
   };
 }
 
@@ -454,9 +455,10 @@ function taskFacts(references, task) {
     behaviorKinds: Array.isArray(parameters.behaviorKinds) ? parameters.behaviorKinds.slice() : [],
     eventEnvelopes: eventEnvelopes,
     components: Array.isArray(parameters.components) ? parameters.components.slice() : [],
-    // Wire handles only (f1|character, s0|styleId|name). Identity names after | are labels, not legal field values.
+    // Wire handles only (f1|character, s0|styleId|name, l0|placement). Tokens before | are legal field values.
     assetFamilies: Array.isArray(parameters.assetFamilies) ? parameters.assetFamilies.slice() : [],
-    assetStyles: Array.isArray(parameters.assetStyles) ? parameters.assetStyles.slice() : []
+    assetStyles: Array.isArray(parameters.assetStyles) ? parameters.assetStyles.slice() : [],
+    layouts: Array.isArray(parameters.layouts) ? parameters.layouts.slice() : []
   };
 }
 
@@ -495,6 +497,7 @@ function task(draftSlice, plan, machineProjection, activeTask, facts, feedback, 
       components: clone(facts.components || []),
       assetFamilies: clone(facts.assetFamilies || []),
       assetStyles: clone(facts.assetStyles || []),
+      layouts: clone(facts.layouts || []),
       operationIndex: clone(facts.operationIndex || [])
     },
     l4: { transitionLines: transitions }

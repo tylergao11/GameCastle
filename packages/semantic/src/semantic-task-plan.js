@@ -414,7 +414,7 @@ function buildFailureFeedback(error, commands) {
   }
   // Handle catalog: require wire handle tokens from L1 tables, never bare identity names.
   if (code === 'SEMANTIC_REFERENCE_HANDLE_INVALID' || /requires a handle from \[param-context\] or \[retrieve\]/i.test(message)) {
-    repair.push('use only wire handle tokens from the matching L1 catalog: asset.family from [L1-asset-families], asset.style from [L1-asset-styles], capability from [L1-ops-*], component.kind from [L1-components]; identity names after | are labels only');
+    repair.push('use only wire handle tokens from the matching L1 catalog: asset.family from [L1-asset-families], asset.style from [L1-asset-styles], layout from [L1-layouts], capability from [L1-ops-*], component.kind from [L1-components]; identity names after | are labels only');
   }
   // Component shell confusion (bound to component.kind wording; do not match generic "text" substrings).
   if (/component\.kind|component contains unknown|component requires field/i.test(message) || /requires a handle from \[param-context\] or \[retrieve\]: (sprite|state|text)\b/i.test(message)) {

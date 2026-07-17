@@ -102,6 +102,7 @@ assert(executorA.system.indexOf('CH_EXPR|') >= 0, 'executor expression channel')
 assert(executorA.system.indexOf('CH_STRUCT|') >= 0, 'executor structure channel');
 assert(executorA.system.indexOf('CH_COMPONENT|') >= 0, 'executor component channel');
 assert(executorA.system.indexOf('CH_ASSET|') >= 0, 'executor asset channel');
+assert(executorA.system.indexOf('CH_LAYOUT|') >= 0, 'executor layout channel');
 assert(executorA.system.indexOf('[L1-components]') >= 0, 'component library lives in system');
 assert(executorA.system.indexOf('WIRE|') >= 0, 'executor open-field wire');
 assert(executorA.system.indexOf('WORK_ORDER|') >= 0, 'executor sole checklist is work order');
@@ -118,9 +119,12 @@ assert(executorA.system.indexOf('[L1-ops-condition]') >= 0, 'ops tables live in 
 assert(executorA.system.indexOf('[L1-structure-kinds]') >= 0, 'structure kinds live in system');
 assert(executorA.system.indexOf('[L1-asset-families]') >= 0, 'asset family handle table lives in system');
 assert(executorA.system.indexOf('[L1-asset-styles]') >= 0, 'asset style handle table lives in system');
+assert(executorA.system.indexOf('[L1-layouts]') >= 0, 'layout handle table lives in system');
 assert(executorA.system.indexOf('f1|character') >= 0, 'character family is handle f1 not bare character');
 assert(executorA.system.indexOf('s0|') >= 0, 'style handle table exposes s0');
+assert(executorA.system.indexOf('l0|') >= 0, 'layout handle table exposes l0');
 assert.strictEqual(executorA.system.indexOf('family=character'), -1, 'no example-style family=character prose');
+assert(facts.layouts.some(function(line) { return line.indexOf('l0|') === 0; }), 'layout handles projected in taskFacts');
 assert(executorA.user.indexOf('蛇需要会动') >= 0);
 assert.strictEqual((executorA.user.match(/蛇需要会动/g) || []).length, 1, 'goal appears once in user');
 assert(executorA.user.indexOf('[L2-product]') >= 0, 'product request projected as L2-product background');
