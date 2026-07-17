@@ -35,8 +35,8 @@ Never report only one of runtimeOk/oracleOk as “passed”.
 
 ## Protocol pins
 
-- Planner: `semantic-planner-prompt-v22`
-- Executor: `semantic-executor-prompt-v28`
+- Planner: `semantic-planner-prompt-v24`
+- Executor: `semantic-executor-prompt-v30`
 - Language: `semantic-dsl-v9`
 
 ## Maintenance rules

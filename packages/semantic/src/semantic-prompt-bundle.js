@@ -6,7 +6,7 @@ var modelPolicy = require('./semantic-model-policy');
 
 // Planner = natural-language work-order dispatch. Executor = free write for active goal.
 // Do not re-introduce structure plan-* laws into planner protocol.
-var PROFILE_VERSIONS = Object.freeze({ planner: 'semantic-planner-prompt-v22', executor: 'semantic-executor-prompt-v28' });
+var PROFILE_VERSIONS = Object.freeze({ planner: 'semantic-planner-prompt-v24', executor: 'semantic-executor-prompt-v30' });
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticPromptBundle'; throw error; }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
@@ -47,25 +47,27 @@ function plannerProtocol() {
     'LANGUAGE|' + taskPlan.LANGUAGE_ID,
     'ROUND_TOKEN_LIMIT|' + modelPolicy.OUTPUT_TOKEN_LIMIT,
     'THINKING_MODE|disabled',
-    // What this role is for
+    // Role
     'JOB|you are the semantic-domain dispatcher only; product total scheduling lives above this layer',
     'SCOPE|schedule semantic work orders only for the semantic executor (asset routing is product-layer)',
-
-
-    // What to read
-    'READ|1 [L2-world] 2 [L2-progress] 3 [L2-run].request 4 [L2-feedback]? 5 [L4-transition-log]',
-    'WORLD|[L2-world] coarse view: summary, places(id,role,kindHint), counts, place log — what exists where',
-    'PROGRESS|[L2-progress].completed lists finished work orders; use it so the next step is not a duplicate',
-    'REQUEST|[L2-run].request is the overall player goal; cover it step by step across rounds',
-    // How to issue the work order
+    // Hermes-style discipline: settled ledger, active-only open, one terminal action per round
+    'DISCIPLINE|settled ledger + board inventory drive the next step; executor owns detail; assembly accepts later',
+    'READ|1 [L2-progress] 2 [L2-world] 3 [L2-run].request 4 [L2-feedback]? 5 [L4-transition-log]',
+    'SETTLED|[L2-progress].settled lists committed work orders as taskId|goal — closed units, already done for scheduling',
+    'OPEN|[L2-progress].open is empty between rounds (one sealed order at a time); a new plan-task opens the next unit',
+    'BOARD|[L2-world] is place-grain inventory: summary, placeIds, places(id,role,kindHint), counts, +place/-place log',
+    'GAP|next goal fills only a remaining gap of request vs settled goals + board placeIds (place grain, no member trees)',
+    'REQUEST|[L2-run].request is the overall player goal; cover remaining gaps with successive work orders',
+    // Terminal action (exactly one)
     'ROUND|each round emit exactly one command: either plan-task(...) or plan-complete()',
     'OUTPUT|DSL commands only; first non-whitespace is plan-task( or plan-complete(',
-    'WHEN_TASK|if request still needs work, emit plan-task with one clear next step',
-    'WHEN_DONE|if request is already satisfied by progress+world, emit plan-complete()',
-    'TASK_ID|plan-task.semanticId is a short unique id for this work order (e.g. t1, makeSnake, addMove)',
+    'WHEN_TASK|if request still has a place-grain gap after settled+board, emit plan-task with one clear next step',
+    'WHEN_DONE|if request is covered at scheduling grain by settled+board, emit plan-complete()',
+    'DONE_SCOPE|settled work orders close semantic dispatch units; product assembly acceptance is a later outer loop',
+    'TASK_ID|plan-task.semanticId is a short fresh id (e.g. t1, makeSnake, addMove)',
     'TASK_GOAL|plan-task.goal is one natural-language instruction the executor can build (what to add or change)',
     'TASK_GOAL_STYLE|concrete and singular: one place, one behavior, or one rule per goal',
-    'TASK_AFTER|plan-task.after may list earlier completed task ids from progress, or list()',
+    'TASK_AFTER|plan-task.after may list earlier settled task ids, or list()',
     'ONE_ONLY|multi-task batches and structure plan-* commands are invalid for this role',
     'FEEDBACK|when [L2-feedback] is present, emit one corrected plan-task or plan-complete that satisfies it',
     'FORMS|required fields only',
@@ -80,6 +82,7 @@ function executorProtocol(options) {
   var executorLines = syntax.writeLinesForMode(workMode);
   // Dictionary-stable catalogs live in system (cache-friendly). Task board lives in user only once.
   var structureKinds = options.structureKinds || null;
+  var components = options.components || [];
   var opsCondition = options.opsCondition || [];
   var opsAction = options.opsAction || [];
   var opsExpression = options.opsExpression || [];
@@ -105,7 +108,8 @@ function executorProtocol(options) {
     'CH_ENVELOPE|event.kind from [L1-structure-kinds].eventEnvelopes; rule is the ordinary gameplay envelope; when/then attach to the same event slot',
     'CH_OP|when.capability from [L1-ops-condition] only; then.capability from [L1-ops-action] only; parameters are open fields on that same command',
     'CH_EXPR|number-expression: bare number, Owner.field (state.number), or record(capability=<handle from [L1-ops-expression]>, ...); call-style name(...) is outside wire',
-    'CH_STRUCT|entity.kind from [L1-structure-kinds].entityKinds; entity.behaviors optional (omit or list()); slot rules: game/entity/event=semanticId, member=Owner.field, when/then=eventId',
+    'CH_STRUCT|entity.kind from [L1-structure-kinds].entityKinds (sprite|state|text|...); entity.behaviors optional (omit or list()); slot ids are bare semantic ids (snakeHead, GameState) not entity.snakeHead; member=Owner.field (GameState.direction); when/then slot=eventId',
+    'CH_COMPONENT|component is optional library blueprint only; kind is a handle from [L1-components] only; sprite/state/text are entity.kind values; ordinary shell work uses game+entity+member',
     'WIRE|open fields only (field=value); params= bags are outside wire',
     'VALUES|member.value and closed values: bare literal, list(...), or record(field=value)',
     'ORDER|Runtime orders structure before event before when/then',
@@ -122,6 +126,7 @@ function executorProtocol(options) {
       eventEnvelopes: structureKinds.eventEnvelopes || []
     });
   }
+  if (components.length) sectionRows(lines, 'L1-components', components);
   if (opsCondition.length) sectionRows(lines, 'L1-ops-condition', opsCondition);
   if (opsAction.length) sectionRows(lines, 'L1-ops-action', opsAction);
   if (opsExpression.length) sectionRows(lines, 'L1-ops-expression', opsExpression);
@@ -152,22 +157,37 @@ function transitionSection(lines, context) {
 function plannerUser(context) {
   var lines = [];
   var l2 = object(context.l2, 'context.l2');
-  if (l2.world !== undefined && l2.world !== null) {
-    var world = object(l2.world, 'context.l2.world');
-    // Coarse world only — no nested member/event detail for the dispatcher.
+  // Progress first (Hermes: settled ledger before board detail).
+  var progress = l2.progress || {};
+  var settled = Array.isArray(progress.settled) ? progress.settled
+    : (Array.isArray(progress.completed) ? progress.completed : []);
+  var open = Array.isArray(progress.open) ? progress.open : [];
+  sectionFacts(lines, 'L2-progress', {
+    settledCount: progress.settledCount != null ? progress.settledCount : settled.length,
+    settled: settled,
+    open: open.length ? open : ['(none)'],
+    nextAction: progress.nextAction || 'dispatch-one-or-complete'
+  });
+  // Board inventory: placeIds lead; places keep role/kindHint only.
+  var board = l2.board || null;
+  var world = l2.world || null;
+  if (board || world) {
+    board = board || {};
+    world = world || {};
     sectionFacts(lines, 'L2-world', {
       viewKind: world.viewKind || 'semantic-coarse-world',
       source: world.source || 'draft',
-      mode: world.mode,
-      summary: world.summary,
-      game: world.game,
-      places: world.places || [],
-      counts: world.counts || {},
-      log: Array.isArray(world.log) && world.log.length ? world.log : ['(empty)'],
-      planConstraints: world.planConstraints || []
+      mode: world.mode || board.mode || 'new',
+      summary: board.summary || world.summary || 'empty world',
+      game: board.game !== undefined ? board.game : world.game,
+      placeIds: Array.isArray(board.placeIds) ? board.placeIds
+        : (Array.isArray(world.places) ? world.places.map(function(p) { return p.id; }) : []),
+      places: Array.isArray(board.places) ? board.places : (world.places || []),
+      counts: board.counts || world.counts || {},
+      log: Array.isArray(board.log) && board.log.length ? board.log
+        : (Array.isArray(world.log) && world.log.length ? world.log : ['(empty)'])
     });
   }
-  sectionFacts(lines, 'L2-progress', l2.progress || { completed: [], completedCount: 0, nextAction: 'dispatch-one-or-complete' });
   sectionFacts(lines, 'L2-run', {
     request: l2.request,
     sourceMode: l2.sourceMode,
@@ -259,6 +279,7 @@ function buildExecutorBundle(options) {
       behaviorKinds: l3.behaviorKinds || [],
       eventEnvelopes: l3.eventEnvelopes || []
     },
+    components: l3.components || [],
     opsCondition: l3.opsCondition || [],
     opsAction: l3.opsAction || [],
     opsExpression: l3.opsExpression || []

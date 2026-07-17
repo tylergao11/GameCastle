@@ -43,4 +43,31 @@ var resolved = taskPlan.authorizeWriteBatch(plan, 'core', [
 assert.strictEqual(resolved[0].semanticId, 'snake');
 assert.strictEqual(resolved[2].entity, 'GameState');
 
+// Wire capabilityBindings → Draft bindings (component IR dual).
+var withComponent = taskPlan.authorizeWriteBatch(plan, 'core', [
+  { type: 'game', slot: 'snake', name: 'Snake' },
+  { type: 'entity', slot: 'snakeHead', roles: ['player'], kind: 'sprite', behaviors: [] },
+  {
+    type: 'component',
+    slot: 'jumpBtn',
+    kind: 'c0',
+    config: {},
+    capabilityBindings: {}
+  }
+], { beforeDocument: emptyDoc });
+assert.strictEqual(withComponent[2].type, 'component');
+assert.deepStrictEqual(withComponent[2].bindings, {});
+assert.strictEqual(Object.prototype.hasOwnProperty.call(withComponent[2], 'capabilityBindings'), false);
+
+// Typed slot prefixes entity./member. are stripped once at authorize.
+var prefixed = taskPlan.authorizeWriteBatch(plan, 'core', [
+  { type: 'game', slot: 'game.main', name: 'Snake' },
+  { type: 'entity', slot: 'entity.GameState', roles: ['state'], kind: 'state', behaviors: [] },
+  { type: 'member', slot: 'member.GameState.direction', roles: ['direction'], value: 'right', bindings: [] }
+], { beforeDocument: emptyDoc });
+assert.strictEqual(prefixed[0].semanticId, 'main');
+assert.strictEqual(prefixed[1].semanticId, 'GameState');
+assert.strictEqual(prefixed[2].entity, 'GameState');
+assert.strictEqual(prefixed[2].semanticId, 'direction');
+
 console.log('[SemanticTaskPlan] one-task dispatch + plan-complete + free-write authorize passed');

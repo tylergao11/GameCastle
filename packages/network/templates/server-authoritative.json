@@ -75,9 +75,9 @@
   },
   "syncConfig": {
     "tickRate": {
-      "default": 20,
-      "min": 10,
-      "max": 30
+      "default": 60,
+      "min": 30,
+      "max": 60
     }
   },
   "compiler": {

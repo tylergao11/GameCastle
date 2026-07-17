@@ -99,11 +99,23 @@ function assertFeasible(plan, beforeDocument, options) {
   return true;
 }
 
+function stripTypedSlotPrefix(slot, type) {
+  if (typeof slot !== 'string') return slot;
+  var raw = slot.trim();
+  var prefix = type + '.';
+  // Models often write entity.snakeHead / member.GameState.direction / game.main — strip the type prefix once.
+  if (raw.indexOf(prefix) === 0 && raw.length > prefix.length) return raw.slice(prefix.length);
+  return raw;
+}
+
 function normalizeExecutorCommandSlot(command) {
   command = clone(object(command, 'Draft-write command'));
   if (typeof command.slot === 'string') {
     var facetSlot = /^(.*)#(metadata|conditions|actions)$/.exec(command.slot.trim());
     if (facetSlot && facetSlot[1]) command.slot = facetSlot[1];
+    if (command.type === 'game' || command.type === 'entity' || command.type === 'member' || command.type === 'event' || command.type === 'component' || command.type === 'asset' || command.type === 'layout' || command.type === 'remove') {
+      command.slot = stripTypedSlotPrefix(command.slot, command.type);
+    }
   }
   return command;
 }
@@ -163,7 +175,12 @@ function resolveBatch(plan, taskId, commands, world) {
         command.target = id(command.targetSlot, label + '.targetSlot');
         delete command.targetSlot;
       }
-      // capabilityBindings: values may be handles; leave as model-authored for draft.
+      // Wire field capabilityBindings → Draft IR bindings (same dual as when/then capability → use).
+      if (command.capabilityBindings !== undefined) {
+        command.bindings = command.capabilityBindings;
+        delete command.capabilityBindings;
+      }
+      if (command.bindings === undefined) command.bindings = {};
     } else if (command.type === 'event') {
       command.semanticId = id(command.slot, label + '.slot');
       delete command.slot;
@@ -394,6 +411,15 @@ function buildFailureFeedback(error, commands) {
   }
   if (/Revision write cannot create game/i.test(message)) {
     repair.push('revision board: omit game(...); emit only work-order delta on [L3-board]');
+  }
+  if (/component\.kind|component contains unknown|component requires field/i.test(message) || /requires a handle from \[param-context\].*sprite|state|text/i.test(message)) {
+    repair.push('omit component for shell sprites/state; use entity.kind from [L1-structure-kinds]; component.kind only from [L1-components]');
+  }
+  if (/member slot must be Owner\.field/i.test(message)) {
+    repair.push('member.slot must be Owner.field (e.g. GameState.direction), not a bare field and not member.Owner.field');
+  }
+  if (/entity is missing: member/i.test(message)) {
+    repair.push('member.slot is Owner.field only (GameState.direction); drop member. / entity. / game. type prefixes from slots');
   }
   if (!repair.length) {
     repair.push('repair against [L3-work-order] and [L3-board]; preserve existing board values unless the goal changes them');

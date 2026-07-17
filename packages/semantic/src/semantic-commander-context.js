@@ -322,34 +322,67 @@ function worldFromDraftIndex(draft, index) {
   };
 }
 
+// Hermes-style scheduler grain: settled ledger (committed work orders) vs open unit.
+// No receipt hashes, no member trees — assembly/product judges true playability later.
 function progressFromProjection(machineProjection) {
   machineProjection = machineProjection || {};
-  var completed = Array.isArray(machineProjection.dispatchLog)
-    ? machineProjection.dispatchLog.map(function(item) {
-      return {
+  var settled = [];
+  if (Array.isArray(machineProjection.dispatchLog) && machineProjection.dispatchLog.length) {
+    machineProjection.dispatchLog.forEach(function(item) {
+      if (!item || !item.taskId) return;
+      settled.push({
         taskId: item.taskId,
-        goal: item.goal || null,
-        receiptHash: item.receiptHash || null
-      };
-    })
-    : (machineProjection.completedTaskIds || []).map(function(taskId) {
-      return { taskId: taskId, goal: null, receiptHash: null };
+        goal: item.goal ? String(item.goal) : ''
+      });
     });
+  } else {
+    (machineProjection.completedTaskIds || []).forEach(function(taskId) {
+      settled.push({ taskId: taskId, goal: '' });
+    });
+  }
+  // Flat rows: "taskId|goal" — easy to scan (Hermes: finished work is ledger text, not active todo).
+  var settledRows = settled.map(function(item) {
+    return item.goal ? (item.taskId + '|' + item.goal) : item.taskId;
+  });
+  // One sealed work order at a time: at PLANNING re-entry there is no open unit (Hermes active-only reinjection).
+  var open = [];
+  if (machineProjection.activeTaskId && machineProjection.state === stateMachine.STATES.TASK_ACTIVE) {
+    open.push(String(machineProjection.activeTaskId));
+  }
   return {
-    completed: completed,
-    completedCount: completed.length,
-    // Next dispatch is always a fresh single work order; no sealed multi-task queue.
+    settledCount: settledRows.length,
+    settled: settledRows,
+    // Alias for older readers/tests — same rows as settled.
+    completedCount: settledRows.length,
+    completed: settledRows,
+    open: open,
     nextAction: 'dispatch-one-or-complete'
+  };
+}
+
+// Board inventory for the dispatcher only: place ids + coarse counts (no member/event trees).
+function boardInventoryFromWorld(world) {
+  world = world || {};
+  var places = Array.isArray(world.places) ? world.places : [];
+  return {
+    summary: world.summary || 'empty world',
+    game: world.game || null,
+    placeIds: places.map(function(place) { return place.id; }),
+    places: places,
+    counts: world.counts || { places: places.length, members: 0, events: 0 },
+    log: Array.isArray(world.log) && world.log.length ? world.log : ['(empty)']
   };
 }
 
 function planner(references, draft, request, machineProjection, feedback) {
   var base = baseDraftIndex(draft);
+  var world = coarseWorldFromDraft(draft);
+  var progress = progressFromProjection(machineProjection);
   return {
     schemaVersion: SCHEMA_VERSION,
     contextKind: CONTEXT_KIND,
     phase: 'planner',
-    // No L1 catalog for dispatcher — coarse world + progress only.
+    // No L1 catalog for dispatcher — settled ledger + coarse board only.
     l1: null,
     l2: {
       request: text(request, 'request'),
@@ -357,8 +390,9 @@ function planner(references, draft, request, machineProjection, feedback) {
       baseDraftHash: base.baseDraftHash,
       // Internal only; not projected to planner user.
       baseDraftIndex: base.index,
-      world: coarseWorldFromDraft(draft),
-      progress: progressFromProjection(machineProjection),
+      world: world,
+      board: boardInventoryFromWorld(world),
+      progress: progress,
       feedback: feedback === undefined ? null : clone(feedback)
     },
     l4: { transitionLines: machine(machineProjection, null) }
@@ -387,7 +421,8 @@ function emptyTaskFacts() {
     opsExpression: [],
     entityKinds: [],
     behaviorKinds: [],
-    eventEnvelopes: []
+    eventEnvelopes: [],
+    components: []
   };
 }
 
@@ -415,7 +450,8 @@ function taskFacts(references, task) {
     opsExpression: opsExpression,
     entityKinds: Array.isArray(parameters.entityKinds) ? parameters.entityKinds.slice() : [],
     behaviorKinds: Array.isArray(parameters.behaviorKinds) ? parameters.behaviorKinds.slice() : [],
-    eventEnvelopes: eventEnvelopes
+    eventEnvelopes: eventEnvelopes,
+    components: Array.isArray(parameters.components) ? parameters.components.slice() : []
   };
 }
 
@@ -451,6 +487,7 @@ function task(draftSlice, plan, machineProjection, activeTask, facts, feedback, 
       entityKinds: clone(facts.entityKinds || []),
       behaviorKinds: clone(facts.behaviorKinds || []),
       eventEnvelopes: clone(facts.eventEnvelopes || []),
+      components: clone(facts.components || []),
       operationIndex: clone(facts.operationIndex || [])
     },
     l4: { transitionLines: transitions }
@@ -468,6 +505,8 @@ module.exports = {
   worldDiffLog: worldDiffLog,
   worldFromDraftIndex: worldFromDraftIndex,
   coarseWorldFromDraft: coarseWorldFromDraft,
+  progressFromProjection: progressFromProjection,
+  boardInventoryFromWorld: boardInventoryFromWorld,
   plannerCatalog: plannerCatalog,
   taskFacts: taskFacts,
   planner: planner,

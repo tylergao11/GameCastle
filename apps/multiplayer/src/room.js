@@ -22,6 +22,11 @@ class Room {
     this._inputDelay = Number(options.inputDelay) || 2;
     this._eventValidator = options.eventValidator || null;
 
+    // Friend-session metadata (host authority + optional product delivery admission)
+    this.sessionKind = options.sessionKind || "open";
+    this.hostPlayerId = options.hostPlayerId || null;
+    this.deliveryAttestation = options.deliveryAttestation || null;
+
     // Authoritative game loop (activated when tickRate > 0)
     this._gameLoop = null;
     if (options.tickRate > 0) {
@@ -30,6 +35,16 @@ class Room {
         onTick: (inputs, tick) => this._onGameTick(inputs, tick),
       });
     }
+  }
+
+  get isFriendSession() {
+    return this.sessionKind === "friend-invite";
+  }
+
+  matchesDelivery(attestation) {
+    if (!this.deliveryAttestation || !this.deliveryAttestation.sourceHash) return true;
+    if (!attestation || typeof attestation.sourceHash !== "string" || !attestation.sourceHash) return false;
+    return attestation.sourceHash === this.deliveryAttestation.sourceHash;
   }
 
   // ── Sender ─────────────────────────────────────────────────────────────

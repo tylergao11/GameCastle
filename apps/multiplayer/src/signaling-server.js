@@ -35,6 +35,25 @@ const SCHEMA = {
   game_input:   { required: ["tick"] },
 };
 
+const MIN_FRIEND_TICK_HZ = 30;
+
+function normalizeDeliveryAttestation(value) {
+  if (value == null) return null;
+  if (typeof value !== "object" || Array.isArray(value)) return { error: "deliveryAttestation must be an object" };
+  if (typeof value.sourceHash !== "string" || !value.sourceHash.trim()) {
+    return { error: "deliveryAttestation.sourceHash is required" };
+  }
+  return {
+    attestation: {
+      sourceHash: value.sourceHash.trim(),
+      assetWorldHash: value.assetWorldHash || null,
+      spatialResolutionHash: value.spatialResolutionHash || null,
+      assemblyReviewHash: value.assemblyReviewHash || null,
+      contentHash: value.contentHash || null,
+    },
+  };
+}
+
 const validate = (msg) => {
   const rules = SCHEMA[msg.type];
   if (!rules) return `unknown message type: ${msg.type}`;
@@ -53,24 +72,68 @@ const conns = new Map();   // ws → { roomId, playerId }
 const handlers = {
 
   create_room(ctx, msg) {
+    const sessionKind = msg.sessionKind || "open";
+    const isFriend = sessionKind === "friend-invite";
+    let deliveryAttestation = null;
+
+    if (isFriend || msg.requireDelivery) {
+      if (!msg.deliveryAttestation) {
+        return { type: "error", error: "deliveryAttestation.sourceHash is required for friend-invite rooms" };
+      }
+      const normalized = normalizeDeliveryAttestation(msg.deliveryAttestation);
+      if (normalized.error) return { type: "error", error: normalized.error };
+      deliveryAttestation = normalized.attestation;
+    } else if (msg.deliveryAttestation) {
+      const normalized = normalizeDeliveryAttestation(msg.deliveryAttestation);
+      if (normalized.error) return { type: "error", error: normalized.error };
+      deliveryAttestation = normalized.attestation;
+    }
+
+    let tickRate = Number(msg.tickRate) || 0;
+    if (isFriend) {
+      if (!tickRate) tickRate = 60;
+      if (tickRate < MIN_FRIEND_TICK_HZ) {
+        return { type: "error", error: "friend-invite tickRate must be at least " + MIN_FRIEND_TICK_HZ + " Hz" };
+      }
+    }
+
+    const hostPlayerId = msg.hostPlayerId || msg.playerId || null;
     const roomId = uid();
     const room = new Room(roomId, {
-      tickRate: msg.tickRate || 0,
-      maxPlayers: msg.maxPlayers || 0,
+      tickRate: tickRate,
+      maxPlayers: msg.maxPlayers || (isFriend ? 8 : 0),
       inputDelay: msg.inputDelay || 2,
       eventValidator: msg.eventValidator || null,
+      sessionKind: sessionKind,
+      hostPlayerId: hostPlayerId,
+      deliveryAttestation: deliveryAttestation,
     });
     room.setSender(send);
     ctx.rooms.set(roomId, room);
     ctx.roomId = roomId;
-    return { type: "room_created", roomId };
+    return {
+      type: "room_created",
+      roomId,
+      sessionKind,
+      hostPlayerId,
+      tickRate: tickRate || null,
+      deliveryAttestation: deliveryAttestation,
+    };
   },
 
   join_room(ctx, msg) {
     const room = ctx.rooms.get(msg.roomId);
     if (!room) return { type: "error", error: "room not found" };
 
+    if (room.deliveryAttestation) {
+      if (!room.matchesDelivery(msg.deliveryAttestation)) {
+        return { type: "error", error: "delivery attestation mismatch (sourceHash required to match room)" };
+      }
+    }
+
     const playerId = msg.playerId || uid();
+    if (!room.hostPlayerId) room.hostPlayerId = playerId;
+
     try {
       room.add(playerId, ctx.ws);
     } catch (e) {
@@ -86,17 +149,32 @@ const handlers = {
       }
     });
     room.broadcast({ type: "player_joined", playerId }, ctx.ws);
-    return { type: "joined", roomId: msg.roomId, playerId };
+    return {
+      type: "joined",
+      roomId: msg.roomId,
+      playerId,
+      hostPlayerId: room.hostPlayerId,
+      sessionKind: room.sessionKind,
+      deliveryAttestation: room.deliveryAttestation,
+    };
   },
 
   leave_room(ctx) {
     const room = ctx.rooms.get(ctx.roomId);
     if (room) {
+      const leavingHost = room.hostPlayerId && room.hostPlayerId === ctx.playerId;
       room.remove(ctx.playerId);
-      room.broadcast({ type: "player_left", playerId: ctx.playerId });
-      if (room.isEmpty) {
+      if (leavingHost && room.isFriendSession) {
+        // Friend-session MVP: host disconnect dissolves the room for everyone.
+        room.broadcast({ type: "room_closed", reason: "host_disconnect", hostPlayerId: ctx.playerId });
         room.destroy();
         ctx.rooms.delete(ctx.roomId);
+      } else {
+        room.broadcast({ type: "player_left", playerId: ctx.playerId });
+        if (room.isEmpty) {
+          room.destroy();
+          ctx.rooms.delete(ctx.roomId);
+        }
       }
     }
     ctx.conns.delete(ctx.ws);

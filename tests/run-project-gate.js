@@ -100,6 +100,8 @@ var provider = [
 var llmTransport = [['tests/provider/check-responses-client.js']];
 var network = [
   ['tests/network/test-tick-policy-resolver.js'],
+  ['tests/network/test-friend-session-policy.js'],
+  ['tests/network/test-local-prediction.js'],
   ['tests/network/test-tick-performance-evidence.js'],
   ['tests/network/test-tick-intent-runtime.js'],
   ['tests/network/test-tick-intent-bridge-local.js'],
@@ -112,6 +114,7 @@ var network = [
   ['tests/network/test-async-persistence.js'],
   ['tests/network/test-transport-reconnect.js'],
   ['tests/network/test-smoke.js'],
+  ['tests/network/test-friend-room-admission.js'],
   ['tests/network/test-all.js'],
   ['tests/network/test-shooter-bridge-e2e.js']
 ];

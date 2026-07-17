@@ -24,6 +24,11 @@ function GameCastleTickIntentRuntime(config) {
   this._lastPacket = null;
   this._events = [];
   this._snapshots = [];
+  // Local prediction: present unconfirmed ticks immediately; host/lockstep timeline still confirms.
+  this._predictEnabled = config.localPrediction !== false;
+  this._predictions = {};
+  this._lastRemoteByPlayer = {};
+  this._maxPredictAhead = config.maxPredictAhead !== undefined ? config.maxPredictAhead : 8;
   if (this._localPlayerId) this._playerSlots[this._localPlayerId] = this._localSlot;
 }
 
@@ -40,6 +45,8 @@ GameCastleTickIntentRuntime.prototype.reset = function(options) {
   this._lastPacket = null;
   this._events = [];
   this._snapshots = [];
+  this._predictions = {};
+  this._lastRemoteByPlayer = {};
   if (options.localPlayerId) this.setLocalPlayer(options.localPlayerId, options.localSlot || this._localSlot);
 };
 
@@ -125,7 +132,45 @@ GameCastleTickIntentRuntime.prototype._storeRemoteIntent = function(playerId, ti
   if (!this._remoteIntents[tick]) this._remoteIntents[tick] = {};
   if (this._remoteIntents[tick][playerId] === undefined) {
     this._remoteIntents[tick][playerId] = cloneIntent(intent || {});
+    this._lastRemoteByPlayer[playerId] = cloneIntent(intent || {});
   }
+};
+
+// Predicted ticks: local intent is ready, remotes not yet — use hold-last remote for feel.
+// Authoritative confirmation still comes only from nextLockstepTicks / nextAuthorityTicks.
+GameCastleTickIntentRuntime.prototype.nextPredictedTicks = function() {
+  if (!this._predictEnabled || !this._peerIds.length) return [];
+  var ticks = [];
+  var tick = this._readyTick;
+  var limit = this._maxPredictAhead;
+  while (ticks.length < limit && this._connected) {
+    if (tick >= this._tick) break;
+    if (this._localIntents[tick] === undefined) break;
+    if (this._hasRemoteIntentsForTick(tick)) break;
+
+    var combined = {};
+    this._copySlotIntents(combined, this._localIntents[tick] || {}, this._localSlot);
+    var assumedRemote = {};
+    for (var i = 0; i < this._peerIds.length; i++) {
+      var pid = this._peerIds[i];
+      var held = this._lastRemoteByPlayer[pid] || {};
+      assumedRemote[pid] = cloneIntent(held);
+      this._copySlotIntents(combined, held, this._slotForPlayer(pid));
+    }
+    this._predictions[tick] = { intents: cloneIntent(combined), assumedRemote: assumedRemote };
+    ticks.push({
+      tick: tick,
+      intents: cloneIntent(combined),
+      inputs: cloneIntent(combined),
+      predicted: true,
+      mode: "predicted",
+      localIntent: cloneIntent(this._localIntents[tick] || {}),
+      remoteIntents: assumedRemote,
+    });
+    this._recordEvent(tick, "TickPredicted", { mode: "predicted" });
+    tick++;
+  }
+  return ticks;
 };
 
 GameCastleTickIntentRuntime.prototype.nextLockstepTicks = function() {
@@ -145,11 +190,26 @@ GameCastleTickIntentRuntime.prototype.nextLockstepTicks = function() {
       this._copySlotIntents(combined, remoteAtTick[pid] || {}, this._slotForPlayer(pid));
     }
 
-    ticks.push(this._buildReadyTick(tick, combined, {
+    var reconcile = null;
+    var predicted = this._predictions[tick];
+    if (predicted) {
+      var predHash = hashValue(predicted.intents);
+      var confHash = hashValue(combined);
+      if (predHash !== confHash) {
+        reconcile = { rollback: true, fromTick: tick, predictedHash: predHash, confirmedHash: confHash };
+        this._recordEvent(tick, "PredictionReconcile", reconcile);
+      }
+      delete this._predictions[tick];
+    }
+
+    var frame = this._buildReadyTick(tick, combined, {
       localIntent: this._localIntents[tick] || {},
       remoteIntents: remoteAtTick,
       mode: "lockstep",
-    }));
+    });
+    frame.predicted = false;
+    if (reconcile) frame.reconcile = reconcile;
+    ticks.push(frame);
     this._readyTick++;
   }
   this._prune();
@@ -181,12 +241,14 @@ GameCastleTickIntentRuntime.prototype.nextAuthorityTicks = function() {
 };
 
 GameCastleTickIntentRuntime.prototype._buildReadyTick = function(tick, intents, meta) {
+  meta = meta || {};
   this._recordEvent(tick, "TickAdvanced", { mode: meta.mode, intents: intents });
   var snapshot = this._snapshotForTick(tick, intents);
   return {
     tick: tick,
     intents: intents,
     inputs: intents,
+    mode: meta.mode || "lockstep",
     localIntent: meta.localIntent,
     remoteIntents: meta.remoteIntents,
     orderedIntents: meta.orderedIntents,
@@ -268,6 +330,9 @@ GameCastleTickIntentRuntime.prototype._prune = function() {
   pruneTicks(this._orderedIntents, cutoff);
   this._events = this._events.filter(function(event) { return event.tick >= cutoff; });
   this._snapshots = this._snapshots.filter(function(snapshot) { return snapshot.tick >= cutoff; });
+  for (var predTick in this._predictions) {
+    if (this._predictions.hasOwnProperty(predTick) && Number(predTick) < cutoff) delete this._predictions[predTick];
+  }
 };
 
 GameCastleTickIntentRuntime.prototype.getTick = function() { return this._tick; };

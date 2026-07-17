@@ -14,8 +14,36 @@ The intended deployment contract is that only a product accepted by
 `ProductDeliveryOrchestrator`—with one source hash binding its complete
 AssetWorld, accepted spatial projection, browser capture, and assembly
 review—may be delivered to a multiplayer runtime. The current signaling server
-does not yet validate a delivery attestation or source hash at room creation;
-the deployment adapter must enforce admission until that protocol field is
-implemented. Multiplayer messages can drive runtime behavior, but they cannot
-alter TaskPlan, Source/Revision, product feedback, compilation contracts, or
-delivery evidence.
+validates delivery attestation when `sessionKind` is `friend-invite` (or
+`requireDelivery` is set): `create_room` requires `deliveryAttestation.sourceHash`,
+and `join_room` must present the same `sourceHash`. Open rooms remain backward
+compatible without attestation. Multiplayer messages can drive runtime behavior,
+but they cannot alter TaskPlan, Source/Revision, product feedback, compilation
+contracts, or delivery evidence.
+
+## Friend-invite session (default multiplayer)
+
+Lightweight friend sessions are the product default. Contract owner:
+`packages/network/src/friend-session-policy.js` plus `packages/network/contracts/sync-schema.json`.
+
+| Rule | Value |
+| --- | --- |
+| Session kind | `friend-invite` |
+| Host | Room **initiator** |
+| Sync | Lockstep **input intents** (frame/tick), not each-peer world authority |
+| Local machine | Simulator + **local prediction** for feel |
+| Server | Signaling / relay only (not gameplay authority for MVP) |
+| Simulation Hz | **Default 60**, **minimum 30** |
+| Unplayable | **Below 30 Hz** (including legacy 20 Hz defaults) is rejected |
+| Host disconnect | Dissolve room (no host migration in MVP) |
+| Admission | `friend-invite` rooms require matching `deliveryAttestation.sourceHash` on create/join |
+| Host leave | Dissolves the room (`room_closed` / `host_disconnect`) |
+
+Tick policy enforcement already rejects interactive lockstep below 30 Hz
+(`tick-policy-resolver.js`, runtime adapter, tick-intent bridge). Templates must
+not reintroduce 20 Hz interactive defaults.
+
+Latency is handled by **local prediction** (`nextPredictedTicks` on the tick
+intent runtime: hold-last remote + confirm via lockstep with optional
+`reconcile.rollback`) plus interpolation policy — not by switching to server
+authority. Server authority does not remove RTT; it only changes who owns truth.

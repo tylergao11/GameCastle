@@ -3,7 +3,7 @@
   "benchmarkKind": "semantic-task-benchmark-contract",
   "benchmarkId": "snake-layered-v2",
   "requiredRuntimePhases": ["task-plan", "draft-write"],
-  "requiredProtocolVersions": { "planner": "semantic-planner-prompt-v22", "executor": "semantic-executor-prompt-v28" },
+  "requiredProtocolVersions": { "planner": "semantic-planner-prompt-v24", "executor": "semantic-executor-prompt-v30" },
   "dispatch": { "oneTaskPerRound": true, "completeCommand": "plan-complete" },
   "minimumCacheHitRate": 0.9,
   "hardTimeoutMs": 300000,

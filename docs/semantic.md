@@ -2,7 +2,7 @@
 
 **Owners:** `packages/semantic/src/`  
 **Language:** `semantic-dsl-v9` (`semantic-dsl-syntax.js`)  
-**Protocols:** planner `semantic-planner-prompt-v22` · executor `semantic-executor-prompt-v28`
+**Protocols:** planner `semantic-planner-prompt-v24` · executor `semantic-executor-prompt-v30`
 
 ## Roles
 
@@ -12,7 +12,21 @@
 | **Executor** | Free-write one work order | `game`/`entity`/`member`/`event`/`when`/`then`/… |
 | **Runtime** | Feasibility, authorize, commit | Not a model |
 
-Product-level total scheduling (semantic vs asset) lives under `packages/product/` (`product-dispatch-*`), not the semantic planner.
+Product-level total scheduling (semantic vs asset) lives under `packages/product/` (`product-dispatch-*` LangGraph), not the semantic planner.
+
+## Planner dispatch discipline (Hermes-inspired)
+
+Ideas only — runtime is our state machine + product LangGraph, not Hermes code.
+
+| Signal | Meaning |
+|--------|---------|
+| **settled** | Committed work orders `taskId\|goal` — closed for scheduling |
+| **open** | Empty between rounds (one sealed order at a time) |
+| **board** | Place-grain inventory (`placeIds`, coarse places) |
+| **gap** | Next goal fills remaining request vs settled+board only |
+| **done** | `plan-complete` at scheduling grain; assembly accepts later |
+
+User read order: `[L2-progress]` → `[L2-world]` → `[L2-run].request`.
 
 ## Executor context layout
 

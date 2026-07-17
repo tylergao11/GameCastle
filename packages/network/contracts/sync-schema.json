@@ -1,12 +1,27 @@
 {
-  "schemaVersion": 1,
-  "description": "Network sync policy schema. This is metadata only until runtime networking is implemented.",
+  "schemaVersion": 2,
+  "description": "Network sync policy for GameCastle multiplayer. Friend-invite sessions use host authority and lockstep input intents; the local machine is a simulator, not each-peer world authority. Signaling/relay servers do not own gameplay truth.",
   "modes": ["local", "lockstep", "snapshot", "event"],
   "authorities": ["client", "host", "server"],
+  "friendSession": {
+    "sessionKind": "friend-invite",
+    "defaultSync": "lockstep",
+    "defaultAuthority": "host",
+    "host": "room initiator",
+    "simulationHz": { "default": 60, "min": 30, "max": 60 },
+    "unplayableBelowHz": 30,
+    "notes": [
+      "20 Hz (and below 30 Hz) is rejected as unplayable for interactive friend sessions.",
+      "Local prediction is required for feel; host input timeline remains authority.",
+      "Server is signaling/relay only for MVP; not the simulation authority.",
+      "Host disconnect dissolves the room (no host migration in MVP).",
+      "Room admission should bind an accepted product delivery attestation (sourceHash at minimum)."
+    ]
+  },
   "fields": {
     "sync": "local keeps behavior single-player/local-only; lockstep synchronizes deterministic inputs; snapshot synchronizes authoritative state snapshots; event synchronizes discrete events.",
-    "authority": "client, host, or server authority for the module state.",
-    "tickRate": "Simulation or network tick rate reserved for future sync runtimes.",
+    "authority": "client, host, or server authority for module state. Friend sessions pin authority=host (initiator).",
+    "tickRate": "Simulation Hz. Interactive lockstep/friend-session must be >= 30; default 60. Must not ship 20 Hz interactive defaults.",
     "seed": "Deterministic seed value. Use auto for compiler-assigned stable defaults."
   }
 }

@@ -3,22 +3,22 @@
   "id": "network.p2p-lockstep",
   "category": "network",
   "version": 1,
-  "summary": "2-player deterministic lockstep over peer-to-peer input forwarding with tick-sequence-redundancy recovery.",
-  "llm1Card": "Both players send their inputs to each other every frame. Both games run the exact same inputs and stay perfectly in sync. Every frame must match exactly. Best when two players need split-second accuracy against each other and any desync would ruin the game.",
+  "summary": "Friend-session lockstep: deterministic input intents at playable cadence (default 60 Hz, min 30 Hz). Host is the room initiator; peers simulate locally.",
+  "llm1Card": "Friends join the initiator's room. Everyone runs the same game logic from the same ordered inputs so the session stays in sync. Best for lightweight friend invite multiplayer, not ranked competitive server authority.",
   "provides": {
     "syncModels": [
       "lockstep-input"
     ],
     "topology": [
-      "peer-to-peer"
+      "peer-to-peer",
+      "star"
     ],
     "players": {
       "min": 2,
-      "max": 2
+      "max": 8
     },
     "authority": [
-      "each-owns-own",
-      "host-control"
+      "host"
     ]
   },
   "requires": {
@@ -64,11 +64,13 @@
   },
   "syncConfig": {
     "tickRate": {
-      "default": 20,
-      "min": 10,
+      "default": 60,
+      "min": 30,
       "max": 60
     },
-    "inputDelay": 2
+    "inputDelay": 2,
+    "localPrediction": "required",
+    "hostDisconnect": "dissolve-room"
   },
   "compiler": {
     "strategies": [
@@ -86,13 +88,15 @@
       "proto/lockstep-input.proto"
     ],
     "targetPlan": [
-      "install network sync=lockstep-input authority=each-owns-own tickRate={{tickRate}}",
-      "set topology type=p2p maxPeers=2",
+      "install network sync=lockstep-input authority=host tickRate={{tickRate}}",
+      "set topology type=star-or-p2p maxPeers=8 host=initiator",
       "set determinism seedFrom=room random=seeded timestep=fixed",
       "set channel=control reliability=reliable ordering=ordered transport=websocket codec=json",
       "set channel=input reliability=reliable-or-redundant ordering=tick-ordered transport=webrtc codec=protobuf",
       "set recovery=input strategy=tick-sequence-redundancy includePreviousTicks=5 ack=true",
       "set inputDelay={{inputDelay}}",
+      "set localPrediction=required",
+      "set hostDisconnect=dissolve-room",
       "sync input {{inputs}} channel=input"
     ]
   }

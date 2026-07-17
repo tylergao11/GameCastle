@@ -59,10 +59,11 @@
   },
   "syncConfig": {
     "tickRate": {
-      "default": 10,
-      "min": 5,
-      "max": 15
-    }
+      "default": 30,
+      "min": 30,
+      "max": 60
+    },
+    "note": "Snapshot broadcast rate for co-op mirroring; interactive friend play prefers lockstep at 60 Hz. Never ship below 30 Hz for live play."
   },
   "compiler": {
     "strategies": [

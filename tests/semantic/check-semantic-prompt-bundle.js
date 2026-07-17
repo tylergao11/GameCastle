@@ -29,23 +29,46 @@ var plannerStart = projection([transition(1, 'PLANNING', 'plan', null, null)], '
 var plannerContext = contextApi.planner(references, draft, 'Build a snake game', plannerStart);
 var plannerA = prompt.buildPlannerBundle({ context: plannerContext });
 
-assert.strictEqual(plannerA.protocolVersion, 'semantic-planner-prompt-v22');
+assert.strictEqual(plannerA.protocolVersion, 'semantic-planner-prompt-v24');
 assert(plannerA.system.indexOf('plan-task(') >= 0);
 assert(plannerA.system.indexOf('plan-complete') >= 0);
 assert.strictEqual(plannerA.system.indexOf('plan-entity('), -1);
 assert(plannerA.system.indexOf('JOB|') >= 0, 'planner states job');
 assert(plannerA.system.indexOf('WHEN_TASK|') >= 0 && plannerA.system.indexOf('WHEN_DONE|') >= 0, 'planner states when to task vs complete');
+assert(plannerA.system.indexOf('DONE_SCOPE|') >= 0, 'planner defers assembly acceptance to outer loop');
+assert(plannerA.system.indexOf('DISCIPLINE|') >= 0, 'planner states Hermes-style dispatch discipline');
+assert(plannerA.system.indexOf('SETTLED|') >= 0, 'planner names settled ledger');
+assert(plannerA.system.indexOf('GAP|') >= 0, 'planner schedules by remaining gap');
 assert(plannerA.system.indexOf('TASK_GOAL|') >= 0, 'planner states how to write the work-order goal');
 assert(plannerA.system.indexOf('ROUND|') >= 0 && plannerA.system.indexOf('exactly one command') >= 0);
 assert(plannerA.user.indexOf('[L2-world]') >= 0);
 assert(plannerA.user.indexOf('[L2-progress]') >= 0, 'planner user projects task progress');
+assert(plannerA.user.indexOf('[L2-progress]') < plannerA.user.indexOf('[L2-world]'), 'progress before world so settled orders lead');
+assert.strictEqual(plannerA.user.indexOf('receiptHash'), -1, 'progress omits receipt detail');
 assert(plannerA.user.indexOf('semantic-coarse-world') >= 0 || plannerA.user.indexOf('viewKind') >= 0 || plannerContext.l2.world.viewKind === 'semantic-coarse-world');
 assert.strictEqual(plannerContext.l2.world.viewKind, 'semantic-coarse-world');
 assert.strictEqual(plannerContext.l2.world.summary, 'empty world');
 assert.deepStrictEqual(plannerContext.l2.world.places, []);
+assert.deepStrictEqual(plannerContext.l2.progress.open, []);
+assert.deepStrictEqual(plannerContext.l2.board.placeIds, []);
 assert.strictEqual(plannerA.user.indexOf('baseDraftIndex'), -1);
 assert.strictEqual(plannerA.user.indexOf('stateOwners'), -1, 'coarse world omits fine stateOwners dump');
 assert.strictEqual(plannerA.system.indexOf('L1-planner-operation-index'), -1, 'planner system has no L1 catalog dump');
+
+// Settled ledger: taskId|goal only (Hermes-style closed units).
+var withProgress = projection([transition(1, 'PLANNING', 'plan', null, null)], 'PLANNING', 'plan', null, null);
+withProgress.completedTaskIds = ['t1'];
+withProgress.dispatchLog = [{ taskId: 't1', goal: 'Create shell', receiptHash: 'semantic.task-receipt.secret' }];
+var progressContext = contextApi.planner(references, draft, 'Build a snake game', withProgress);
+assert.deepStrictEqual(progressContext.l2.progress.settled, ['t1|Create shell']);
+assert.deepStrictEqual(progressContext.l2.progress.completed, ['t1|Create shell']);
+assert.strictEqual(progressContext.l2.progress.settledCount, 1);
+assert.deepStrictEqual(progressContext.l2.progress.open, []);
+var progressBundle = prompt.buildPlannerBundle({ context: progressContext });
+assert(progressBundle.user.indexOf('t1|Create shell') >= 0);
+assert(progressBundle.user.indexOf('settled') >= 0 || progressBundle.user.indexOf('settledCount') >= 0);
+assert.strictEqual(progressBundle.user.indexOf('secret'), -1);
+assert.strictEqual(progressBundle.user.indexOf('receiptHash'), -1);
 
 // Coarse world lists places after seed load (revision).
 var seedLoader = require('../../packages/semantic/src/semantic-seed-loader');
@@ -58,6 +81,10 @@ assert.strictEqual(revisionContext.l2.world.mode, 'revision');
 assert(revisionContext.l2.world.places.some(function(place) { return place.id === 'snakeHead'; }));
 assert(revisionContext.l2.world.places.some(function(place) { return place.id === 'GameState'; }));
 assert.strictEqual(Object.prototype.hasOwnProperty.call(revisionContext.l2.world.places[0], 'members'), false);
+assert(revisionContext.l2.board.placeIds.indexOf('snakeHead') >= 0);
+assert(revisionContext.l2.board.placeIds.indexOf('GameState') >= 0);
+var revisionBundle = prompt.buildPlannerBundle({ context: revisionContext });
+assert(revisionBundle.user.indexOf('placeIds') >= 0 || revisionBundle.user.indexOf('snakeHead') >= 0);
 
 var plan = taskPlan.create([{ type: 'plan-task', semanticId: 'move', goal: '蛇需要会动', after: [] }]);
 var activeTask = taskPlan.taskById(plan, 'move');
@@ -66,13 +93,15 @@ var executorStart = projection([transition(1, 'TASK_ACTIVE', 'write', null, 'mov
 var slice = { schemaVersion: 1, documentKind: 'semantic-task-draft-slice', taskId: 'move', workMode: 'new', goal: '蛇需要会动', baseDraftHash: 'base', structureHash: 'slice', counts: { entities: 0, members: 0, events: 0 }, index: { game: null, entities: [], events: [] }, facts: [] };
 var executorContext = contextApi.task(slice, plan, executorStart, activeTask, facts, null, 'Build movement');
 var executorA = prompt.buildExecutorBundle({ context: executorContext });
-assert.strictEqual(executorA.protocolVersion, 'semantic-executor-prompt-v28');
+assert.strictEqual(executorA.protocolVersion, 'semantic-executor-prompt-v30');
 assert(executorA.system.indexOf('BOARD|') >= 0, 'executor states board mode');
 assert(executorA.system.indexOf('CHANNELS|') >= 0, 'executor declares CHANNELS');
 assert(executorA.system.indexOf('CH_ENVELOPE|') >= 0, 'executor envelope channel');
 assert(executorA.system.indexOf('CH_OP|') >= 0, 'executor op channel');
 assert(executorA.system.indexOf('CH_EXPR|') >= 0, 'executor expression channel');
 assert(executorA.system.indexOf('CH_STRUCT|') >= 0, 'executor structure channel');
+assert(executorA.system.indexOf('CH_COMPONENT|') >= 0, 'executor component channel');
+assert(executorA.system.indexOf('[L1-components]') >= 0, 'component library lives in system');
 assert(executorA.system.indexOf('WIRE|') >= 0, 'executor open-field wire');
 assert(executorA.system.indexOf('WORK_ORDER|') >= 0, 'executor sole checklist is work order');
 assert(executorA.system.indexOf('PRODUCT|') >= 0, 'executor treats product request as background');
@@ -141,4 +170,4 @@ assert.strictEqual(syntax.writeLinesForMode('revision').some(function(line) { re
 // Cache-shaped: system holds catalogs; user is small task board.
 assert(revBundle.bytes.system > revBundle.bytes.user, 'system catalogs dominate; user is task-local');
 
-console.log('[SemanticPromptBundle] v28 layout+cache shape passed systemBytes=' + revBundle.bytes.system + ' userBytes=' + revBundle.bytes.user);
+console.log('[SemanticPromptBundle] v30 layout+cache shape passed systemBytes=' + revBundle.bytes.system + ' userBytes=' + revBundle.bytes.user);
