@@ -33,21 +33,29 @@
       },
       "cohesionPolicy": {
         "maxColorFamilies": 5,
+        "maxDominantColorFamilies": 10,
+        "structureTopK": 8,
+        "minTopKCoverage": 0.55,
+        "majorMass": 0.05,
+        "maxMajorColorFamilies": 8,
+        "dominantCoverage": 0.9,
+        "significantMass": 0.03,
         "minPairwisePaletteSimilarity": 0.28,
         "minAssetsForPairwise": 2,
         "minOpaquePixelRatio": 0.02,
         "maxOpaquePixelRatio": 0.98,
         "histogramBins": 6,
-        "principle": "Color-family structure counts mass-significant coarse histogram bins (>=2%), not fine anti-alias clusters. Pairwise palette cohesion is enforced within sprite/scene groups after required slots accept; CLIP styleMargin remains a weak per-asset floor."
+        "principle": "Structure gates use top-K palette concentration and major mass bins (>=5%), which tolerate SDXL soft anti-alias while rejecting diffuse photo-like spreads. Pairwise palette cohesion is enforced within sprite/scene groups after required slots accept; CLIP styleMargin remains a weak per-asset floor."
       },
       "promptContract": {
-        "requiredPhrases": ["2D raster-toon game sprite", "chunky readable silhouette", "limited color ramps", "controlled cartoon shading", "native-size readability", "dark readable outline mass"],
-        "negativePhrases": ["photograph", "glossy 3D render", "text or watermark", "sprite sheet"],
+        "requiredPhrases": ["full-color 2D raster-toon game sprite", "chunky readable silhouette", "bright limited color ramps", "few solid flat color fills", "controlled cartoon shading", "native-size readability", "bold dark ink outline"],
+        "negativePhrases": ["photograph or grayscale monochrome sketch", "glossy 3D render", "text or watermark", "sprite sheet or character turnaround"],
+        "maxStyleTailChars": 300,
         "productionFamilyPhrases": {
-          "character": ["one expressive isolated cartoon character", "clear full-body pose"],
-          "character-part": ["single requested body part"],
-          "character-animation": ["one isolated animation-ready cartoon character", "clear full-body pose"],
-          "prop": ["one centered isolated prop"],
+          "character": ["one expressive isolated cartoon character", "single front-view full-body only, no turnaround or second figure", "large empty white margins around the subject"],
+          "character-part": ["single requested body part", "large empty white margins around the subject"],
+          "character-animation": ["one isolated animation-ready cartoon character", "single front-view full-body only, no turnaround or second figure", "large empty white margins around the subject"],
+          "prop": ["one centered isolated prop", "single jewel or collectible only", "large empty white margins around the subject"],
           "effect": ["one isolated readable gameplay effect"],
           "effect-animation": ["one isolated animation-ready gameplay effect"],
           "background": ["one coherent role-specific scene"],
@@ -70,15 +78,15 @@
       },
       "semanticReview": {
         "defaultProfile": {
-          "semanticPositiveTexts": ["one correct role-specific game asset"],
-          "semanticNegativeTexts": ["an unrelated subject", "a collection of unrelated objects or a different game asset"],
+          "semanticPositiveTexts": ["one clear single game sprite of the requested subject"],
+          "semanticNegativeTexts": ["an unrelated object", "a different subject entirely", "a collage of mixed game assets"],
           "stylePositiveTexts": [
-            "chunky low-resolution 2D raster-toon mobile game sprite with a bold dark outline and limited flat color ramps",
-            "expressive western cartoon game art with compact readable silhouette masses and controlled two-to-four-tone shading"
+            "full-color chunky low-resolution 2D raster-toon mobile game sprite with bold dark ink outline and solid flat color fills",
+            "bright limited-palette western cartoon game art with compact readable silhouette masses and clean two-to-four-tone shading"
           ],
           "styleNegativeTexts": [
-            "photorealistic photo, noisy natural texture, or camera capture",
-            "anime cel shading, glossy plastic 3D render, or dense microdetail that collapses at sprite size"
+            "grayscale monochrome pencil sketch line art or desaturated muddy colors",
+            "photorealistic photo anime cel glossy 3D render or dense microdetail that collapses at sprite size"
           ]
         },
         "phaseProfiles": [
@@ -96,8 +104,8 @@
         ],
         "productionFamilyProfiles": {
           "character": {
-            "semanticPositiveTexts": ["one complete cartoon character"],
-            "semanticNegativeTexts": ["multiple characters", "a crowd", "a sheet of character poses"]
+            "semanticPositiveTexts": ["exactly one complete cartoon character alone facing the camera"],
+            "semanticNegativeTexts": ["two people", "front and back turnaround", "a second figure", "multiple characters", "a character model sheet"]
           },
           "character-part": {
             "semanticPositiveTexts": ["one exact requested character component", "one reusable game sprite component"],
@@ -111,12 +119,12 @@
             ]
           },
           "character-animation": {
-            "semanticPositiveTexts": ["one animation-ready cartoon character"],
-            "semanticNegativeTexts": ["multiple characters", "a crowd", "an animation sheet"]
+            "semanticPositiveTexts": ["exactly one animation-ready cartoon character alone facing the camera"],
+            "semanticNegativeTexts": ["two people", "front and back turnaround", "a second figure", "multiple characters", "a character model sheet"]
           },
           "prop": {
-            "semanticPositiveTexts": ["one centered gameplay prop"],
-            "semanticNegativeTexts": ["multiple objects", "a repeating pattern", "a character"]
+            "semanticPositiveTexts": ["one blue gemstone jewel", "one crystal gem collectible", "one centered gameplay prop"],
+            "semanticNegativeTexts": ["a person or character", "a landscape scene", "multiple gems scattered", "a repeating pattern"]
           },
           "world-geometry": {
             "semanticPositiveTexts": ["one seamless orthographic game tile filling the image edge to edge"],

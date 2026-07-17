@@ -38,8 +38,20 @@ function cohesionPolicy(styleId) {
   var style = styleDNA.style(styleId);
   var prompt = style.promptContract || {};
   var policy = style.cohesionPolicy || {};
+  var maxColorFamilies = Number(policy.maxColorFamilies || prompt.maxLocalColorFamilies || 5);
   return {
-    maxColorFamilies: Number(policy.maxColorFamilies || prompt.maxLocalColorFamilies || 5),
+    maxColorFamilies: maxColorFamilies,
+    // Soft SDXL anti-alias creates many fringe bins. Gate on concentration of the top-K bins
+    // and a ceiling on major (mass-significant) families, not raw 90% coverage bin count.
+    maxDominantColorFamilies: Number(policy.maxDominantColorFamilies || Math.max(10, maxColorFamilies * 2)),
+    structureTopK: Number(policy.structureTopK || 8),
+    // Soft SDXL toon ramps are intentionally not ultra-concentrated; only extreme
+    // diffusion fails. Full-frame photo-like spreads use opaque+major-family gates.
+    minTopKCoverage: policy.minTopKCoverage === undefined ? 0.55 : Number(policy.minTopKCoverage),
+    majorMass: policy.majorMass === undefined ? 0.05 : Number(policy.majorMass),
+    maxMajorColorFamilies: Number(policy.maxMajorColorFamilies || Math.max(8, maxColorFamilies + 3)),
+    dominantCoverage: policy.dominantCoverage === undefined ? 0.9 : Number(policy.dominantCoverage),
+    significantMass: policy.significantMass === undefined ? 0.03 : Number(policy.significantMass),
     minPairwisePaletteSimilarity: policy.minPairwisePaletteSimilarity === undefined ? 0.28 : Number(policy.minPairwisePaletteSimilarity),
     minAssetsForPairwise: Number(policy.minAssetsForPairwise || 2),
     minOpaquePixelRatio: policy.minOpaquePixelRatio === undefined ? 0.02 : Number(policy.minOpaquePixelRatio),
@@ -99,17 +111,41 @@ function analyzeRgba(width, height, data, styleId) {
   var sum = 0;
   for (var h = 0; h < histogram.length; h++) sum += histogram[h];
   if (sum > 0) for (var n = 0; n < histogram.length; n++) histogram[n] /= sum;
-  // Count mass-significant coarse bins only. Fine RGB clustering over-counts SDXL
-  // anti-alias and soft toon ramps as if they were photographic microtexture.
-  var significantMass = 0.02;
+  // Significant bins: intentional ramps + soft-edge bleed.
+  // Major bins: mass >= majorMass (true local fills, not AA fringe).
+  // topKCoverage: concentration of the strongest K bins (photo noise is diffuse).
+  var significantMass = policy.significantMass;
+  var majorMass = policy.majorMass;
   var families = 0;
-  for (var f = 0; f < histogram.length; f++) if (histogram[f] >= significantMass) families++;
+  var majorFamilies = 0;
+  var massList = [];
+  for (var f = 0; f < histogram.length; f++) {
+    if (histogram[f] >= significantMass) families++;
+    if (histogram[f] >= majorMass) majorFamilies++;
+    if (histogram[f] > 0) massList.push(histogram[f]);
+  }
+  massList.sort(function(left, right) { return right - left; });
+  var coverageTarget = policy.dominantCoverage;
+  var covered = 0;
+  var dominantFamilies = 0;
+  for (var d = 0; d < massList.length; d++) {
+    covered += massList[d];
+    dominantFamilies += 1;
+    if (covered >= coverageTarget) break;
+  }
+  var topK = Math.max(1, policy.structureTopK || 8);
+  var topKCoverage = 0;
+  for (var t = 0; t < Math.min(topK, massList.length); t++) topKCoverage += massList[t];
   return {
     width: width,
     height: height,
     opaquePixels: opaque,
     opaqueRatio: total ? opaque / total : 0,
     colorFamilyCount: families,
+    majorColorFamilyCount: majorFamilies,
+    dominantColorFamilyCount: dominantFamilies,
+    topKCoverage: Number(topKCoverage.toFixed(6)),
+    structureTopK: topK,
     darkEdgeRatio: edgeSamples ? darkEdge / edgeSamples : 0,
     histogram: Array.from(histogram),
     policy: policy
@@ -159,14 +195,35 @@ function evaluateStructure(analysis) {
   if (analysis.opaqueRatio < policy.minOpaquePixelRatio) {
     reasons.push({ code: 'STYLE_STRUCTURE_EMPTY', actual: analysis.opaqueRatio, requiredMinimum: policy.minOpaquePixelRatio });
   }
-  // Significant coarse bins: DNA wants ~5 intentional ramps; real SDXL sprites
-  // with soft shading typically land around 6-12. Block only dense/photo-like spreads.
-  var maxSignificantFamilies = Math.max(12, policy.maxColorFamilies * 3);
-  if (analysis.opaqueRatio > policy.maxOpaquePixelRatio && analysis.colorFamilyCount > maxSignificantFamilies) {
-    reasons.push({ code: 'STYLE_STRUCTURE_PHOTO_LIKE', actual: analysis.opaqueRatio, colorFamilyCount: analysis.colorFamilyCount });
+  // Extreme diffusion only (soft toon ramps commonly land 0.55-0.75 top-8 coverage).
+  if (analysis.topKCoverage < policy.minTopKCoverage) {
+    reasons.push({
+      code: 'STYLE_STRUCTURE_PALETTE_TOO_DIFFUSE',
+      actual: analysis.topKCoverage,
+      requiredMinimum: policy.minTopKCoverage,
+      topK: analysis.structureTopK || policy.structureTopK
+    });
   }
-  if (analysis.colorFamilyCount > maxSignificantFamilies) {
-    reasons.push({ code: 'STYLE_STRUCTURE_TOO_MANY_COLOR_FAMILIES', actual: analysis.colorFamilyCount, requiredMaximum: maxSignificantFamilies });
+  // Major family ceiling: true solid fills / ramps, not AA fringe bins under majorMass.
+  if (analysis.majorColorFamilyCount > policy.maxMajorColorFamilies) {
+    reasons.push({
+      code: 'STYLE_STRUCTURE_TOO_MANY_COLOR_FAMILIES',
+      actual: analysis.majorColorFamilyCount,
+      colorFamilyCount: analysis.colorFamilyCount,
+      majorColorFamilyCount: analysis.majorColorFamilyCount,
+      dominantColorFamilyCount: analysis.dominantColorFamilyCount,
+      requiredMaximum: policy.maxMajorColorFamilies
+    });
+  }
+  // Full-frame multi-major palettes are photo/noise-like, not isolated toon sprites.
+  if (analysis.opaqueRatio > 0.95 && analysis.majorColorFamilyCount >= 6) {
+    reasons.push({
+      code: 'STYLE_STRUCTURE_PHOTO_LIKE',
+      actual: analysis.opaqueRatio,
+      majorColorFamilyCount: analysis.majorColorFamilyCount,
+      topKCoverage: analysis.topKCoverage,
+      colorFamilyCount: analysis.colorFamilyCount
+    });
   }
   return { accepted: reasons.length === 0, reasons: reasons };
 }
@@ -215,6 +272,9 @@ async function evaluateProductionSet(results, options) {
       productionFamily: item.workItem.productionFamily,
       sha256: analysis.sha256,
       colorFamilyCount: analysis.colorFamilyCount,
+      majorColorFamilyCount: analysis.majorColorFamilyCount,
+      dominantColorFamilyCount: analysis.dominantColorFamilyCount,
+      topKCoverage: analysis.topKCoverage,
       opaqueRatio: analysis.opaqueRatio,
       darkEdgeRatio: analysis.darkEdgeRatio,
       accepted: structure.accepted,
@@ -268,7 +328,7 @@ async function evaluateProductionSet(results, options) {
   var receiptIdentity = {
     styleId: styleId,
     styleFingerprint: styleFingerprint,
-    structure: structureReports.map(function(item) { return [item.slotId, item.sha256, item.colorFamilyCount, item.accepted]; }),
+    structure: structureReports.map(function(item) { return [item.slotId, item.sha256, item.colorFamilyCount, item.majorColorFamilyCount, item.topKCoverage, item.accepted]; }),
     pairwise: pairwise.map(function(item) { return [item.leftSlotId, item.rightSlotId, Number(item.paletteSimilarity.toFixed(6)), item.accepted]; }),
     policy: policy
   };

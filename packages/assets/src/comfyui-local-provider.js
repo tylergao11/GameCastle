@@ -152,8 +152,28 @@ async function generateMaster(context) {
 async function invokeComfyUI(context) { if (context.request.role !== 'image-generate') throw code('COMFYUI_ROLE_UNAVAILABLE', 'ComfyUI is restricted to master-image generation.'); return generateMaster(context); }
 async function cancel(context) { await interrupt(context); return { cancelled: true }; }
 function deterministicSeed(slot, productionAttempt, candidatePolicy) { var digest = sha256(Buffer.from(JSON.stringify({ description: slot.description || slot.subject || '', productionFamily: slot.productionFamily || '', styleId: slot.styleId || '', constraints: slot.constraints || {}, animation: slot.animation || null }))), seed = parseInt(digest.slice(0, 8), 16), attempt = Math.max(1, Number(productionAttempt || 1)), offset = candidatePolicy ? (attempt - 1) * candidatePolicy.seedStride * candidatePolicy.maxRounds : 0; seed = (seed + offset) % 4294967295; return seed === 0 ? 1 : seed; }
-function multipleOf64(value) { return Math.max(64, Math.min(1024, Math.round(value / 64) * 64)); }
-function masterDimensions(slot) { slot = slot || {}; if (slot.generationWidth && slot.generationHeight) return { width: multipleOf64(Number(slot.generationWidth)), height: multipleOf64(Number(slot.generationHeight)) }; var constraints = slot.constraints || {}, targetWidth = Math.max(1, Number(constraints.width || 1)), targetHeight = Math.max(1, Number(constraints.height || 1)), scale = 1024 / Math.max(targetWidth, targetHeight); return { width: Math.max(512, multipleOf64(targetWidth * scale)), height: Math.max(512, multipleOf64(targetHeight * scale)) }; }
+// Master canvas ceiling is 512 (registry max). Runtime sprites stay at constraint size
+// after deterministic derivation; only the transient SDXL master is upscaled.
+var MASTER_MAX_EDGE = 512;
+var MASTER_MIN_EDGE = 512;
+function multipleOf64(value) { return Math.max(64, Math.min(MASTER_MAX_EDGE, Math.round(value / 64) * 64)); }
+function masterDimensions(slot) {
+  slot = slot || {};
+  if (slot.generationWidth && slot.generationHeight) {
+    return {
+      width: Math.max(MASTER_MIN_EDGE, multipleOf64(Number(slot.generationWidth))),
+      height: Math.max(MASTER_MIN_EDGE, multipleOf64(Number(slot.generationHeight)))
+    };
+  }
+  var constraints = slot.constraints || {};
+  var targetWidth = Math.max(1, Number(constraints.width || 1));
+  var targetHeight = Math.max(1, Number(constraints.height || 1));
+  var scale = MASTER_MAX_EDGE / Math.max(targetWidth, targetHeight);
+  return {
+    width: Math.max(MASTER_MIN_EDGE, multipleOf64(targetWidth * scale)),
+    height: Math.max(MASTER_MIN_EDGE, multipleOf64(targetHeight * scale))
+  };
+}
 function createAssetProviderPorts(runtime, options) {
   options = options || {};
   function reviewTexts(slot, phase) {

@@ -8,10 +8,14 @@ function paint(value, left, top, right, bottom, color) { for (var y = top; y < b
 var isolated = png.encodePng(paint(raster(32, 32, [248, 248, 248]), 9, 8, 23, 24, [40, 120, 235]));
 var pattern = raster(32, 32, [248, 248, 248]); for (var y = 0; y < 32; y += 2) for (var x = 0; x < 32; x += 2) paint(pattern, x, y, x + 1, y + 1, [40, 120, 235]); pattern = png.encodePng(pattern);
 var blank = png.encodePng(raster(32, 32, [248, 248, 248]));
-var good = quality.analyze(isolated, { transparent: true, productionFamily: 'prop' }), backgroundBearing = quality.analyze(pattern, { transparent: true, productionFamily: 'prop' }), empty = quality.analyze(blank, { transparent: true, productionFamily: 'prop' });
+var grayBody = png.encodePng(paint(raster(32, 32, [248, 248, 248]), 9, 8, 23, 24, [90, 90, 90]));
+var good = quality.analyze(isolated, { transparent: true, productionFamily: 'prop' }), backgroundBearing = quality.analyze(pattern, { transparent: true, productionFamily: 'prop' }), empty = quality.analyze(blank, { transparent: true, productionFamily: 'prop' }), gray = quality.analyze(grayBody, { transparent: true, productionFamily: 'character' });
 assert.strictEqual(good.pass, true, JSON.stringify(good));
 assert.strictEqual(backgroundBearing.pass, true, 'removable master backgrounds are ranking signals, not pre-removal rejection gates');
 assert.strictEqual(empty.pass, false, JSON.stringify(empty));
+assert(good.meanChroma > 18, 'colorful prop fixture must expose meanChroma');
+assert(gray.meanChroma < 18, 'gray sketch fixture must stay under the Style DNA chroma floor');
 assert.strictEqual(quality.select([{ bytes: pattern }, { bytes: isolated }], { transparent: true, productionFamily: 'prop' }, [{ semanticMargin: 0.02, styleMargin: 0 }, { semanticMargin: 0.08, styleMargin: 0.03 }]).index, 1);
 assert.throws(function() { quality.select([{ bytes: blank }, { bytes: isolated }], { transparent: true, productionFamily: 'prop' }, [{ semanticMargin: 0.02, styleMargin: 0 }, { semanticMargin: -0.01, styleMargin: 0 }]); }, function(error) { return error.code === 'MASTER_IMAGE_QUALITY_REJECTED' && error.diagnostics.length === 2 && error.diagnostics[0].rejectionReasons[0].code === 'MASTER_IMAGE_CONTENT_EMPTY' && error.diagnostics[1].rejectionReasons[0].code === 'MASTER_IMAGE_SEMANTIC_REJECTED'; });
-console.log('[MasterImageQuality] background-tolerant master ranking, empty-content rejection, semantic gate, and explicit diagnostics passed');
+assert.throws(function() { quality.select([{ bytes: grayBody }], { transparent: true, productionFamily: 'character' }, [{ semanticMargin: 0.08, styleMargin: 0.03 }]); }, function(error) { return error.code === 'MASTER_IMAGE_QUALITY_REJECTED' && error.diagnostics[0].rejectionReasons.some(function(reason) { return reason.code === 'MASTER_IMAGE_TOO_GRAY'; }); });
+console.log('[MasterImageQuality] background-tolerant master ranking, empty-content rejection, semantic gate, gray rejection, and explicit diagnostics passed');

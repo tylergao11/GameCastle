@@ -16,7 +16,7 @@
       "revision": "v1",
       "workflowFormat": "comfyui-api-prompt",
       "workflowFile": "packages/assets/workflows/master-image.sdxl-base-refiner.v1.json",
-      "workflowSha256": "bfb3207c6b060f077be0744ace229babecd0bfe40a9e40a85533dfe3bc758b5e",
+      "workflowSha256": "52cf4a237d8c89b519165e42b857dbc307514492cde90afa3d69b3e065ec36e4",
       "workflowSource": "https://github.com/comfyanonymous/ComfyUI_examples/tree/master/sdxl",
       "officialCoreNodeClasses": ["CheckpointLoaderSimple", "CLIPTextEncode", "EmptyLatentImage", "KSamplerAdvanced", "VAEDecode", "SaveImage"],
       "outputNodeId": "11",
@@ -36,8 +36,8 @@
         "pathEnv": "COMFYUI_REFINER_PATH",
         "licenseId": "OpenRAIL++"
       },
-      "maxWidth": 1024,
-      "maxHeight": 1024,
+      "maxWidth": 512,
+      "maxHeight": 512,
       "maxOutputBytes": 67108864,
       "maxTimeoutMs": 900000,
       "candidatePolicy": {
@@ -57,8 +57,8 @@
       "productionProfile": {
         "prompt": { "type": "string", "required": true },
         "negativePrompt": { "type": "string", "required": true },
-        "width": { "type": "integer", "default": 1024, "minimum": 512, "maximum": 1024 },
-        "height": { "type": "integer", "default": 1024, "minimum": 512, "maximum": 1024 },
+        "width": { "type": "integer", "default": 512, "minimum": 512, "maximum": 512 },
+        "height": { "type": "integer", "default": 512, "minimum": 512, "maximum": 512 },
         "seed": { "type": "integer", "default": 1, "minimum": 0, "maximum": 4294967295 },
         "batchSize": { "type": "integer", "default": 2, "minimum": 1, "maximum": 2 },
         "steps": { "type": "integer", "default": 30, "minimum": 20, "maximum": 50 },

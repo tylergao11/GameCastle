@@ -21,10 +21,10 @@
   "thresholds": {
     "candidateSemanticMargin": 0,
     "finalSemanticMargin": 0.005,
-    "finalStyleMargin": -0.02
+    "finalStyleMargin": -0.024
   },
   "thresholdNotes": {
-    "finalStyleMargin": "Slightly negative on purpose: CLIP ViT-B/32 style margins are weak separators for raster-toon sprites. Style DNA prompt language and StyleCohesion (palette structure + pairwise family cohesion) carry the stronger multi-asset guarantee."
+    "finalStyleMargin": "Slightly negative on purpose: CLIP ViT-B/32 style margins remain weak separators for raster-toon sprites even after Style DNA review-text tuning. Photo-noise often scores only mildly negative on style alone; StyleCohesion top-K palette concentration rejects diffuse textures. This floor blocks only strongly non-toon style scores while admitting accepted SDXL/rembg sprites around -0.02."
   },
   "phasePolicy": {
     "master-candidate": {

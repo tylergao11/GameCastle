@@ -74,8 +74,9 @@ function withStyleAnchorPorts(ports, styleSession) {
         styleAnchor: !!(styleSession && styleSession.anchor)
       };
       if (!slot.generationPrompt) slot.generationPrompt = styleDNA.generationPrompt(slot.styleId, subject, promptOptions);
-      else if (styleSession && styleSession.anchor && slot.generationPrompt.indexOf('same cohesive GameCastle raster-toon art family') < 0) {
-        slot.generationPrompt = slot.generationPrompt + ', same cohesive GameCastle raster-toon art family as the established game cast, matching chunky silhouette language and limited color ramps';
+      else if (styleSession && styleSession.anchor && slot.generationPrompt.indexOf('same cohesive full-color mobile-game raster-toon art family') < 0 && slot.generationPrompt.indexOf('same cohesive GameCastle') < 0) {
+        // Avoid the product name "GameCastle" in SDXL text (the word "castle" poisons props).
+        slot.generationPrompt = slot.generationPrompt + ', same cohesive full-color mobile-game raster-toon art family as the established cast, matching chunky silhouette language and limited color ramps';
       }
       return ports.generateMaster(Object.assign({}, state, { slot: slot, styleSession: styleSession }));
     }

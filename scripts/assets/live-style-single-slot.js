@@ -12,6 +12,7 @@ var path = require('path');
 var crypto = require('crypto');
 var assetEngine = require('../../packages/assets/src/asset-engine-langgraph');
 var rembg = require('../../packages/assets/src/rembg-background-removal');
+var comfy = require('../../packages/assets/src/comfyui-local-provider');
 var runtimeModule = require('../../packages/providers/src/provider-runtime');
 var libraryPorts = require('../../tests/fixtures/test-asset-library-ports');
 
@@ -27,7 +28,7 @@ function requirements() {
     requirements: [{
       semanticId: 'hero_visual',
       subject: 'hero',
-      description: 'one compact western-cartoon hero adventurer, full body, readable face, chunky silhouette',
+      description: 'one compact colorful cartoon hero adventurer, full body, readable face, chunky silhouette',
       roles: ['hero', 'player'],
       productionFamily: 'character',
       recipeId: 'character-sprite.v1',
@@ -83,7 +84,11 @@ function requirements() {
       executionProfileId: 'asset-engine-production.v1',
       assetRequirementContract: requirements(),
       ports: { backgroundRemoval: rembg.createRembgBackgroundRemoval({ root: root }) },
-      providerRuntime: runtimeModule.createProviderRuntime({ maxCost: Infinity, receiptDir: path.join(outRoot, 'provider-receipts') }),
+      providerRuntime: runtimeModule.createProviderRuntime({
+        maxCost: Infinity,
+        receiptDir: path.join(outRoot, 'provider-receipts'),
+        httpTransports: { 'comfyui-local': comfy.invokeComfyUI }
+      }),
       providerOptions: { provider: 'comfyui-local' },
       assetLibraryPort: libraryPorts.createTestAssetLibraryPort(),
       projectAssetDir: path.join(outRoot, 'project-assets'),

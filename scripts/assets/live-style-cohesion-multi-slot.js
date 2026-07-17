@@ -30,7 +30,7 @@ function requirements() {
       {
         semanticId: 'hero_visual',
         subject: 'hero',
-        description: 'one compact western-cartoon hero adventurer, full body, readable face, chunky silhouette',
+        description: 'one compact colorful cartoon hero adventurer, full body, readable face, chunky silhouette',
         roles: ['hero', 'player'],
         productionFamily: 'character',
         recipeId: 'character-sprite.v1',
@@ -43,7 +43,7 @@ function requirements() {
       {
         semanticId: 'enemy_visual',
         subject: 'enemy',
-        description: 'one compact western-cartoon enemy slime monster, full body, chunky silhouette',
+        description: 'one compact colorful cartoon enemy slime monster, full body, chunky silhouette',
         roles: ['enemy'],
         productionFamily: 'character',
         recipeId: 'character-sprite.v1',
@@ -56,7 +56,7 @@ function requirements() {
       {
         semanticId: 'gem_visual',
         subject: 'collectible',
-        description: 'one blue cartoon gem collectible prop, centered, chunky silhouette',
+        description: 'one bright blue cartoon gem collectible prop, centered, chunky silhouette',
         roles: ['collectible'],
         productionFamily: 'prop',
         recipeId: 'prop-sprite.v1',
@@ -153,7 +153,11 @@ function copyAcceptedImages(summary) {
   console.log('[live-style] out=', outRoot);
   console.log('[live-style] generating hero + enemy + gem (production profile, up to 15m deadline)...');
 
-  var runtime = runtimeModule.createProviderRuntime({ maxCost: Infinity, receiptDir: path.join(outRoot, 'provider-receipts') });
+  var runtime = runtimeModule.createProviderRuntime({
+    maxCost: Infinity,
+    receiptDir: path.join(outRoot, 'provider-receipts'),
+    httpTransports: { 'comfyui-local': comfy.invokeComfyUI }
+  });
   var backgroundRemoval = rembg.createRembgBackgroundRemoval({ root: root });
 
   var state;

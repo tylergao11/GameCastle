@@ -63,9 +63,10 @@ function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[k
       }
     });
     var runtime = runtimeModule.createProviderRuntime({ maxCost: 10, fetchImpl: fetchImpl, httpTransports: { 'comfyui-local': comfy.invokeComfyUI } });
-    assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'character-part', constraints: { width: 32, height: 32 } }), { width: 1024, height: 1024 });
-    assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'ui', constraints: { width: 192, height: 64 } }), { width: 1024, height: 512 });
-    assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'background', constraints: { width: 640, height: 640 } }), { width: 1024, height: 1024 });
+    assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'character-part', constraints: { width: 32, height: 32 } }), { width: 512, height: 512 });
+    assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'ui', constraints: { width: 192, height: 64 } }), { width: 512, height: 512 });
+    assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'background', constraints: { width: 640, height: 640 } }), { width: 512, height: 512 });
+    assert.deepStrictEqual(comfy._masterDimensions({ productionFamily: 'character', constraints: { width: 64, height: 96 } }), { width: 512, height: 512 });
     var missingPrompt = await runtime.invokeRole({ requestId: 'missing-prompt', projectId: 'p', role: 'image-generate', provider: 'comfyui-local', input: {} }); assert.strictEqual(missingPrompt.ok, false); assert.strictEqual(missingPrompt.debt.code, 'COMFYUI_PRODUCTION_INPUT_MISSING');
     comfy._resetCheckpointVerificationCache();
     var requirements = { schemaVersion: 2, documentKind: 'semantic-asset-requirements', sourceHash: 'semantic.master-image-check', requirements: [
@@ -74,7 +75,19 @@ function restore(saved) { Object.keys(saved).forEach(function(key) { if (saved[k
     ] };
     var ledgerPath = path.join(root, 'ledger.json'), result = await assetEngine.runAssetEngine({ runId: 'master-image-engine', projectId: 'master-image-engine', assetRequirementContract: requirements, sources: { hero: { kind: 'generation_required' }, hero_idle: { kind: 'generation_required' } }, ports: { backgroundRemoval: backgroundRemoval }, providerRuntime: runtime, providerOptions: { provider: 'comfyui-local' }, assetLibraryPort: libraryPorts.createTestAssetLibraryPort(), projectAssetDir: path.join(root, 'project-assets'), modelPolicy: { provider: 'comfyui-local', localAllowed: true }, ledgerPath: ledgerPath });
     assert.strictEqual(result.accepted, true, JSON.stringify({ debts: result.debts, calls: calls })); assert.strictEqual(submissions.length, 2, 'each library miss must run one official SDXL base-refiner workflow');
-    submissions.forEach(function(graph) { assert.deepStrictEqual(Array.from(new Set(Object.keys(graph).map(function(id) { return graph[id].class_type; }))).sort(), ['CLIPTextEncode', 'CheckpointLoaderSimple', 'EmptyLatentImage', 'KSamplerAdvanced', 'SaveImage', 'VAEDecode'].sort()); assert.strictEqual(graph['4'].inputs.batch_size, 2); assert.strictEqual(graph['5'].inputs.end_at_step, 24); assert.strictEqual(graph['9'].inputs.start_at_step, 24); assert.strictEqual(graph['5'].inputs.return_with_leftover_noise, 'enable'); assert.strictEqual(graph['9'].inputs.add_noise, 'disable'); assert(graph['2'].inputs.text.length < 320); });
+    submissions.forEach(function(graph) {
+      assert.deepStrictEqual(Array.from(new Set(Object.keys(graph).map(function(id) { return graph[id].class_type; }))).sort(), ['CLIPTextEncode', 'CheckpointLoaderSimple', 'EmptyLatentImage', 'KSamplerAdvanced', 'SaveImage', 'VAEDecode'].sort());
+      assert.strictEqual(graph['4'].inputs.batch_size, 2);
+      assert.strictEqual(graph['4'].inputs.width, 512, 'master latent width must respect the 512 ceiling');
+      assert.strictEqual(graph['4'].inputs.height, 512, 'master latent height must respect the 512 ceiling');
+      assert.strictEqual(graph['5'].inputs.end_at_step, 24);
+      assert.strictEqual(graph['9'].inputs.start_at_step, 24);
+      assert.strictEqual(graph['5'].inputs.return_with_leftover_noise, 'enable');
+      assert.strictEqual(graph['9'].inputs.add_noise, 'disable');
+      assert(graph['2'].inputs.text.length > 0, 'master workflow must bind a non-empty positive prompt');
+      assert(graph['2'].inputs.text.length < 780, 'positive prompt must stay within a subject-preserving budget (incl. style-anchor tail)');
+      assert(graph['2'].inputs.text.toLowerCase().indexOf('castle') < 0, 'master prompt must not contain castle tokens that hijack props');
+    });
     assert.notStrictEqual(submissions[0]['5'].inputs.noise_seed, submissions[1]['5'].inputs.noise_seed, 'different requirements must not share one global seed');
     assert.strictEqual(result.assetManifest.assets[0].source, 'deterministicDerivation'); assert(result.assetManifest.assets[0].path.indexOf(path.join('project-assets', 'static')) >= 0); assert.strictEqual(result.assetManifest.assets[1].frameSet.documentKind, require('../../packages/assets/contracts/frame-set-contract.json').documentKind); assert(result.assetManifest.assets[1].frameSet.frames.every(function(frame) { return frame.path.indexOf(path.join('project-assets', 'frames')) >= 0; }));
     assert(result.assetProduction.workItems.every(function(item) { return item.masterImage && item.masterImage.status === 'master' && item.masterImage.publishability.publishable === false; }));

@@ -56,7 +56,8 @@ function writeSolid(file, color) {
     assert(result.acceptanceReceipt.styleCohesionReceipt);
     assert(result.styleAnchor && result.styleAnchor.slotId === 'hero', 'character should become the style anchor');
     assert(seenPrompts.length === 2);
-    assert(seenPrompts[1] && seenPrompts[1].indexOf('same cohesive GameCastle raster-toon art family') >= 0, 'second generated asset must inherit style-anchor prompt language');
+    assert(seenPrompts[1] && seenPrompts[1].indexOf('same cohesive') >= 0 && seenPrompts[1].indexOf('raster-toon art family') >= 0, 'second generated asset must inherit style-anchor prompt language');
+    assert(seenPrompts[1].toLowerCase().indexOf('castle') < 0, 'style-anchor must not inject castle tokens into later slots');
 
     var red = path.join(root, 'red.png');
     var blue = path.join(root, 'blue.png');
@@ -101,7 +102,12 @@ function writeSolid(file, color) {
 
     var analysis = await styleCohesion.analyzeImageFile(fullA, 'gamecastle.style-dna.v1');
     assert(analysis.colorFamilyCount >= 1);
+    assert(analysis.dominantColorFamilyCount >= 1);
+    assert(analysis.topKCoverage >= 0.99, 'solid full-frame fill must be highly concentrated');
     assert(Array.isArray(analysis.histogram) && analysis.histogram.length === 6 * 6 * 6);
+    var policy = styleCohesion.cohesionPolicy('gamecastle.style-dna.v1');
+    assert(policy.minTopKCoverage >= 0.5 && policy.minTopKCoverage <= 0.7, 'palette concentration floor must tolerate soft toon ramps while still catching extreme diffusion');
+    assert(policy.majorMass >= 0.04, 'major-mass floor must ignore AA fringe bins');
     // keep cohesive reference used so lint-free mental check
     assert(cohesive.receiptId);
     console.log('[StyleCohesion] production-set palette cohesion, style anchor prompts, and structure gates passed');

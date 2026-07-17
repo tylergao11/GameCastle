@@ -10,23 +10,41 @@ function style(styleId) {
   return Object.assign({ id: id }, value);
 }
 
-function palettePhrases(styleId) {
+function palettePhrases(styleId, options) {
+  options = options || {};
   var value = style(styleId), palette = value.palette || {};
   if (!Object.keys(palette).length) return [];
   var accents = [palette.red, palette.yellow, palette.blue, palette.lime].filter(Boolean).join(' ');
-  return [
-    'ink ' + (palette.ink || '#141923') + ' paper ' + (palette.paper || '#fff7e5') + ' limited ramps',
-    accents ? 'accents ' + accents : null
-  ].filter(Boolean);
+  // One executable palette line so SDXL always sees ink/paper/accents even when the
+  // subject description is long.
+  var line = 'ink ' + (palette.ink || '#141923') + ' paper ' + (palette.paper || '#fff7e5') + ' limited ramps';
+  if (accents && options.includeAccents !== false) line += ' accents ' + accents;
+  return [line];
+}
+
+function backgroundPhrase(options) {
+  if (options.productionFamily === 'background') return 'coherent empty game scene, no interface overlay';
+  if (options.productionFamily === 'world-geometry') return 'single orthographic edge-to-edge game tile, no surrounding scene';
+  if (options.productionFamily === 'ui') return 'isolated centered interface shape on plain solid white background';
+  if (options.transparent === false) return 'centered asset on plain solid background';
+  return 'isolated subject, plain solid white background';
 }
 
 function generationPrompt(styleId, subject, options) {
-  options = options || {}; var value = style(styleId), prompt = value.promptContract;
+  options = options || {};
+  var value = style(styleId);
+  var prompt = value.promptContract;
   var familyPhrases = (prompt.productionFamilyPhrases && prompt.productionFamilyPhrases[options.productionFamily]) || [];
-  var background = options.productionFamily === 'background' ? 'coherent empty game scene, no interface overlay' : options.productionFamily === 'world-geometry' ? 'single orthographic edge-to-edge game tile, no surrounding scene' : options.productionFamily === 'ui' ? 'isolated centered interface shape on plain solid white background' : options.transparent === false ? 'centered asset on plain solid background' : 'isolated subject, plain solid white background';
-  var phrases = [String(subject || 'game asset'), background].concat(familyPhrases, prompt.requiredPhrases, palettePhrases(styleId));
+  var subjectText = String(subject || 'game asset').trim();
+  // Subject first, then color/style anchors early so long semantic descriptions cannot
+  // bury the GameCastle full-color raster-toon signal under monochrome western art priors.
+  var paletteLine = (palettePhrases(styleId, { includeAccents: true })[0]) || '';
+  // Never put the product name "GameCastle" into SDXL prompts: the word "castle"
+  // hijacks gem/prop generations into architecture and heraldry.
+  var colorLead = 'full-color mobile-game raster-toon, bold ink outline, bright solid fills not grayscale' + (paletteLine ? ', ' + paletteLine : '');
+  var phrases = [subjectText, colorLead, backgroundPhrase(options)].concat(familyPhrases, prompt.requiredPhrases || []);
   if (options.styleAnchor) {
-    phrases.push('same cohesive GameCastle raster-toon art family as the established game cast', 'matching chunky silhouette language and limited color ramps');
+    phrases.push('same cohesive full-color mobile-game raster-toon art family as the established cast, matching chunky silhouette language and limited color ramps');
   }
   return phrases.filter(Boolean).join(', ');
 }
@@ -54,12 +72,19 @@ function reviewTexts(styleId, slot, phase) {
   if (!defaults) throw new Error('Style semantic review defaultProfile is required: ' + value.id);
   var family = (review.productionFamilyProfiles || {})[slot.productionFamily] || {}, phaseProfiles = (review.phaseProfiles || []).filter(function(profile) { return profile.phase === phase && (profile.requiresTransparent !== true || !!((slot.constraints || {}).transparent)); });
   function merged(name) { return (defaults[name] || []).concat(family[name] || []); }
-  var subject = slot.description || slot.subject || '', tags = (slot.semanticTags || []).join(' ');
+  var subject = String(slot.description || slot.subject || '').trim();
+  var tags = (slot.semanticTags || []).join(' ');
+  // CLIP matches concrete visual phrases better than Style DNA purpose prose.
+  // Subject stays first so semantic margin tracks the requested role, not a generic asset class.
+  var semanticPositives = [];
+  if (subject) semanticPositives.push(subject);
+  if (tags) semanticPositives.push(tags + ' game asset');
+  semanticPositives = semanticPositives.concat(merged('semanticPositiveTexts'));
   return {
-    reviewPositiveTexts: [subject, tags && tags + ' game asset'].filter(Boolean).concat(merged('semanticPositiveTexts')),
+    reviewPositiveTexts: semanticPositives.filter(Boolean),
     reviewNegativeTexts: merged('semanticNegativeTexts'),
-    stylePositiveTexts: [value.purpose].concat(merged('stylePositiveTexts')),
-    styleNegativeTexts: [value.explicitlyNot.join(', ')].concat(merged('styleNegativeTexts')),
+    stylePositiveTexts: merged('stylePositiveTexts'),
+    styleNegativeTexts: merged('styleNegativeTexts'),
     phase: phase || null,
     compositionChecks: (family.compositionChecks || []).concat(phaseProfiles.flatMap(function(profile) { return profile.compositionChecks || []; })).map(function(check) {
       return { id: check.id, positiveTexts: (check.positiveTexts || []).slice(), negativeTexts: (check.negativeTexts || []).slice() };

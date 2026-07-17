@@ -12,6 +12,8 @@ var productionPlanner = require('./asset-production-planner');
 var productionResolver = require('./asset-production-resolver');
 var productionPipeline = require('./asset-production-pipeline');
 var frameSet = require('./frame-set');
+var comfyuiLocalProvider = require('./comfyui-local-provider');
+var providerRuntimeApi = require('../../providers/src/provider-runtime');
 
 var compiledAssetGraphCache = { signature: null, promise: null };
 var compiledAssetGraphCounters = { compiles: 0, cacheHits: 0, invocations: 0 };
@@ -217,6 +219,50 @@ function compiledAssetGraphMetrics() { return { compiles: compiledAssetGraphCoun
 function resetCompiledAssetGraphCache() { compiledAssetGraphCache = { signature: null, promise: null }; compiledAssetGraphCounters = { compiles: 0, cacheHits: 0, invocations: 0 }; }
 async function prewarmGraph() { var graphDefinition = describeGraph(); await compiledAssetGraph(graphDefinition); return { ready: true, stages: graphDefinition.stages.map(function(stage) { return stage.stage; }) }; }
 
+function ensureComfyTransportOptions(providerOptions) {
+  providerOptions = Object.assign({}, providerOptions || {});
+  if (!providerOptions.httpTransports) {
+    providerOptions.httpTransports = { 'comfyui-local': comfyuiLocalProvider.invokeComfyUI };
+  } else if (!providerOptions.httpTransports['comfyui-local']) {
+    providerOptions.httpTransports = Object.assign({}, providerOptions.httpTransports, { 'comfyui-local': comfyuiLocalProvider.invokeComfyUI });
+  }
+  return providerOptions;
+}
+
+function resolveProviderRuntime(input, executionPolicy) {
+  var providerOptions = Object.assign({}, input.providerOptions || {});
+  var provider = (input.modelPolicy && input.modelPolicy.provider) || providerOptions.provider || process.env.ASSET_MODEL_PROVIDER || 'comfyui-local';
+  var wantsComfy = provider === 'comfyui-local' || providerOptions.provider === 'comfyui-local';
+  var hasPortGeneration = input.ports && typeof input.ports.generateMaster === 'function';
+
+  if (input.providerRuntime) {
+    // Caller-owned runtime: product/live must register comfy transport themselves
+    // (product orchestrator and live probes do). Do not rebuild it here.
+    return { providerRuntime: input.providerRuntime, providerOptions: wantsComfy ? ensureComfyTransportOptions(providerOptions) : providerOptions };
+  }
+
+  // Test doubles and simulated ports already expose generateMaster. Inventing a
+  // ComfyUI runtime would override those ports in model-authorize and break offline gates.
+  if (hasPortGeneration) {
+    return { providerRuntime: null, providerOptions: providerOptions };
+  }
+
+  // Direct production entry without ports: compose the official local image stack.
+  if (wantsComfy || !providerOptions.provider) {
+    providerOptions = ensureComfyTransportOptions(providerOptions);
+    if (!providerOptions.provider) providerOptions.provider = 'comfyui-local';
+    providerOptions.maxCost = input.maxCost === undefined ? Infinity : input.maxCost;
+    if (input.receiptDir) providerOptions.receiptDir = input.receiptDir;
+    if (!providerOptions.timeoutMs) providerOptions.timeoutMs = executionPolicy.totalDeadlineMs;
+    return {
+      providerRuntime: providerRuntimeApi.createProviderRuntime(providerOptions),
+      providerOptions: providerOptions
+    };
+  }
+
+  return { providerRuntime: null, providerOptions: providerOptions };
+}
+
 async function runAssetEngine(input) {
   input = input || {};
   if (Object.prototype.hasOwnProperty.call(input, 'previousAssetWorld')) fail('ASSET_WORLD_INJECTION_FORBIDDEN', 'AssetEngine does not accept a caller-supplied previous AssetWorld.');
@@ -225,6 +271,7 @@ async function runAssetEngine(input) {
   var executionPolicy = executionPolicyModule.resolve(input), executionDeadlineAt = Date.now() + executionPolicy.totalDeadlineMs;
   var assetLibrary = input.assetLibraryPort ? assetLibraryModule.create(input.assetLibraryPort) : null;
   var graphDefinition = describeGraph();
+  var resolvedProvider = resolveProviderRuntime(input, executionPolicy);
   var initial = {
     runId: input.runId,
     sourceHash: input.assetRequirementContract.sourceHash,
@@ -238,8 +285,8 @@ async function runAssetEngine(input) {
     libraryMatches: {},
     assetLibraryAccelerationEvents: [],
     ports: input.ports || {},
-    providerRuntime: input.providerRuntime || null,
-    providerOptions: Object.assign({}, input.providerOptions || {}, { timeoutMs: executionPolicy.totalDeadlineMs, candidateRounds: executionPolicy.candidateRounds, executionProfileId: executionPolicy.profileId, executionProfileHash: executionPolicy.profileHash }),
+    providerRuntime: resolvedProvider.providerRuntime,
+    providerOptions: Object.assign({}, resolvedProvider.providerOptions, { timeoutMs: executionPolicy.totalDeadlineMs, candidateRounds: executionPolicy.candidateRounds, executionProfileId: executionPolicy.profileId, executionProfileHash: executionPolicy.profileHash }),
     modelPolicy: input.modelPolicy || {},
     productionRequest: null,
     projectAssetDir: input.projectAssetDir || null,
