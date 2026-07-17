@@ -25,6 +25,7 @@ function writeJson(file, value) {
 }
 
 function summarizeError(error) {
+  var cause = error && error.cause || null;
   return {
     code: error && error.code || null,
     owner: error && error.owner || null,
@@ -32,6 +33,29 @@ function summarizeError(error) {
     issue: error && error.issue || null,
     deliveryRunStatus: error && error.deliveryRun && error.deliveryRun.status || null,
     blockedStage: error && error.issue && error.issue.stage || null,
+    // Semantic fuse attaches diagnostics via traced(); product block() stores them on cause.
+    cause: cause ? {
+      code: cause.code || null,
+      owner: cause.owner || null,
+      message: cause.message || null,
+      runState: cause.runState || null,
+      taskPlan: cause.taskPlan || null,
+      modelCalls: cause.modelCalls || null,
+      totalElapsedMs: cause.totalElapsedMs || null,
+      lastFailures: (cause.runTrace || []).filter(function(entry) {
+        return entry && entry.outcome && entry.outcome.ok === false;
+      }).slice(-12),
+      failureEvents: cause.runLedger && cause.runLedger.events
+        ? cause.runLedger.events.filter(function(event) {
+          return event && (event.type === 'FAILURE_RECORDED' || /FAIL|FUSE/i.test(String(event.type || '')));
+        }).slice(-20)
+        : null
+    } : null,
+    // Also accept diagnostics hung directly on the thrown semantic error.
+    runState: error && error.runState || null,
+    lastFailures: error && error.runTrace
+      ? error.runTrace.filter(function(entry) { return entry && entry.outcome && entry.outcome.ok === false; }).slice(-12)
+      : null,
     partial: error && error.partial ? {
       hasSource: !!(error.partial.source),
       hasAssetProduct: !!(error.partial.assetProduct),
@@ -143,8 +167,31 @@ function summarizeProduct(product) {
       assetProductKeys: error.partial.assetProduct ? Object.keys(error.partial.assetProduct) : null,
       spatialKeys: error.partial.spatialProduct ? Object.keys(error.partial.spatialProduct) : null
     });
+    // Full semantic diagnostics for root-cause analysis (can be large).
+    var diagSource = error && error.cause || error;
+    if (diagSource && (diagSource.runTrace || diagSource.runLedger || diagSource.runState)) {
+      writeJson(path.join(outRoot, 'semantic-diagnostics.json'), {
+        code: diagSource.code || null,
+        message: diagSource.message || null,
+        runState: diagSource.runState || null,
+        taskPlan: diagSource.taskPlan || null,
+        modelCalls: diagSource.modelCalls || null,
+        totalElapsedMs: diagSource.totalElapsedMs || null,
+        runTrace: diagSource.runTrace || null,
+        runLedger: diagSource.runLedger || null,
+        draft: diagSource.draft || null,
+        cacheSummary: diagSource.cacheSummary || null,
+        observerWarnings: diagSource.observerWarnings || null
+      });
+    }
     console.error('[live-product] BLOCKED/FAILED', fail.error.code, fail.error.message);
     if (fail.error.issue) console.error('[live-product] issue', JSON.stringify(fail.error.issue));
+    if (fail.error.cause && fail.error.cause.lastFailures) {
+      console.error('[live-product] lastFailures', JSON.stringify(fail.error.cause.lastFailures, null, 2));
+    }
+    if (fail.error.lastFailures) {
+      console.error('[live-product] lastFailures(direct)', JSON.stringify(fail.error.lastFailures, null, 2));
+    }
     if (fail.error.partial) console.error('[live-product] partial', JSON.stringify(fail.error.partial));
     console.error('[live-product] report=', path.join(outRoot, 'error.json'));
     process.exit(1);
