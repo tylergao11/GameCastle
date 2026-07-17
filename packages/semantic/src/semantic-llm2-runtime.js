@@ -230,18 +230,27 @@ function create(options) {
       }
       return call;
     }
+    // Plan-scoped write failures are classified by TaskPlan (empty delta, shell shape vs wrong write).
     function semanticFailure(call, phase, taskId, error, results) {
       error = error || fail('SEMANTIC_RUN_INVALID', 'Semantic model response is invalid.');
+      var effectivePhase = phase;
+      var effectiveTaskId = taskId;
+      if (phase === 'task' && taskPlanApi.isPlanScopedWriteFailure(plan, taskId, error) && !externalPlanDsl) {
+        effectivePhase = 'plan';
+        effectiveTaskId = null;
+        plan = null;
+      }
       var fact = {
-        phase: phase,
+        phase: effectivePhase,
         code: error.code || 'SEMANTIC_RUN_INVALID',
         owner: error.owner || 'SemanticLLM2Runtime',
         message: error.message || String(error),
-        subjectHash: subjectHash(phase, taskId, call && call.text, call && call.commands)
+        subjectHash: subjectHash(effectivePhase, effectiveTaskId || taskId, call && call.text, call && call.commands)
       };
-      if (phase === 'task') fact.taskId = taskId;
+      if (effectivePhase === 'task') fact.taskId = effectiveTaskId;
       ledger = stateMachine.transition.recordFailure(ledger, fact);
       var failureOutcome = { ok: false, code: fact.code, message: fact.message };
+      if (effectivePhase === 'plan' && phase === 'task') failureOutcome.escalatedToPlan = true;
       if ((results || []).some(function(result) { return result.rolledBack; })) { failureOutcome.rolledBack = true; failureOutcome.beforeDraftHash = call.baseDraftHash; failureOutcome.afterDraftHash = call.baseDraftHash; }
       appendTrace(call, failureOutcome, results || [{ ok: false, code: fact.code, message: fact.message }]);
       if (stateMachine.project(ledger).state === stateMachine.STATES.FUSED) throw traced(fail('SEMANTIC_RUN_FUSED', 'Semantic runtime fused after the same exact failure repeated without progress.'));
@@ -254,7 +263,12 @@ function create(options) {
     function retrieveActiveTask(taskId) {
       var task = taskPlanApi.taskById(plan, taskId);
       var resolved = references.taskFacts(task);
-      var facts = resolved.retrieved.map(function(raw) { var value = clone(raw); delete value.slot; return { slot: raw.slot, group: raw.group, kind: raw.kind, facts: value }; });
+      // Context expects { alias, group, kind, facts }; alias is plan-retrieve name, not a write slot.
+      var facts = resolved.retrieved.map(function(raw) {
+        var value = clone(raw);
+        delete value.alias;
+        return { alias: raw.alias, group: raw.group, kind: raw.kind, facts: value };
+      });
       taskPlanApi.assertRetrievesSatisfied(plan, taskId, facts);
       if (!stateMachine.project(ledger).retrievals.some(function(item) { return item.taskId === taskId; })) ledger = stateMachine.transition.recordRetrieve(ledger, taskId, 'semantic.task-query.' + promptBundle.hashCanonical({ capabilities: task.capabilities, catalogs: task.catalogs, retrievals: task.retrievals }), 'semantic.task-facts.' + promptBundle.hashCanonical(contextBuilder.taskFacts(references, task, facts)));
       return facts;
@@ -340,11 +354,12 @@ function create(options) {
         }
         var candidate = draftApi.fork(draft), beforeDocument = draftApi.materialize(draft), stagedResults = [], writeError = null, resolvedCommands = [];
         try {
-          resolvedCommands = taskPlanApi.resolveBatch(plan, taskId, taskCall.commands);
+          resolvedCommands = taskPlanApi.authorizeWriteBatch(plan, taskId, taskCall.commands, {
+            facts: exactFacts,
+            retrievedUses: retrievedUses(retrievedFacts),
+            beforeDocument: beforeDocument
+          });
           taskCall.resolvedCommands = clone(resolvedCommands);
-          taskPlanApi.assertBatchScope(plan, taskId, resolvedCommands);
-          taskPlanApi.assertCapabilityFacts(plan, taskId, resolvedCommands, exactFacts);
-          taskPlanApi.assertDeclaredUses(plan, taskId, resolvedCommands, retrievedUses(retrievedFacts));
           resolvedCommands.forEach(function(command) {
             var applied = draftApi.execute(candidate, command);
             stagedResults.push({ ok: true, summary: applied.summary });

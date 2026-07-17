@@ -89,9 +89,10 @@ var differentFailure = machine.transition.recordFailure(retryRules, taskFailure(
 assert.strictEqual(projection(differentFailure).state, machine.STATES.TASK_REPAIR, 'different failure does not fuse');
 assert.strictEqual(projection(differentFailure).lastFailure.consecutiveCount, 1);
 var retrySame = machine.transition.retryTask(differentFailure, 'rules');
-var fused = machine.transition.recordFailure(retrySame, taskFailure('rules', 'batch.bad-b', 'different exact error'));
+// Same code+message fuses even when subjectHash (model batch body) differs — free repair must not spin.
+var fused = machine.transition.recordFailure(retrySame, taskFailure('rules', 'batch.bad-b-variant', 'different exact error'));
 var fusedView = projection(fused);
-assert.strictEqual(fusedView.state, machine.STATES.FUSED, 'second consecutive completely identical failure fuses');
+assert.strictEqual(fusedView.state, machine.STATES.FUSED, 'second consecutive same code+message fuses regardless of subjectHash');
 assert.strictEqual(fusedView.allowedMode, machine.ALLOWED_MODES.NONE);
 assert.strictEqual(fusedView.lastFailure.consecutiveCount, 2);
 assert(fusedView.transitionLog[fusedView.transitionLog.length - 1].indexOf('code=SEMANTIC_TEST_FAILURE|failure=semantic.failure.') >= 0, 'failure transition line contains code and canonical signature');
@@ -122,6 +123,24 @@ assert.strictEqual(completedView.sourceHash, 'semantic.source.final');
 assert.throws(function() {
   machine.transition.expireRun(completedLedger, 'too late');
 }, function(error) { return error.code === 'SEMANTIC_RUN_TERMINAL'; }, 'completed ledger is terminal');
+
+// Empty write progress under a sealed plan escalates to plan repair and invalidates the sealed plan.
+var escalateActive = machine.transition.startTask(modelCommitted, 'rules');
+var escalated = machine.transition.recordFailure(escalateActive, {
+  phase: 'plan',
+  code: 'SEMANTIC_TASK_DELTA_EMPTY',
+  owner: 'StateMachineCheck',
+  message: 'no semantic delta under sealed plan',
+  subjectHash: 'delta.empty.escalate'
+});
+var escalatedView = projection(escalated);
+assert.strictEqual(escalatedView.state, machine.STATES.PLAN_REPAIR, 'plan-scoped write failure from TASK_ACTIVE becomes PLAN_REPAIR');
+assert.strictEqual(escalatedView.planHash, null, 'escalation clears the sealed plan hash');
+assert.deepStrictEqual(escalatedView.taskIds, [], 'escalation clears sealed task ids');
+assert.strictEqual(escalatedView.activeTaskId, null, 'escalation clears the active task');
+assert.deepStrictEqual(escalatedView.completedTaskIds, [], 'escalation clears completed task progress');
+var replan = machine.transition.retryPlan(escalated);
+assert.strictEqual(projection(replan).state, machine.STATES.PLANNING, 'escalated plan repair returns to PLANNING');
 
 var planRepair = machine.transition.recordFailure(machine.create('Repair a plan.'), planFailure('candidate.plan.bad'));
 assert.strictEqual(projection(planRepair).state, machine.STATES.PLAN_REPAIR);

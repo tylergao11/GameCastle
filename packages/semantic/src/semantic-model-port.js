@@ -23,18 +23,23 @@ function createRoleRouter(ports) {
 function fromProviderRuntime(runtime, options) {
   if (!runtime || typeof runtime.invokeRole !== 'function') fail('SEMANTIC_MODEL_PORT_INVALID', 'Provider adapter requires ProviderRuntime.invokeRole.');
   options = options || {};
+  var selected = modelPolicy.resolveModel(options.mode);
   return assertPort({
     kind: 'provider-runtime-semantic-model-port',
-    cachePolicy: modelPolicy.MODEL.cachePolicy,
+    cachePolicy: selected.cachePolicy,
+    mode: selected.mode,
+    modelSelection: selected,
     invoke: function(request) {
       if (!request || (request.phase !== 'planner' && request.phase !== 'executor')) fail('SEMANTIC_MODEL_PORT_INVALID', 'Semantic model request phase must be planner or executor.');
       var profile = modelPolicy.profile(request.phase);
+      var model = modelPolicy.resolveModel(options.mode);
       var invocation = {
         requestId: request.requestId,
         projectId: request.projectId,
         role: 'semantic-design',
-        provider: modelPolicy.MODEL.provider,
-        model: modelPolicy.MODEL.model,
+        provider: model.provider,
+        model: model.model,
+        allowExternal: model.allowExternal === true,
         estimatedCost: request.estimatedCost,
         timeoutMs: request.timeoutMs,
         maxAttempts: 1,

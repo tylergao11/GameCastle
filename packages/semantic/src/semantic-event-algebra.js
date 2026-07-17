@@ -20,6 +20,19 @@ function expression(use, args) { return Object.assign({ use: use }, args || {});
 function operation(key, kind, summary, fields, expand) {
   return { key: key, kind: kind, summary: summary, fields: fields, expand: expand };
 }
+// Models often emit DOM-style or lowercase key names; GDJS KeyFromText* expects GDevelop labels.
+var KEYBOARD_KEY_ALIASES = Object.freeze({
+  ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
+  up: 'Up', down: 'Down', left: 'Left', right: 'Right',
+  ' ': 'Space', Spacebar: 'Space', space: 'Space', Esc: 'Escape', esc: 'Escape'
+});
+function normalizeKeyboardKey(value) {
+  if (typeof value !== 'string') return value;
+  if (Object.prototype.hasOwnProperty.call(KEYBOARD_KEY_ALIASES, value)) return KEYBOARD_KEY_ALIASES[value];
+  var lower = value.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(KEYBOARD_KEY_ALIASES, lower)) return KEYBOARD_KEY_ALIASES[lower];
+  return value;
+}
 
 var ENTITY_KINDS = {
   state: null,
@@ -64,13 +77,13 @@ var OPERATIONS = [
     return [invocation('BuiltinCommonInstructions::global::extension::condition::Once', {})];
   }),
   operation('input.key.held', 'condition', 'a keyboard key is held', { key: 'keyboard key' }, function(a) {
-    return [invocation('BuiltinKeyboard::global::extension::condition::KeyFromTextPressed', { key_to_check: a.key })];
+    return [invocation('BuiltinKeyboard::global::extension::condition::KeyFromTextPressed', { key_to_check: normalizeKeyboardKey(a.key) })];
   }),
   operation('input.key.just-pressed', 'condition', 'a keyboard key was newly pressed', { key: 'keyboard key' }, function(a) {
-    return [invocation('BuiltinKeyboard::global::extension::condition::KeyFromTextJustPressed', { key_to_check: a.key })];
+    return [invocation('BuiltinKeyboard::global::extension::condition::KeyFromTextJustPressed', { key_to_check: normalizeKeyboardKey(a.key) })];
   }),
   operation('input.key.released', 'condition', 'a keyboard key was released', { key: 'keyboard key' }, function(a) {
-    return [invocation('BuiltinKeyboard::global::extension::condition::KeyFromTextReleased', { key_to_check: a.key })];
+    return [invocation('BuiltinKeyboard::global::extension::condition::KeyFromTextReleased', { key_to_check: normalizeKeyboardKey(a.key) })];
   }),
   operation('input.pointer.pressed', 'condition', 'a pointer started pressing', { button: 'pointer button optional' }, function() {
     return [invocation('BuiltinMouse::global::extension::condition::HasAnyTouchOrMouseStarted', {})];
@@ -169,7 +182,8 @@ var OPERATIONS = [
   operation('object.y.add', 'action', 'add to entity Y position', { target: 'entity', value: 'number or expression' }, function(a) {
     return [invocation('BuiltinObject::object::BuiltinObject::__object_metadata__::action::SetY', { object: a.target, operator: '+', value: a.value })];
   }),
-  operation('object.place.random-grid', 'action', 'place an entity on a random grid coordinate', { target: 'entity', minX: 'number', maxX: 'number', minY: 'number', maxY: 'number', step: 'positive number' }, function(a) {
+  // Grid inputs follow dictionary number-expression normalization (literal number or nested expression).
+  operation('object.place.random-grid', 'action', 'place an entity on a random grid coordinate', { target: 'entity', minX: 'number or expression', maxX: 'number or expression', minY: 'number or expression', maxY: 'number or expression', step: 'number or expression' }, function(a) {
     return [invocation('BuiltinObject::object::BuiltinObject::__object_metadata__::action::SetXY', {
       object: a.target,
       modification_s_sign: '=',
@@ -560,7 +574,75 @@ function initialize(index) {
 }
 function promptToken(value) { return JSON.stringify(value).replace(/\|/g, '\\u007c'); }
 function tokenDomain(values) { return 'oneOf(' + values.map(promptToken).join(',') + ')'; }
-function fieldText(index, item) { return Object.keys(item.fields).map(function(key) { var raw = item.fields[key]; var shape = raw === 'dictionary-token' ? tokenDomain(openTokenDomain(index, item, key)) : raw === 'true|false' ? 'oneOf(true,false)' : clean(raw); return key + '=' + shape; }).join(','); }
+function shapeOptional(shape) { return / optional$/.test(String(shape || '')); }
+function shapeCore(shape) { return String(shape || '').replace(/ optional$/, ''); }
+function dictionaryFamily(parameter) {
+  var normalization = parameter && parameter.runtimeNormalization;
+  if (normalization === 'number-expression') return 'number or expression';
+  if (normalization === 'string-expression') return 'text or expression';
+  if (normalization === 'entity-object-name') return 'entity';
+  if (normalization === 'object-member-name' || normalization === 'scene-member-name' || normalization === 'contextual-member-name') return 'Entity.member';
+  if (normalization === 'dictionary-token') return 'dictionary-token';
+  if (normalization === 'boolean-token') return 'true|false';
+  return null;
+}
+function upgradeShape(current, family) {
+  var optional = shapeOptional(current);
+  var core = shapeCore(current);
+  if (!family) return current;
+  if (family === 'number or expression') {
+    if (core === 'number' || core === 'positive number' || core === 'degrees' || core === 'pixels per second' || core === 'number or expression' || core === 'number or number expression') {
+      return 'number or expression' + (optional ? ' optional' : '');
+    }
+  }
+  if (family === 'text or expression') {
+    if (core === 'text' || core === 'timer name' || core === 'keyboard key' || core === 'scene name' || core === 'animation name' || core === 'color text' || core === 'layer name' || core === 'pointer button' || core === 'text or expression' || core === 'text or text expression' || core === 'text or string expression') {
+      return 'text or expression' + (optional ? ' optional' : '');
+    }
+  }
+  return current;
+}
+// Project model-visible field shapes from dictionary parameter normalizations through expand mapping.
+// Hand-authored algebra labels remain the base; dictionary upgrades scalar-only labels that actually accept expressions.
+function dictionaryAlignedFields(index, item) {
+  var fields = Object.create(null);
+  Object.keys(item.fields).forEach(function(key) { fields[key] = item.fields[key]; });
+  var probe = Object.create(null);
+  Object.keys(item.fields).forEach(function(key) {
+    if (/Entity\.member/.test(item.fields[key])) probe[key] = 'ProbeEntity.probeMember';
+    else if (/true\|false/.test(item.fields[key])) probe[key] = true;
+    else probe[key] = '__MARK_' + key + '__';
+  });
+  var expansions;
+  try { expansions = item.expand(probe, { memberScope: function() { return 'scene'; } }); }
+  catch (_error) { return fields; }
+  if (!expansions || !expansions.length) return fields;
+  var raw = expansions[0];
+  var entry = index.by_capability && index.by_capability[raw.capabilityId];
+  if (!entry || !entry.parameter_contract) return fields;
+  var byKey = Object.create(null);
+  (entry.parameter_contract.parameters || []).forEach(function(parameter) {
+    if (parameter.kind !== 'code-only') byKey[parameter.semanticKey] = parameter;
+  });
+  Object.keys(raw.arguments || {}).forEach(function(dictKey) {
+    var value = raw.arguments[dictKey];
+    if (typeof value !== 'string' || value.indexOf('__MARK_') !== 0 || value.slice(-2) !== '__') return;
+    var algebraKey = value.slice('__MARK_'.length, -2);
+    if (!Object.prototype.hasOwnProperty.call(fields, algebraKey)) return;
+    var parameter = byKey[dictKey];
+    if (!parameter) return;
+    fields[algebraKey] = upgradeShape(fields[algebraKey], dictionaryFamily(parameter));
+  });
+  return fields;
+}
+function fieldText(index, item) {
+  var fields = dictionaryAlignedFields(index, item);
+  return Object.keys(item.fields).map(function(key) {
+    var raw = fields[key];
+    var shape = raw === 'dictionary-token' ? tokenDomain(openTokenDomain(index, item, key)) : raw === 'true|false' ? 'oneOf(true,false)' : clean(raw);
+    return key + '=' + shape;
+  }).join(',');
+}
 function promptLines(index) {
   index = initialize(index || dictionary.loadIndex());
   return OPERATIONS.map(function(item) { return [item.kind, item.key, fieldText(index, item), item.summary].join('|'); });
@@ -644,6 +726,7 @@ module.exports = {
   BEHAVIOR_KINDS: BEHAVIOR_KINDS,
   EVENT_KINDS: EVENT_KINDS,
   OPERATIONS: OPERATIONS,
+  normalizeKeyboardKey: normalizeKeyboardKey,
   initialize: initialize,
   promptLines: promptLines,
   eventKindLines: eventKindLines,

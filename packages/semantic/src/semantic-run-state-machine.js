@@ -119,14 +119,16 @@ function calculateEventHash(ledger, event) {
   });
 }
 
+// Fuse on the failure class (phase/task/code/owner/message), not on subjectHash of the model
+// output. Including subjectHash made free repair loops run dozens of slightly different batches
+// that all hit the same SLOT_MISSING before consecutiveCount ever reached 2.
 function failureSignature(payload) {
   return digest('semantic.failure.', {
     phase: payload.phase,
     taskId: payload.taskId || null,
     code: payload.code,
     owner: payload.owner,
-    message: payload.message,
-    subjectHash: payload.subjectHash
+    message: payload.message
   });
 }
 
@@ -295,8 +297,19 @@ function applyEvent(view, event) {
     assertActiveTask(view, payload.taskId, type);
     view.state = STATES.TASK_ACTIVE;
   } else if (type === EVENT_TYPES.FAILURE_RECORDED) {
-    if (payload.phase === 'plan') assertState(view, STATES.PLANNING, type);
-    else if (payload.phase === 'task') {
+    if (payload.phase === 'plan') {
+      // Plan failures may start during PLANNING, or escalate from TASK_ACTIVE when the sealed plan cannot produce progress.
+      if (view.state !== STATES.PLANNING && view.state !== STATES.TASK_ACTIVE) {
+        fail('SEMANTIC_RUN_TRANSITION_INVALID', type + ' plan-phase failure is not legal from ' + view.state + '.');
+      }
+      if (view.state === STATES.TASK_ACTIVE) {
+        view.planHash = null;
+        view.taskIds = [];
+        view.activeTaskId = null;
+        view.completedTaskIds = [];
+        view.retrievals = [];
+      }
+    } else if (payload.phase === 'task') {
       assertState(view, STATES.TASK_ACTIVE, type);
       assertActiveTask(view, payload.taskId, type);
     }

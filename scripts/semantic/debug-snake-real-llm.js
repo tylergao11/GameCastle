@@ -3,12 +3,13 @@ var path = require('path');
 var childProcess = require('child_process');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
 var semanticRuntime = require('../../packages/semantic/src/semantic-llm2-runtime');
+var providerRuntimeApi = require('../../packages/providers/src/provider-runtime');
+var modelPolicy = require('../../packages/semantic/src/semantic-model-policy');
+var directorModelPort = require('../../packages/product/src/director-model-port');
 var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var trainingLog = require('../../packages/semantic/src/semantic-training-log');
 var semanticParser = require('../../packages/semantic/src/semantic-dsl-parser');
 var semanticPromptBundle = require('../../packages/semantic/src/semantic-prompt-bundle');
-var semanticDraft = require('../../packages/semantic/src/semantic-draft');
-var semanticReferences = require('../../packages/semantic/src/semantic-reference-runtime');
 var seedLoader = require('../../packages/semantic/src/semantic-seed-loader');
 var repositoryPath = require('../shared/repository-path');
 var snakeBenchmark = require('../../tests/benchmarks/snake-semantic-benchmark');
@@ -22,6 +23,8 @@ var timeoutArgument = process.argv.filter(function(argument) { return argument.i
 var maxTokensArgument = process.argv.filter(function(argument) { return argument.indexOf('--max-tokens=') === 0; })[0] || null;
 var taskArgument = process.argv.filter(function(argument) { return argument.indexOf('--task=') === 0; })[0] || null;
 var seedFileArgument = process.argv.filter(function(argument) { return argument.indexOf('--seed-file=') === 0; })[0] || null;
+var planDslArgument = process.argv.filter(function(argument) { return argument.indexOf('--plan-dsl-file=') === 0; })[0] || null;
+var freezePlanArgument = process.argv.indexOf('--freeze-llm1-plan') >= 0;
 var benchmarkTaskArgument = process.argv.filter(function(argument) { return argument.indexOf('--benchmark-task=') === 0; })[0] || null;
 var semanticTimeoutMs = timeoutArgument ? Number(timeoutArgument.slice('--timeout-ms='.length)) : semanticRuntime.HARD_TIMEOUT_MS;
 var semanticMaxTokens = maxTokensArgument ? Number(maxTokensArgument.slice('--max-tokens='.length)) : semanticRuntime.MAX_TOKENS;
@@ -34,7 +37,25 @@ var semanticTask = benchmarkTask ? benchmarkTask.task : taskArgument ? taskArgum
 if (!semanticTask) throw new Error('--task must contain a task.');
 var seedSelection = benchmarkTask && benchmarkTask.seedFile ? { absolutePath: repositoryPath.fromLocator(benchmarkTask.seedFile, 'benchmark seedFile'), locator: benchmarkTask.seedFile } : seedFileArgument ? repositoryPath.fromCommandLine(seedFileArgument.slice('--seed-file='.length), '--seed-file') : null;
 var seedFile = seedSelection ? seedSelection.absolutePath : null;
-record.probe = { semanticTimeoutMs: semanticTimeoutMs, semanticMaxTokens: semanticMaxTokens, benchmarkId: benchmarkTask ? snakeBenchmark.contract.benchmarkId : null, benchmarkTaskId: benchmarkTask ? benchmarkTask.id : null, task: semanticTask, seedFile: seedSelection ? seedSelection.locator : null };
+var planDslFile = planDslArgument ? repositoryPath.fromCommandLine(planDslArgument.slice('--plan-dsl-file='.length), '--plan-dsl-file') : null;
+var planDsl = planDslFile ? fs.readFileSync(planDslFile.absolutePath, 'utf8').trim() : null;
+if (planDslFile && !planDsl) throw new Error('--plan-dsl-file must contain non-empty Planner DSL.');
+
+var llm2 = modelPolicy.resolveModel();
+var llm1 = directorModelPort.POLICY;
+record.probe = {
+  semanticTimeoutMs: semanticTimeoutMs,
+  semanticMaxTokens: semanticMaxTokens,
+  runtimeMode: llm2.mode,
+  llm1: { provider: llm1.provider, model: llm1.model, role: 'human-or-director-plan' },
+  llm2: { provider: llm2.provider, model: llm2.model, role: 'semantic-design' },
+  freezeLlm1Plan: !!(planDsl || freezePlanArgument),
+  planDslFile: planDslFile ? planDslFile.locator : null,
+  benchmarkId: benchmarkTask ? snakeBenchmark.contract.benchmarkId : null,
+  benchmarkTaskId: benchmarkTask ? benchmarkTask.id : null,
+  task: semanticTask,
+  seedFile: seedSelection ? seedSelection.locator : null
+};
 
 function gitCommit() {
   var result = childProcess.spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repositoryPath.root, encoding: 'utf8', windowsHide: true });
@@ -49,7 +70,7 @@ record.provenance = {
   gitCommit: gitCommit(),
   benchmark: benchmarkTask ? { benchmarkId: snakeBenchmark.contract.benchmarkId, benchmarkSchemaVersion: snakeBenchmark.contract.schemaVersion, taskId: benchmarkTask.id } : null,
   semanticContract: { languageId: semanticParser.LANGUAGE_ID, promptVersions: semanticPromptBundle.PROFILE_VERSIONS, dictionarySource: index.source },
-  modelRuntime: modelRuntimeProfile
+  modelRuntime: Object.assign({}, modelRuntimeProfile, { activeMode: llm2.mode, activeProvider: llm2.provider, activeModel: llm2.model })
 };
 
 function loadSeedSource() {
@@ -75,6 +96,7 @@ function writeModelOutput(role, sequence, requestId, output) {
 
 async function main() {
   var seedSource = loadSeedSource();
+  process.stdout.write('[SnakeLive] mode=' + llm2.mode + ' LLM1=' + llm1.provider + '/' + llm1.model + ' LLM2=' + llm2.provider + '/' + llm2.model + ' freezePlan=' + !!planDsl + '\n');
   writeResult(record);
 
   var result;
@@ -87,7 +109,11 @@ async function main() {
   try {
     var trainingSink = trainingLog.createFileSink({ directory: path.join(repositoryPath.root, '.gamecastle', 'output', 'semantic-training'), runId: runId });
     record.trainingLog = repositoryPath.relativeLocator(trainingSink.file, 'semantic training log');
-    result = await semanticRuntime.create({ trainingLogSink: trainingSink, trainingProvenance: record.provenance }).invoke({
+    var providerRuntime = providerRuntimeApi.createProviderRuntime({
+      maxCost: Infinity,
+      receiptDir: path.join(outputDirectory, 'provider-receipts', runId)
+    });
+    var invokeInput = {
       requestId: runId + '-semantic',
       projectId: runId,
       estimatedCost: 0.01,
@@ -107,7 +133,13 @@ async function main() {
         process.stdout.write('[SnakeLive] sequence=' + entry.sequence + ' mode=' + entry.kind + ' commands=' + commands + ' status=' + (failures ? 'feedback ' + failures : 'accepted') + '\n');
       },
       index: index
-    });
+    };
+    if (planDsl) invokeInput.planDsl = planDsl;
+    result = await semanticRuntime.create({
+      providerRuntime: providerRuntime,
+      trainingLogSink: trainingSink,
+      trainingProvenance: record.provenance
+    }).invoke(invokeInput);
   } catch (error) {
     record.error = { code: error.code || error.name || 'FAILED', message: error.message, runTrace: error.runTrace || record.runTrace, runLedger: error.runLedger || null, runState: error.runState || null, taskPlan: error.taskPlan || null, cacheSummary: error.cacheSummary || null, document: error.document || null };
     record.runTrace = error.runTrace || record.runTrace;
@@ -131,7 +163,78 @@ async function main() {
     process.stderr.write('[SemanticModelFailure] finish=unknown reasoningChars=' + (diagnostics.reasoningChars || 0) + ' contentChars=' + (diagnostics.contentChars || 0) + ' chunks=' + (diagnostics.chunkCount || 0) + ' firstReasoningMs=' + (diagnostics.firstReasoningMs === null || diagnostics.firstReasoningMs === undefined ? 'none' : diagnostics.firstReasoningMs) + ' firstContentMs=' + (diagnostics.firstContentMs === null || diagnostics.firstContentMs === undefined ? 'none' : diagnostics.firstContentMs) + ' elapsedMs=' + (diagnostics.elapsedMs || 0) + '\n');
     throw Object.assign(new Error('Semantic DSL run returned a provider debt.'), { code: result.debt && result.debt.code, outputFile: file });
   }
-  process.stdout.write('[SnakeLive] sourceHash=' + sourceContract.sourceHash(result.document.source) + ' artifact=' + result.document.assembly.projectSeed.documentKind + ' output=' + file + '\n');
+  var runtimeOk = !!(result && result.ok);
+  process.stdout.write('[SnakeLive] runtimeOk=' + runtimeOk + ' sourceHash=' + sourceContract.sourceHash(result.document.source) + ' artifact=' + result.document.assembly.documentKind + ' output=' + file + '\n');
+  if (benchmarkTask && runtimeOk) {
+    try {
+      var referenceRuntime = require('../../packages/semantic/src/semantic-reference-runtime');
+      var refs = referenceRuntime.create(index);
+      function mapOps(list) {
+        return (list || []).map(function(item) {
+          return {
+            use: item.use || item._use || (item.operation && item.operation.use) || null,
+            arguments: item._semanticArguments || item.arguments || {}
+          };
+        });
+      }
+      function mapEvent(event) {
+        return {
+          semanticId: event.semanticId,
+          conditions: mapOps(event.conditions),
+          actions: mapOps(event.actions),
+          children: (event.children || []).map(mapEvent)
+        };
+      }
+      function sourceToOracleDraft(source) {
+        source = source || {};
+        return {
+          entities: (source.entities || []).map(function(entity) {
+            return {
+              semanticId: entity.semanticId,
+              roles: entity.roles || [],
+              kind: refs.entityKind(entity.objectTypeRef) || 'state',
+              members: entity.members || []
+            };
+          }),
+          components: source.components || [],
+          events: (source.events || []).map(mapEvent),
+          assetIntents: source.assetIntents || [],
+          layoutIntents: source.layoutIntents || []
+        };
+      }
+      var baseDraft = sourceToOracleDraft(seedSource);
+      var finalDraft = sourceToOracleDraft(result.document.source);
+      // Semantic oracle only: runtime.* checks are reported separately as runtimeOk.
+      var evaluation = snakeBenchmark.evaluate(benchmarkTask, {
+        result: result,
+        source: seedSource,
+        baseDraft: baseDraft,
+        finalDraft: finalDraft,
+        trace: (record.runTrace || []).map(function(entry) {
+          return Object.assign({}, entry, {
+            protocolVersion: entry.phase === 'planner' ? semanticPromptBundle.PROFILE_VERSIONS.planner : semanticPromptBundle.PROFILE_VERSIONS.executor,
+            result: { ok: true }
+          });
+        }),
+        report: {
+          terminalCode: 'COMPLETED',
+          runtimeBatchAccepted: true,
+          acceptedBatchCount: 1,
+          batchCount: 1,
+          rollbackBatchCount: 0,
+          modelElapsedMs: 0,
+          cacheSummary: { passed: true, applicable: false },
+          recordedParity: { planHash: true, taskReceipts: true, sourceHash: true }
+        }
+      });
+      var failed = (evaluation.checks || []).filter(function(item) { return !item.passed && String(item.id).indexOf('runtime.') !== 0; });
+      record.evaluation = { runtimeOk: runtimeOk, oracleOk: evaluation.semanticPassed, semanticPassed: evaluation.semanticPassed, runtimePassed: evaluation.runtimePassed, failedChecks: failed, checks: evaluation.checks };
+      writeResult(record);
+      process.stdout.write('[SnakeLive] oracleOk=' + evaluation.semanticPassed + ' failed=' + failed.map(function(item) { return item.id; }).join(',') + ' (semantic contract; runtimeOk separate)\n');
+    } catch (oracleError) {
+      process.stdout.write('[SnakeLive] oracleOk=error message=' + oracleError.message + '\n');
+    }
+  }
 }
 
 main().catch(function(error) {

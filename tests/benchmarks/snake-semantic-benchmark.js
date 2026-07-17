@@ -19,13 +19,165 @@ function resolve(value, bindings) {
   }
   return value;
 }
-function operationMatch(operation, specification, bindings) {
-  if (!operation || operation.use !== specification.use) return false;
-  var args = operation.arguments || {};
-  try { return Object.keys(specification.args || {}).every(function(locator) { return same(valueAt(args, locator), resolve(specification.args[locator], bindings)); }); }
-  catch (error) { if (/^Missing (entity|member|value) binding: /.test(error.message)) return false; throw error; }
+function operationUse(operation) {
+  if (!operation) return null;
+  if (typeof operation.use === 'string') return operation.use;
+  if (operation.operation && typeof operation.operation.use === 'string') return operation.operation.use;
+  if (typeof operation._use === 'string') return operation._use;
+  return null;
 }
-function capture(operation, specification, bindings) { Object.keys(specification.capture || {}).forEach(function(locator) { bindings[specification.capture[locator]] = valueAt(operation.arguments || {}, locator); }); }
+function unquoteOracle(value) {
+  if (typeof value !== 'string') return value;
+  if (value.length >= 2 && value[0] === '"' && value[value.length - 1] === '"') {
+    try { return JSON.parse(value); } catch (_error) { return value.slice(1, -1); }
+  }
+  return value;
+}
+function decodeMemberVariable(name) {
+  if (typeof name !== 'string' || name.indexOf('member_') !== 0) return null;
+  var encoded = name.replace(/^member_/, '').replace(/_[0-9a-f]{6,}$/i, '');
+  var splitAt = encoded.indexOf('_');
+  if (splitAt <= 0) return null;
+  return encoded.slice(0, splitAt) + '.' + encoded.slice(splitAt + 1);
+}
+function decodeEntityObject(name) {
+  if (typeof name !== 'string' || name.indexOf('entity_') !== 0) return null;
+  return name.replace(/^entity_/, '').replace(/_[0-9a-f]{6,}$/i, '');
+}
+function liftNestedValue(out, valueNode) {
+  if (!valueNode || typeof valueNode !== 'object') return;
+  var nestedArgs = valueNode.arguments || {};
+  var variable = nestedArgs.variable || nestedArgs.Variable;
+  var member = decodeMemberVariable(variable);
+  var lifted = Object.create(null);
+  if (member) {
+    lifted.use = 'state.number';
+    lifted.target = member;
+  }
+  if (valueNode.use) lifted.use = valueNode.use;
+  if (valueNode.target) lifted.target = valueNode.target;
+  if (lifted.use || lifted.target) out.value = lifted;
+}
+function liftStepExpression(node) {
+  if (node === undefined || node === null) return null;
+  if (typeof node === 'number') return { use: null, target: null, literal: node };
+  if (typeof node === 'string') {
+    var asNumber = Number(node);
+    if (!Number.isNaN(asNumber) && String(asNumber) === String(node).trim()) return { use: null, target: null, literal: asNumber };
+    var member = decodeMemberVariable(node);
+    if (member) return { use: 'state.number', target: member, literal: null };
+    return null;
+  }
+  if (typeof node !== 'object') return null;
+  var nested = node.arguments || node;
+  if (nested.variable || nested.Variable) {
+    var decoded = decodeMemberVariable(nested.variable || nested.Variable);
+    if (decoded) return { use: 'state.number', target: decoded, literal: null };
+  }
+  if (nested.step) return liftStepExpression(nested.step);
+  return null;
+}
+function normalizeOracleKey(value) {
+  if (typeof value !== 'string') return value;
+  var aliases = {
+    ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
+    up: 'Up', down: 'Down', left: 'Left', right: 'Right',
+    ' ': 'Space', Spacebar: 'Space', space: 'Space', Esc: 'Escape', esc: 'Escape'
+  };
+  if (Object.prototype.hasOwnProperty.call(aliases, value)) return aliases[value];
+  var lower = value.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(aliases, lower)) return aliases[lower];
+  return value;
+}
+function operationArgs(operation) {
+  if (!operation) return {};
+  var args = null;
+  if (operation._semanticArguments && typeof operation._semanticArguments === 'object') args = operation._semanticArguments;
+  else if (operation.arguments && typeof operation.arguments === 'object' && !Array.isArray(operation.arguments)) args = operation.arguments;
+  else return {};
+  // Lift common GDJS compiled parameter names back to foundation semantic keys for oracle matching.
+  var out = Object.create(null);
+  Object.keys(args).forEach(function(key) { out[key] = unquoteOracle(args[key]); });
+  if (out.key === undefined && out.key_to_check !== undefined) out.key = unquoteOracle(out.key_to_check);
+  if (typeof out.key === 'string') out.key = normalizeOracleKey(out.key);
+  if (out.timer === undefined && out.timer_s_name !== undefined) out.timer = unquoteOracle(out.timer_s_name);
+  if (out.seconds === undefined && out.time_in_seconds !== undefined) {
+    var seconds = unquoteOracle(out.time_in_seconds);
+    out.seconds = typeof seconds === 'number' ? seconds : Number(seconds);
+  }
+  if (out.operator === undefined && out.sign_of_the_test !== undefined) out.operator = out.sign_of_the_test;
+  if (out.target === undefined && out.object !== undefined) {
+    out.target = decodeEntityObject(out.object) || out.object;
+  }
+  if (out.target === undefined && typeof out.variable === 'string') {
+    out.target = decodeMemberVariable(out.variable) || out.target;
+  }
+  // state.boolean.* compiles value to new_value / check_if_the_value_is (often "True"/"False").
+  if (out.value === undefined && out.new_value !== undefined) out.value = out.new_value;
+  if (out.value === undefined && out.check_if_the_value_is !== undefined) out.value = out.check_if_the_value_is;
+  if (typeof out.value === 'string') {
+    var lowered = out.value.toLowerCase();
+    if (lowered === 'true') out.value = true;
+    else if (lowered === 'false') out.value = false;
+  }
+  // object.collides compiles first/second to object/object_2.
+  if (out.first === undefined && out.object !== undefined) {
+    out.first = decodeEntityObject(out.object) || out.object;
+  }
+  if (out.second === undefined && out.object_2 !== undefined) {
+    out.second = decodeEntityObject(out.object_2) || out.object_2;
+  }
+  // object.place.random-grid expands to SetXY + RandomWithStep; recover step target.
+  if (out['step.use'] === undefined && out['step.target'] === undefined) {
+    var stepSource = out.step !== undefined ? out.step : (out.x_position && out.x_position.arguments && out.x_position.arguments.step) || (out.x_position && out.x_position.step) || null;
+    if (stepSource === undefined && out.x_position) stepSource = out.x_position;
+    var stepLift = liftStepExpression(stepSource);
+    if (stepLift && stepLift.use) {
+      out.step = { use: stepLift.use, target: stepLift.target };
+      out['step.use'] = stepLift.use;
+      out['step.target'] = stepLift.target;
+    } else if (stepLift && stepLift.literal !== null && stepLift.literal !== undefined) {
+      out.step = stepLift.literal;
+    }
+  }
+  if (out.value !== undefined) {
+    if (typeof out.value === 'string' && out.value !== '' && !Number.isNaN(Number(out.value)) && String(Number(out.value)) === String(out.value).trim()) {
+      out.value = Number(out.value);
+    } else {
+      liftNestedValue(out, out.value);
+    }
+  }
+  return out;
+}
+function operationMatch(operation, specification, bindings) {
+  if (operationUse(operation) !== specification.use) return false;
+  var args = operationArgs(operation);
+  var expected = specification.args || {};
+  if (!Object.keys(expected).length) return true;
+  try {
+    return Object.keys(expected).every(function(locator) {
+      var want = resolve(expected[locator], bindings);
+      var got = valueAt(args, locator);
+      if (same(got, want)) return true;
+      if ((locator === 'seconds' || locator === 'value') && got !== undefined && want !== undefined && Number(got) === Number(want) && !Number.isNaN(Number(want))) return true;
+      if (locator === 'key' && typeof got === 'string' && typeof want === 'string' && normalizeOracleKey(got) === normalizeOracleKey(want)) return true;
+      // Compiled variable/object names may use underscores or entity_/member_ prefixes.
+      if (locator === 'target' && typeof got === 'string' && typeof want === 'string') {
+        if (got.replace(/\./g, '_') === want.replace(/\./g, '_')) return true;
+        if (typeof args.variable === 'string' && args.variable.indexOf(want.replace('.', '_')) >= 0) return true;
+        if (typeof args.object === 'string' && args.object.indexOf(want) >= 0) return true;
+      }
+      if ((locator === 'first' || locator === 'second') && typeof got === 'string' && typeof want === 'string') {
+        if (got === want || got.replace(/\./g, '_') === want.replace(/\./g, '_')) return true;
+      }
+      if ((locator === 'value.use' || locator === 'value.target' || locator === 'step.use' || locator === 'step.target') && typeof got === 'string' && typeof want === 'string') {
+        if (got === want || got.replace(/\./g, '_') === want.replace(/\./g, '_')) return true;
+      }
+      return false;
+    });
+  } catch (error) { if (/^Missing (entity|member|value) binding: /.test(error.message)) return false; throw error; }
+}
+function capture(operation, specification, bindings) { Object.keys(specification.capture || {}).forEach(function(locator) { bindings[specification.capture[locator]] = valueAt(operationArgs(operation), locator); }); }
 function matchOperations(operations, specifications, bindings) {
   var used = Object.create(null);
   return (specifications || []).every(function(specification) {

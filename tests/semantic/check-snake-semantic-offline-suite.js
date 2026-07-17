@@ -60,14 +60,14 @@ var fixtures = {
   },
   'timed-right-movement': {
     plan: planTask({ semanticId: 'timed_right', goal: 'Create only timed right movement.', targets: [{ kind: 'event', semanticId: 'move_right', intent: 'create', facets: ['metadata', 'conditions', 'actions'] }], reads: [{ kind: 'entity-record', semanticId: 'snakeHead', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'direction', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'step', intent: 'read' }], uses: ['timer.elapsed', 'state.text.compare', 'timer.reset', 'object.x.add', 'state.number'], catalogs: ['event-kinds'] }),
-    write: 'event(slot=target_event_move_right,kind=rule,locals=record());when(slot=target_event_move_right,capability=cap_timer_elapsed,timer=movementTimer,operator=">=",seconds=0.15);when(slot=target_event_move_right,capability=cap_state_text_compare,target=target_member_GameState_direction,operator="=",value="right");then(slot=target_event_move_right,capability=cap_timer_reset,timer=movementTimer);then(slot=target_event_move_right,capability=cap_object_x_add,target=target_entity_record_snakeHead,value=record(use=cap_state_number,target=target_member_GameState_step))'
+    write: 'event(slot=target_event_move_right,kind=rule,locals=record());when(slot=target_event_move_right,capability=cap_timer_elapsed,timer=movementTimer,operator=">=",seconds=0.15);when(slot=target_event_move_right,capability=cap_state_text_compare,target=target_member_GameState_direction,operator="=",value="right");then(slot=target_event_move_right,capability=cap_timer_reset,timer=movementTimer);then(slot=target_event_move_right,capability=cap_object_x_add,target=target_entity_record_snakeHead,value=record(capability=cap_state_number,target=target_member_GameState_step))'
   },
   'food-score-growth': {
     plan: planTask({ semanticId: 'food_growth', goal: 'Create only food scoring and pending growth.', targets: [
       { kind: 'member', owner: 'GameState', semanticId: 'pendingGrowth', intent: 'create' },
       { kind: 'event', semanticId: 'collect_food', intent: 'create', facets: ['metadata', 'conditions', 'actions'] }
     ], reads: [{ kind: 'entity-record', semanticId: 'snakeHead', intent: 'read' }, { kind: 'entity-record', semanticId: 'food', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'score', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'step', intent: 'read' }], uses: ['object.collides', 'state.number.add', 'object.place.random-grid', 'state.number'], catalogs: ['event-kinds'] }),
-    write: 'member(slot=target_member_GameState_pendingGrowth,roles=list("pending-growth"),value=0,bindings=list());event(slot=target_event_collect_food,kind=rule,locals=record());when(slot=target_event_collect_food,capability=cap_object_collides,first=target_entity_record_snakeHead,second=target_entity_record_food);then(slot=target_event_collect_food,capability=cap_state_number_add,target=target_member_GameState_score,value=1);then(slot=target_event_collect_food,capability=cap_state_number_add,target=target_member_GameState_pendingGrowth,value=1);then(slot=target_event_collect_food,capability=cap_object_place_random_grid,target=target_entity_record_food,minX=0,maxX=640,minY=0,maxY=480,step=record(use=cap_state_number,target=target_member_GameState_step))'
+    write: 'member(slot=target_member_GameState_pendingGrowth,roles=list("pending-growth"),value=0,bindings=list());event(slot=target_event_collect_food,kind=rule,locals=record());when(slot=target_event_collect_food,capability=cap_object_collides,first=target_entity_record_snakeHead,second=target_entity_record_food);then(slot=target_event_collect_food,capability=cap_state_number_add,target=target_member_GameState_score,value=1);then(slot=target_event_collect_food,capability=cap_state_number_add,target=target_member_GameState_pendingGrowth,value=1);then(slot=target_event_collect_food,capability=cap_object_place_random_grid,target=target_entity_record_food,minX=0,maxX=640,minY=0,maxY=480,step=record(capability=cap_state_number,target=target_member_GameState_step))'
   },
   'loss-restart': {
     plan: planTask({ semanticId: 'loss_restart', goal: 'Create only loss detection and restart.', targets: [
@@ -106,7 +106,7 @@ var fixtures = {
       'then(slot=target_event_restart,capability=cap_state_boolean_set,target=target_member_GameState_gameOver,value=false)',
       'then(slot=target_event_restart,capability=cap_object_delete,target=target_entity_record_snakeBody)',
       'then(slot=target_event_restart,capability=cap_object_position_set,target=target_entity_record_snakeHead,x=32,y=32)',
-      'then(slot=target_event_restart,capability=cap_object_place_random_grid,target=target_entity_record_food,minX=0,maxX=640,minY=0,maxY=480,step=record(use=cap_state_number,target=target_member_GameState_step))'
+      'then(slot=target_event_restart,capability=cap_object_place_random_grid,target=target_entity_record_food,minX=0,maxX=640,minY=0,maxY=480,step=record(capability=cap_state_number,target=target_member_GameState_step))'
     ].join(';')
   }
 };

@@ -96,6 +96,16 @@ if (require.main === module) {
   var port = Number(process.env.PRODUCT_ENGINE_PORT || 3030), authToken = process.env.PRODUCT_ENGINE_TOKEN;
   if (!authToken) { process.stderr.write('[ProductEngineApi] PRODUCT_ENGINE_TOKEN is required.\n'); process.exit(1); }
   var storageRoot = path.resolve(process.env.PRODUCT_ENGINE_STORAGE_ROOT || path.join(__dirname, '..', '..', '..', '.gamecastle', 'output', 'product-deliveries'));
+  try {
+    var directorPolicy = require('../../../packages/product/src/director-model-port').POLICY;
+    var semanticModel = require('../../../packages/semantic/src/semantic-model-policy').resolveModel();
+    process.stdout.write('[ProductEngineApi] mode=' + semanticModel.mode +
+      ' LLM1=' + directorPolicy.provider + '/' + directorPolicy.model +
+      ' LLM2=' + semanticModel.provider + '/' + semanticModel.model + '\n');
+  } catch (error) {
+    process.stderr.write('[ProductEngineApi] model config invalid: ' + (error && error.message || error) + '\n');
+    process.exit(1);
+  }
   createServer({ authToken: authToken, productOptions: { storageRoot: storageRoot } }).listen(port, '127.0.0.1', function() { process.stdout.write('[ProductEngineApi] listening on 127.0.0.1:' + port + '\n'); });
 }
 

@@ -10,12 +10,18 @@ var PLAN = [
   'plan-task(semanticId=core,goal="Create the game and shared state",after=list())',
   'plan-game(task=core,slot=gameRoot,semanticId=demo,intent=create)',
   'plan-entity(task=core,slot=stateEntity,semanticId=GameState,intent=create)',
-  'plan-member(task=core,slot=scoreMember,semanticId=score,owner=GameState,intent=create)'
+  'plan-member(task=core,slot=scoreMember,semanticId=score,owner=GameState,intent=create)',
+  'plan-event(task=core,slot=startEvent,semanticId=start,intent=create,facets=list(metadata,conditions,actions))',
+  'plan-use(task=core,alias=always,use=always)',
+  'plan-use(task=core,alias=setScore,use=state.number.set)'
 ].join(';');
 var WRITE = [
   'game(slot=gameRoot,name="Demo")',
   'entity(slot=stateEntity,roles=list(state),kind=state,behaviors=list())',
-  'member(slot=scoreMember,roles=list(score),value=0,bindings=list())'
+  'member(slot=scoreMember,roles=list(score),value=0,bindings=list())',
+  'event(slot=startEvent,kind=rule,locals=record())',
+  'when(slot=startEvent,capability=always)',
+  'then(slot=startEvent,capability=setScore,target=scoreMember,value=0)'
 ].join(';');
 
 function model(outputs, calls) {
@@ -94,6 +100,7 @@ async function invoke(outputs, extra, calls) {
   ]);
   assert.strictEqual(writeRepaired.ok, true);
   assert.strictEqual(writeRepaired.modelCalls, 3);
+  // entity(...) on a game slot fails kind coverage before missing-slot enumeration.
   assert.strictEqual(writeRepaired.trainingRecords[1].outcome.code, 'SEMANTIC_TASK_SLOT_KIND_INVALID');
   assert.strictEqual(writeRepaired.trainingRecords[1].resolvedCommands.length, 0);
 

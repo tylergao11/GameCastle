@@ -11,7 +11,7 @@ function load(text, index) {
   var planCommands = parsed.commands.filter(function(command) { return syntax.PLAN_COMMANDS.indexOf(command.type) >= 0; });
   var writes = parsed.commands.filter(function(command) { return syntax.WRITE_COMMANDS.indexOf(command.type) >= 0; });
   var plan = taskPlan.create(planCommands), draft = draftApi.create(referencesApi.create(index), null);
-  taskPlan.assertFeasible(plan, draftApi.materialize(draft), { revision: false });
+  taskPlan.assertFeasible(plan, draftApi.materialize(draft), { revision: false, allowShellMembers: true });
   plan.tasks.forEach(function(task) {
     var owned = Object.create(null); task.slots.forEach(function(slot) { owned[slot.slot] = true; });
     var resolved = taskPlan.resolveBatch(plan, task.semanticId, writes.filter(function(command) { return owned[command.slot]; }));

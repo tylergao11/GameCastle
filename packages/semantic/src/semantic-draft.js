@@ -9,12 +9,17 @@ function deepFreeze(value) { if (!value || typeof value !== 'object' || Object.i
 function factHash(value) { return 'semantic.compiled-fact.' + crypto.createHash('sha256').update(JSON.stringify(stable(value))).digest('hex'); }
 function valueType(value) { return Array.isArray(value) ? 'array' : (value && typeof value === 'object' ? 'structure' : typeof value); }
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticDraft'; throw error; }
-function allowed(command, fields) { Object.keys(command).forEach(function(key) { if (fields.indexOf(key) < 0) fail('SEMANTIC_DRAFT_FIELD_INVALID', '>' + command.type + ' contains unknown field: ' + key); }); }
+function allowed(value, fields, label) {
+  var owner = label || value.type || 'value';
+  Object.keys(value).forEach(function(key) {
+    if (fields.indexOf(key) < 0) fail('SEMANTIC_DRAFT_FIELD_INVALID', owner + ' contains unknown field: ' + key);
+  });
+}
 function text(value, label) { if (typeof value !== 'string' || !value.trim()) fail('SEMANTIC_DRAFT_VALUE_INVALID', label + ' is required'); return value.trim(); }
 function array(value, label) { if (!Array.isArray(value)) fail('SEMANTIC_DRAFT_VALUE_INVALID', label + ' must be an array'); return clone(value); }
 function nonEmptyArray(value, label) { value = array(value, label); if (!value.length) fail('SEMANTIC_DRAFT_VALUE_INVALID', label + ' requires at least one item'); return value; }
 function object(value, label) { if (!value || typeof value !== 'object' || Array.isArray(value)) fail('SEMANTIC_DRAFT_VALUE_INVALID', label + ' must be an object'); return clone(value); }
-function layoutBounds(value, label) { value = object(value, label); allowed(value, ['width', 'height']); ['width', 'height'].forEach(function(name) { if (typeof value[name] !== 'number' || !isFinite(value[name]) || value[name] <= 0) fail('SEMANTIC_DRAFT_VALUE_INVALID', label + '.' + name + ' must be a positive finite number'); }); return value; }
+function layoutBounds(value, label) { value = object(value, label); allowed(value, ['width', 'height'], label); ['width', 'height'].forEach(function(name) { if (typeof value[name] !== 'number' || !isFinite(value[name]) || value[name] <= 0) fail('SEMANTIC_DRAFT_VALUE_INVALID', label + '.' + name + ' must be a positive finite number'); }); return value; }
 function upsert(items, value) { var at = items.findIndex(function(item) { return item.semanticId === value.semanticId; }); if (at < 0) items.push(value); else items[at] = value; }
 function find(items, id, label) { var item = items.find(function(value) { return value.semanticId === id; }); if (!item) fail('SEMANTIC_DRAFT_TARGET_MISSING', label + ' is missing: ' + id); return item; }
 function walkEvents(events, visitor, parent) { events.forEach(function(event) { visitor(event, parent || null); walkEvents(event.children || [], visitor, event); }); }
@@ -74,11 +79,10 @@ function create(references, source) {
 function fork(draft) { return { schemaVersion: draft.schemaVersion, draftKind: draft.draftKind, baseSource: clone(draft.baseSource), value: clone(draft.value), touched: clone(draft.touched), references: draft.references }; }
 function mark(draft, command, semanticId) { draft.touched.push({ type: command.type, semanticId: semanticId || command.semanticId || null, entity: command.entity || null }); }
 function operationArgs(command) {
-  var rawArgs = command.arguments === undefined ? Object.create(null) : object(command.arguments, command.type + '.arguments');
-  var args = Object.create(null); Object.keys(rawArgs).forEach(function(key) { args[key] = rawArgs[key]; });
+  // Model-facing when/then parameters are open fields. Resolved IR may still carry use/event/replace.
+  var args = Object.create(null);
   Object.keys(command).forEach(function(key) {
     if (['type', 'event', 'use', 'replace', 'not', 'await', 'arguments'].indexOf(key) >= 0) return;
-    if (Object.prototype.hasOwnProperty.call(args, key)) fail('SEMANTIC_DSL_ARG_DUPLICATE', 'Duplicate event operation parameter: ' + key);
     args[key] = clone(command[key]);
   });
   return args;
@@ -160,7 +164,13 @@ function execute(draft, command) {
     allowed(command, ['type', 'semanticId', 'roles', 'kind', 'behaviors']);
     var entityId = text(command.semanticId, 'entity.semanticId');
     var currentEntity = value.entities.find(function(item) { return item.semanticId === entityId; });
-    upsert(value.entities, { semanticId: entityId, roles: nonEmptyArray(command.roles, 'entity.roles'), objectTypeRef: refs.resolveEntityKind(text(command.kind, 'entity.kind')), behaviorTypeRefs: refs.resolveBehaviorKinds(command.behaviors || []), members: currentEntity ? currentEntity.members : [] });
+    var objectTypeRef = refs.resolveEntityKind(text(command.kind, 'entity.kind'));
+    var behaviorTypeRefs = refs.resolveBehaviorKinds(command.behaviors || []);
+    // state (and other non-object kinds) have null objectTypeRef; GDJS behaviors require an object.
+    if (behaviorTypeRefs.length && !objectTypeRef) {
+      fail('SEMANTIC_ENTITY_INVALID', 'entity ' + entityId + ' kind=' + command.kind + ' cannot declare behaviors; only object kinds carry behaviorTypeRefs.');
+    }
+    upsert(value.entities, { semanticId: entityId, roles: nonEmptyArray(command.roles, 'entity.roles'), objectTypeRef: objectTypeRef, behaviorTypeRefs: behaviorTypeRefs, members: currentEntity ? currentEntity.members : [] });
   } else if (command.type === 'component') {
     allowed(command, ['type', 'semanticId', 'kind', 'target', 'config', 'bindings']);
     var definition = refs.resolveComponent(text(command.kind, 'component.kind'));

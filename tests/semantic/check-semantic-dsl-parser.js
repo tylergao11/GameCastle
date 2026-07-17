@@ -17,6 +17,14 @@ assert.deepStrictEqual(planner.warnings, []);
 assert.strictEqual(planner.commands.length, 3);
 assert.strictEqual(planner.commands[1].slot, 'head');
 
+// Unquoted plan-task.goal may contain commas; only declared field names start a new argument.
+var goalCommas = parser.parse(
+  'plan-task(semanticId=task1,goal=Add a timed rule that triggers when timer reaches 0.15s and direction is right, then resets timer and moves head,after=list())',
+  { phase: 'planner' }
+);
+assert.strictEqual(goalCommas.commands[0].goal, 'Add a timed rule that triggers when timer reaches 0.15s and direction is right, then resets timer and moves head');
+assert.deepStrictEqual(goalCommas.commands[0].after, []);
+
 var executor = parser.parse([
   'entity(slot=head,roles=list(player,"snake-head"),kind=sprite,behaviors=list())',
   'then(slot=moveActions,capability=moveRight,target=head,value=32)'
@@ -34,6 +42,17 @@ assert.throws(function() { parser.parse('entity(semanticId=head,roles=list(playe
 
 assert.deepStrictEqual(syntax.PLAN_LINES, syntax.renderPhase('planner'));
 assert.deepStrictEqual(syntax.WRITE_LINES, syntax.renderPhase('executor'));
+var facetStripped = parser.parse('when(slot=moveRight#conditions,capability=timer,timer=t,operator=">=",seconds=0.15)', { phase: 'executor' });
+assert.strictEqual(facetStripped.commands[0].slot, 'moveRight', 'parse strips trailing #conditions from slot');
+assert(syntax.renderCommand('plan-event').indexOf('facets=list(metadata,conditions,actions)') >= 0, 'plan-event form always projects facets');
+assert.throws(function() {
+  syntax.validateCommand({ type: 'plan-event', task: 't', slot: 's', semanticId: 'e1', intent: 'create' }, 'planner');
+}, function(error) { return error.code === 'SEMANTIC_DSL_FIELD_REQUIRED' && /facets=list/.test(error.message); });
+assert.throws(function() {
+  syntax.validateCommand({ type: 'plan-event', task: 't', slot: 's', semanticId: 'e1', intent: 'create', facets: { kind: 'rule' } }, 'planner');
+}, function(error) { return error.code === 'SEMANTIC_DSL_FIELD_TYPE_INVALID'; });
+syntax.validateCommand({ type: 'plan-event', task: 't', slot: 's', semanticId: 'e1', intent: 'create', facets: ['metadata', 'conditions', 'actions'] }, 'planner');
+syntax.validateCommand({ type: 'plan-event', task: 't', slot: 's', semanticId: 'e1', intent: 'delete' }, 'planner');
 var source = fs.readFileSync(path.join(__dirname, '..', '..', 'packages', 'semantic', 'src', 'semantic-dsl-parser.js'), 'utf8');
 assert.strictEqual(source.indexOf('JSON.parse'), -1, 'the model DSL parser has no JSON parser fallback');
 console.log('[SemanticDSLParser] v9 phase grammar, generated command shapes, slot protocol, and hard legacy rejection passed');

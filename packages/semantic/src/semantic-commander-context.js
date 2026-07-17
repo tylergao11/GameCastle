@@ -40,7 +40,9 @@ function machine(projection, expectedTaskId) {
 function compactOperation(row) {
   var fields = String(row).split('|');
   if (fields.length < 4 || !fields[0] || !fields[1]) fail('SEMANTIC_CONTEXT_CATALOG_INVALID', 'Foundation operation row is invalid: ' + row);
-  return [fields[0], fields[1], fields.slice(3).join('|')].join('|');
+  // Slot-first row so plan-use.use copies the handle only, not channel|handle.
+  // params stays visible: dictionary-aligned field shapes from algebra.promptLines.
+  return 'use=' + fields[1] + '|channel=' + fields[0] + '|params=' + fields[2] + '|summary=' + fields.slice(3).join('|');
 }
 function plannerCatalog(references) {
   if (!references || typeof references.foundationOperationLines !== 'function' || typeof references.parameterContext !== 'function') fail('SEMANTIC_CONTEXT_REFERENCES_INVALID', 'Planner context requires SemanticReferenceRuntime.');
@@ -99,7 +101,11 @@ function taskFacts(references, task, retrievedFacts) {
   var rows = references.foundationOperationLines(), byUse = {};
   rows.forEach(function(row) { var fields = String(row).split('|'); byUse[fields[1]] = String(row); });
   var uses = {};
-  task.capabilities.forEach(function(capability) { if (!byUse[capability.use]) fail('SEMANTIC_CONTEXT_TASK_USE_MISSING', 'Task use is absent from foundation operation truth: ' + capability.use); uses[capability.alias] = capability.alias + '|' + byUse[capability.use]; });
+  // L3 keeps alias as first segment for Runtime fact matching; params come from dictionary-aligned foundation rows.
+  task.capabilities.forEach(function(capability) {
+    if (!byUse[capability.use]) fail('SEMANTIC_CONTEXT_TASK_USE_MISSING', 'Task use is absent from foundation operation truth: ' + capability.use);
+    uses[capability.alias] = capability.alias + '|' + byUse[capability.use];
+  });
   var parameters = references.parameterContext(), catalogs = {};
   task.catalogs.forEach(function(name) { var field = CATALOG_FIELD[name]; if (!field) fail('SEMANTIC_CONTEXT_CATALOG_INVALID', 'Unknown task catalog: ' + name); catalogs[name] = clone(parameters[field] || []); });
   var planned = {};

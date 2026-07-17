@@ -80,15 +80,17 @@ function atom(cursor) {
   while (cursor.index < cursor.text.length && cursor.peek() !== ',' && cursor.peek() !== ')') cursor.index += 1;
   var raw = cursor.text.slice(start, cursor.index).trim();
   if (!raw) throw valueError('Semantic DSL contains an empty value.');
-  if (raw.indexOf('=') >= 0) throw valueError('Semantic DSL scalar values cannot contain =; use record(field=value).');
   if (raw === 'true') return true;
   if (raw === 'false') return false;
   if (raw === 'null') return null;
+  // Comparison operators are first-class dictionary tokens; they contain '=' but are not field separators.
+  if (/^(>=|<=|!=|=|<|>)$/.test(raw)) return raw;
   if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(raw)) {
     var number = Number(raw);
     if (!Number.isFinite(number)) throw valueError('Semantic DSL number must be finite.');
     return number;
   }
+  if (raw.indexOf('=') >= 0) throw valueError('Semantic DSL scalar values cannot contain =; use record(field=value).');
   return raw;
 }
 
@@ -171,16 +173,55 @@ function separatorIndex(part) {
   walker.assertComplete();
   return -1;
 }
-function parseArgs(text) {
+// Split command args on ",key=" boundaries. When knownKeys is set (closed command forms),
+// only declared field names start a new argument — so unquoted text values may contain commas.
+// openFields commands pass knownKeys=null and treat any ,key= as a boundary (open parameters).
+function splitArgs(text, knownKeys) {
+  var body = String(text || '');
+  if (!body.trim()) return [];
+  var parts = [], start = 0, walker = new Walker(), i = 0;
+  while (i < body.length) {
+    var ch = body[i];
+    var state = walker.feed(ch);
+    if (!state.quoted && !state.nested && ch === ',') {
+      var rest = body.slice(i + 1);
+      var keyMatch = /^\s*([A-Za-z][A-Za-z0-9_.-]*)\s*=/.exec(rest);
+      if (keyMatch && (!knownKeys || knownKeys[keyMatch[1]])) {
+        var segment = body.slice(start, i).trim();
+        if (segment) parts.push(segment);
+        start = i + 1;
+      }
+    }
+    i += 1;
+  }
+  walker.assertComplete();
+  var tail = body.slice(start).trim();
+  if (tail) parts.push(tail);
+  return parts;
+}
+function parseTextField(raw) {
+  raw = String(raw || '').trim();
+  if (!raw) throw valueError('Semantic DSL text field cannot be empty.');
+  // Quoted, list, and record still use the normal value grammar.
+  if (raw[0] === '"' || raw[0] === "'" || raw.indexOf('list(') === 0 || raw.indexOf('record(') === 0) return parseValue(raw);
+  // Unquoted text keeps commas and spaces; only reject embedded = which would be ambiguous.
+  if (raw.indexOf('=') >= 0) throw valueError('Semantic DSL unquoted text cannot contain =; quote the text value.');
+  return raw;
+}
+function parseArgs(text, options) {
+  options = options || {};
+  var knownKeys = options.knownKeys || null;
+  var fieldTypes = options.fieldTypes || Object.create(null);
   var args = Object.create(null);
   if (!String(text || '').trim()) return args;
-  split(text, ',').forEach(function(part) {
+  splitArgs(text, knownKeys).forEach(function(part) {
     var index = separatorIndex(part);
     if (index < 1) throw error('SEMANTIC_DSL_ARG_INVALID', 'Semantic DSL arguments use key=value fields: ' + part);
     var key = part.slice(0, index).trim();
     if (!/^[A-Za-z][A-Za-z0-9_.-]*$/.test(key)) throw error('SEMANTIC_DSL_ARG_INVALID', 'Semantic DSL argument key is invalid: ' + key);
     if (Object.prototype.hasOwnProperty.call(args, key)) throw error('SEMANTIC_DSL_ARG_DUPLICATE', 'Duplicate semantic DSL argument: ' + key);
-    args[key] = parseValue(part.slice(index + 1));
+    var raw = part.slice(index + 1);
+    args[key] = fieldTypes[key] === 'text' ? parseTextField(raw) : parseValue(raw);
   });
   return args;
 }
@@ -195,7 +236,17 @@ function parse(text, options) {
     if (!match) { warnings.push('Unparsed semantic DSL: ' + token.slice(0, 160)); return; }
     if (syntax.ALL_COMMANDS.indexOf(match[1]) < 0) throw error('SEMANTIC_DSL_COMMAND_UNKNOWN', 'Unknown Semantic DSL command: ' + match[1]);
     var command = Object.create(null); command.type = match[1];
-    var parsedArgs = parseArgs(match[2]);
+    var spec = syntax.COMMANDS[match[1]];
+    var knownKeys = null;
+    var fieldTypes = Object.create(null);
+    if (spec) {
+      Object.keys(spec.fields).forEach(function(name) { fieldTypes[name] = spec.fields[name].type; });
+      if (!spec.openFields) {
+        knownKeys = Object.create(null);
+        Object.keys(spec.fields).forEach(function(name) { knownKeys[name] = true; });
+      }
+    }
+    var parsedArgs = parseArgs(match[2], { knownKeys: knownKeys, fieldTypes: fieldTypes });
     Object.keys(parsedArgs).forEach(function(key) { command[key] = parsedArgs[key]; });
     syntax.validateCommand(command, options.phase || null);
     commands.push(command);

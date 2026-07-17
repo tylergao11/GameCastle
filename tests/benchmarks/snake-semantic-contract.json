@@ -3,7 +3,7 @@
   "benchmarkKind": "semantic-task-benchmark-contract",
   "benchmarkId": "snake-layered-v2",
   "requiredRuntimePhases": ["task-plan", "draft-write"],
-  "requiredProtocolVersions": { "planner": "semantic-planner-prompt-v12", "executor": "semantic-executor-prompt-v9" },
+  "requiredProtocolVersions": { "planner": "semantic-planner-prompt-v18", "executor": "semantic-executor-prompt-v17" },
   "minimumCacheHitRate": 0.9,
   "hardTimeoutMs": 300000,
   "tasks": [
@@ -53,7 +53,7 @@
       "seedFile": "tests/fixtures/semantic/semantic-snake-turn-seed.dsl",
       "task": "Add pending growth state starting at 0 and one food-collection rule. When snakeHead collides with food, increase score and pending growth by 1, then relocate food to a grid position using the current grid step.",
       "changeBudget": { "entities": { "exact": 0 }, "members": { "exact": 1 }, "components": { "exact": 0 }, "events": { "exact": 1 }, "assetIntents": { "exact": 0 }, "layoutIntents": { "exact": 0 } },
-      "requiredMembers": [{ "scope": "added", "entity": "GameState", "semanticIdPattern": "^pending[-_. ]?growth$", "value": 0, "count": 1, "bind": "growth" }],
+      "requiredMembers": [{ "scope": "added", "entity": "GameState", "semanticIdPattern": "^(pending[-_. ]?)?growth$", "value": 0, "count": 1, "bind": "growth" }],
       "requiredEvents": [
         { "scope": "added", "count": 1, "conditionCount": 1, "actionCount": 3, "conditions": [{ "use": "object.collides", "args": { "first": "snakeHead", "second": "food" } }], "actions": [{ "use": "state.number.add", "args": { "target": "GameState.score", "value": 1 } }, { "use": "state.number.add", "args": { "target": { "$member": "growth" }, "value": 1 } }, { "use": "object.place.random-grid", "args": { "target": "food", "step.use": "state.number", "step.target": "GameState.step" } }] }
       ]
