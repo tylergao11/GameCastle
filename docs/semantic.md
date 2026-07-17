@@ -12,7 +12,7 @@
 | **Executor** | Free-write one work order | `game`/`entity`/`member`/`event`/`when`/`then`/… |
 | **Runtime** | Feasibility, authorize, commit | Not a model |
 
-Product-level total scheduling (semantic vs asset) lives under `packages/product/` (`product-dispatch-*` LangGraph), not the semantic planner.
+**Product delivery authority** is only `ProductDeliveryOrchestrator` (`POST /product/deliver`). Semantic Planner is domain-internal. Product-dispatch LangGraph is a lane scaffold, not a second accepted-product identity. Pin: `packages/product/src/product-truth.js`.
 
 ## Planner dispatch discipline (Hermes-inspired)
 
@@ -68,8 +68,8 @@ See `scripts/models/README.md`.
 - Document second truths outside this file + code owners above.
 - Advertise illegal revision commands (`game`/`policy`) in executor FORMS.
 
-## Residual (known, deferred — not code stubs)
+## Residual (known, deferred — not dual truth)
 
 - Multi-sample live stability for loss-restart first-round delta-only.
 - Free-plan (true planner) full six-task campaign.
-- Product free path on `product-dispatch-langgraph` still separate from sealed Director delivery.
+- Product-dispatch scaffold may later power parallel lanes **under** ProductDeliveryRun (never a second delivery owner).

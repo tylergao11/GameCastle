@@ -40,8 +40,8 @@ audit](docs/module-boundaries.md) document the contracts.
 Pinned GDevelop source
   -> generated GDJS Semantic Dictionary
 
-Product request
-  -> ProductDeliveryOrchestrator opens one persisted ProductDeliveryRun
+Product request (sole production entry: POST /product/deliver)
+  -> ProductDeliveryOrchestrator opens one persisted ProductDeliveryRun (only accepted-product authority; pin packages/product/src/product-truth.js)
   -> DeepSeek Director Planner freezes the director-dsl-v1 route: semantic.design -> asset.realize -> assembly.verify
   -> semantic.design: Semantic Planner dispatches one plan-task work order (or plan-complete)
   -> Runtime freezes the plan and activates that single task

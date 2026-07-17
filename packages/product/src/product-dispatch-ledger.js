@@ -156,20 +156,46 @@ function assemblyReady(ledger) {
   return { ready: true, reason: 'ok', missing: [] };
 }
 
+// Truth split (must stay distinct): sealed = intent settled; filled = asset pixels accepted.
+function intentSettledIds(ledger) {
+  return list(ledger).filter(function(item) {
+    return item.status === 'sealed' || item.status === 'filled';
+  }).map(function(item) { return item.id; });
+}
+
+function assetFilledIds(ledger) {
+  return list(ledger).filter(function(item) { return item.status === 'filled'; }).map(function(item) { return item.id; });
+}
+
 function summary(ledger) {
   var items = list(ledger);
   var byStatus = { declared: 0, sealed: 0, filled: 0, invalid: 0 };
   items.forEach(function(item) { byStatus[item.status] = (byStatus[item.status] || 0) + 1; });
   var gate = assemblyReady(ledger);
+  var intentSettled = intentSettledIds(ledger);
+  var assetFilled = assetFilledIds(ledger);
   return {
     count: items.length,
     byStatus: byStatus,
+    // Explicit dual-phase labels so callers never treat "sealed" as "done drawing".
+    intentSettledIds: intentSettled,
+    assetFilledIds: assetFilled,
+    intentSettledCount: intentSettled.length,
+    assetFilledCount: assetFilled.length,
     sealed: hasSealed(ledger),
     assemblyReady: gate.ready,
     assemblyReason: gate.reason,
     missing: gate.missing,
     placeholders: items.map(function(item) {
-      return { id: item.id, kind: item.kind, subject: item.subject, status: item.status, required: item.required };
+      return {
+        id: item.id,
+        kind: item.kind,
+        subject: item.subject,
+        status: item.status,
+        required: item.required,
+        intentSettled: item.status === 'sealed' || item.status === 'filled',
+        assetFilled: item.status === 'filled'
+      };
     })
   };
 }
@@ -188,6 +214,8 @@ module.exports = {
   sealedCount: sealedCount,
   hasSealed: hasSealed,
   unfilledSealed: unfilledSealed,
+  intentSettledIds: intentSettledIds,
+  assetFilledIds: assetFilledIds,
   assemblyReady: assemblyReady,
   summary: summary
 };

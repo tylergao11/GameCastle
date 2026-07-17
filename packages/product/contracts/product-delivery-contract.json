@@ -3,12 +3,18 @@
   "contractId": "gamecastle.product-delivery",
   "owner": "ProductDeliveryOrchestrator",
   "truthModel": {
+    "deliveryAuthority": "ProductDeliveryOrchestrator only; pin packages/product/src/product-truth.js",
+    "productionEntry": "POST /product/deliver",
     "semanticIntent": "GameSemanticSource and source-bound GameSemanticRevision",
     "assetAcceptance": "validated immutable semantic-asset-world",
     "spatialAcceptance": "validated spatial-layout-resolution and accepted GDJS projection",
     "crossStageLifecycle": "one persisted product-delivery-run",
     "assetCard": "read-only projection; never an authored or persisted truth source",
-    "directorPlan": "frozen director-dsl-v1 program, plan hash, and provider receipt only; no domain inputs or domain internals"
+    "directorPlan": "frozen director-dsl-v1 program, plan hash, and provider receipt only; no domain inputs or domain internals",
+    "productDispatchScaffold": "product-dispatch-* is lane scheduling scaffold only; must not mint a second accepted product",
+    "placeholderIntentVsFill": "sealed=intent settled; filled=asset accepted for that sealed id",
+    "assemblyEntry": "gate after readiness; not a free planner work order",
+    "multiplayerAdmission": "friend-invite rooms require matching deliveryAttestation.sourceHash"
   },
   "statuses": [
     "semantic-ready",
@@ -88,6 +94,10 @@
     "reuse of downstream artifacts after sourceHash changes",
     "partial AssetWorld",
     "nullable accepted spatial product",
-    "AssetCard as a fifth source of truth"
+    "AssetCard as a fifth source of truth",
+    "second accepted-product authority outside ProductDeliveryOrchestrator",
+    "treating product-dispatch scaffold as alternate ProductDeliveryRun",
+    "confusing sealed intent with filled assets",
+    "model-dispatched assembly work orders"
   ]
 }
