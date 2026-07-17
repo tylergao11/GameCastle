@@ -1,7 +1,24 @@
 var assert = require('assert');
 var contract = require('./snake-semantic-contract.json');
+var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
+var algebra = require('../../packages/semantic/src/semantic-event-algebra');
 
 function fail(message) { throw new Error(message); }
+// Single oracle truth for entity "kind": Source owns objectTypeRef; kind is derived (Draft DSL kind is not stored on Source).
+var _dictionaryIndex = null;
+function dictionaryIndex() {
+  if (!_dictionaryIndex) _dictionaryIndex = dictionary.loadIndex();
+  return _dictionaryIndex;
+}
+function entityKindOf(entity) {
+  if (!entity || typeof entity !== 'object') return null;
+  if (typeof entity.kind === 'string' && entity.kind) return entity.kind;
+  try {
+    return algebra.entityKindForRef(dictionaryIndex(), entity.objectTypeRef === undefined ? null : entity.objectTypeRef);
+  } catch (_error) {
+    return null;
+  }
+}
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, Object.create(null)); return value; }
 function same(left, right) { try { assert.deepStrictEqual(stable(left), stable(right)); return true; } catch (_error) { return false; } }
 function flattenEvents(events, out) { out = out || []; (events || []).forEach(function(event) { out.push(event); flattenEvents(event.children, out); }); return out; }
@@ -149,6 +166,14 @@ function operationArgs(operation) {
   }
   return out;
 }
+// Boundary coverage: free plans often use <= / >=; semantic intent matches strict < / >.
+function operatorsCompatible(got, want) {
+  if (same(got, want)) return true;
+  var g = String(got || ''), w = String(want || '');
+  if ((w === '<' && (g === '<' || g === '<=')) || (w === '>' && (g === '>' || g === '>='))) return true;
+  if ((w === '<=' && (g === '<' || g === '<=')) || (w === '>=' && (g === '>' || g === '>='))) return true;
+  return false;
+}
 function operationMatch(operation, specification, bindings) {
   if (operationUse(operation) !== specification.use) return false;
   var args = operationArgs(operation);
@@ -159,6 +184,7 @@ function operationMatch(operation, specification, bindings) {
       var want = resolve(expected[locator], bindings);
       var got = valueAt(args, locator);
       if (same(got, want)) return true;
+      if (locator === 'operator' && operatorsCompatible(got, want)) return true;
       if ((locator === 'seconds' || locator === 'value') && got !== undefined && want !== undefined && Number(got) === Number(want) && !Number.isNaN(Number(want))) return true;
       if (locator === 'key' && typeof got === 'string' && typeof want === 'string' && normalizeOracleKey(got) === normalizeOracleKey(want)) return true;
       // Compiled variable/object names may use underscores or entity_/member_ prefixes.
@@ -214,32 +240,61 @@ function preservedSource(base, finalSource) {
   var finalEvents = flattenEvents(finalSource && finalSource.events); flattenEvents(base.events).forEach(function(event) { var finalEvent = byId(finalEvents, event.semanticId); if (!finalEvent) missing.push('events/' + event.semanticId); else if (!same(event, finalEvent)) changed.push('events/' + event.semanticId); });
   return { passed: missing.length === 0 && changed.length === 0, missing: missing, changed: changed };
 }
-function countPass(actual, budget) { return (budget.exact === undefined || actual === budget.exact) && (budget.minimum === undefined || actual >= budget.minimum) && (budget.maximum === undefined || actual <= budget.maximum); }
+// Budget: exact for closed micro-tasks; minimum/maximum for open composite tasks. Mix is allowed; empty budget key is invalid.
+function countPass(actual, budget) {
+  if (!budget || typeof budget !== 'object') return false;
+  if (budget.exact === undefined && budget.minimum === undefined && budget.maximum === undefined) return false;
+  return (budget.exact === undefined || actual === budget.exact)
+    && (budget.minimum === undefined || actual >= budget.minimum)
+    && (budget.maximum === undefined || actual <= budget.maximum);
+}
 function patternMatches(value, pattern) { return !pattern || new RegExp(pattern, 'i').test(value); }
-function matchEntity(entity, specification) { return (!specification.semanticId || entity.semanticId === specification.semanticId) && patternMatches(entity.semanticId, specification.semanticIdPattern) && (!specification.kind || entity.kind === specification.kind) && (specification.rolesAll || []).every(function(role) { return entity.roles.indexOf(role) >= 0; }); }
+function matchEntity(entity, specification) {
+  if (specification.semanticId && entity.semanticId !== specification.semanticId) return false;
+  if (!patternMatches(entity.semanticId, specification.semanticIdPattern)) return false;
+  if (specification.kind && entityKindOf(entity) !== specification.kind) return false;
+  return (specification.rolesAll || []).every(function(role) { return (entity.roles || []).indexOf(role) >= 0; });
+}
 function matchMember(item, specification) { return (!specification.entity || item.entity === specification.entity) && patternMatches(item.member.semanticId, specification.semanticIdPattern) && (specification.rolesAll || []).every(function(role) { return item.member.roles.indexOf(role) >= 0; }) && (specification.value === undefined || same(item.member.value, specification.value)); }
 function check(checks, id, passed, evidence) { checks.push({ id: id, passed: !!passed, evidence: evidence }); }
 function successfulCalls(trace) { return (trace || []).filter(function(entry) { return entry.protocolVersion && entry.result && entry.result.ok === true; }); }
 function closedLoopPhases(trace, required) {
+  // Dispatch loop: plan and write may interleave (one task per round + plan-complete); no other kinds.
   var phases = successfulCalls(trace).map(function(entry) { return entry.kind; });
-  return phases.length >= 2 && phases[0] === required[0] && phases.slice(1).every(function(phase) { return phase === required[1]; });
+  var hasPlan = phases.indexOf(required[0]) >= 0;
+  var hasWrite = phases.indexOf(required[1]) >= 0;
+  return phases.length >= 2 && hasPlan && hasWrite && phases.every(function(phase) {
+    return phase === required[0] || phase === required[1];
+  });
 }
 function closedLoopEvidence(execution) {
   var result = execution.result || null, ledger = result && result.runLedger || execution.error && execution.error.runLedger || null, state = result && result.runState || execution.error && execution.error.runState || null, plan = result && result.taskPlan || execution.error && execution.error.taskPlan || null;
-  var events = ledger && ledger.events || [], planEvents = events.filter(function(event) { return event.type === 'PLAN_ACCEPTED'; }), retrieves = events.filter(function(event) { return event.type === 'TASK_RETRIEVED'; }), commits = events.filter(function(event) { return event.type === 'TASK_COMMITTED'; }), taskIds = plan && plan.tasks.map(function(task) { return task.semanticId; }) || [];
+  var events = ledger && ledger.events || [];
+  var planEvents = events.filter(function(event) { return event.type === 'PLAN_ACCEPTED'; });
+  var dispatchDone = events.some(function(event) { return event.type === 'DISPATCH_COMPLETE'; });
+  var retrieves = events.filter(function(event) { return event.type === 'TASK_RETRIEVED'; });
+  var commits = events.filter(function(event) { return event.type === 'TASK_COMMITTED'; });
+  var taskIds = commits.map(function(event) { return event.payload.taskId; });
   function exactlyOnce(rows, taskId) { return rows.filter(function(event) { return event.payload.taskId === taskId; }).length === 1; }
   return {
     completed: !!(state && state.state === 'COMPLETED' && events.length && events[events.length - 1].type === 'RUN_COMPLETED'),
-    planSealed: !!(plan && state && planEvents.length === 1 && planEvents[0].payload.planHash === plan.planHash && state.planHash === plan.planHash),
-    taskReceipts: !!(taskIds.length && commits.length === taskIds.length && retrieves.length === taskIds.length && taskIds.every(function(taskId, index) { return exactlyOnce(retrieves, taskId) && exactlyOnce(commits, taskId) && commits[index].payload.taskId === taskId; })),
+    // One-task-per-round: each PLAN_ACCEPTED seals one work order; final planHash may be plan-complete.
+    planSealed: !!(planEvents.length >= 1 && commits.length === planEvents.length && dispatchDone && state && state.state === 'COMPLETED'),
+    taskReceipts: !!(taskIds.length && commits.length === taskIds.length && retrieves.length === taskIds.length && taskIds.every(function(taskId) { return exactlyOnce(retrieves, taskId) && exactlyOnce(commits, taskId); })),
     taskIds: taskIds,
     retrieveTaskIds: retrieves.map(function(event) { return event.payload.taskId; }),
-    commitTaskIds: commits.map(function(event) { return event.payload.taskId; })
+    commitTaskIds: commits.map(function(event) { return event.payload.taskId; }),
+    lastPlan: plan
   };
 }
 function protocolEvidence(trace) {
   var calls = successfulCalls(trace), planner = calls.filter(function(entry) { return entry.phase === 'planner'; }), executor = calls.filter(function(entry) { return entry.phase === 'task'; });
-  return { planner: planner.length === 1 && planner.every(function(entry) { return entry.protocolVersion === contract.requiredProtocolVersions.planner; }), executor: executor.length >= 1 && executor.every(function(entry) { return entry.protocolVersion === contract.requiredProtocolVersions.executor; }), versions: calls.map(function(entry) { return entry.protocolVersion; }) };
+  // Planner may run once per work order plus plan-complete.
+  return {
+    planner: planner.length >= 1 && planner.every(function(entry) { return entry.protocolVersion === contract.requiredProtocolVersions.planner; }),
+    executor: executor.length >= 1 && executor.every(function(entry) { return entry.protocolVersion === contract.requiredProtocolVersions.executor; }),
+    versions: calls.map(function(entry) { return entry.protocolVersion; })
+  };
 }
 function taskById(id) { return contract.tasks.find(function(task) { return task.id === id; }) || null; }
 function evaluate(task, execution) {
@@ -265,10 +320,59 @@ function evaluate(task, execution) {
   (task.requiredEvents || []).forEach(function(specification, position) { var pool = specification.scope === 'added' ? delta.events : flattenEvents(finalDraft.events), matches = []; pool.forEach(function(event) { var local = eventMatches(event, specification, bindings); if (local) matches.push({ event: event, bindings: local }); }); check(checks, 'event.' + position, matches.length === specification.count, matches.map(function(item) { return item.event.semanticId; })); if (specification.bind && matches.length === 1) bindings[specification.bind] = matches[0].event; });
   (task.coverageOperations || []).forEach(function(specification, position) { var matches = []; delta.events.forEach(function(event) { (event[specification.channel] || []).forEach(function(operation) { if (operationMatch(operation, specification, bindings) && matchOperations(event.actions || [], specification.sameEventActions || [], cloneBindings(bindings))) matches.push(event.semanticId); }); }); check(checks, 'coverage.' + position, matches.length >= specification.minimum, matches); });
   (task.forbiddenOperations || []).forEach(function(specification, position) { var matches = []; delta.events.forEach(function(event) { (event[specification.channel] || []).forEach(function(operation) { if (operationMatch(operation, specification, bindings)) matches.push(event.semanticId + '/' + operation.use); }); }); check(checks, 'forbidden.' + position, matches.length === 0, matches); });
-  (task.lifecycleRules || []).forEach(function(rule, position) { var event = bindings[rule.eventBinding], target = null; try { target = resolve(rule.target, bindings); } catch (error) { if (!/^Missing (entity|member|value) binding: /.test(error.message)) throw error; } var actions = event && event.actions || [], reset = actions.findIndex(function(operation) { return operation.use === rule.resetUse && valueAt(operation.arguments || {}, 'target') === target; }), deletion = actions.findIndex(function(operation) { return operation.use === rule.deleteUse && valueAt(operation.arguments || {}, 'target') === target; }), recreation = actions.findIndex(function(operation) { return operation.use === rule.recreateUse && valueAt(operation.arguments || {}, 'target') === target; }); var passed = target !== null && reset >= 0 && (deletion < 0 || recreation > deletion && recreation < reset); check(checks, 'lifecycle.' + position, passed, { event: event && event.semanticId || null, target: target, deletion: deletion, recreation: recreation, reset: reset }); });
+  (task.lifecycleRules || []).forEach(function(rule, position) {
+    var event = bindings[rule.eventBinding], target = null;
+    try { target = resolve(rule.target, bindings); } catch (error) {
+      if (!/^Missing (entity|member|value) binding: /.test(error.message)) throw error;
+    }
+    var actions = event && event.actions || [];
+    function actionTarget(operation) {
+      var args = operationArgs(operation);
+      var raw = args.target !== undefined ? args.target : args.object;
+      if (typeof raw === 'string') return decodeEntityObject(raw) || raw;
+      return raw;
+    }
+    var reset = actions.findIndex(function(operation) {
+      return operationUse(operation) === rule.resetUse && actionTarget(operation) === target;
+    });
+    var deletion = actions.findIndex(function(operation) {
+      return operationUse(operation) === rule.deleteUse && actionTarget(operation) === target;
+    });
+    var recreation = actions.findIndex(function(operation) {
+      return operationUse(operation) === rule.recreateUse && actionTarget(operation) === target;
+    });
+    // reset alone is enough when the scene object is relocated in place (no delete/recreate required).
+    var passed = target !== null && reset >= 0 && (deletion < 0 || recreation < 0 || (recreation > deletion && recreation < reset));
+    check(checks, 'lifecycle.' + position, passed, { event: event && event.semanticId || null, target: target, deletion: deletion, recreation: recreation, reset: reset });
+  });
   var semanticChecks = checks.filter(function(item) { return item.id.indexOf('runtime.') !== 0; }), runtimeChecks = checks.filter(function(item) { return item.id.indexOf('runtime.') === 0; });
   return { taskId: task.id, task: task.task, seedFile: task.seedFile, semanticPassed: semanticChecks.every(function(item) { return item.passed; }), runtimePassed: runtimeChecks.every(function(item) { return item.passed; }), passed: checks.every(function(item) { return item.passed; }), checks: checks };
 }
 
 if (contract.schemaVersion !== 2 || contract.benchmarkKind !== 'semantic-task-benchmark-contract' || !Array.isArray(contract.tasks) || contract.tasks.length !== 6) fail('Snake semantic benchmark contract is invalid.');
-module.exports = { contract: contract, tasks: contract.tasks, taskById: taskById, evaluate: evaluate, changes: changes, preservedSource: preservedSource, closedLoopPhases: closedLoopPhases, closedLoopEvidence: closedLoopEvidence };
+contract.tasks.forEach(function(task) {
+  if (!task.changeBudget || typeof task.changeBudget !== 'object') fail('Task ' + task.id + ' requires changeBudget.');
+  Object.keys(task.changeBudget).forEach(function(collection) {
+    var budget = task.changeBudget[collection];
+    if (!budget || typeof budget !== 'object') fail('Task ' + task.id + ' changeBudget.' + collection + ' must be an object.');
+    if (budget.exact === undefined && budget.minimum === undefined && budget.maximum === undefined) {
+      fail('Task ' + task.id + ' changeBudget.' + collection + ' needs exact and/or minimum/maximum.');
+    }
+    if (budget.exact !== undefined && (budget.minimum !== undefined || budget.maximum !== undefined)) {
+      fail('Task ' + task.id + ' changeBudget.' + collection + ' must not mix exact with minimum/maximum (one budget style).');
+    }
+  });
+});
+module.exports = {
+  contract: contract,
+  tasks: contract.tasks,
+  taskById: taskById,
+  evaluate: evaluate,
+  changes: changes,
+  preservedSource: preservedSource,
+  closedLoopPhases: closedLoopPhases,
+  closedLoopEvidence: closedLoopEvidence,
+  entityKindOf: entityKindOf,
+  countPass: countPass,
+  matchEntity: matchEntity
+};

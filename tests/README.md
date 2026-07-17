@@ -4,7 +4,7 @@
 
 The domain folders contain the gate's executable evidence:
 
-- `semantic/`: LLM2 planning, Source/Revision, compiler, official capability truth, and semantic benchmarks.
+- `semantic/`: LLM2 dispatch/free-write loop, Source/Revision, compiler, capability truth, snake offline suite. Entry doc: `docs/semantic.md`.
 - `asset/`: Asset LangGraph, production, derivation, library, style, binding, and local raster checks.
 - `product/`: delivery orchestration, AssetCard projection, browser capture, assembly review, and feedback reruns.
 - `provider/`: provider governance, transports, receipts, and cache observations.

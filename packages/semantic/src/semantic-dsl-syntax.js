@@ -15,59 +15,18 @@ function command(phase, fields, options) {
   });
 }
 
-// This registry is the sole authored truth for the model-facing Semantic DSL.
-// Runtime semantic validation remains owned by TaskPlan, Draft, and Dictionary.
+// Model-facing wire truth. Planner is dispatch-only (natural-language work orders).
+// Structure + values are Executor write commands — not plan-* target slots.
+// Runtime validation remains owned by TaskPlan, Draft, and Dictionary.
 var COMMANDS = Object.freeze({
+  // Planner: schedule tasks only. goal is natural language for the executor LLM.
   'plan-task': command('planner', {
     semanticId: field('semantic-id', true, 'task semantic id'),
-    goal: field('text', true, 'positive task goal'),
-    // after defaults to list() when omitted; independent tasks need no explicit dependency list.
+    goal: field('text', true, 'natural-language work order for the executor'),
     after: field('semantic-id-list', false, 'ordered earlier task ids')
   }),
-  'plan-game': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'),
-    slot: field('semantic-id', true, 'target slot id'),
-    semanticId: field('semantic-id', true, 'target semantic id'),
-    intent: field('target-intent', true, 'read, create, update, or delete')
-  }, { planTarget: { kind: 'game' } }),
-  'plan-entity': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'), slot: field('semantic-id', true, 'target slot id'), semanticId: field('semantic-id', true, 'target semantic id'), intent: field('target-intent', true, 'read, create, update, or delete')
-  }, { planTarget: { kind: 'entity-record' } }),
-  'plan-member': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'), slot: field('semantic-id', true, 'target slot id'), owner: field('semantic-id', true, 'member owner semantic id'), semanticId: field('semantic-id', true, 'target semantic id'), intent: field('target-intent', true, 'read, create, update, or delete')
-  }, { planTarget: { kind: 'member' } }),
-  'plan-component': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'), slot: field('semantic-id', true, 'target slot id'), semanticId: field('semantic-id', true, 'target semantic id'), intent: field('target-intent', true, 'read, create, update, or delete')
-  }, { planTarget: { kind: 'component' } }),
-  // facets: schema-optional only so intent=delete may omit; create|update|read require facets at validateCommand + TaskPlan.
-  // FORMS always projects facets (see renderCommand) so the model never invents a record body.
-  'plan-event': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'),
-    slot: field('semantic-id', true, 'target slot id'),
-    semanticId: field('semantic-id', true, 'target semantic id'),
-    intent: field('target-intent', true, 'read, create, update, or delete'),
-    facets: field('event-facet-list', false, 'event facet list metadata conditions actions')
-  }, { planTarget: { kind: 'event' } }),
-  'plan-asset': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'), slot: field('semantic-id', true, 'target slot id'), semanticId: field('semantic-id', true, 'target semantic id'), intent: field('target-intent', true, 'read, create, update, or delete')
-  }, { planTarget: { kind: 'asset' } }),
-  'plan-layout': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'), slot: field('semantic-id', true, 'target slot id'), semanticId: field('semantic-id', true, 'target semantic id'), intent: field('target-intent', true, 'read, create, update, or delete')
-  }, { planTarget: { kind: 'layout' } }),
-  'plan-policy': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'), slot: field('semantic-id', true, 'target slot id'), semanticId: field('semantic-id', true, 'target semantic id'), intent: field('target-intent', true, 'read, create, update, or delete')
-  }, { planTarget: { kind: 'policy' } }),
-  'plan-use': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'),
-    alias: field('semantic-id', true, 'capability alias'),
-    use: field('operation-handle', true, 'operation handle')
-  }),
-  'plan-retrieve': command('planner', {
-    task: field('semantic-id', true, 'task semantic id'),
-    alias: field('semantic-id', true, 'retrieval alias'),
-    group: field('extension-group-handle', true, 'extension group handle'),
-    kind: field('retrieve-kind', true, 'retrieval kind')
-  }),
+  // Terminal dispatch: no more work orders; runtime finalizes Source.
+  'plan-complete': command('planner', {}),
 
   game: command('executor', {
     slot: field('semantic-id', true, 'game target slot'),
@@ -77,41 +36,42 @@ var COMMANDS = Object.freeze({
     slot: field('semantic-id', true, 'entity target slot'),
     roles: field('non-empty-text-list', true, 'semantic roles'),
     kind: field('entity-kind', true, 'entity kind handle'),
-    behaviors: field('text-list', true, 'behavior kind handles')
+    // Empty list is the common shell case; requiring behaviors=list() was ceremony and taught omission as "error".
+    // Omit or list() when none; list(topdown,...) when needed. Default [] at validate.
+    behaviors: field('text-list', false, 'behavior kind handles from structure-kinds; omit or list() when none')
   }, { target: { kind: 'entity-record', semanticIdField: 'semanticId' } }),
   component: command('executor', {
     slot: field('semantic-id', true, 'component target slot'),
     kind: field('component-handle', true, 'component handle'),
     targetSlot: field('semantic-id', false, 'entity target slot'),
     config: field('record', true, 'component configuration'),
-    // Named plan-use aliases for component ops. Distinct from member/asset/layout operation-tag lists.
-    capabilityBindings: field('capability-binding-record', true, 'named plan-use capability bindings')
+    // Named bindings; values are foundation handles after resolve (Draft IR uses use=handle).
+    capabilityBindings: field('capability-binding-record', true, 'named foundation capability bindings')
   }, { target: { kind: 'component', semanticIdField: 'semanticId' } }),
   member: command('executor', {
     slot: field('semantic-id', true, 'member target slot'),
+    // Empty list() is invalid ceremony; default roles from field id when omitted or empty.
     roles: field('non-empty-text-list', true, 'semantic roles'),
     value: field('value', true, 'initial or replacement value'),
-    // Optional foundation operation tags; omit or list(). Not plan-use aliases.
     bindings: field('text-list', false, 'optional foundation operation tags')
   }, { target: { kind: 'member', semanticIdField: 'semanticId', ownerField: 'entity' } }),
   // Event metadata is closed: capability parameters belong on when/then only.
   event: command('executor', {
     slot: field('semantic-id', true, 'event metadata target slot'),
-    kind: field('event-kind', true, 'event kind handle'),
+    kind: field('event-kind', true, 'event envelope: rule|else|group|while|repeat|for-each-entity'),
     parentSlot: field('semantic-id', false, 'parent event target slot'),
-    // Optional; default empty record at Draft. Empty ceremony is not model-required.
     locals: field('record', false, 'event local values')
   }, { target: { kind: 'event', facet: 'metadata', semanticIdField: 'semanticId' } }),
-  // Capability parameters are open fields only (aligned with L3 params=). No nested arguments= bag.
+  // capability = foundation operation handle from [L1-ops-*].
   when: command('executor', {
-    slot: field('semantic-id', true, 'event conditions target slot'),
-    capability: field('semantic-id', true, 'condition capability alias'),
+    slot: field('semantic-id', true, 'event semantic id'),
+    capability: field('operation-handle', true, 'condition foundation handle'),
     not: field('boolean', false, 'condition inversion'),
     replace: field('semantic-id', false, 'existing condition operation id')
   }, { openFields: true, target: { kind: 'event', facet: 'conditions', semanticIdField: 'event' }, capabilityField: 'capability' }),
   then: command('executor', {
-    slot: field('semantic-id', true, 'event actions target slot'),
-    capability: field('semantic-id', true, 'action capability alias'),
+    slot: field('semantic-id', true, 'event semantic id'),
+    capability: field('operation-handle', true, 'action foundation handle'),
     await: field('boolean', false, 'await action completion'),
     replace: field('semantic-id', false, 'existing action operation id')
   }, { openFields: true, target: { kind: 'event', facet: 'actions', semanticIdField: 'event' }, capabilityField: 'capability' }),
@@ -124,7 +84,6 @@ var COMMANDS = Object.freeze({
     style: field('asset-style-handle', true, 'asset style handle'),
     constraints: field('record', true, 'asset constraints'),
     animation: field('record', false, 'animation intent'),
-    // Optional foundation operation tags; omit or list(). Not plan-use aliases.
     bindings: field('text-list', false, 'optional foundation operation tags')
   }, { target: { kind: 'asset', semanticIdField: 'semanticId' } }),
   layout: command('executor', {
@@ -133,7 +92,6 @@ var COMMANDS = Object.freeze({
     subject: field('text', true, 'layout subject'),
     bounds: field('record', true, 'positive width and height'),
     relations: field('record-list', true, 'layout relations'),
-    // Optional foundation operation tags; omit or list(). Not plan-use aliases.
     bindings: field('text-list', false, 'optional foundation operation tags')
   }, { target: { kind: 'layout', semanticIdField: 'semanticId' } }),
   policy: command('executor', {
@@ -146,7 +104,8 @@ var COMMANDS = Object.freeze({
   }, { target: { kind: '*', delete: true } })
 });
 
-var TARGET_KINDS = Object.freeze(Object.keys(COMMANDS).map(function(name) { return COMMANDS[name].planTarget && COMMANDS[name].planTarget.kind; }).filter(Boolean));
+// Legacy names kept for exports/tests that still reference intent vocabulary; planner no longer declares targets.
+var TARGET_KINDS = Object.freeze(['game', 'entity-record', 'member', 'component', 'event', 'asset', 'layout', 'policy']);
 var TARGET_INTENTS = Object.freeze(['read', 'create', 'update', 'delete']);
 var EVENT_FACETS = Object.freeze(['metadata', 'conditions', 'actions']);
 var RETRIEVE_KINDS = Object.freeze(['object', 'behavior', 'event', 'action', 'condition', 'number-expression', 'string-expression']);
@@ -172,16 +131,12 @@ function placeholder(spec) {
   };
   return shapes[spec.type] || '...' + spec.description.replace(/\s+/g, '-');
 }
-// COMMAND_FORMS list required fields only, plus plan-event.facets (runtime-required on non-delete).
-// Optional declared fields are named in the prompt protocol OPTIONAL line.
+// COMMAND_FORMS list required fields only. Optional fields are named in protocol OPTIONAL.
 // when/then openFields carry capability parameters; event metadata is a closed form.
 function renderCommand(name) {
   var spec = COMMANDS[name];
   var fields = Object.keys(spec.fields).filter(function(key) {
-    if (spec.fields[key].required) return true;
-    // Always project facets so free planners do not omit or invent record(...) bodies.
-    if (name === 'plan-event' && key === 'facets') return true;
-    return false;
+    return spec.fields[key].required;
   }).map(function(key) {
     return key + '=' + placeholder(spec.fields[key]);
   });
@@ -201,6 +156,18 @@ function optionalFieldNames(phase) {
   return Object.freeze(names.sort());
 }
 function renderPhase(phase) { return Object.keys(COMMANDS).filter(function(name) { return COMMANDS[name].phase === phase; }).map(renderCommand); }
+// Matches draft/authorize: revision cannot introduce game identity or tuning policy shells.
+var REVISION_FORBIDDEN_WRITE_COMMANDS = Object.freeze(['game', 'policy']);
+function writeCommandNames(workMode) {
+  var names = WRITE_COMMANDS.slice();
+  if (workMode === 'revision') {
+    names = names.filter(function(name) { return REVISION_FORBIDDEN_WRITE_COMMANDS.indexOf(name) < 0; });
+  }
+  return Object.freeze(names);
+}
+function writeLinesForMode(workMode) {
+  return Object.freeze(writeCommandNames(workMode).map(renderCommand));
+}
 var PLAN_LINES = Object.freeze(renderPhase('planner'));
 var WRITE_LINES = Object.freeze(renderPhase('executor'));
 var LINES = Object.freeze(PLAN_LINES.concat(WRITE_LINES));
@@ -238,6 +205,19 @@ function validateCommand(value, phase) {
   Object.keys(spec.fields).forEach(function(key) {
     if (!spec.fields[key].required && Object.prototype.hasOwnProperty.call(value, key) && value[key] === null) delete value[key];
   });
+  // Empty-container defaults: optional list/record ceremony must not be model-required.
+  if (value.type === 'entity' && value.behaviors === undefined) value.behaviors = [];
+  if (value.type === 'event' && value.locals === undefined) value.locals = {};
+  if ((value.type === 'member' || value.type === 'asset' || value.type === 'layout') && value.bindings === undefined) value.bindings = [];
+  // member.roles: empty list() is not a valid fill — default to field name from Owner.field slot.
+  if (value.type === 'member') {
+    var roleEmpty = !Array.isArray(value.roles) || value.roles.length === 0;
+    if (value.roles === undefined || roleEmpty) {
+      var roleSlot = typeof value.slot === 'string' ? value.slot : '';
+      var roleField = roleSlot.indexOf('.') >= 0 ? roleSlot.split('.').pop() : (typeof value.semanticId === 'string' ? value.semanticId : 'field');
+      value.roles = [roleField || 'field'];
+    }
+  }
   Object.keys(value).forEach(function(key) {
     if (key !== 'type' && !spec.fields[key] && !spec.openFields) throw Object.assign(new Error(value.type + ' contains unknown field: ' + key), { code: 'SEMANTIC_DSL_FIELD_UNKNOWN' });
   });
@@ -250,16 +230,6 @@ function validateCommand(value, phase) {
     if (fieldSpec.required && !Object.prototype.hasOwnProperty.call(value, key)) throw Object.assign(new Error(value.type + ' requires field: ' + key), { code: 'SEMANTIC_DSL_FIELD_REQUIRED' });
     if (Object.prototype.hasOwnProperty.call(value, key) && !valueMatches(fieldSpec.type, value[key])) throw Object.assign(new Error(value.type + '.' + key + ' must match ' + fieldSpec.type + '.'), { code: 'SEMANTIC_DSL_FIELD_TYPE_INVALID' });
   });
-  // Align wire validation with TaskPlan: non-delete event slots require event-facet-list; delete forbids facets.
-  if (value.type === 'plan-event') {
-    if (value.intent === 'delete') {
-      if (Object.prototype.hasOwnProperty.call(value, 'facets')) {
-        throw Object.assign(new Error('plan-event delete omits facets.'), { code: 'SEMANTIC_DSL_FIELD_UNKNOWN' });
-      }
-    } else if (!Object.prototype.hasOwnProperty.call(value, 'facets')) {
-      throw Object.assign(new Error('plan-event requires facets=list(metadata,conditions,actions) or a non-empty subset of those tokens.'), { code: 'SEMANTIC_DSL_FIELD_REQUIRED' });
-    }
-  }
   return value;
 }
 
@@ -272,6 +242,9 @@ module.exports = {
   PLAN_LINES: PLAN_LINES,
   WRITE_LINES: WRITE_LINES,
   LINES: LINES,
+  REVISION_FORBIDDEN_WRITE_COMMANDS: REVISION_FORBIDDEN_WRITE_COMMANDS,
+  writeCommandNames: writeCommandNames,
+  writeLinesForMode: writeLinesForMode,
   optionalFieldNames: optionalFieldNames,
   TARGET_KINDS: TARGET_KINDS,
   TARGET_INTENTS: TARGET_INTENTS,

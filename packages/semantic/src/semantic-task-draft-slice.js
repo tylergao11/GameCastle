@@ -12,15 +12,33 @@ function flattenEvents(events, parent, out) { out = out || []; (events || []).fo
 function eventMetadata(item) { var value = clone(item.event); delete value.conditions; delete value.actions; delete value.children; value.parent = item.parent; return value; }
 function entityMetadata(entity) { var value = clone(entity); delete value.members; return value; }
 function compactIndex(structure) {
-  function eventIndex(event) { return { semanticId: event.semanticId, kind: event.kind, conditions: (event.conditions || []).map(function(item) { return item.operationId; }), actions: (event.actions || []).map(function(item) { return item.operationId; }), children: (event.children || []).map(eventIndex) }; }
+  function eventIndex(event) {
+    return {
+      semanticId: event.semanticId,
+      kind: event.kind,
+      conditions: (event.conditions || []).map(function(item) { return item.operationId; }),
+      actions: (event.actions || []).map(function(item) { return item.operationId; }),
+      children: (event.children || []).map(eventIndex)
+    };
+  }
+  // Members carry current values so revision executors see seed truth, not only names.
   return {
     game: structure.game && structure.game.semanticId || null,
-    entities: structure.entities.map(function(entity) { return { semanticId: entity.semanticId, kind: entity.kind, behaviors: clone(entity.behaviors), members: entity.members.map(function(member) { return member.semanticId; }) }; }),
+    entities: structure.entities.map(function(entity) {
+      return {
+        semanticId: entity.semanticId,
+        kind: entity.kind,
+        behaviors: clone(entity.behaviors),
+        members: (entity.members || []).map(function(member) {
+          return { semanticId: member.semanticId, value: clone(member.value) };
+        })
+      };
+    }),
     components: structure.components.map(function(item) { return item.semanticId; }),
     events: structure.events.map(eventIndex),
     assetIntents: structure.assetIntents.map(function(item) { return item.semanticId; }),
     layoutIntents: structure.layoutIntents.map(function(item) { return item.semanticId; }),
-    tuningDegrees: Object.keys(structure.tuningPolicies.relativeChange).sort()
+    tuningDegrees: Array.isArray(structure.tuningDegrees) ? structure.tuningDegrees.slice() : []
   };
 }
 function valueForClaim(structure, claim) {
@@ -49,11 +67,26 @@ function dependencyTasks(plan, task) {
 }
 function create(draft, plan, taskId) {
   if (!draft || !draft.references) fail('SEMANTIC_TASK_SLICE_DRAFT_INVALID', 'A semantic Draft is required.');
-  var activeTask = taskPlan.taskById(plan, taskId), structure = draftApi.taskStructure(draft), claims = [];
-  dependencyTasks(plan, activeTask).forEach(function(task) { taskPlan.targetsForTask(task).forEach(function(target) { taskPlan.targetClaims(target).forEach(function(claim) { if (claims.indexOf(claim) < 0) claims.push(claim); }); }); });
-  claims.sort();
-  var facts = claims.map(function(claim) { var value = valueForClaim(structure, claim); return value === undefined ? { claim: claim, exists: false } : { claim: claim, exists: true, value: value }; });
-  var slice = { schemaVersion: 1, documentKind: 'semantic-task-draft-slice', taskId: activeTask.semanticId, baseDraftHash: taskPlan.documentHash(draftApi.materialize(draft)), index: compactIndex(structure), facts: facts };
+  var activeTask = taskPlan.taskById(plan, taskId);
+  var structure = draftApi.taskStructure(draft);
+  var index = compactIndex(structure);
+  var entityCount = (index.entities || []).length;
+  var memberCount = (index.entities || []).reduce(function(sum, entity) { return sum + (entity.members || []).length; }, 0);
+  var eventCount = (index.events || []).length;
+  // new = empty board; revision = seed/base already present (model must add delta, not rebuild).
+  var workMode = draft.baseSource || entityCount > 0 || eventCount > 0 || index.game ? 'revision' : 'new';
+  // Dispatch-only: slice is the full draft index (no plan target claims).
+  var slice = {
+    schemaVersion: 1,
+    documentKind: 'semantic-task-draft-slice',
+    taskId: activeTask.semanticId,
+    goal: activeTask.goal,
+    workMode: workMode,
+    baseDraftHash: taskPlan.documentHash(draftApi.materialize(draft)),
+    index: index,
+    counts: { entities: entityCount, members: memberCount, events: eventCount },
+    facts: []
+  };
   slice.structureHash = hash(slice);
   return freeze(clone(slice));
 }

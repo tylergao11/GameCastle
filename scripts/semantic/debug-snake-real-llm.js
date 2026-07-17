@@ -167,8 +167,6 @@ async function main() {
   process.stdout.write('[SnakeLive] runtimeOk=' + runtimeOk + ' sourceHash=' + sourceContract.sourceHash(result.document.source) + ' artifact=' + result.document.assembly.documentKind + ' output=' + file + '\n');
   if (benchmarkTask && runtimeOk) {
     try {
-      var referenceRuntime = require('../../packages/semantic/src/semantic-reference-runtime');
-      var refs = referenceRuntime.create(index);
       function mapOps(list) {
         return (list || []).map(function(item) {
           return {
@@ -192,7 +190,9 @@ async function main() {
             return {
               semanticId: entity.semanticId,
               roles: entity.roles || [],
-              kind: refs.entityKind(entity.objectTypeRef) || 'state',
+              objectTypeRef: entity.objectTypeRef === undefined ? null : entity.objectTypeRef,
+              // Kind is not on Source; snakeBenchmark.entityKindOf is the sole derivation.
+              kind: snakeBenchmark.entityKindOf(entity) || 'state',
               members: entity.members || []
             };
           }),

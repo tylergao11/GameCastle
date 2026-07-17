@@ -31,8 +31,8 @@ function fromProviderRuntime(runtime, options) {
     modelSelection: selected,
     invoke: function(request) {
       if (!request || (request.phase !== 'planner' && request.phase !== 'executor')) fail('SEMANTIC_MODEL_PORT_INVALID', 'Semantic model request phase must be planner or executor.');
-      var profile = modelPolicy.profile(request.phase);
       var model = modelPolicy.resolveModel(options.mode);
+      var profile = modelPolicy.profile(request.phase);
       var invocation = {
         requestId: request.requestId,
         projectId: request.projectId,
@@ -49,7 +49,7 @@ function fromProviderRuntime(runtime, options) {
           thinking: profile.thinking,
           reasoningEffort: profile.reasoningEffort,
           temperature: profile.temperature,
-          grammar: dslGrammar.forPhase(request.phase)
+          grammar: dslGrammar.forPhase(request.phase, { workMode: request.workMode || 'new' })
         }
       };
       return runtime.invokeRole(invocation);

@@ -61,8 +61,11 @@ function commandRule(name) {
   return ruleName(name) + ' ::= ' + expression + ' ws ")"';
 }
 
-function forPhase(phase) {
-  var names = phase === 'planner' ? syntax.PLAN_COMMANDS : phase === 'executor' ? syntax.WRITE_COMMANDS : null;
+function forPhase(phase, options) {
+  options = options || {};
+  var names = null;
+  if (phase === 'planner') names = syntax.PLAN_COMMANDS.slice();
+  else if (phase === 'executor') names = syntax.writeCommandNames(options.workMode || 'new');
   if (!names || !names.length) fail('Semantic DSL grammar phase must be planner or executor.');
   return [
     'root ::= ws command (separator command)* ws',

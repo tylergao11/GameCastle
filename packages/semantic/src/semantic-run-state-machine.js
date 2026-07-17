@@ -16,6 +16,7 @@ var EVENT_TYPES = Object.freeze({
   RUN_STARTED: 'RUN_STARTED',
   PLAN_ACCEPTED: 'PLAN_ACCEPTED',
   PLAN_RETRY_STARTED: 'PLAN_RETRY_STARTED',
+  DISPATCH_COMPLETE: 'DISPATCH_COMPLETE',
   TASK_STARTED: 'TASK_STARTED',
   TASK_RETRIEVED: 'TASK_RETRIEVED',
   TASK_COMMITTED: 'TASK_COMMITTED',
@@ -36,7 +37,7 @@ var ALLOWED_MODES = Object.freeze({
 var TERMINAL_STATES = [STATES.COMPLETED, STATES.FUSED, STATES.EXPIRED];
 var LEDGER_FIELDS = ['schemaVersion', 'ledgerKind', 'requestHash', 'events'];
 var EVENT_FIELDS = ['sequence', 'previousHash', 'type', 'payload', 'eventHash'];
-var PROMPT_PROJECTION_FIELDS = Object.freeze(['state', 'activeTaskId', 'allowedMode', 'completedTaskIds', 'lastFailure', 'transitionLog']);
+var PROMPT_PROJECTION_FIELDS = Object.freeze(['state', 'activeTaskId', 'allowedMode', 'completedTaskIds', 'dispatchLog', 'lastFailure', 'transitionLog']);
 var LEDGER_KIND = 'semantic-run-state-ledger';
 var SCHEMA_VERSION = 1;
 
@@ -175,16 +176,18 @@ function validatePayload(type, payload, view) {
   if (type === EVENT_TYPES.PLAN_ACCEPTED) {
     exactFields(payload, ['planHash', 'taskIds'], type + '.payload');
     text(payload.planHash, 'planHash');
-    if (!Array.isArray(payload.taskIds) || !payload.taskIds.length) fail('SEMANTIC_RUN_PLAN_INVALID', 'Accepted TaskPlan must expose at least one task id.');
-    var seen = Object.create(null);
-    payload.taskIds.forEach(function(taskId) {
-      taskId = identifier(taskId, 'taskId');
-      if (seen[taskId]) fail('SEMANTIC_RUN_PLAN_INVALID', 'Accepted TaskPlan contains duplicate task id: ' + taskId);
-      seen[taskId] = true;
-    });
+    // Dispatch-only: exactly one work order per accept (planner sends one task at a time).
+    if (!Array.isArray(payload.taskIds) || payload.taskIds.length !== 1) {
+      fail('SEMANTIC_RUN_PLAN_INVALID', 'Accepted dispatch must expose exactly one task id.');
+    }
+    identifier(payload.taskIds[0], 'taskId');
     return;
   }
   if (type === EVENT_TYPES.PLAN_RETRY_STARTED) {
+    exactFields(payload, [], type + '.payload');
+    return;
+  }
+  if (type === EVENT_TYPES.DISPATCH_COMPLETE) {
     exactFields(payload, [], type + '.payload');
     return;
   }
@@ -201,16 +204,23 @@ function validatePayload(type, payload, view) {
     return;
   }
   if (type === EVENT_TYPES.TASK_COMMITTED) {
-    exactFields(payload, ['taskId', 'receiptHash', 'draftBeforeHash', 'draftAfterHash'], type + '.payload');
+    allowedFields(payload, ['taskId', 'receiptHash', 'draftBeforeHash', 'draftAfterHash', 'goal'], type + '.payload');
+    ['taskId', 'receiptHash', 'draftBeforeHash', 'draftAfterHash'].forEach(function(field) {
+      if (!Object.prototype.hasOwnProperty.call(payload, field)) fail('SEMANTIC_RUN_EVENT_PAYLOAD_INVALID', type + '.payload is missing field: ' + field);
+    });
     identifier(payload.taskId, 'taskId');
     text(payload.receiptHash, 'receiptHash');
     text(payload.draftBeforeHash, 'draftBeforeHash');
     text(payload.draftAfterHash, 'draftAfterHash');
+    if (payload.goal !== undefined && (typeof payload.goal !== 'string' || !payload.goal.trim())) {
+      fail('SEMANTIC_RUN_EVENT_PAYLOAD_INVALID', 'task commit goal must be non-empty text when present.');
+    }
     if (payload.draftBeforeHash === payload.draftAfterHash) fail('SEMANTIC_RUN_TASK_NO_PROGRESS', 'Committed task must change the Draft hash.');
     return;
   }
   if (type === EVENT_TYPES.FAILURE_RECORDED) {
-    allowedFields(payload, ['phase', 'taskId', 'code', 'owner', 'message', 'subjectHash'], type + '.payload');
+    // repair/diagnosis are optional planner/executor guidance (same failure truth, expanded for model feedback).
+    allowedFields(payload, ['phase', 'taskId', 'code', 'owner', 'message', 'subjectHash', 'class', 'repair', 'diagnosis'], type + '.payload');
     ['phase', 'code', 'owner', 'message', 'subjectHash'].forEach(function(field) {
       if (!Object.prototype.hasOwnProperty.call(payload, field)) fail('SEMANTIC_RUN_EVENT_PAYLOAD_INVALID', type + '.payload is missing field: ' + field);
     });
@@ -219,6 +229,17 @@ function validatePayload(type, payload, view) {
     text(payload.owner, 'failure.owner');
     text(payload.message, 'failure.message');
     text(payload.subjectHash, 'failure.subjectHash');
+    if (payload.class !== undefined && (typeof payload.class !== 'string' || !payload.class.trim())) fail('SEMANTIC_RUN_FAILURE_INVALID', 'failure.class must be non-empty text when present.');
+    if (payload.repair !== undefined) {
+      if (!Array.isArray(payload.repair) || payload.repair.some(function(item) { return typeof item !== 'string' || !item.trim(); })) {
+        fail('SEMANTIC_RUN_FAILURE_INVALID', 'failure.repair must be an array of non-empty strings when present.');
+      }
+    }
+    if (payload.diagnosis !== undefined) {
+      if (!payload.diagnosis || typeof payload.diagnosis !== 'object' || Array.isArray(payload.diagnosis)) {
+        fail('SEMANTIC_RUN_FAILURE_INVALID', 'failure.diagnosis must be a structure when present.');
+      }
+    }
     if (payload.phase === 'task') {
       if (!Object.prototype.hasOwnProperty.call(payload, 'taskId')) fail('SEMANTIC_RUN_FAILURE_INVALID', 'Task failure requires taskId.');
       identifier(payload.taskId, 'failure.taskId');
@@ -263,12 +284,21 @@ function applyEvent(view, event) {
     assertState(view, STATES.PLANNING, type);
     view.planHash = payload.planHash;
     view.taskIds = payload.taskIds.slice();
+    view.currentPlanCompleted = [];
     view.activeTaskId = view.taskIds[0];
     view.state = STATES.TASK_READY;
     resetFailure(view);
   } else if (type === EVENT_TYPES.PLAN_RETRY_STARTED) {
     assertState(view, STATES.PLAN_REPAIR, type);
     view.state = STATES.PLANNING;
+  } else if (type === EVENT_TYPES.DISPATCH_COMPLETE) {
+    assertState(view, STATES.PLANNING, type);
+    view.planHash = null;
+    view.taskIds = [];
+    view.currentPlanCompleted = [];
+    view.activeTaskId = null;
+    view.state = STATES.FINALIZING;
+    resetFailure(view);
   } else if (type === EVENT_TYPES.TASK_STARTED) {
     assertState(view, STATES.TASK_READY, type);
     assertActiveTask(view, payload.taskId, type);
@@ -284,12 +314,23 @@ function applyEvent(view, event) {
     assertState(view, STATES.TASK_ACTIVE, type);
     assertActiveTask(view, payload.taskId, type);
     view.completedTaskIds.push(payload.taskId);
-    resetFailure(view);
-    if (view.completedTaskIds.length === view.taskIds.length) {
-      view.activeTaskId = null;
-      view.state = STATES.FINALIZING;
+    view.currentPlanCompleted.push(payload.taskId);
+    if (payload.goal) {
+      view.dispatchLog.push({ taskId: payload.taskId, goal: String(payload.goal), receiptHash: payload.receiptHash });
     } else {
-      view.activeTaskId = view.taskIds[view.completedTaskIds.length];
+      view.dispatchLog.push({ taskId: payload.taskId, goal: null, receiptHash: payload.receiptHash });
+    }
+    resetFailure(view);
+    // One-task dispatch: after the sealed work order commits, return to PLANNING for progress + next order.
+    if (view.currentPlanCompleted.length === view.taskIds.length) {
+      view.activeTaskId = null;
+      view.planHash = null;
+      view.taskIds = [];
+      view.currentPlanCompleted = [];
+      view.state = STATES.PLANNING;
+    } else {
+      // Defensive: multi-task sealed plans are rejected at accept; keep order if payload ever widens.
+      view.activeTaskId = view.taskIds[view.currentPlanCompleted.length];
       view.state = STATES.TASK_READY;
     }
   } else if (type === EVENT_TYPES.TASK_RETRY_STARTED) {
@@ -305,9 +346,10 @@ function applyEvent(view, event) {
       if (view.state === STATES.TASK_ACTIVE) {
         view.planHash = null;
         view.taskIds = [];
+        view.currentPlanCompleted = [];
         view.activeTaskId = null;
-        view.completedTaskIds = [];
         view.retrievals = [];
+        // keep completedTaskIds + dispatchLog as progress history across replan
       }
     } else if (payload.phase === 'task') {
       assertState(view, STATES.TASK_ACTIVE, type);
@@ -317,7 +359,9 @@ function applyEvent(view, event) {
     view.failureCount = view.failureSignature === signature ? view.failureCount + 1 : 1;
     view.failureSignature = signature;
     view.lastFailure = Object.assign(clone(payload), { signature: signature, consecutiveCount: view.failureCount });
-    if (view.failureCount >= 2) view.state = STATES.FUSED;
+    // Task free-write needs a third attempt on complex goals; plan stays tight at 2.
+    var fuseAfter = payload.phase === 'task' ? 3 : 2;
+    if (view.failureCount >= fuseAfter) view.state = STATES.FUSED;
     else if (payload.phase === 'plan') view.state = STATES.PLAN_REPAIR;
     else if (payload.phase === 'task') view.state = STATES.TASK_REPAIR;
   } else if (type === EVENT_TYPES.RUN_COMPLETED) {
@@ -339,8 +383,10 @@ function project(ledger) {
     state: STATES.PLANNING,
     planHash: null,
     taskIds: [],
+    currentPlanCompleted: [],
     activeTaskId: null,
     completedTaskIds: [],
+    dispatchLog: [],
     retrievals: [],
     failureSignature: null,
     failureCount: 0,
@@ -371,6 +417,7 @@ function project(ledger) {
     planHash: view.planHash,
     taskIds: view.taskIds.slice(),
     completedTaskIds: view.completedTaskIds.slice(),
+    dispatchLog: clone(view.dispatchLog),
     retrievals: clone(view.retrievals),
     lastFailure: clone(view.lastFailure),
     transitionLog: view.transitionLog.slice(),
@@ -395,6 +442,7 @@ function assertPromptProjection(projection, expectedTaskId) {
   if (projection.activeTaskId !== null) identifier(projection.activeTaskId, 'promptProjection.activeTaskId');
   if (!Array.isArray(projection.completedTaskIds)) fail('SEMANTIC_RUN_PROMPT_PROJECTION_INVALID', 'Prompt projection completedTaskIds must be an array.');
   projection.completedTaskIds.forEach(function(taskId) { identifier(taskId, 'promptProjection.completedTaskIds'); });
+  if (!Array.isArray(projection.dispatchLog)) fail('SEMANTIC_RUN_PROMPT_PROJECTION_INVALID', 'Prompt projection dispatchLog must be an array.');
   if (projection.lastFailure !== null && (!projection.lastFailure || typeof projection.lastFailure !== 'object' || Array.isArray(projection.lastFailure))) fail('SEMANTIC_RUN_PROMPT_PROJECTION_INVALID', 'Prompt projection lastFailure must be null or a structure.');
   if (!Array.isArray(projection.transitionLog) || !projection.transitionLog.length) fail('SEMANTIC_RUN_PROMPT_PROJECTION_INVALID', 'Prompt projection transitionLog must contain canonical history.');
   projection.transitionLog.forEach(function(line) { if (typeof line !== 'string' || !line || /[\r\n]/.test(line)) fail('SEMANTIC_RUN_PROMPT_PROJECTION_INVALID', 'Prompt projection transition rows must be non-empty single lines.'); });
@@ -413,6 +461,7 @@ function promptProjection(ledger) {
     activeTaskId: view.activeTaskId,
     allowedMode: view.allowedMode,
     completedTaskIds: view.completedTaskIds.slice(),
+    dispatchLog: clone(view.dispatchLog || []),
     lastFailure: clone(view.lastFailure),
     transitionLog: view.transitionLog.slice()
   }));
@@ -444,9 +493,14 @@ function append(ledger, type, payload) {
 var transition = Object.freeze({
   acceptPlan: function(ledger, planHash, taskIds) { return append(ledger, EVENT_TYPES.PLAN_ACCEPTED, { planHash: planHash, taskIds: taskIds }); },
   retryPlan: function(ledger) { return append(ledger, EVENT_TYPES.PLAN_RETRY_STARTED, {}); },
+  completeDispatch: function(ledger) { return append(ledger, EVENT_TYPES.DISPATCH_COMPLETE, {}); },
   startTask: function(ledger, taskId) { return append(ledger, EVENT_TYPES.TASK_STARTED, { taskId: taskId }); },
   recordRetrieve: function(ledger, taskId, queryHash, resultHash) { return append(ledger, EVENT_TYPES.TASK_RETRIEVED, { taskId: taskId, queryHash: queryHash, resultHash: resultHash }); },
-  commitTask: function(ledger, taskId, receiptHash, draftBeforeHash, draftAfterHash) { return append(ledger, EVENT_TYPES.TASK_COMMITTED, { taskId: taskId, receiptHash: receiptHash, draftBeforeHash: draftBeforeHash, draftAfterHash: draftAfterHash }); },
+  commitTask: function(ledger, taskId, receiptHash, draftBeforeHash, draftAfterHash, goal) {
+    var payload = { taskId: taskId, receiptHash: receiptHash, draftBeforeHash: draftBeforeHash, draftAfterHash: draftAfterHash };
+    if (goal !== undefined && goal !== null && String(goal).trim()) payload.goal = String(goal).trim();
+    return append(ledger, EVENT_TYPES.TASK_COMMITTED, payload);
+  },
   retryTask: function(ledger, taskId) { return append(ledger, EVENT_TYPES.TASK_RETRY_STARTED, { taskId: taskId }); },
   recordFailure: function(ledger, failure) { return append(ledger, EVENT_TYPES.FAILURE_RECORDED, failure); },
   completeRun: function(ledger, sourceHash, receiptHash) { return append(ledger, EVENT_TYPES.RUN_COMPLETED, { sourceHash: sourceHash, receiptHash: receiptHash }); },

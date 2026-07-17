@@ -19,8 +19,10 @@ var semanticLoop = [
 
 var productLoop = [
   ['tests/product/check-planner-domain-api.js'],
+  ['tests/product/check-product-dispatch.js'],
   ['tests/product/check-director-planner-langgraph.js'],
   ['tests/product/check-product-delivery-run.js'],
+
   ['tests/product/check-product-failure-classifier.js'],
   ['tests/product/check-asset-card-projector.js'],
   ['tests/product/check-product-delivery-orchestrator.js'],

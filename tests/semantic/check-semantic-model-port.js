@@ -16,6 +16,8 @@ var modelPolicy = require('../../packages/semantic/src/semantic-model-policy');
     assert.strictEqual(modelPolicy.MODEL.provider, 'deepseek');
     assert.strictEqual(modelPolicy.MODEL.model, 'deepseek-v4-flash');
     assert.strictEqual(modelPolicy.MODEL.allowExternal, true);
+    assert.deepStrictEqual(modelPolicy.profile('planner').thinking, { type: 'disabled' });
+    assert.strictEqual(modelPolicy.profile('planner').reasoningEffort, null);
 
     process.env.GAMECASTLE_RUNTIME_MODE = 'production';
     var invocations = [];
@@ -25,6 +27,7 @@ var modelPolicy = require('../../packages/semantic/src/semantic-model-policy');
     assert.strictEqual(invocations[0].provider, 'llama-cpp-semantic');
     assert.strictEqual(invocations[0].model, 'Qwen/Qwen3.5-9B');
     assert.strictEqual(invocations[0].allowExternal, false);
+    assert.deepStrictEqual(invocations[0].input.thinking, { type: 'disabled' });
     assert.strictEqual(invocations[1].provider, 'llama-cpp-semantic');
     assert.strictEqual(invocations[1].model, 'Qwen/Qwen3.5-9B');
     assert(invocations[0].input.grammar.indexOf('"plan-task"') >= 0, 'Planner receives a phase-specific grammar.');
@@ -36,6 +39,8 @@ var modelPolicy = require('../../packages/semantic/src/semantic-model-policy');
     assert.strictEqual(devCalls[0].provider, 'deepseek');
     assert.strictEqual(devCalls[0].model, 'deepseek-v4-flash');
     assert.strictEqual(devCalls[0].allowExternal, true);
+    assert.deepStrictEqual(devCalls[0].input.thinking, { type: 'disabled' });
+    assert.strictEqual(devCalls[0].input.reasoningEffort, null);
 
     var routed = [];
     var router = modelPort.createRoleRouter({ planner: { invoke: async function() { routed.push('planner'); return {}; } }, executor: { invoke: async function() { routed.push('executor'); return {}; } } });

@@ -3,110 +3,76 @@ var fs = require('fs');
 var os = require('os');
 var path = require('path');
 var dictionary = require('../../packages/semantic/src/capability-semantic-dictionary');
-var parser = require('../../packages/semantic/src/semantic-dsl-parser');
-var draftApi = require('../../packages/semantic/src/semantic-draft');
-var referencesApi = require('../../packages/semantic/src/semantic-reference-runtime');
-var sourceContract = require('../../packages/semantic/src/game-semantic-source');
 var semanticRuntime = require('../../packages/semantic/src/semantic-llm2-runtime');
 var benchmark = require('../benchmarks/snake-semantic-benchmark');
 var replaySuite = require('../../scripts/semantic/replay-semantic-live-suite');
 var seedLoader = require('../../packages/semantic/src/semantic-seed-loader');
 
-function safe(value) { return String(value).replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
-function targetSlot(target) { return ['target', safe(target.kind), target.owner ? safe(target.owner) : null, safe(target.semanticId)].filter(Boolean).join('_'); }
-function capabilitySlot(use) { return 'cap_' + safe(use); }
-function targetCommand(kind) { return { game: 'plan-game', 'entity-record': 'plan-entity', member: 'plan-member', component: 'plan-component', event: 'plan-event', asset: 'plan-asset', layout: 'plan-layout', policy: 'plan-policy' }[kind]; }
-function planTask(value) {
-  var commands = ['plan-task(semanticId=' + value.semanticId + ',goal=' + parser.stringifyValue(value.goal) + ',after=list())'];
-  value.targets.concat(value.reads || []).forEach(function(target) {
-    commands.push(targetCommand(target.kind) + '(task=' + value.semanticId + ',slot=' + targetSlot(target) + ',semanticId=' + target.semanticId + ',intent=' + target.intent + (target.owner ? ',owner=' + target.owner : '') + (target.facets ? ',facets=list(' + target.facets.join(',') + ')' : '') + ')');
-  });
-  (value.uses || []).forEach(function(use) { commands.push('plan-use(task=' + value.semanticId + ',alias=' + capabilitySlot(use) + ',use=' + use + ')'); });
-  return commands.join(';');
+function planTask(semanticId, goal) {
+  return 'plan-task(semanticId=' + semanticId + ',goal="' + goal + '",after=list())';
 }
 
+// Dispatch-only plan + free-write fixtures (slot = semantic id / Owner.field; capability = foundation handle).
 var fixtures = {
   'core-model': {
-    plan: planTask({ semanticId: 'core_model', goal: 'Create only the core model.', targets: [
-      { kind: 'game', semanticId: 'snakeProbe', intent: 'create' },
-      { kind: 'entity-record', semanticId: 'snakeHead', intent: 'create' },
-      { kind: 'entity-record', semanticId: 'food', intent: 'create' },
-      { kind: 'entity-record', semanticId: 'GameState', intent: 'create' },
-      { kind: 'entity-record', semanticId: 'scoreText', intent: 'create' }
-    ], catalogs: ['entity-kinds'] }),
+    plan: planTask('core_model', 'Create only the core model.'),
     write: [
-      'game(slot=target_game_snakeProbe,name="Snake Probe")',
-      'entity(slot=target_entity_record_snakeHead,roles=list(player,"snake-head"),kind=sprite,behaviors=list())',
-      'entity(slot=target_entity_record_food,roles=list(food),kind=sprite,behaviors=list())',
-      'entity(slot=target_entity_record_GameState,roles=list(state),kind=state,behaviors=list())',
-      'entity(slot=target_entity_record_scoreText,roles=list(ui,score),kind=text,behaviors=list())'
+      'game(slot=snakeProbe,name="Snake Probe")',
+      'entity(slot=snakeHead,roles=list(player,"snake-head"),kind=sprite,behaviors=list())',
+      'entity(slot=food,roles=list(food),kind=sprite,behaviors=list())',
+      'entity(slot=GameState,roles=list(state),kind=state,behaviors=list())',
+      'entity(slot=scoreText,roles=list(ui,score),kind=text,behaviors=list())'
     ].join(';')
   },
   'state-fields': {
-    plan: planTask({ semanticId: 'state_fields', goal: 'Create the three state fields.', targets: [
-      { kind: 'member', owner: 'GameState', semanticId: 'score', intent: 'create' },
-      { kind: 'member', owner: 'GameState', semanticId: 'direction', intent: 'create' },
-      { kind: 'member', owner: 'GameState', semanticId: 'step', intent: 'create' }
-    ], reads: [{ kind: 'entity-record', semanticId: 'GameState', intent: 'read' }] }),
+    plan: planTask('state_fields', 'Add the three state fields on the existing GameState.'),
     write: [
-      'member(slot=target_member_GameState_score,roles=list(score),value=0,bindings=list())',
-      'member(slot=target_member_GameState_direction,roles=list("movement-direction"),value="right",bindings=list())',
-      'member(slot=target_member_GameState_step,roles=list("grid-step"),value=32,bindings=list())'
+      'member(slot=GameState.score,roles=list(score),value=0,bindings=list())',
+      'member(slot=GameState.direction,roles=list("movement-direction"),value="right",bindings=list())',
+      'member(slot=GameState.step,roles=list("grid-step"),value=32,bindings=list())'
     ].join(';')
   },
   'up-input': {
-    plan: planTask({ semanticId: 'up_input', goal: 'Create only the Up input rule.', targets: [{ kind: 'event', semanticId: 'turn_up', intent: 'create', facets: ['metadata', 'conditions', 'actions'] }], reads: [{ kind: 'member', owner: 'GameState', semanticId: 'direction', intent: 'read' }], uses: ['input.key.just-pressed', 'state.text.set'], catalogs: ['event-kinds'] }),
-    write: 'event(slot=target_event_turn_up,kind=rule,locals=record());when(slot=target_event_turn_up,capability=cap_input_key_just_pressed,key="Up");then(slot=target_event_turn_up,capability=cap_state_text_set,target=target_member_GameState_direction,value="up")'
+    plan: planTask('up_input', 'Add only the Up input rule on the existing board.'),
+    write: 'event(slot=turn_up,kind=rule,locals=record());when(slot=turn_up,capability=input.key.just-pressed,key="Up");then(slot=turn_up,capability=state.text.set,target=GameState.direction,value="up")'
   },
   'timed-right-movement': {
-    plan: planTask({ semanticId: 'timed_right', goal: 'Create only timed right movement.', targets: [{ kind: 'event', semanticId: 'move_right', intent: 'create', facets: ['metadata', 'conditions', 'actions'] }], reads: [{ kind: 'entity-record', semanticId: 'snakeHead', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'direction', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'step', intent: 'read' }], uses: ['timer.elapsed', 'state.text.compare', 'timer.reset', 'object.x.add', 'state.number'], catalogs: ['event-kinds'] }),
-    write: 'event(slot=target_event_move_right,kind=rule,locals=record());when(slot=target_event_move_right,capability=cap_timer_elapsed,timer=movementTimer,operator=">=",seconds=0.15);when(slot=target_event_move_right,capability=cap_state_text_compare,target=target_member_GameState_direction,operator="=",value="right");then(slot=target_event_move_right,capability=cap_timer_reset,timer=movementTimer);then(slot=target_event_move_right,capability=cap_object_x_add,target=target_entity_record_snakeHead,value=record(capability=cap_state_number,target=target_member_GameState_step))'
+    plan: planTask('timed_right', 'Add only timed right movement on the existing board.'),
+    write: 'event(slot=move_right,kind=rule,locals=record());when(slot=move_right,capability=timer.elapsed,timer=movementTimer,operator=">=",seconds=0.15);when(slot=move_right,capability=state.text.compare,target=GameState.direction,operator="=",value="right");then(slot=move_right,capability=timer.reset,timer=movementTimer);then(slot=move_right,capability=object.x.add,target=snakeHead,value=record(capability=state.number,target=GameState.step))'
   },
   'food-score-growth': {
-    plan: planTask({ semanticId: 'food_growth', goal: 'Create only food scoring and pending growth.', targets: [
-      { kind: 'member', owner: 'GameState', semanticId: 'pendingGrowth', intent: 'create' },
-      { kind: 'event', semanticId: 'collect_food', intent: 'create', facets: ['metadata', 'conditions', 'actions'] }
-    ], reads: [{ kind: 'entity-record', semanticId: 'snakeHead', intent: 'read' }, { kind: 'entity-record', semanticId: 'food', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'score', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'step', intent: 'read' }], uses: ['object.collides', 'state.number.add', 'object.place.random-grid', 'state.number'], catalogs: ['event-kinds'] }),
-    write: 'member(slot=target_member_GameState_pendingGrowth,roles=list("pending-growth"),value=0,bindings=list());event(slot=target_event_collect_food,kind=rule,locals=record());when(slot=target_event_collect_food,capability=cap_object_collides,first=target_entity_record_snakeHead,second=target_entity_record_food);then(slot=target_event_collect_food,capability=cap_state_number_add,target=target_member_GameState_score,value=1);then(slot=target_event_collect_food,capability=cap_state_number_add,target=target_member_GameState_pendingGrowth,value=1);then(slot=target_event_collect_food,capability=cap_object_place_random_grid,target=target_entity_record_food,minX=0,maxX=640,minY=0,maxY=480,step=record(capability=cap_state_number,target=target_member_GameState_step))'
+    plan: planTask('food_growth', 'Add only food scoring and pending growth on the existing board.'),
+    write: 'member(slot=GameState.pendingGrowth,roles=list("pending-growth"),value=0,bindings=list());event(slot=collect_food,kind=rule,locals=record());when(slot=collect_food,capability=object.collides,first=snakeHead,second=food);then(slot=collect_food,capability=state.number.add,target=GameState.score,value=1);then(slot=collect_food,capability=state.number.add,target=GameState.pendingGrowth,value=1);then(slot=collect_food,capability=object.place.random-grid,target=food,minX=0,maxX=640,minY=0,maxY=480,step=record(capability=state.number,target=GameState.step))'
   },
   'loss-restart': {
-    plan: planTask({ semanticId: 'loss_restart', goal: 'Create only loss detection and restart.', targets: [
-      { kind: 'entity-record', semanticId: 'snakeBody', intent: 'create' },
-      { kind: 'member', owner: 'GameState', semanticId: 'gameOver', intent: 'create' },
-      { kind: 'event', semanticId: 'boundary_left', intent: 'create', facets: ['metadata', 'conditions', 'actions'] },
-      { kind: 'event', semanticId: 'boundary_right', intent: 'create', facets: ['metadata', 'conditions', 'actions'] },
-      { kind: 'event', semanticId: 'boundary_top', intent: 'create', facets: ['metadata', 'conditions', 'actions'] },
-      { kind: 'event', semanticId: 'boundary_bottom', intent: 'create', facets: ['metadata', 'conditions', 'actions'] },
-      { kind: 'event', semanticId: 'self_collision', intent: 'create', facets: ['metadata', 'conditions', 'actions'] },
-      { kind: 'event', semanticId: 'restart', intent: 'create', facets: ['metadata', 'conditions', 'actions'] }
-    ], reads: [{ kind: 'entity-record', semanticId: 'snakeHead', intent: 'read' }, { kind: 'entity-record', semanticId: 'food', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'score', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'direction', intent: 'read' }, { kind: 'member', owner: 'GameState', semanticId: 'step', intent: 'read' }], uses: ['object.x.compare', 'object.y.compare', 'object.collides', 'input.key.just-pressed', 'state.boolean.is', 'state.boolean.set', 'state.number.set', 'state.text.set', 'object.delete', 'object.position.set', 'object.place.random-grid', 'state.number'], catalogs: ['entity-kinds', 'event-kinds'] }),
+    plan: planTask('loss_restart', 'Add only loss detection and restart on the existing board.'),
     write: [
-      'entity(slot=target_entity_record_snakeBody,roles=list("snake-body"),kind=sprite,behaviors=list())',
-      'member(slot=target_member_GameState_gameOver,roles=list("game-over"),value=false,bindings=list())',
-      'event(slot=target_event_boundary_left,kind=rule,locals=record())',
-      'when(slot=target_event_boundary_left,capability=cap_object_x_compare,target=target_entity_record_snakeHead,operator="<",value=0)',
-      'then(slot=target_event_boundary_left,capability=cap_state_boolean_set,target=target_member_GameState_gameOver,value=true)',
-      'event(slot=target_event_boundary_right,kind=rule,locals=record())',
-      'when(slot=target_event_boundary_right,capability=cap_object_x_compare,target=target_entity_record_snakeHead,operator=">",value=640)',
-      'then(slot=target_event_boundary_right,capability=cap_state_boolean_set,target=target_member_GameState_gameOver,value=true)',
-      'event(slot=target_event_boundary_top,kind=rule,locals=record())',
-      'when(slot=target_event_boundary_top,capability=cap_object_y_compare,target=target_entity_record_snakeHead,operator="<",value=0)',
-      'then(slot=target_event_boundary_top,capability=cap_state_boolean_set,target=target_member_GameState_gameOver,value=true)',
-      'event(slot=target_event_boundary_bottom,kind=rule,locals=record())',
-      'when(slot=target_event_boundary_bottom,capability=cap_object_y_compare,target=target_entity_record_snakeHead,operator=">",value=480)',
-      'then(slot=target_event_boundary_bottom,capability=cap_state_boolean_set,target=target_member_GameState_gameOver,value=true)',
-      'event(slot=target_event_self_collision,kind=rule,locals=record())',
-      'when(slot=target_event_self_collision,capability=cap_object_collides,first=target_entity_record_snakeHead,second=target_entity_record_snakeBody)',
-      'then(slot=target_event_self_collision,capability=cap_state_boolean_set,target=target_member_GameState_gameOver,value=true)',
-      'event(slot=target_event_restart,kind=rule,locals=record())',
-      'when(slot=target_event_restart,capability=cap_input_key_just_pressed,key="Space")',
-      'when(slot=target_event_restart,capability=cap_state_boolean_is,target=target_member_GameState_gameOver,value=true)',
-      'then(slot=target_event_restart,capability=cap_state_number_set,target=target_member_GameState_score,value=0)',
-      'then(slot=target_event_restart,capability=cap_state_text_set,target=target_member_GameState_direction,value="right")',
-      'then(slot=target_event_restart,capability=cap_state_boolean_set,target=target_member_GameState_gameOver,value=false)',
-      'then(slot=target_event_restart,capability=cap_object_delete,target=target_entity_record_snakeBody)',
-      'then(slot=target_event_restart,capability=cap_object_position_set,target=target_entity_record_snakeHead,x=32,y=32)',
-      'then(slot=target_event_restart,capability=cap_object_place_random_grid,target=target_entity_record_food,minX=0,maxX=640,minY=0,maxY=480,step=record(capability=cap_state_number,target=target_member_GameState_step))'
+      'entity(slot=snakeBody,roles=list("snake-body"),kind=sprite,behaviors=list())',
+      'member(slot=GameState.gameOver,roles=list("game-over"),value=false,bindings=list())',
+      'event(slot=boundary_left,kind=rule,locals=record())',
+      'when(slot=boundary_left,capability=object.x.compare,target=snakeHead,operator="<",value=0)',
+      'then(slot=boundary_left,capability=state.boolean.set,target=GameState.gameOver,value=true)',
+      'event(slot=boundary_right,kind=rule,locals=record())',
+      'when(slot=boundary_right,capability=object.x.compare,target=snakeHead,operator=">",value=640)',
+      'then(slot=boundary_right,capability=state.boolean.set,target=GameState.gameOver,value=true)',
+      'event(slot=boundary_top,kind=rule,locals=record())',
+      'when(slot=boundary_top,capability=object.y.compare,target=snakeHead,operator="<",value=0)',
+      'then(slot=boundary_top,capability=state.boolean.set,target=GameState.gameOver,value=true)',
+      'event(slot=boundary_bottom,kind=rule,locals=record())',
+      'when(slot=boundary_bottom,capability=object.y.compare,target=snakeHead,operator=">",value=480)',
+      'then(slot=boundary_bottom,capability=state.boolean.set,target=GameState.gameOver,value=true)',
+      'event(slot=self_collision,kind=rule,locals=record())',
+      'when(slot=self_collision,capability=object.collides,first=snakeHead,second=snakeBody)',
+      'then(slot=self_collision,capability=state.boolean.set,target=GameState.gameOver,value=true)',
+      'event(slot=restart,kind=rule,locals=record())',
+      'when(slot=restart,capability=input.key.just-pressed,key="Space")',
+      'when(slot=restart,capability=state.boolean.is,target=GameState.gameOver,value=true)',
+      'then(slot=restart,capability=state.number.set,target=GameState.score,value=0)',
+      'then(slot=restart,capability=state.text.set,target=GameState.direction,value="right")',
+      'then(slot=restart,capability=state.boolean.set,target=GameState.gameOver,value=false)',
+      'then(slot=restart,capability=object.delete,target=snakeBody)',
+      'then(slot=restart,capability=object.position.set,target=snakeHead,x=32,y=32)',
+      'then(slot=restart,capability=object.place.random-grid,target=food,minX=0,maxX=640,minY=0,maxY=480,step=record(capability=state.number,target=GameState.step))'
     ].join(';')
   }
 };
@@ -132,7 +98,8 @@ function provider(outputs) {
       var task = benchmark.tasks[i], fixture = fixtures[task.id];
       assert(fixture, 'offline fixture missing for ' + task.id);
       var source = seedSource(task, index);
-      var result = await semanticRuntime.create({ providerRuntime: provider([fixture.plan, fixture.write]) }).invoke({ requestId: 'offline-' + task.id, projectId: 'offline-suite', timeoutMs: semanticRuntime.HARD_TIMEOUT_MS, maxTokens: semanticRuntime.MAX_TOKENS, userRequest: task.task, source: source, index: index });
+      // One work order → write → plan-complete (dispatch loop).
+      var result = await semanticRuntime.create({ providerRuntime: provider([fixture.plan, fixture.write, 'plan-complete()']) }).invoke({ requestId: 'offline-' + task.id, projectId: 'offline-suite', timeoutMs: semanticRuntime.HARD_TIMEOUT_MS, maxTokens: semanticRuntime.MAX_TOKENS, userRequest: task.task, source: source, index: index });
       var record = { probe: { benchmarkId: benchmark.contract.benchmarkId, benchmarkTaskId: task.id, task: task.task, seedFile: task.seedFile, semanticTimeoutMs: semanticRuntime.HARD_TIMEOUT_MS, semanticMaxTokens: semanticRuntime.MAX_TOKENS }, runTrace: result.runTrace, runLedger: result.runLedger, runState: result.runState, taskPlan: result.taskPlan, cacheSummary: result.cacheSummary, result: result };
       var file = path.join(directory, task.id + '.json');
       fs.writeFileSync(file, JSON.stringify(record), 'utf8');

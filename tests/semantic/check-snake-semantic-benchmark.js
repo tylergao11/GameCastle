@@ -7,6 +7,27 @@ var ids = benchmark.tasks.map(function(task) { return task.id; });
 assert.strictEqual(ids.length, 6, 'benchmark owns exactly six canonical layered tasks');
 assert.strictEqual(new Set(ids).size, ids.length, 'canonical benchmark task ids are unique');
 
+// Source has objectTypeRef only; kind is derived once (no Draft-only kind dual truth).
+assert.strictEqual(benchmark.entityKindOf({ objectTypeRef: 'gdjs://object/Sprite::Sprite' }), 'sprite');
+assert.strictEqual(benchmark.entityKindOf({ objectTypeRef: null }), 'state');
+assert.strictEqual(benchmark.entityKindOf({ kind: 'text', objectTypeRef: null }), 'text');
+assert.strictEqual(
+  benchmark.matchEntity(
+    { semanticId: 'snakeBody', roles: ['body'], objectTypeRef: 'gdjs://object/Sprite::Sprite' },
+    { semanticIdPattern: '^snake[-_. ]?body$', kind: 'sprite', count: 1 }
+  ),
+  true,
+  'requiredEntities match Source entities via objectTypeRef-derived kind'
+);
+assert.strictEqual(benchmark.countPass(5, { minimum: 3, maximum: 8 }), true);
+assert.strictEqual(benchmark.countPass(6, { exact: 6 }), true);
+assert.strictEqual(benchmark.countPass(5, { exact: 6 }), false);
+// loss-restart budget style: open composite uses min/max only
+var loss = benchmark.taskById('loss-restart');
+assert.strictEqual(loss.changeBudget.events.exact, undefined);
+assert.ok(loss.changeBudget.events.minimum >= 3);
+assert.ok(loss.changeBudget.events.maximum >= loss.changeBudget.events.minimum);
+
 function call(kind, phase, protocolVersion, ok) { return { kind: kind, phase: phase, protocolVersion: protocolVersion, result: { ok: ok !== false } }; }
 var valid = [
   call('task-plan', 'planner', benchmark.contract.requiredProtocolVersions.planner),

@@ -43,11 +43,11 @@ Pinned GDevelop source
 Product request
   -> ProductDeliveryOrchestrator opens one persisted ProductDeliveryRun
   -> DeepSeek Director Planner freezes the director-dsl-v1 route: semantic.design -> asset.realize -> assembly.verify
-  -> semantic.design: Semantic Planner emits one semantic-dsl-v9 TaskPlan slot stream
-  -> Runtime asserts feasibility, freezes the plan, and activates exactly one task at a time
-  -> deterministic capability retrieval -> authorizeWriteBatch (coverage/resolve/scope/catalogs/uses) -> atomic commit or full rollback
-  -> empty-progress or shell-shaped write failures re-enter planning when free planning is allowed
-  -> next task -> Runtime validates, assembles, and completes deterministically
+  -> semantic.design: Semantic Planner dispatches one plan-task work order (or plan-complete)
+  -> Runtime freezes the plan and activates that single task
+  -> Executor free-writes structure+values; authorizeWriteBatch (order, resolve foundation handles, scope, lifecycle) -> atomic commit or full rollback
+  -> empty-progress failures re-enter planning when free planning is allowed (external freeze plans do not)
+  -> next dispatch round or finalize -> Runtime validates, assembles, and completes deterministically
   -> GameSemanticSource v6 or GameSemanticRevision
   -> asset.realize: dictionary-owned component expansion
   -> deterministic event + asset + layout compilation
@@ -69,7 +69,7 @@ Assembly rejection
   -> rerun asset, spatial, capture, and review
 ```
 
-Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth and is generated from one syntax registry (`semantic-dsl-syntax.js`). Prompt profiles project that registry: Planner `semantic-planner-prompt-v18`, Executor `semantic-executor-prompt-v17`. Revision Draft structure is implicitly visible for references (plan-read slots optional). Planner uses typed `plan-*` target commands with globally unique target slots, `plan-use` capability aliases, and retrieval aliases; `plan-task.after` owns ordered dependencies and one event target slot owns its declared facet list. Model-visible context uses read-only DSL fact rows (L2 run, L3 active task/facts, L4 transition log). `read` slots only authorize references; every task must also declare at least one `create|update|delete` mutation. Field values are `plan-member` work; `plan-entity` update authorizes only roles/kind/behaviors and is not a field-write stand-in. Executor fills frozen slots only. Capability selection is one channel: `when.capability` / `then.capability` / nested expression `record(capability=alias,...)` name plan-use aliases; open fields carry that operation’s parameters. After `authorizeWriteBatch`, Draft/algebra IR uses dictionary `use=<handle>` only. `member`/`asset`/`layout.bindings` are optional foundation operation tags; `component.capabilityBindings` is a record of plan-use aliases (resolved to Draft `bindings` with handles). Runtime owns feasibility, sealing, deterministic retrieval, one `authorizeWriteBatch` per active task, delta verification, Source/Revision materialization, and factual feedback. Plan-scoped write failures (empty delta/batch, shell-shaped structural misses) escalate to plan repair when free planning is allowed; external freeze plans do not. Provider selection lives behind the Semantic Model Port. Production pins CUDA llama.cpp `Qwen/Qwen3.5-9B` with phase GBNF; development may route LLM2 to DeepSeek without server grammar. simulated-local is the deterministic test double. Every model call records distillation-ready prompt hashes, raw output, parsed DSL, resolved commands, validation, usage, and receipt. JSON bracket/brace output has no model-protocol parser path; JSON in the HTTP envelope is infrastructure only.
+Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth (`semantic-dsl-syntax.js`). Prompt profiles: Planner `semantic-planner-prompt-v22` (dispatch-only `plan-task` / `plan-complete`), Executor `semantic-executor-prompt-v28` (free-write for one work order). Executor system holds law, mode-legal FORMS, and dictionary catalogs (`L1-structure-kinds`, `L1-ops-*`); user holds only work order, board (`workMode` + member values), optional product background, and L4. Revision omits `game`/`policy` from FORMS/GBNF. Capability on wire is a foundation handle (`capability=handle`); open fields carry parameters; nested `arguments=` is rejected. Expression parameters accept bare `Owner.field` as `state.number`/`state.text` sugar. After `authorizeWriteBatch`, Draft/algebra IR uses dictionary `use=<handle>`. Runtime owns feasibility, sealing, one `authorizeWriteBatch` per active task, delta verification, Source/Revision materialization, and factual feedback. External freeze plans skip free replan. Provider selection lives behind the Semantic Model Port. Production pins CUDA llama.cpp `Qwen/Qwen3.5-9B` with phase GBNF; development may route LLM2 to DeepSeek. simulated-local is the test double. JSON in the HTTP envelope is infrastructure only; model protocol is DSL-only.
 
 Director Planner has a separate boundary from Semantic LLM2. LLM1 is the external DeepSeek `deepseek-v4-flash` model and emits only the three-domain `director-dsl-v1` program. LLM2 is selected by `GAMECASTLE_RUNTIME_MODE`: production uses the local open-source Qwen Semantic DSL model; development uses DeepSeek for both text roles. Each domain owns its model selection: `director-model-port.js` pins LLM1 and `semantic-model-policy.js` pins LLM2. The shared ProviderRuntime only transports requests and records receipts. `.env.local` contains mode plus private endpoint and key values; `npm run product:serve` loads them automatically. Use `npm run model:director:check` for a local configuration check and `npm run model:director:smoke` for one real DeepSeek DSL probe.
 
@@ -136,7 +136,7 @@ needed rather than a command-level probe:
 npm run debug:snake:live -- --benchmark-task=core-model --timeout-ms=300000
 ```
 
-The semantic run has one hard total deadline of 300 seconds. There are no separate Planner, active-task, or finalization deadlines: every model call receives only the remaining total budget. Every Planner and Executor call receives an explicit 8196-token total output limit shared by reasoning and DSL; the same fact is present in both stable protocols so task decomposition can account for execution capacity. Deterministic capability retrieval adds no model call. The live Snake probe prints a heartbeat every 10 seconds, and every completed model call prints phase, active task, latency, stable-prefix hash/cache usage, raw output, and the state-machine result, then writes the hash-chained ledger and trace under `.gamecastle/output/semantic-live/`. The six `snake-layered-v2` tasks are a benchmark oracle only; no Snake rule enters production semantic modules.
+The semantic run has one hard total deadline of 300 seconds. There are no separate Planner, active-task, or finalization deadlines: every model call receives only the remaining total budget. Every Planner and Executor call receives an explicit 8196-token total output limit shared by reasoning and DSL; the same fact is present in both stable protocols so task decomposition can account for execution capacity. Dispatch plans declare no plan-use retrieval table; foundation handles live in Executor L1 catalogs. The live Snake probe prints a heartbeat every 10 seconds, and every completed model call prints phase, active task, latency, stable-prefix hash/cache usage, raw output, and the state-machine result, then writes the hash-chained ledger and trace under `.gamecastle/output/semantic-live/`. The six `snake-layered-v2` tasks are a benchmark oracle only; no Snake rule enters production semantic modules.
 
 The web app can be built with `npm run build` or developed with `npm --prefix apps/web run dev`.
 
@@ -144,7 +144,7 @@ The web app can be built with `npm run build` or developed with `npm --prefix ap
 
 - [Architecture and contracts](docs/architecture.md)
 - [Spatial Planner and Runtime](docs/spatial-engine.md)
-- [Semantic engine handoff and invariants](docs/semantic-engine-terra-handoff.md)
+- [Semantic domain (current truth)](docs/semantic.md)
 - [Semantic free / snake six-task handoff](docs/semantic-free-snake-handoff.md)
 - [Asset and provider operations](docs/asset-operations.md)
 - [Asset library and creation loop](docs/asset-library.md)

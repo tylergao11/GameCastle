@@ -173,7 +173,7 @@ var OPERATIONS = [
   operation('object.x.set', 'action', 'set entity X position', { target: 'entity', value: 'number or expression' }, function(a) {
     return [invocation('BuiltinObject::object::BuiltinObject::__object_metadata__::action::SetX', { object: a.target, operator: '=', value: a.value })];
   }),
-  operation('object.x.add', 'action', 'add to entity X position', { target: 'entity', value: 'number or expression' }, function(a) {
+  operation('object.x.add', 'action', 'add to entity X position', { target: 'entity', value: 'number|Entity.member|expression' }, function(a) {
     return [invocation('BuiltinObject::object::BuiltinObject::__object_metadata__::action::SetX', { object: a.target, operator: '+', value: a.value })];
   }),
   operation('object.y.set', 'action', 'set entity Y position', { target: 'entity', value: 'number or expression' }, function(a) {
@@ -183,7 +183,7 @@ var OPERATIONS = [
     return [invocation('BuiltinObject::object::BuiltinObject::__object_metadata__::action::SetY', { object: a.target, operator: '+', value: a.value })];
   }),
   // Grid inputs follow dictionary number-expression normalization (literal number or nested expression).
-  operation('object.place.random-grid', 'action', 'place an entity on a random grid coordinate', { target: 'entity', minX: 'number or expression', maxX: 'number or expression', minY: 'number or expression', maxY: 'number or expression', step: 'number or expression' }, function(a) {
+  operation('object.place.random-grid', 'action', 'place an entity on a random grid coordinate', { target: 'entity', minX: 'number or expression', maxX: 'number or expression', minY: 'number or expression', maxY: 'number or expression', step: 'number|Entity.member|expression' }, function(a) {
     return [invocation('BuiltinObject::object::BuiltinObject::__object_metadata__::action::SetXY', {
       object: a.target,
       modification_s_sign: '=',
@@ -348,7 +348,12 @@ function validateFields(item, args) {
 function validateOperationArguments(use, expectedKind, args) {
   var item = BY_KEY[use];
   if (!item) fail('SEMANTIC_ALGEBRA_OPERATION_INVALID', 'Unknown event operation: ' + use);
-  if (expectedKind && item.kind !== expectedKind) fail('SEMANTIC_ALGEBRA_KIND_INVALID', use + ' is ' + item.kind + ', expected ' + expectedKind);
+  if (expectedKind && item.kind !== expectedKind) {
+    fail(
+      'SEMANTIC_ALGEBRA_KIND_INVALID',
+      use + ' is ' + item.kind + '; expected ' + expectedKind + ' (when uses [L1-ops-condition], then uses [L1-ops-action])'
+    );
+  }
   validateFields(item, args);
   return clone(args);
 }
@@ -364,6 +369,12 @@ function assertAdapterContract(entry, args, label) {
   parameters.forEach(function(parameter) { byKey[parameter.semanticKey] = parameter; });
   Object.keys(args).forEach(function(key) { if (!byKey[key]) fail('SEMANTIC_ALGEBRA_BINDING_ARGUMENT_INVALID', label + ' maps unknown dictionary argument ' + key + ' for ' + entry.capability_id); });
   parameters.forEach(function(parameter) { if (!parameter.optional && !Object.prototype.hasOwnProperty.call(args, parameter.semanticKey)) fail('SEMANTIC_ALGEBRA_BINDING_ARGUMENT_MISSING', label + ' does not map required dictionary argument ' + parameter.semanticKey + ' for ' + entry.capability_id); });
+}
+// Owner.field path (e.g. GameState.step). On number/string-expression parameters only,
+// reference-runtime coerces this to state.number / state.text — not here (would recurse on state.number targets).
+var MEMBER_PATH = /^[A-Za-z][A-Za-z0-9_-]{0,63}\.[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
+function isMemberPath(value) {
+  return typeof value === 'string' && MEMBER_PATH.test(value);
 }
 function compileNested(value, runtime) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return clone(value);
@@ -383,7 +394,12 @@ function compile(use, expectedKind, args, runtime) {
     Object.keys(extensionArgs).forEach(function(key) { normalizedExtension[key] = compileNested(extensionArgs[key], runtime); });
     return [{ kind: extension.kind, semanticRef: extension.semantic_id, arguments: runtime.normalize(extension, normalizedExtension), use: use }];
   }
-  if (expectedKind && item.kind !== expectedKind) fail('SEMANTIC_ALGEBRA_KIND_INVALID', use + ' is ' + item.kind + ', expected ' + expectedKind);
+  if (expectedKind && item.kind !== expectedKind) {
+    fail(
+      'SEMANTIC_ALGEBRA_KIND_INVALID',
+      use + ' is ' + item.kind + '; expected ' + expectedKind + ' (when uses [L1-ops-condition], then uses [L1-ops-action])'
+    );
+  }
   validateFields(item, args);
   return item.expand(clone(args), runtime).map(function(raw) {
     var entry = resolveEntry(runtime.index, raw.capabilityId, item.kind);
@@ -726,6 +742,8 @@ module.exports = {
   BEHAVIOR_KINDS: BEHAVIOR_KINDS,
   EVENT_KINDS: EVENT_KINDS,
   OPERATIONS: OPERATIONS,
+  isMemberPath: isMemberPath,
+  compileNested: compileNested,
   normalizeKeyboardKey: normalizeKeyboardKey,
   initialize: initialize,
   promptLines: promptLines,

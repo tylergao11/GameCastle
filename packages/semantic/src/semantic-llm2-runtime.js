@@ -30,14 +30,6 @@ function report(input, entry) {
   catch (error) { return { code: 'SEMANTIC_OBSERVER_CALLBACK_FAILED', owner: 'SemanticLLM2Runtime', message: error && error.message || String(error) }; }
 }
 function subjectHash(phase, taskId, text, commands) { return 'semantic.subject.' + promptBundle.hashCanonical({ phase: phase, taskId: taskId || null, text: String(text || ''), commands: commands || [] }); }
-function retrievedUses(facts) {
-  var found = Object.create(null);
-  (facts || []).forEach(function(item) {
-    var rows = item && item.facts && item.facts.operations || [];
-    rows.forEach(function(row) { var use = String(row).split('|')[0]; if (use) found[use] = true; });
-  });
-  return Object.keys(found).sort();
-}
 function feedbackKey(target) { return target.collection + '/' + target.semanticId; }
 function planFeedbackKey(target) {
   if (target.kind === 'game') return 'game/' + target.semanticId;
@@ -49,12 +41,10 @@ function planFeedbackKey(target) {
   if (target.kind === 'layout') return 'layoutIntents/' + target.semanticId;
   return null;
 }
+// Dispatch-only plans have no structure targets; feedback scope is advisory for free replan.
 function assertFeedbackPlan(plan, feedbackBatch) {
   if (!feedbackBatch) return;
-  var allowed = Object.create(null), covered = Object.create(null);
-  feedbackBatch.entries.forEach(function(entry) { entry.targets.forEach(function(target) { allowed[feedbackKey(target)] = true; }); });
-  plan.tasks.forEach(function(task) { taskPlanApi.targetsForTask(task).forEach(function(target) { var key = planFeedbackKey(target); if (!key || !allowed[key]) throw fail('SEMANTIC_FEEDBACK_PLAN_SCOPE_INVALID', 'TaskPlan target is outside source-bound feedback: ' + taskPlanApi.targetClaims(target).join(',')); covered[key] = true; }); });
-  Object.keys(allowed).forEach(function(key) { if (!covered[key]) throw fail('SEMANTIC_FEEDBACK_PLAN_INCOMPLETE', 'TaskPlan does not own feedback target: ' + key); });
+  if (!plan || !plan.tasks || !plan.tasks.length) throw fail('SEMANTIC_FEEDBACK_PLAN_INCOMPLETE', 'TaskPlan is empty under feedback.');
 }
 function taskReceiptHashes(ledger) { return ledger.events.filter(function(event) { return event.type === stateMachine.EVENT_TYPES.TASK_COMMITTED; }).map(function(event) { return event.payload.receiptHash; }); }
 
@@ -93,6 +83,7 @@ function create(options) {
     var draft = draftApi.create(references, input.source || null);
     var ledger = stateMachine.create(request);
     var plan = null;
+    var lastPlan = null;
     var trace = [];
     var providerCalls = 0;
     var observerWarnings = [];
@@ -103,7 +94,7 @@ function create(options) {
         runTrace: clone(trace),
         runLedger: clone(ledger),
         runState: clone(stateMachine.project(ledger)),
-        taskPlan: clone(plan),
+        taskPlan: clone(plan || lastPlan),
         draft: draftApi.structure(draft),
         cacheSummary: observer.summarize(trace, 0.9, modelPort.cachePolicy),
         modelCalls: providerCalls,
@@ -146,7 +137,9 @@ function create(options) {
         languageId: parser.LANGUAGE_ID,
         protocolVersion: call.bundle && call.bundle.protocolVersion || null,
         contract: {
-          grammarHash: promptBundle.hashText(dslGrammar.forPhase(call.phase === 'planner' ? 'planner' : 'executor')),
+          grammarHash: promptBundle.hashText(dslGrammar.forPhase(call.phase === 'planner' ? 'planner' : 'executor', {
+            workMode: call.bundle && call.bundle.system && call.bundle.system.indexOf('WORK_MODE|revision') >= 0 ? 'revision' : 'new'
+          })),
           dictionarySource: clone(index.source || null)
         },
         provenance: clone(trainingProvenance),
@@ -197,6 +190,8 @@ function create(options) {
     }
     async function callModel(phase, context, taskId, extraHashes) {
       ensureBudget();
+      var workMode = 'new';
+      if (phase !== 'planner' && context && context.l3 && context.l3.draftSlice && context.l3.draftSlice.workMode === 'revision') workMode = 'revision';
       var bundle = phase === 'planner' ? prompt.buildPlannerBundle({ context: context }) : prompt.buildExecutorBundle({ context: context });
       var remainingMs = deadline - Date.now();
       var policy = CALL_POLICY[phase];
@@ -207,6 +202,7 @@ function create(options) {
       var callTimeoutMs = Math.max(1, remainingMs);
       try { result = await invokeBeforeDeadline(function() { return modelPort.invoke({
         phase: phase === 'planner' ? 'planner' : 'executor',
+        workMode: workMode,
         requestId: (input.requestId || 'semantic-llm2') + ':' + phase + ':round-' + providerCalls,
         projectId: input.projectId || 'local-session',
         estimatedCost: input.estimatedCost,
@@ -248,6 +244,11 @@ function create(options) {
         subjectHash: subjectHash(effectivePhase, effectiveTaskId || taskId, call && call.text, call && call.commands)
       };
       if (effectivePhase === 'task') fact.taskId = effectiveTaskId;
+      // Clear model feedback: class + ordered repair steps + plan diagnosis (invent-shell vs field mutate).
+      var guidance = taskPlanApi.buildFailureFeedback(error, call && call.commands);
+      fact.class = guidance.class;
+      fact.repair = guidance.repair;
+      fact.diagnosis = guidance.diagnosis;
       ledger = stateMachine.transition.recordFailure(ledger, fact);
       var failureOutcome = { ok: false, code: fact.code, message: fact.message };
       if (effectivePhase === 'plan' && phase === 'task') failureOutcome.escalatedToPlan = true;
@@ -260,18 +261,20 @@ function create(options) {
       var error = fail(debt.code || 'SEMANTIC_PROVIDER_FAILED', debt.message || 'Semantic provider invocation failed.'); error.owner = debt.owner || 'ProviderRuntime';
       semanticFailure(call, phase, taskId, error, [{ ok: false, code: error.code, message: error.message }]);
     }
-    function retrieveActiveTask(taskId) {
+    function markTaskActivated(taskId) {
+      // Dispatch plans have no plan-use retrieval table. Ledger records one activation fingerprint
+      // (goal + L1 catalog hash) so TASK_ACTIVE has an append-only audit row before free-write.
       var task = taskPlanApi.taskById(plan, taskId);
-      var resolved = references.taskFacts(task);
-      // Context expects { alias, group, kind, facts }; alias is plan-retrieve name, not a write slot.
-      var facts = resolved.retrieved.map(function(raw) {
-        var value = clone(raw);
-        delete value.alias;
-        return { alias: raw.alias, group: raw.group, kind: raw.kind, facts: value };
-      });
-      taskPlanApi.assertRetrievesSatisfied(plan, taskId, facts);
-      if (!stateMachine.project(ledger).retrievals.some(function(item) { return item.taskId === taskId; })) ledger = stateMachine.transition.recordRetrieve(ledger, taskId, 'semantic.task-query.' + promptBundle.hashCanonical({ capabilities: task.capabilities, catalogs: task.catalogs, retrievals: task.retrievals }), 'semantic.task-facts.' + promptBundle.hashCanonical(contextBuilder.taskFacts(references, task, facts)));
-      return facts;
+      var catalogFacts = contextBuilder.taskFacts(references, task);
+      if (!stateMachine.project(ledger).retrievals.some(function(item) { return item.taskId === taskId; })) {
+        ledger = stateMachine.transition.recordRetrieve(
+          ledger,
+          taskId,
+          'semantic.task-query.' + promptBundle.hashCanonical({ taskId: task.semanticId, goal: task.goal }),
+          'semantic.task-facts.' + promptBundle.hashCanonical(catalogFacts)
+        );
+      }
+      return catalogFacts;
     }
     function prepareAutomaticTransitions() {
       while (true) {
@@ -289,16 +292,25 @@ function create(options) {
       var view = stateMachine.project(ledger);
 
       if (view.state === stateMachine.STATES.PLANNING) {
+        // Freeze path: one sealed dispatch, then auto-complete after that work order (no multi-task batch plan).
         if (externalPlanDsl) {
           try {
+            if (view.completedTaskIds && view.completedTaskIds.length) {
+              ledger = stateMachine.transition.completeDispatch(ledger);
+              continue;
+            }
             var externalParsed = parser.parse(externalPlanDsl, { phase: 'planner' });
             var externalValidation = pipeline.validate(externalParsed.commands, externalParsed.warnings, 'task-plan');
             if (!externalValidation.ok) throw fail(externalValidation.code, externalValidation.message);
             var externalPlan = taskPlanApi.create(externalParsed.commands);
             taskPlanApi.assertFeasible(externalPlan, draftApi.materialize(draft), { revision: !!draft.baseSource });
+            if (externalPlan.dispatchComplete) {
+              ledger = stateMachine.transition.completeDispatch(ledger);
+              continue;
+            }
             assertFeedbackPlan(externalPlan, feedbackBatch);
-            externalPlan.tasks.forEach(function(task) { references.taskFacts(task); });
             plan = externalPlan;
+            lastPlan = externalPlan;
             ledger = stateMachine.transition.acceptPlan(ledger, plan.planHash, plan.tasks.map(function(task) { return task.semanticId; }));
           } catch (externalPlanError) {
             externalPlanError.code = externalPlanError.code || 'SEMANTIC_LLM2_PLAN_INVALID';
@@ -320,11 +332,18 @@ function create(options) {
         try {
           var candidatePlan = taskPlanApi.create(plannerCall.commands);
           taskPlanApi.assertFeasible(candidatePlan, draftApi.materialize(draft), { revision: !!draft.baseSource });
+          if (candidatePlan.dispatchComplete) {
+            plan = candidatePlan;
+            lastPlan = candidatePlan;
+            ledger = stateMachine.transition.completeDispatch(ledger);
+            appendTrace(plannerCall, { ok: true, planHash: plan.planHash, dispatchComplete: true }, [{ ok: true, summary: 'Dispatch complete; finalizing' }]);
+            continue;
+          }
           assertFeedbackPlan(candidatePlan, feedbackBatch);
-          candidatePlan.tasks.forEach(function(task) { references.taskFacts(task); });
           plan = candidatePlan;
+          lastPlan = candidatePlan;
           ledger = stateMachine.transition.acceptPlan(ledger, plan.planHash, plan.tasks.map(function(task) { return task.semanticId; }));
-          appendTrace(plannerCall, { ok: true, planHash: plan.planHash, taskIds: plan.tasks.map(function(task) { return task.semanticId; }) }, [{ ok: true, summary: 'TaskPlan accepted and frozen', planHash: plan.planHash }]);
+          appendTrace(plannerCall, { ok: true, planHash: plan.planHash, taskIds: plan.tasks.map(function(task) { return task.semanticId; }) }, [{ ok: true, summary: 'One work order accepted', planHash: plan.planHash, goal: plan.tasks[0].goal }]);
         } catch (planError) {
           semanticFailure(plannerCall, 'plan', null, planError);
         }
@@ -332,15 +351,14 @@ function create(options) {
       }
 
       if (view.state === stateMachine.STATES.TASK_ACTIVE) {
-        var taskId = view.activeTaskId, activeTask = taskPlanApi.taskById(plan, taskId), retrievedFacts;
-        try { retrievedFacts = retrieveActiveTask(taskId); }
-        catch (retrieveError) {
-          var retrieveCall = { sequence: providerCalls, phase: 'task', taskId: taskId, bundle: null, remainingMs: Math.max(0, deadline - Date.now()), elapsedMs: 0, result: {}, text: '', commands: [], warnings: [], mode: 'task-retrieve' };
-          semanticFailure(retrieveCall, 'task', taskId, retrieveError);
+        var taskId = view.activeTaskId, activeTask = taskPlanApi.taskById(plan, taskId), exactFacts;
+        try { exactFacts = markTaskActivated(taskId); }
+        catch (activateError) {
+          var activateCall = { sequence: providerCalls, phase: 'task', taskId: taskId, bundle: null, remainingMs: Math.max(0, deadline - Date.now()), elapsedMs: 0, result: {}, text: '', commands: [], warnings: [], mode: 'task-activate' };
+          semanticFailure(activateCall, 'task', taskId, activateError);
           continue;
         }
         var slice = taskSliceApi.create(draft, plan, taskId);
-        var exactFacts = contextBuilder.taskFacts(references, activeTask, retrievedFacts);
         var taskContext = contextBuilder.task(slice, plan, commanderProjection(), activeTask, exactFacts, feedbackBatch, request);
         var taskCall = await callModel('task', taskContext, taskId, { planHash: plan.planHash, activeTaskHash: 'semantic.task.' + promptBundle.hashCanonical(activeTask), baseDraftHash: slice.baseDraftHash, deltaHash: stateMachine.project(ledger).headHash });
         taskCall.baseDraftHash = slice.baseDraftHash;
@@ -355,8 +373,6 @@ function create(options) {
         var candidate = draftApi.fork(draft), beforeDocument = draftApi.materialize(draft), stagedResults = [], writeError = null, resolvedCommands = [];
         try {
           resolvedCommands = taskPlanApi.authorizeWriteBatch(plan, taskId, taskCall.commands, {
-            facts: exactFacts,
-            retrievedUses: retrievedUses(retrievedFacts),
             beforeDocument: beforeDocument
           });
           taskCall.resolvedCommands = clone(resolvedCommands);
@@ -366,14 +382,16 @@ function create(options) {
           });
           var afterDocument = draftApi.materialize(candidate);
           var taskReceipt = taskPlanApi.verifyBatch(plan, taskId, resolvedCommands, beforeDocument, afterDocument);
-          if (view.completedTaskIds.length + 1 === plan.tasks.length) {
-            var candidateSource = candidate.baseSource ? sourceContract.applyRevision(candidate.baseSource, draftApi.revision(candidate), { index: index }) : sourceContract.validateSource(afterDocument, { index: index });
-            // Semantic domain ends at SemanticAssembly; GDJS seed is product/assembly-module work.
-            semanticAssemblyApi.compileSemanticAssembly(candidateSource);
-          }
+          // One-task dispatch: after commit runtime returns to PLANNING (or freeze auto-completes).
+          // Optional assembly probe keeps prior behavior for last sealed order.
+          try {
+            var probeSource = candidate.baseSource ? sourceContract.applyRevision(candidate.baseSource, draftApi.revision(candidate), { index: index }) : sourceContract.validateSource(afterDocument, { index: index });
+            semanticAssemblyApi.compileSemanticAssembly(probeSource);
+          } catch (_probeError) { /* assembly may fail mid-request; finalizing re-validates */ }
           var receiptHash = 'semantic.task-receipt.' + promptBundle.hashCanonical(taskReceipt);
-          ledger = stateMachine.transition.commitTask(ledger, taskId, receiptHash, taskReceipt.beforeDraftHash, taskReceipt.afterDraftHash);
+          ledger = stateMachine.transition.commitTask(ledger, taskId, receiptHash, taskReceipt.beforeDraftHash, taskReceipt.afterDraftHash, activeTask.goal);
           draft = candidate;
+          plan = null;
           stagedResults.push({ ok: true, summary: 'Task committed atomically', receiptHash: receiptHash, changedClaims: clone(taskReceipt.changedClaims) });
           appendTrace(taskCall, { ok: true, taskId: taskId, receiptHash: receiptHash }, stagedResults);
         } catch (error) {
@@ -397,9 +415,10 @@ function create(options) {
           assembly = semanticAssembly;
           finalFacts = { draftHash: taskPlanApi.documentHash(draftApi.materialize(draft)), sourceHash: sourceContract.sourceHash(source), taskReceiptHashes: taskReceiptHashes(ledger) };
         } catch (finalBuildError) { throw traced(finalBuildError); }
-        var completionReceiptHash = 'semantic.completion-receipt.' + promptBundle.hashCanonical({ planHash: plan.planHash, draftHash: finalFacts.draftHash, sourceHash: finalFacts.sourceHash, taskReceiptHashes: finalFacts.taskReceiptHashes });
+        var sealedPlanHash = (plan && plan.planHash) || (lastPlan && lastPlan.planHash) || 'semantic.plan.dispatch-complete';
+        var completionReceiptHash = 'semantic.completion-receipt.' + promptBundle.hashCanonical({ planHash: sealedPlanHash, draftHash: finalFacts.draftHash, sourceHash: finalFacts.sourceHash, taskReceiptHashes: finalFacts.taskReceiptHashes });
         ledger = stateMachine.transition.completeRun(ledger, finalFacts.sourceHash, completionReceiptHash);
-        var completionReceipt = { receiptId: completionReceiptHash, owner: 'SemanticLLM2Runtime', status: 'accepted', planHash: plan.planHash, draftHash: finalFacts.draftHash, sourceHash: finalFacts.sourceHash, taskReceiptHashes: clone(finalFacts.taskReceiptHashes) };
+        var completionReceipt = { receiptId: completionReceiptHash, owner: 'SemanticLLM2Runtime', status: 'accepted', planHash: sealedPlanHash, draftHash: finalFacts.draftHash, sourceHash: finalFacts.sourceHash, taskReceiptHashes: clone(finalFacts.taskReceiptHashes) };
         return Object.assign({ ok: true, document: revision ? { source: source, revision: revision, assembly: assembly } : { source: source, assembly: assembly }, receipt: completionReceipt }, diagnostics());
       }
 

@@ -72,11 +72,18 @@ DSL parser together:
 npm run model:semantic:smoke
 ```
 
-Measure basic Planner/Executor command syntax, exact-value following,
-non-thinking behavior, and per-command latency:
+Live command-following for **current** `semantic-dsl-v9` only (plan-task /
+plan-complete + free-write forms; no structure plan-*). Needs local llama when
+production mode is used:
 
 ```powershell
 npm run model:semantic:benchmark
+```
+
+Offline acceptance for the semantic loop is always:
+
+```powershell
+npm run check:semantic-loop
 ```
 
 The benchmark is a diagnostic rather than a release SLA. The latest RTX 5070

@@ -6,95 +6,139 @@ var draftApi = require('../../packages/semantic/src/semantic-draft');
 var referenceRuntime = require('../../packages/semantic/src/semantic-reference-runtime');
 var taskPlan = require('../../packages/semantic/src/semantic-task-plan');
 var promptBundle = require('../../packages/semantic/src/semantic-prompt-bundle');
+var syntax = require('../../packages/semantic/src/semantic-dsl-syntax');
 
-function transition(sequence, state, mode, failure, taskId) { return ['seq=' + sequence, 'event=TEST', 'state=' + state, 'mode=' + mode, 'task=' + (taskId || '-'), 'code=' + (failure ? failure.code : '-'), 'failure=' + (failure ? failure.signature : '-')].join('|'); }
-function projection(log, state, mode, failure, taskId) { return { state: state, activeTaskId: taskId, allowedMode: mode, completedTaskIds: [], lastFailure: failure, transitionLog: log }; }
+function transition(sequence, state, mode, failure, taskId) {
+  return ['seq=' + sequence, 'event=TEST', 'state=' + state, 'mode=' + mode, 'task=' + (taskId || '-'), 'code=' + (failure ? failure.code : '-'), 'failure=' + (failure ? failure.signature : '-')].join('|');
+}
+function projection(log, state, mode, failure, taskId) {
+  return {
+    state: state,
+    activeTaskId: taskId,
+    allowedMode: mode,
+    completedTaskIds: [],
+    dispatchLog: [],
+    lastFailure: failure,
+    transitionLog: log
+  };
+}
 
 var references = referenceRuntime.create(dictionary.loadIndex());
 var draft = draftApi.create(references, null);
 var plannerStart = projection([transition(1, 'PLANNING', 'plan', null, null)], 'PLANNING', 'plan', null, null);
-var plannerRepair = projection(plannerStart.transitionLog.concat([transition(2, 'PLAN_REPAIR', 'plan', { code: 'PLAN_INVALID', signature: 'plan.invalid' }, null)]), 'PLAN_REPAIR', 'plan', { code: 'PLAN_INVALID', signature: 'plan.invalid' }, null);
 var plannerContext = contextApi.planner(references, draft, 'Build a snake game', plannerStart);
 var plannerA = prompt.buildPlannerBundle({ context: plannerContext });
-var plannerB = prompt.buildPlannerBundle({ context: contextApi.planner(references, draft, 'Build a snake game', plannerRepair) });
 
-assert.strictEqual(Object.prototype.hasOwnProperty.call(plannerContext.l2, 'creativeVision'), false, 'Creative-model input is absent from semantic planner context.');
+assert.strictEqual(plannerA.protocolVersion, 'semantic-planner-prompt-v22');
+assert(plannerA.system.indexOf('plan-task(') >= 0);
+assert(plannerA.system.indexOf('plan-complete') >= 0);
+assert.strictEqual(plannerA.system.indexOf('plan-entity('), -1);
+assert(plannerA.system.indexOf('JOB|') >= 0, 'planner states job');
+assert(plannerA.system.indexOf('WHEN_TASK|') >= 0 && plannerA.system.indexOf('WHEN_DONE|') >= 0, 'planner states when to task vs complete');
+assert(plannerA.system.indexOf('TASK_GOAL|') >= 0, 'planner states how to write the work-order goal');
+assert(plannerA.system.indexOf('ROUND|') >= 0 && plannerA.system.indexOf('exactly one command') >= 0);
+assert(plannerA.user.indexOf('[L2-world]') >= 0);
+assert(plannerA.user.indexOf('[L2-progress]') >= 0, 'planner user projects task progress');
+assert(plannerA.user.indexOf('semantic-coarse-world') >= 0 || plannerA.user.indexOf('viewKind') >= 0 || plannerContext.l2.world.viewKind === 'semantic-coarse-world');
+assert.strictEqual(plannerContext.l2.world.viewKind, 'semantic-coarse-world');
+assert.strictEqual(plannerContext.l2.world.summary, 'empty world');
+assert.deepStrictEqual(plannerContext.l2.world.places, []);
+assert.strictEqual(plannerA.user.indexOf('baseDraftIndex'), -1);
+assert.strictEqual(plannerA.user.indexOf('stateOwners'), -1, 'coarse world omits fine stateOwners dump');
+assert.strictEqual(plannerA.system.indexOf('L1-planner-operation-index'), -1, 'planner system has no L1 catalog dump');
 
-assert.strictEqual(plannerA.protocolVersion, 'semantic-planner-prompt-v18');
-assert.strictEqual(plannerA.system, plannerB.system);
-assert.strictEqual(plannerA.hashes.stablePrefixHash, plannerB.hashes.stablePrefixHash);
-assert(plannerA.system.indexOf('LANGUAGE|semantic-dsl-v9') >= 0);
-assert(plannerA.system.indexOf('plan-event(') >= 0);
-assert(plannerA.system.indexOf('facets=list(metadata,conditions,actions)') >= 0, 'FORMS projects plan-event.facets wire shape');
-assert(plannerA.system.indexOf('EVENT|') >= 0 && plannerA.system.indexOf('facets=list(') >= 0, 'EVENT protocol states facets=list wire form');
-assert(plannerA.system.indexOf('OPTIONAL|plan-task.after') >= 0);
-assert(plannerA.system.indexOf('SLOTS|') >= 0);
-assert(plannerA.system.indexOf('PLAN_USE|') >= 0);
-assert(plannerA.system.indexOf('SCOPE|') >= 0);
-assert(plannerA.system.indexOf('MEMBER|') >= 0 && plannerA.system.indexOf('invent no fields') >= 0);
-assert(plannerA.system.indexOf('PLAN_USE|') >= 0 && plannerA.system.indexOf('Entity.member') >= 0);
-assert(plannerA.system.indexOf('FORMS|') >= 0);
-// Protocol stays compact: one PLAN_USE line, not a family of incident patches.
-assert.strictEqual((plannerA.system.match(/PLAN_USE_/g) || []).length, 0);
-assert((plannerContext.l1.operationIndex || []).some(function(row) { return /^use=[^|]+\|channel=[^|]+\|params=.+\|summary=/.test(row); }), 'Planner operation index is slot-first use|channel|params|summary');
-assert((plannerContext.l1.operationIndex || []).some(function(row) { return /use=object\.place\.random-grid\|.*params=.*step=number or expression/.test(row); }), 'L1 params project dictionary number-or-expression for random-grid step');
-assert((plannerContext.l1.operationIndex || []).some(function(row) { return /use=input\.key\.just-pressed\|.*params=key=text or expression/.test(row); }), 'L1 key fields project dictionary string-expression as text or expression');
-assert(plannerA.system.indexOf('ROUND_TOKEN_LIMIT|8196') >= 0);
-assert.strictEqual(plannerA.system.indexOf('plan-target('), -1);
-assert.strictEqual(plannerA.system.indexOf('plan-catalog('), -1);
-// Lean protocol prose (excluding generated FORMS) stays small; forms grow with the DSL registry.
-var syntax = require('../../packages/semantic/src/semantic-dsl-syntax');
-var plannerProtocolOnly = promptBundle.plannerProtocol();
-var plannerProse = plannerProtocolOnly.length - syntax.PLAN_LINES.join('\n').length;
-assert(plannerProse < 2400, 'Planner protocol prose must stay compact; got ' + plannerProse);
-['json', 'never', 'do not', "don't", 'example'].forEach(function(term) { assert.strictEqual(plannerA.system.toLowerCase().indexOf(term), -1, 'planner prompt remains positive and slot-oriented: ' + term); });
+// Coarse world lists places after seed load (revision).
+var seedLoader = require('../../packages/semantic/src/semantic-seed-loader');
+var fs = require('fs');
+var path = require('path');
+var revisionSource = seedLoader.load(fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'semantic', 'semantic-snake-core-seed.dsl'), 'utf8'), dictionary.loadIndex());
+var revisionDraft = draftApi.create(references, revisionSource);
+var revisionContext = contextApi.planner(references, revisionDraft, 'Add movement', plannerStart);
+assert.strictEqual(revisionContext.l2.world.mode, 'revision');
+assert(revisionContext.l2.world.places.some(function(place) { return place.id === 'snakeHead'; }));
+assert(revisionContext.l2.world.places.some(function(place) { return place.id === 'GameState'; }));
+assert.strictEqual(Object.prototype.hasOwnProperty.call(revisionContext.l2.world.places[0], 'members'), false);
 
-var plan = taskPlan.create([
-  { type: 'plan-task', semanticId: 'move', goal: 'Create one movement rule.', after: [] },
-  { type: 'plan-event', task: 'move', slot: 'moveEvent', semanticId: 'move_rule', intent: 'create', facets: ['metadata', 'actions'] },
-  { type: 'plan-use', task: 'move', alias: 'advanceX', use: 'object.x.add' }
-]);
+var plan = taskPlan.create([{ type: 'plan-task', semanticId: 'move', goal: '蛇需要会动', after: [] }]);
 var activeTask = taskPlan.taskById(plan, 'move');
-var facts = contextApi.taskFacts(references, activeTask, []);
+var facts = contextApi.taskFacts(references, activeTask);
 var executorStart = projection([transition(1, 'TASK_ACTIVE', 'write', null, 'move')], 'TASK_ACTIVE', 'write', null, 'move');
-var executorRepair = projection(executorStart.transitionLog.concat([transition(2, 'TASK_REPAIR', 'write', { code: 'WRITE_INVALID', signature: 'write.invalid' }, 'move')]), 'TASK_REPAIR', 'write', { code: 'WRITE_INVALID', signature: 'write.invalid' }, 'move');
-var slice = { schemaVersion: 1, documentKind: 'semantic-task-draft-slice', taskId: 'move', baseDraftHash: 'base', structureHash: 'slice', facts: [] };
+var slice = { schemaVersion: 1, documentKind: 'semantic-task-draft-slice', taskId: 'move', workMode: 'new', goal: '蛇需要会动', baseDraftHash: 'base', structureHash: 'slice', counts: { entities: 0, members: 0, events: 0 }, index: { game: null, entities: [], events: [] }, facts: [] };
 var executorContext = contextApi.task(slice, plan, executorStart, activeTask, facts, null, 'Build movement');
 var executorA = prompt.buildExecutorBundle({ context: executorContext });
-var executorB = prompt.buildExecutorBundle({ context: contextApi.task(slice, plan, executorRepair, activeTask, facts, null, 'Build movement') });
+assert.strictEqual(executorA.protocolVersion, 'semantic-executor-prompt-v28');
+assert(executorA.system.indexOf('BOARD|') >= 0, 'executor states board mode');
+assert(executorA.system.indexOf('CHANNELS|') >= 0, 'executor declares CHANNELS');
+assert(executorA.system.indexOf('CH_ENVELOPE|') >= 0, 'executor envelope channel');
+assert(executorA.system.indexOf('CH_OP|') >= 0, 'executor op channel');
+assert(executorA.system.indexOf('CH_EXPR|') >= 0, 'executor expression channel');
+assert(executorA.system.indexOf('CH_STRUCT|') >= 0, 'executor structure channel');
+assert(executorA.system.indexOf('WIRE|') >= 0, 'executor open-field wire');
+assert(executorA.system.indexOf('WORK_ORDER|') >= 0, 'executor sole checklist is work order');
+assert(executorA.system.indexOf('PRODUCT|') >= 0, 'executor treats product request as background');
+assert.strictEqual(executorA.system.indexOf('EVENT_KIND|'), -1, 'legacy EVENT_KIND patch line removed');
+assert.strictEqual(executorA.system.indexOf('NESTED|'), -1, 'legacy NESTED patch line removed');
+// User: work order + board only once; dictionary catalogs stay in system (cache).
+assert(executorA.user.indexOf('[L3-work-order]') >= 0);
+assert(executorA.user.indexOf('[L3-board]') >= 0);
+assert.strictEqual(executorA.user.indexOf('[L3-draft-slice]'), -1, 'no bloated draft-slice dump in user');
+assert.strictEqual(executorA.user.indexOf('[L3-active-task]'), -1, 'active-task renamed to work-order');
+assert.strictEqual(executorA.user.indexOf('[L3-ops-condition]'), -1, 'ops tables not in user');
+assert(executorA.system.indexOf('[L1-ops-condition]') >= 0, 'ops tables live in system');
+assert(executorA.system.indexOf('[L1-structure-kinds]') >= 0, 'structure kinds live in system');
+assert(executorA.user.indexOf('蛇需要会动') >= 0);
+assert.strictEqual((executorA.user.match(/蛇需要会动/g) || []).length, 1, 'goal appears once in user');
+assert(executorA.user.indexOf('[L2-product]') >= 0, 'product request projected as L2-product background');
+assert.strictEqual(executorA.user.indexOf('[L2-run]'), -1, 'executor must not dump L2-run as a second checklist');
+assert.strictEqual(executorContext.l2.productRequest, 'Build movement');
+assert.strictEqual(executorContext.l3.activeTask.goal, '蛇需要会动');
+assert(executorA.user.indexOf('[L3-work-order]') < executorA.user.indexOf('[L2-product]'), 'work order before product background');
+assert(facts.opsCondition.some(function(line) { return line.indexOf('handle=') === 0; }), 'condition op rows start with handle=');
+assert(facts.entityKinds.indexOf('sprite') >= 0, 'entity kinds projected');
+assert(executorA.system.indexOf('topdown') >= 0, 'behavior kinds in system');
 
-assert.strictEqual(Object.prototype.hasOwnProperty.call(executorContext.l2, 'creativeVision'), false, 'Creative-model input is absent from semantic executor context.');
+var plannerProse = promptBundle.plannerProtocol().length - syntax.PLAN_LINES.join('\n').length;
+assert(plannerProse < 2400, 'Planner protocol prose must stay compact; got ' + plannerProse);
+['json', 'never', 'do not', "don't", 'example'].forEach(function(term) {
+  assert.strictEqual(plannerA.system.toLowerCase().indexOf(term), -1, 'planner prompt remains positive: ' + term);
+  assert.strictEqual(executorA.system.toLowerCase().indexOf(term), -1, 'executor prompt remains positive: ' + term);
+});
 
-assert.strictEqual(executorA.protocolVersion, 'semantic-executor-prompt-v17');
-assert(executorA.system.indexOf('foundation handle') >= 0 || executorA.system.indexOf('alias or foundation') >= 0 || executorA.system.indexOf('CAPABILITY|') >= 0, 'Executor CAPABILITY projects foundation handles');
-assert.strictEqual(executorA.system, executorB.system);
-assert(executorA.system.indexOf('then(slot=') >= 0);
-assert(executorA.system.indexOf('event(slot=...event-metadata-target-slot, kind=...event-kind-handle)') >= 0, 'event form is closed metadata without open capability parameters');
-assert(executorA.system.indexOf('event.locals') >= 0 || executorA.system.indexOf('OPTIONAL|') >= 0, 'event.locals is optional');
-assert.strictEqual(executorA.system.indexOf('Optional'), -1, 'command forms do not suffix Optional into type placeholders');
-assert(executorA.system.indexOf('WRITE|') >= 0);
-assert(executorA.system.indexOf('SLOT|') >= 0);
-assert(executorA.system.indexOf('CAPABILITY|') >= 0);
-assert(executorA.system.indexOf('EXPRESSION|') >= 0);
-assert(executorA.system.indexOf('FORMS|') >= 0);
-assert.strictEqual((executorA.system.match(/SLOT_COVERAGE\|/g) || []).length, 0, 'coverage is Runtime-owned; not a long protocol patch');
-assert.strictEqual((executorA.system.match(/NUMBER_OR_EXPRESSION\|/g) || []).length, 0);
-assert.strictEqual((executorA.system.match(/DICTIONARY_TOKEN\|/g) || []).length, 0);
-assert.strictEqual((executorA.system.match(/EVENT_METADATA\|/g) || []).length, 0);
-assert.strictEqual((executorA.system.match(/MEMBER_REFERENCE\|/g) || []).length, 0);
-assert.strictEqual((executorA.system.match(/LAYOUT_BOUNDS\|/g) || []).length, 0);
-var executorProtocolOnly = promptBundle.executorProtocol();
-var executorProse = executorProtocolOnly.length - syntax.WRITE_LINES.join('\n').length;
-assert(executorProse < 1800, 'Executor protocol prose must stay compact; got ' + executorProse);
-assert(executorA.system.indexOf('ROUND_TOKEN_LIMIT|8196') >= 0);
-assert.strictEqual(executorA.system.indexOf('plan-task('), -1);
-assert.strictEqual(executorA.system.indexOf('complete()'), -1);
-assert(executorA.user.indexOf('advanceX|action|object.x.add|') >= 0, 'Executor receives capability alias bound to exact handle and parameters');
-assert(executorA.user.indexOf('value=number or expression') >= 0, 'Executor L3 projects dictionary number-or-expression for object.x.add value');
-assert(executorA.user.indexOf('object.y.add') < 0);
-assert.strictEqual(/[\[\]{}]/.test(plannerA.user.replace(/\[[^\]]+\]/g, '')), false, 'Planner context is model-visible DSL facts rather than bracket syntax');
-assert.strictEqual(/[\[\]{}]/.test(executorA.user.replace(/\[[^\]]+\]/g, '')), false, 'Executor context values are DSL facts rather than bracket syntax');
-['json', 'never', 'do not', "don't", 'example'].forEach(function(term) { assert.strictEqual(executorA.system.toLowerCase().indexOf(term), -1, 'executor prompt remains positive and slot-oriented: ' + term); });
+assert(syntax.WRITE_LINES.some(function(line) { return line.indexOf('entity(') === 0 && line.indexOf('behaviors=') < 0; }), 'entity form omits empty-ceremony behaviors from required FORMS');
+assert(syntax.optionalFieldNames('executor').indexOf('entity.behaviors') >= 0, 'entity.behaviors is optional ceremony');
+var entityBare = require('../../packages/semantic/src/semantic-dsl-parser').parse(
+  'entity(slot=food,roles=list(food),kind=sprite)',
+  { phase: 'executor' }
+);
+assert.deepStrictEqual(entityBare.commands[0].behaviors, [], 'omitted entity.behaviors defaults to empty list');
 
-assert.strictEqual(Object.prototype.hasOwnProperty.call(contextApi, 'finalize'), false);
-console.log('[SemanticPromptBundle] compact slot protocols, dictionary L1/L3 projections, stable profiles passed protocolBytes planner=' + plannerProtocolOnly.length + ' executor=' + executorProtocolOnly.length);
+var algebra = require('../../packages/semantic/src/semantic-event-algebra');
+assert.strictEqual(algebra.isMemberPath('GameState.step'), true);
+assert.strictEqual(algebra.isMemberPath('movement'), false);
+var rolesEmpty = syntax.validateCommand({ type: 'member', slot: 'GameState.score', roles: [], value: 0 }, 'executor');
+assert.deepStrictEqual(rolesEmpty.roles, ['score'], 'empty member.roles defaults from field id');
+
+// Revision FORMS must not advertise game/policy (illegal on seeded board).
+var revDraft = draftApi.create(references, revisionSource);
+var revPlan = taskPlan.create([{ type: 'plan-task', semanticId: 'loss', goal: 'Add only loss detection and restart on the existing board.', after: [] }]);
+var revTask = taskPlan.taskById(revPlan, 'loss');
+var revFacts = contextApi.taskFacts(references, revTask);
+var revSlice = require('../../packages/semantic/src/semantic-task-draft-slice').create(revDraft, revPlan, 'loss');
+var revMachine = projection([transition(1, 'TASK_ACTIVE', 'write', null, 'loss')], 'TASK_ACTIVE', 'write', null, 'loss');
+var revContext = contextApi.task(revSlice, revPlan, revMachine, revTask, revFacts, null, 'Add loss on board');
+var revBundle = prompt.buildExecutorBundle({ context: revContext });
+assert.strictEqual(revBundle.system.indexOf('WORK_MODE|revision') >= 0, true);
+assert.strictEqual(revBundle.system.indexOf('\ngame('), -1, 'revision FORMS omits game(');
+assert.strictEqual(revBundle.system.indexOf('\npolicy('), -1, 'revision FORMS omits policy(');
+assert(revBundle.system.indexOf('\nentity(') >= 0, 'revision FORMS still has entity');
+assert(revBundle.user.indexOf('[L3-board]') >= 0);
+assert(revBundle.user.indexOf('workMode') >= 0 || revBundle.user.indexOf('revision') >= 0);
+assert.strictEqual((revBundle.user.match(/Add only loss detection and restart on the existing board\./g) || []).length, 1, 'goal once on revision user');
+assert.strictEqual(revBundle.user.indexOf('documentKind'), -1, 'board projection drops ceremony fields');
+assert.strictEqual(revBundle.user.indexOf('structureHash'), -1, 'board projection drops structureHash');
+assert(syntax.writeLinesForMode('new').some(function(line) { return line.indexOf('game(') === 0; }), 'new mode still has game');
+assert.strictEqual(syntax.writeLinesForMode('revision').some(function(line) { return line.indexOf('game(') === 0; }), false);
+// Cache-shaped: system holds catalogs; user is small task board.
+assert(revBundle.bytes.system > revBundle.bytes.user, 'system catalogs dominate; user is task-local');
+
+console.log('[SemanticPromptBundle] v28 layout+cache shape passed systemBytes=' + revBundle.bytes.system + ' userBytes=' + revBundle.bytes.user);

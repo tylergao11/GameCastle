@@ -7,7 +7,6 @@ var styles = require('../../assets/contracts/asset-style-dictionary.json');
 var CAPABILITY_KINDS = ['action', 'condition', 'number-expression', 'string-expression'];
 var EXTENSION_KINDS = ['object', 'behavior', 'event'].concat(CAPABILITY_KINDS);
 var TASK_CATALOGS = ['entity-kinds', 'behavior-kinds', 'event-kinds', 'layouts', 'asset-families', 'asset-styles', 'component-library'];
-var PARAMETER_KEYS = { 'entity-kinds': 'entityKinds', 'behavior-kinds': 'behaviorKinds', 'event-kinds': 'eventKinds', layouts: 'layouts', 'asset-families': 'assetFamilies', 'asset-styles': 'assetStyles', 'component-library': 'components' };
 
 function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticReferenceRuntime'; throw error; }
@@ -139,11 +138,42 @@ function create(index) {
         if (typeof raw !== 'string' || !raw.length) fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' takes dictionary text or a name.');
         normalized[parameter.semanticKey] = raw;
       } else if (normalization === 'number-expression') {
-        if (typeof raw !== 'number' || !isFinite(raw)) fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' takes a finite number or a nested number expression.');
-        normalized[parameter.semanticKey] = String(raw);
+        if (typeof raw === 'number' && isFinite(raw)) {
+          normalized[parameter.semanticKey] = String(raw);
+        } else if (typeof raw === 'string' && algebra.isMemberPath && algebra.isMemberPath(raw)) {
+          // Owner.field sugar → state.number (same as algebra.compileNested).
+          normalized[parameter.semanticKey] = algebra.compileNested({ use: 'state.number', target: raw }, {
+            index: index,
+            objectName: context.objectName,
+            memberVariableName: context.memberVariableName,
+            sceneVariableName: context.sceneVariableName,
+            memberScope: context.memberScope,
+            localName: context.localName,
+            resolveExtension: resolveExtension,
+            normalize: function(e, a) { return normalizeArguments(e, a, context); }
+          });
+        } else if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' nested expression must be resolved before normalize.');
+        } else {
+          fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' takes a finite number, Owner.field (state.number), or record(capability=<number-expression handle>,...).');
+        }
       } else if (normalization === 'string-expression') {
-        if (typeof raw !== 'string') fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' takes text or a nested string expression.');
-        normalized[parameter.semanticKey] = JSON.stringify(raw);
+        if (typeof raw === 'string' && algebra.isMemberPath && algebra.isMemberPath(raw)) {
+          normalized[parameter.semanticKey] = algebra.compileNested({ use: 'state.text', target: raw }, {
+            index: index,
+            objectName: context.objectName,
+            memberVariableName: context.memberVariableName,
+            sceneVariableName: context.sceneVariableName,
+            memberScope: context.memberScope,
+            localName: context.localName,
+            resolveExtension: resolveExtension,
+            normalize: function(e, a) { return normalizeArguments(e, a, context); }
+          });
+        } else if (typeof raw === 'string') {
+          normalized[parameter.semanticKey] = JSON.stringify(raw);
+        } else {
+          fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' takes text, Owner.field (state.text), or a nested string expression.');
+        }
       } else if (normalization === 'boolean-token') {
         if (!Array.isArray(parameter.runtimeValues) || parameter.runtimeValues.length !== 2) fail('SEMANTIC_CAPABILITY_ARGUMENT_INVALID', entry.explanation.title + '.' + parameter.semanticKey + ' has an incomplete dictionary boolean domain.');
         var booleanValue;
@@ -221,21 +251,14 @@ function create(index) {
   function plannerCatalog() {
     return { foundationOperations: algebra.promptLines(index), parameters: parameterContext() };
   }
+  // Dispatch TaskPlan carries empty capabilities/catalogs/retrievals. Executor catalogs
+  // come from foundationOperationLines + parameterContext (commander-context L1 split).
   function taskFacts(task) {
     task = task || {};
-    var foundationLines = algebra.promptLines(index), byUse = Object.create(null);
-    foundationLines.forEach(function(line) { var fields = String(line).split('|'); byUse[fields[1]] = line; });
-    var operations = (task.capabilities || []).map(function(capability) {
-      if (!Object.prototype.hasOwnProperty.call(byUse, capability.use)) fail('SEMANTIC_TASK_USE_INVALID', 'TaskPlan use is outside the foundation semantic catalog: ' + capability.use);
-      return { alias: capability.alias, use: capability.use, row: byUse[capability.use] };
-    });
-    var allParameters = parameterContext(), parameters = Object.create(null);
-    (task.catalogs || []).forEach(function(name) {
-      if (TASK_CATALOGS.indexOf(name) < 0) fail('SEMANTIC_TASK_CATALOG_INVALID', 'TaskPlan catalog is not an executor catalog: ' + name);
-      var key = PARAMETER_KEYS[name]; parameters[key] = clone(allParameters[key]);
-    });
-    var retrieved = (task.retrievals || []).map(function(request) { return Object.assign({ alias: request.alias }, retrieve({ type: 'retrieve', group: request.group, kind: request.kind })); });
-    return { operations: operations, parameters: parameters, retrieved: retrieved };
+    if ((task.capabilities && task.capabilities.length) || (task.catalogs && task.catalogs.length) || (task.retrievals && task.retrievals.length)) {
+      fail('SEMANTIC_TASK_USE_INVALID', 'Dispatch TaskPlan must not carry plan-use capabilities, catalogs, or retrievals.');
+    }
+    return { operations: [], parameters: {}, retrieved: [] };
   }
 
   return {

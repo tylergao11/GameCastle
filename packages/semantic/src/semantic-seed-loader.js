@@ -5,18 +5,29 @@ var draftApi = require('./semantic-draft');
 var referencesApi = require('./semantic-reference-runtime');
 var sourceContract = require('./game-semantic-source');
 
+// Seeds: dispatch plan-task rows (optional) + executor write commands.
+// Structure is write DSL only — no plan-entity/member target slots.
 function load(text, index) {
   var parsed = parser.parse(text);
-  if (parsed.warnings.length) { var error = new Error('Semantic seed DSL is incomplete: ' + parsed.warnings.join(' | ')); error.code = 'SEMANTIC_SEED_DSL_INVALID'; throw error; }
+  if (parsed.warnings.length) {
+    var error = new Error('Semantic seed DSL is incomplete: ' + parsed.warnings.join(' | '));
+    error.code = 'SEMANTIC_SEED_DSL_INVALID';
+    throw error;
+  }
   var planCommands = parsed.commands.filter(function(command) { return syntax.PLAN_COMMANDS.indexOf(command.type) >= 0; });
   var writes = parsed.commands.filter(function(command) { return syntax.WRITE_COMMANDS.indexOf(command.type) >= 0; });
-  var plan = taskPlan.create(planCommands), draft = draftApi.create(referencesApi.create(index), null);
-  taskPlan.assertFeasible(plan, draftApi.materialize(draft), { revision: false, allowShellMembers: true });
-  plan.tasks.forEach(function(task) {
-    var owned = Object.create(null); task.slots.forEach(function(slot) { owned[slot.slot] = true; });
-    var resolved = taskPlan.resolveBatch(plan, task.semanticId, writes.filter(function(command) { return owned[command.slot]; }));
-    resolved.forEach(function(command) { draftApi.execute(draft, command); });
+  if (!planCommands.length) {
+    planCommands = [{ type: 'plan-task', semanticId: 'seed', goal: 'Load semantic seed writes.', after: [] }];
+  }
+  var plan = taskPlan.create(planCommands);
+  var draft = draftApi.create(referencesApi.create(index), null);
+  taskPlan.assertFeasible(plan, draftApi.materialize(draft), { revision: false });
+  // Single write pass ordered by DSL; all writes run under the first task (seed is one-shot).
+  var taskId = plan.tasks[0].semanticId;
+  var resolved = taskPlan.authorizeWriteBatch(plan, taskId, writes, {
+    beforeDocument: draftApi.materialize(draft)
   });
+  resolved.forEach(function(command) { draftApi.execute(draft, command); });
   return sourceContract.validateSource(draftApi.materialize(draft), { index: index });
 }
 

@@ -23,6 +23,9 @@ var MODE_MODELS = Object.freeze({
   })
 });
 
+// Thinking stays off for both DeepSeek development and production Qwen.
+// Thinking-on free trial (2026-07-17) fused on illegal planner wire; keep thinking disabled.
+// keep API reasoning disabled until a measured re-open.
 var PROFILES = Object.freeze({
   planner: Object.freeze({ thinking: Object.freeze({ type: 'disabled' }), reasoningEffort: null, temperature: 0 }),
   executor: Object.freeze({ thinking: Object.freeze({ type: 'disabled' }), reasoningEffort: null, temperature: 0 })
