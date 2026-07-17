@@ -52,7 +52,8 @@ function matchesExpected(command, expected) {
       requestId: 'semantic-follow-' + Date.now() + '-' + index,
       projectId: 'gamecastle-command-benchmark',
       role: 'semantic-design',
-      provider: 'llama-cpp-semantic',
+      provider: 'ollama',
+      model: 'qwen3:8b',
       estimatedCost: 0,
       timeoutMs: 60000,
       input: {

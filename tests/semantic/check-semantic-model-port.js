@@ -7,8 +7,8 @@ var modelPolicy = require('../../packages/semantic/src/semantic-model-policy');
   try {
     delete process.env.GAMECASTLE_RUNTIME_MODE;
     assert.strictEqual(modelPolicy.resolveMode(), 'production');
-    assert.strictEqual(modelPolicy.MODEL.provider, 'llama-cpp-semantic');
-    assert.strictEqual(modelPolicy.MODEL.model, 'Qwen/Qwen3.5-9B');
+    assert.strictEqual(modelPolicy.MODEL.provider, 'ollama');
+    assert.strictEqual(modelPolicy.MODEL.model, 'qwen3:8b');
     assert.strictEqual(modelPolicy.MODEL.allowExternal, false);
 
     process.env.GAMECASTLE_RUNTIME_MODE = 'development';
@@ -24,12 +24,12 @@ var modelPolicy = require('../../packages/semantic/src/semantic-model-policy');
     var adapter = modelPort.fromProviderRuntime({ invokeRole: async function(request) { invocations.push(request); return { ok: true }; } });
     await adapter.invoke({ phase: 'planner', requestId: 'p', projectId: 'x', messages: [], maxTokens: 8196, timeoutMs: 100 });
     await adapter.invoke({ phase: 'executor', requestId: 'e', projectId: 'x', messages: [], maxTokens: 8196, timeoutMs: 100 });
-    assert.strictEqual(invocations[0].provider, 'llama-cpp-semantic');
-    assert.strictEqual(invocations[0].model, 'Qwen/Qwen3.5-9B');
+    assert.strictEqual(invocations[0].provider, 'ollama');
+    assert.strictEqual(invocations[0].model, 'qwen3:8b');
     assert.strictEqual(invocations[0].allowExternal, false);
     assert.deepStrictEqual(invocations[0].input.thinking, { type: 'disabled' });
-    assert.strictEqual(invocations[1].provider, 'llama-cpp-semantic');
-    assert.strictEqual(invocations[1].model, 'Qwen/Qwen3.5-9B');
+    assert.strictEqual(invocations[1].provider, 'ollama');
+    assert.strictEqual(invocations[1].model, 'qwen3:8b');
     assert(invocations[0].input.grammar.indexOf('"plan-task"') >= 0, 'Planner receives a phase-specific grammar.');
     assert(invocations[1].input.grammar.indexOf('"game"') >= 0, 'Executor receives a phase-specific grammar.');
 

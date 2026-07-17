@@ -7,13 +7,13 @@ var original = {
   OPENAI_IMAGE_MODEL: process.env.OPENAI_IMAGE_MODEL,
   ASSET_ALLOW_EXTERNAL: process.env.ASSET_ALLOW_EXTERNAL,
   ASSET_MODEL_MAX_COST: process.env.ASSET_MODEL_MAX_COST,
-  LLAMA_CPP_SEMANTIC_ALLOW_LOCAL: process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL
+  OLLAMA_ALLOW_LOCAL: process.env.OLLAMA_ALLOW_LOCAL
 };
 try {
   Object.keys(original).forEach(function(key) { delete process.env[key]; });
   assert.equal(governance.asset().provider, 'comfyui-local');
-  process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL = 'true';
-  var localText = governance.resolve('llama-cpp-semantic', { textModel: 'domain-owned-model' }, governance.governance.assetDefaults);
+  process.env.OLLAMA_ALLOW_LOCAL = 'true';
+  var localText = governance.resolve('ollama', { textModel: 'domain-owned-model' }, governance.governance.assetDefaults);
   assert.equal(localText.textModel, 'domain-owned-model'); assert.equal(localText.localAllowed, true);
   process.env.ASSET_MODEL_PROVIDER = 'openai'; process.env.OPENAI_API_KEY = 'test-key'; process.env.OPENAI_IMAGE_MODEL = 'image-test'; process.env.ASSET_ALLOW_EXTERNAL = 'true'; process.env.ASSET_MODEL_MAX_COST = '2.5';
   var asset = governance.asset(), policy = governance.assetPolicy();

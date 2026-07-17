@@ -6,7 +6,7 @@ var modelPolicy = require('../../packages/semantic/src/semantic-model-policy');
 var director = directorModelPort.POLICY;
 var semantic = modelPolicy.resolveModel();
 var deepseekKey = !!process.env.DEEPSEEK_API_KEY;
-var localAllowed = process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL === 'true' || process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL === '1';
+var ollamaAllowed = process.env.OLLAMA_ALLOW_LOCAL === 'true' || process.env.OLLAMA_ALLOW_LOCAL === '1';
 
 assert.strictEqual(director.provider, 'deepseek', 'Director LLM1 must stay on deepseek.');
 assert.strictEqual(director.model, 'deepseek-v4-flash', 'Director LLM1 model must be deepseek-v4-flash.');
@@ -20,10 +20,10 @@ if (semantic.provider === 'deepseek') {
   console.log('[ModelConfig] development reuses the same DeepSeek key as LLM1; no extra LLM2 secret.');
 }
 
-if (semantic.provider === 'llama-cpp-semantic') {
-  assert.strictEqual(localAllowed, true, 'production mode needs LLAMA_CPP_SEMANTIC_ALLOW_LOCAL=true (endpoint defaults to 127.0.0.1:8002).');
-  console.log('[ModelConfig] production LLM2 endpoint=' + (process.env.LLAMA_CPP_SEMANTIC_ENDPOINT || 'http://127.0.0.1:8002/v1') + ' localAllowed=true');
-  console.log('[ModelConfig] start local Qwen with: npm run model:semantic:start');
+if (semantic.provider === 'ollama') {
+  assert.strictEqual(ollamaAllowed, true, 'production mode needs OLLAMA_ALLOW_LOCAL=true (endpoint defaults to 127.0.0.1:11434/v1).');
+  console.log('[ModelConfig] production LLM2 endpoint=' + (process.env.OLLAMA_ENDPOINT || 'http://127.0.0.1:11434/v1') + ' localAllowed=true');
+  console.log('[ModelConfig] production LLM2 model=qwen3:8b (Ollama); Spatial vision uses qwen3-vl:8b on the same runtime');
 }
 
-console.log('[ModelConfig] only knobs for text models: GAMECASTLE_RUNTIME_MODE + DEEPSEEK_API_KEY');
+console.log('[ModelConfig] only knobs for text models: GAMECASTLE_RUNTIME_MODE + DEEPSEEK_API_KEY + OLLAMA_ALLOW_LOCAL');

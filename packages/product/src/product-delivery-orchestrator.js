@@ -5,6 +5,7 @@ var dictionary = require('../../semantic/src/capability-semantic-dictionary');
 var sourceContract = require('../../semantic/src/game-semantic-source');
 var providerRuntimeApi = require('../../providers/src/provider-runtime');
 var comfyuiLocalProvider = require('../../assets/src/comfyui-local-provider');
+var rembgBackgroundRemoval = require('../../assets/src/rembg-background-removal');
 var semanticRuntimeApi = require('../../semantic/src/semantic-llm2-runtime');
 var assetPipeline = require('./semantic-asset-product-pipeline');
 var spatialPipeline = require('./spatial-product-pipeline');
@@ -77,6 +78,21 @@ function create(options) {
   var assetEngineBase = Object.assign({}, options.assetEngineOptions || {});
   var spatialBase = Object.assign({}, options.spatialOptions || {});
   if (Object.prototype.hasOwnProperty.call(assetEngineBase, 'previousAssetWorld')) throw fail('PRODUCT_DELIVERY_STALE_ASSET_WORLD_FORBIDDEN', 'Product composition cannot configure a previous AssetWorld.');
+  // Official local image stack: authorize comfyui-local and pin background-removal for transparent slots.
+  if (!assetEngineBase.modelPolicy) {
+    assetEngineBase.modelPolicy = {
+      provider: process.env.ASSET_MODEL_PROVIDER || 'comfyui-local',
+      localAllowed: true
+    };
+  } else if ((assetEngineBase.modelPolicy.provider || 'comfyui-local') === 'comfyui-local' && assetEngineBase.modelPolicy.localAllowed !== true) {
+    assetEngineBase.modelPolicy = Object.assign({}, assetEngineBase.modelPolicy, { localAllowed: true });
+  }
+  if (!assetEngineBase.ports) assetEngineBase.ports = {};
+  if (!assetEngineBase.ports.backgroundRemoval) {
+    assetEngineBase.ports.backgroundRemoval = rembgBackgroundRemoval.createRembgBackgroundRemoval({
+      root: path.resolve(__dirname, '..', '..', '..')
+    });
+  }
   var domains = domainApi.create(domainAdapters.create({ semanticRuntime: semanticRuntime, assetPipeline: assetProductPipeline, spatialPipeline: spatialProductPipeline, browserCapture: captureProducer, assemblyReviewer: reviewer }));
   var directorPlanner = options.directorPlanner || directorPlannerApi.create({ domains: domains, modelPort: options.directorModelPort || directorModelPortApi.fromProviderRuntime(providerRuntime, options.directorModel || {}) });
 

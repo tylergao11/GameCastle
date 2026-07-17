@@ -9,7 +9,8 @@ var runtimeApi = require('../../packages/providers/src/provider-runtime');
     requestId: 'semantic-live-smoke-' + Date.now(),
     projectId: 'gamecastle-local-runtime',
     role: 'semantic-design',
-    provider: 'llama-cpp-semantic',
+    provider: 'ollama',
+    model: 'qwen3:8b',
     estimatedCost: 0,
     timeoutMs: 180000,
     input: {
@@ -17,14 +18,19 @@ var runtimeApi = require('../../packages/providers/src/provider-runtime');
         { role: 'system', content: 'Output semantic-dsl-v9 only. Preserve every provided identifier exactly. Do not explain.' },
         { role: 'user', content: 'Emit exactly this command: entity(slot=head,roles=list("player"),kind=sprite,behaviors=list())' }
       ],
-      maxTokens: 128,
+      // Qwen3 streams reasoning tokens first; small caps can exhaust before content.
+      maxTokens: 1024,
       thinking: { type: 'disabled' },
       temperature: 0,
       grammar: grammar.forPhase('executor')
     }
   });
   if (!result.ok) throw Object.assign(new Error(result.debt && result.debt.message || 'Semantic model smoke failed.'), { details: result.debt });
-  if (result.output.reasoningText) throw new Error('Thinking was disabled but the model emitted reasoning content.');
+  // Ollama Qwen3 always streams a separate reasoning channel; Runtime parses content only.
+  var receiptProvider = result.receipt && result.receipt.provider;
+  if (result.output.reasoningText && receiptProvider !== 'ollama') {
+    throw new Error('Thinking was disabled but the model emitted reasoning content.');
+  }
   var parsed;
   try { parsed = parser.parse(result.output.text, { phase: 'executor' }); }
   catch (error) { error.modelOutput = result.output.text; throw error; }

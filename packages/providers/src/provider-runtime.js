@@ -152,7 +152,8 @@ async function invokeHttpTransport(context) {
   if (context.config.provider === 'comfyui-local') {
     throw makeError('PROVIDER_TRANSPORT_UNREGISTERED', 'comfyui-local requires createProviderRuntime({ httpTransports: { "comfyui-local": invokeComfyUI } }) from the asset composition layer.');
   }
-  if ((role === 'director-plan' || role === 'semantic-design') && (context.config.provider === 'deepseek' || context.config.provider === 'ollama' || context.config.provider.indexOf('llama-cpp-') === 0)) return invokeChatCompletions(context);
+  // Ollama is OpenAI chat-completions compatible (text + vision). OpenAI Responses API stays for cloud vision providers.
+  if (context.config.provider === 'ollama' || context.config.provider === 'deepseek') return invokeChatCompletions(context);
   if (role === 'director-plan' || role === 'semantic-design' || role === 'vision-review' || role === 'spatial-plan') return invokeResponses(context);
   if (role === 'image-generate') return invokeImageGeneration(context);
   throw makeError('ROLE_UNSUPPORTED', 'Unsupported HTTP role');
@@ -172,19 +173,38 @@ async function invokeResponses(context) {
 }
 async function invokeChatCompletions(context) {
   var input = context.request.input || {};
+  var role = context.request.role;
   var messages = input.messages || [{ role: 'system', content: input.systemPrompt || '' }, { role: 'user', content: input.prompt || '' }];
+  if (role === 'vision-review' || role === 'spatial-plan') {
+    var visionPaths = role === 'vision-review' ? [input.imagePath] : input.imagePaths;
+    if (!Array.isArray(visionPaths) || !visionPaths.length || visionPaths.some(function(imagePath) { return !imagePath || !fs.existsSync(imagePath); })) throw makeError('VISION_INPUT_MISSING', role + ' requires existing local image inputs');
+    var visionContent = [{ type: 'text', text: [input.systemPrompt, input.prompt].filter(Boolean).join('\n\n') }].concat(visionPaths.map(function(imagePath) {
+      return { type: 'image_url', image_url: { url: 'data:' + imageMime(imagePath) + ';base64,' + fs.readFileSync(imagePath).toString('base64') } };
+    }));
+    messages = [{ role: 'user', content: visionContent }];
+  }
   var thinking = input.thinking || { type: 'disabled' };
   var body = { model: context.model, messages: messages, max_tokens: input.maxTokens || 4096, stream: true, stream_options: { include_usage: true } };
-  if (context.config.provider.indexOf('llama-cpp-') === 0) {
-    body.chat_template_kwargs = { enable_thinking: thinking.type === 'enabled' };
-    if (input.grammar) body.grammar = input.grammar;
-  } else {
+  if (context.config.provider === 'deepseek') {
     body.thinking = thinking;
     if (thinking.type === 'enabled' && input.reasoningEffort) body.reasoning_effort = input.reasoningEffort;
   }
   body.temperature = input.temperature === undefined ? 0 : input.temperature;
-  var result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
-  return { output: { text: result.text, reasoningText: result.reasoningText, finishReason: result.finishReason, diagnostics: result.diagnostics, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: context.config.provider + '-chat-completions' } };
+  // Ollama native /api/chat honors think:false; OpenAI-compat /v1 often still emits Qwen3 reasoning.
+  var result;
+  if (context.config.provider === 'ollama') {
+    result = await chatCompletionsClient.requestOllamaChat({
+      endpoint: context.config.endpoint,
+      body: body,
+      think: thinking.type === 'enabled',
+      signal: context.signal,
+      timeoutMs: context.timeoutMs,
+      fetchImpl: context.fetchImpl || undefined
+    });
+  } else {
+    result = await chatCompletionsClient.requestChatCompletions({ endpoint: context.config.endpoint, apiKey: context.config.apiKey, body: body, signal: context.signal, timeoutMs: context.timeoutMs, fetchImpl: context.fetchImpl || undefined });
+  }
+  return { output: { text: result.text, reasoningText: result.reasoningText, finishReason: result.finishReason, diagnostics: result.diagnostics, events: result.events }, usage: result.usage, cost: context.request.estimatedCost, provenance: { transport: context.config.provider === 'ollama' ? 'ollama-native-chat' : context.config.provider + '-chat-completions' } };
 }
 async function invokeImageGeneration(context) {
   var input = context.request.input || {}; var requestFetch = context.fetchImpl || fetch; var response = await requestFetch(String(context.config.endpoint).replace(/\/$/, '') + '/images/generations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + context.config.apiKey }, body: JSON.stringify({ model: context.model, prompt: input.prompt, size: input.size || '1024x1024', background: input.transparent ? 'transparent' : undefined, response_format: 'b64_json' }), signal: context.signal });

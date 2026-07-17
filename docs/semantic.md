@@ -59,7 +59,7 @@ Report **runtimeOk** and **oracleOk** separately.
 ## Models
 
 See `scripts/models/README.md`.  
-`GAMECASTLE_RUNTIME_MODE=development` → DeepSeek for LLM2; `production` → local Qwen + GBNF.
+`GAMECASTLE_RUNTIME_MODE=development` → DeepSeek for LLM2; `production` → local Ollama `qwen3:8b` (thinking off via native `/api/chat`). Runtime parser remains authoritative for DSL (Ollama does not server-enforce GBNF).
 
 ## Do not
 

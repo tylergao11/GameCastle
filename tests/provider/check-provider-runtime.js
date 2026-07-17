@@ -63,23 +63,21 @@ function request(role, id, extra) { return Object.assign({ requestId: id, projec
     assert.strictEqual(live.output.text.indexOf('CALL id=semantic') === 0, true);
   } finally { Object.keys(deepseekSaved).forEach(function(key) { if (deepseekSaved[key] === undefined) delete process.env[key]; else process.env[key] = deepseekSaved[key]; }); }
 
-  var llamaSaved = { LLAMA_CPP_SEMANTIC_ALLOW_LOCAL: process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL, LLAMA_CPP_SEMANTIC_ENDPOINT: process.env.LLAMA_CPP_SEMANTIC_ENDPOINT };
+  var ollamaSaved = { OLLAMA_ALLOW_LOCAL: process.env.OLLAMA_ALLOW_LOCAL, OLLAMA_ENDPOINT: process.env.OLLAMA_ENDPOINT };
   try {
-    process.env.LLAMA_CPP_SEMANTIC_ALLOW_LOCAL = 'true'; process.env.LLAMA_CPP_SEMANTIC_ENDPOINT = 'http://127.0.0.1:8002/v1';
-    var llamaCaptured;
-    var llamaRuntime = runtimeModule.createProviderRuntime({ fetchImpl: async function(url, init) {
-      llamaCaptured = { url: url, body: JSON.parse(init.body) };
-      return new Response('data: {"choices":[{"delta":{"content":"project(gameId=\"grammar-test\")"}}]}\n\ndata: [DONE]\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    process.env.OLLAMA_ALLOW_LOCAL = 'true'; process.env.OLLAMA_ENDPOINT = 'http://127.0.0.1:11434/v1';
+    var ollamaCaptured;
+    var ollamaRuntime = runtimeModule.createProviderRuntime({ fetchImpl: async function(url, init) {
+      ollamaCaptured = { url: url, body: JSON.parse(init.body) };
+      return new Response(JSON.stringify({ message: { role: 'assistant', content: 'entity(slot=head,roles=list(player),kind=sprite)' }, done: true, done_reason: 'stop', prompt_eval_count: 3, eval_count: 5 }) + '\n', { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } });
     } });
-    var grammar = 'root ::= "project"';
-    var llamaResult = await llamaRuntime.invokeRole(request('semantic-design', 'llama-semantic-dsl', { provider: 'llama-cpp-semantic', model: 'Qwen/Qwen3.5-9B', input: { systemPrompt: 'Semantic DSL only.', prompt: 'Build.', grammar: grammar, thinking: { type: 'disabled' }, temperature: 0 } }));
-    assert(llamaResult.ok);
-    assert.strictEqual(llamaCaptured.url, 'http://127.0.0.1:8002/v1/chat/completions');
-    assert.strictEqual(llamaCaptured.body.model, 'Qwen/Qwen3.5-9B');
-    assert.deepStrictEqual(llamaCaptured.body.chat_template_kwargs, { enable_thinking: false });
-    assert.strictEqual(llamaCaptured.body.grammar, grammar);
-    assert.strictEqual(Object.prototype.hasOwnProperty.call(llamaCaptured.body, 'thinking'), false, 'llama.cpp receives Qwen chat-template arguments, not a vendor thinking object.');
-  } finally { Object.keys(llamaSaved).forEach(function(key) { if (llamaSaved[key] === undefined) delete process.env[key]; else process.env[key] = llamaSaved[key]; }); }
+    var ollamaResult = await ollamaRuntime.invokeRole(request('semantic-design', 'ollama-semantic-dsl', { provider: 'ollama', model: 'qwen3:8b', input: { systemPrompt: 'Semantic DSL only.', prompt: 'Build.', thinking: { type: 'disabled' }, temperature: 0 } }));
+    assert(ollamaResult.ok);
+    assert.strictEqual(ollamaCaptured.url, 'http://127.0.0.1:11434/api/chat');
+    assert.strictEqual(ollamaCaptured.body.model, 'qwen3:8b');
+    assert.strictEqual(ollamaCaptured.body.think, false, 'Ollama native chat disables thinking for GameCastle DSL roles.');
+    assert.strictEqual(ollamaCaptured.body.options.temperature, 0);
+  } finally { Object.keys(ollamaSaved).forEach(function(key) { if (ollamaSaved[key] === undefined) delete process.env[key]; else process.env[key] = ollamaSaved[key]; }); }
 
   var visionSaved = { OPENAI_API_KEY: process.env.OPENAI_API_KEY, OPENAI_ENDPOINT: process.env.OPENAI_ENDPOINT, LLM_ALLOW_EXTERNAL: process.env.LLM_ALLOW_EXTERNAL };
   try {
@@ -102,5 +100,5 @@ function request(role, id, extra) { return Object.assign({ requestId: id, projec
       assert.strictEqual(Object.prototype.hasOwnProperty.call(visionCaptured.body, 'text'), false, 'Vision DSL transport has no JSON response schema.');
     } finally { fs.rmSync(imageRoot, { recursive: true, force: true }); }
   } finally { Object.keys(visionSaved).forEach(function(key) { if (visionSaved[key] === undefined) delete process.env[key]; else process.env[key] = visionSaved[key]; }); }
-  console.log('[ProviderRuntime] Director and open-source Semantic DSL transport, receipts, authorization, and fail-closed JSON protocol passed');
+  console.log('[ProviderRuntime] Director, Ollama Semantic DSL, vision transport, receipts, authorization, and fail-closed JSON protocol passed');
 })().catch(function(error) { console.error(error); process.exit(1); });

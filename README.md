@@ -8,7 +8,7 @@ GameCastle turns an LLM2 design decision into one source-bound, evidence-gated G
 | --- | --- |
 | Director Planner | Uses DeepSeek through one compiled LangGraph to coordinate only `semantic.design`, `asset.realize`, and `assembly.verify`, emitting `director-dsl-v1`. |
 | Semantic engine | Validates `GameSemanticSource` or `GameSemanticRevision` against the generated GDJS dictionary, then compiles events, assets, layout, and a libGD-validated project seed. |
-| Semantic model runtime | Runs the open-source `Qwen/Qwen3.5-9B` model through pinned CUDA llama.cpp. Semantic Planner and Semantic Executor requests disable thinking and carry a phase- and field-specific GBNF grammar for `semantic-dsl-v9`. |
+| Semantic model runtime | Production LLM2 is local Ollama `qwen3:8b`. Development reuses DeepSeek with LLM1. Planner/Executor disable thinking; Runtime parser remains authoritative for `semantic-dsl-v9` (Ollama does not server-enforce GBNF). |
 | Asset engine | Searches the cloud library, runs the pinned official-core SDXL Base→Refiner workflow on a miss, selects a reviewed transient master candidate, deterministically derives a static asset or FrameSet, reviews the final pixels, binds accepted revisions locally, and enqueues them for asynchronous cross-project publication. It also accepts type-checked local resources such as fonts, video, models, Spine data, and JSON. |
 | Spatial Planner | Runs after asset acceptance. A configured vision LLM proposes scene/UI coordinates inside an explicit GDJS coordinate frame, layer stack, and legal pixel regions; Runtime validates and accepts only previewed candidates. |
 | Cloud library | A private, pinned [Supabase Storage](https://github.com/supabase/storage) service backed by PostgreSQL metadata and MinIO/S3 objects. It accelerates creation; it never chooses a game's semantic intent. |
@@ -69,9 +69,9 @@ Assembly rejection
   -> rerun asset, spatial, capture, and review
 ```
 
-Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth (`semantic-dsl-syntax.js`). Prompt profiles: Planner `semantic-planner-prompt-v24` (dispatch-only `plan-task` / `plan-complete`), Executor `semantic-executor-prompt-v31` (free-write for one work order). Executor system holds law, mode-legal FORMS, and dictionary catalogs (`L1-structure-kinds`, `L1-ops-*`, `L1-asset-families`, `L1-asset-styles`, `L1-layouts`); user holds only work order, board (`workMode` + member values), optional product background, and L4. Revision omits `game`/`policy` from FORMS/GBNF. Capability on wire is a foundation handle (`capability=handle`); open fields carry parameters; nested `arguments=` is rejected. Expression parameters accept bare `Owner.field` as `state.number`/`state.text` sugar. After `authorizeWriteBatch`, Draft/algebra IR uses dictionary `use=<handle>`. Runtime owns feasibility, sealing, one `authorizeWriteBatch` per active task, delta verification, Source/Revision materialization, and factual feedback. External freeze plans skip free replan. Provider selection lives behind the Semantic Model Port. Production pins CUDA llama.cpp `Qwen/Qwen3.5-9B` with phase GBNF; development may route LLM2 to DeepSeek. simulated-local is the test double. JSON in the HTTP envelope is infrastructure only; model protocol is DSL-only.
+Semantic design is split into Semantic Planner, DSL Executor, and deterministic Runtime. `semantic-dsl-v9` is the sole model-facing wire truth (`semantic-dsl-syntax.js`). Prompt profiles: Planner `semantic-planner-prompt-v24` (dispatch-only `plan-task` / `plan-complete`), Executor `semantic-executor-prompt-v31` (free-write for one work order). Executor system holds law, mode-legal FORMS, and dictionary catalogs (`L1-structure-kinds`, `L1-ops-*`, `L1-asset-families`, `L1-asset-styles`, `L1-layouts`); user holds only work order, board (`workMode` + member values), optional product background, and L4. Revision omits `game`/`policy` from FORMS/GBNF. Capability on wire is a foundation handle (`capability=handle`); open fields carry parameters; nested `arguments=` is rejected. Expression parameters accept bare `Owner.field` as `state.number`/`state.text` sugar. After `authorizeWriteBatch`, Draft/algebra IR uses dictionary `use=<handle>`. Runtime owns feasibility, sealing, one `authorizeWriteBatch` per active task, delta verification, Source/Revision materialization, and factual feedback. External freeze plans skip free replan. Provider selection lives behind the Semantic Model Port. Production pins Ollama `qwen3:8b`; development may route LLM2 to DeepSeek. Spatial uses Ollama `qwen3-vl:8b` on the same runtime. simulated-local is the test double. JSON in the HTTP envelope is infrastructure only; model protocol is DSL-only.
 
-Director Planner has a separate boundary from Semantic LLM2. LLM1 is the external DeepSeek `deepseek-v4-flash` model and emits only the three-domain `director-dsl-v1` program. LLM2 is selected by `GAMECASTLE_RUNTIME_MODE`: production uses the local open-source Qwen Semantic DSL model; development uses DeepSeek for both text roles. Each domain owns its model selection: `director-model-port.js` pins LLM1 and `semantic-model-policy.js` pins LLM2. The shared ProviderRuntime only transports requests and records receipts. `.env.local` contains mode plus private endpoint and key values; `npm run product:serve` loads them automatically. Use `npm run model:director:check` for a local configuration check and `npm run model:director:smoke` for one real DeepSeek DSL probe.
+Director Planner has a separate boundary from Semantic LLM2. LLM1 is the external DeepSeek `deepseek-v4-flash` model and emits only the three-domain `director-dsl-v1` program. LLM2 is selected by `GAMECASTLE_RUNTIME_MODE`: production uses local Ollama `qwen3:8b` (thinking disabled); development uses DeepSeek for both text roles. Spatial vision uses Ollama `qwen3-vl:8b` on the same process. Each domain owns its model selection: `director-model-port.js` pins LLM1 and `semantic-model-policy.js` pins LLM2. The shared ProviderRuntime only transports requests and records receipts. `.env.local` contains mode, `OLLAMA_ALLOW_LOCAL`, and private keys; `npm run product:serve` loads them automatically. Use `npm run model:director:check` / `npm run model:config:check` for binding checks and `npm run model:director:smoke` for one real DeepSeek DSL probe.
 
 Common controls, abilities, and systems enter LLM2 as complete components. A component is admitted only when it encapsulates a frequent, bottom-up complex capability. LLM2 selects one component handle, target, configuration, and `capabilityBindings`; Runtime expands its inherited dictionary blueprint into members, entities, behaviors, layout, and events. Jump and attack are action-button bindings, not parallel button component types. A cooldown skill binds one trigger and one effect. A state machine binds named transition conditions and optional effects. The editable Source retains only component instances; expanded GDJS facts are deterministic evidence tied to the same dictionary fingerprint.
 
@@ -110,24 +110,17 @@ npm run product:serve
 
 `apps/api/src/server.js` listens only on `127.0.0.1:3030` by default and requires `Authorization: Bearer $PRODUCT_ENGINE_TOKEN`. `POST /product/deliver` accepts only `deliveryId`, `projectId`, and `userRequest`. The product layer derives every run, Source-version, asset, preview, trace, and browser path beneath `PRODUCT_ENGINE_STORAGE_ROOT`; it also owns the fixed budgets and stage policy. The endpoint owns semantic design, official Asset and Spatial LangGraph execution, real-browser evidence, independent assembly review, and any source-bound semantic Revision cycle. HTTP callers cannot inject Source, AssetWorld, storage paths, budgets, stage options, or test adapters. The internal programmatic orchestrator may receive one fully validated Source for a trusted bootstrap or resume. `POST /semantic/execute` accepts only a complete `GameSemanticSource` and optional source-hash-checked `GameSemanticRevision`; it deterministically returns the libGD project seed and does not run a model or any downstream product stage.
 
-Start or restore the pinned local Semantic model service. Docker Desktop, an
-NVIDIA GPU, and the NVIDIA container runtime are required; the first start
-downloads the GGUF into the persistent `gamecastle-llm-cache` volume:
+Local production text + Spatial vision share one Ollama process. Install models
+once (`qwen3:8b`, `qwen3-vl:8b`), set `OLLAMA_ALLOW_LOCAL=true`, then:
 
 ```powershell
-npm run model:semantic:start
+npm run model:config:check
 npm run model:semantic:smoke
 npm run model:semantic:benchmark
 ```
 
-The smoke test exercises the real ProviderRuntime, disabled thinking, GBNF,
-and DSL parser. The command-following benchmark covers twelve basic Planner
-and Executor commands and reports syntax validity, exact-value following,
-reasoning leakage, and latency. The latest local RTX 5070 Laptop GPU run
-produced 12/12 valid DSL commands, 12/12 without thinking, 11/12 strict
-literal matches, and a 770 ms warm average. These numbers are diagnostic
-evidence for that machine and prompt cache state, not a cross-machine SLA.
-Detailed operations are in [Local text-model runtime](scripts/models/README.md).
+The smoke test exercises the real ProviderRuntime and DSL parser against Ollama.
+Detailed operations are in [Local model runtime](scripts/models/README.md).
 
 Run the layered live semantic diagnostic when a complete model-backed task is
 needed rather than a command-level probe:

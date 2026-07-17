@@ -5,7 +5,7 @@ var DSL_TOKEN_RESERVE = OUTPUT_TOKEN_LIMIT - REASONING_TOKEN_LIMIT;
 // Runtime mode selects the LLM2 transport only.
 // Director LLM1 stays domain-pinned to DeepSeek in director-model-port.js.
 // development: both product text roles can run on DeepSeek without a local GPU service.
-// production: Semantic DSL uses the open-source Qwen llama.cpp service.
+// production: Semantic DSL uses local Ollama open-source Qwen text (same runtime as Spatial VL).
 var MODE_MODELS = Object.freeze({
   development: Object.freeze({
     mode: 'development',
@@ -16,14 +16,14 @@ var MODE_MODELS = Object.freeze({
   }),
   production: Object.freeze({
     mode: 'production',
-    provider: 'llama-cpp-semantic',
-    model: 'Qwen/Qwen3.5-9B',
+    provider: 'ollama',
+    model: 'qwen3:8b',
     allowExternal: false,
     cachePolicy: Object.freeze({ commonPrefixWarmupRequests: 1 })
   })
 });
 
-// Thinking stays off for both DeepSeek development and production Qwen.
+// Thinking stays off for both DeepSeek development and production Ollama Qwen.
 // Thinking-on free trial (2026-07-17) fused on illegal planner wire; keep thinking disabled.
 // keep API reasoning disabled until a measured re-open.
 var PROFILES = Object.freeze({
