@@ -3,7 +3,7 @@
   "benchmarkKind": "semantic-task-benchmark-contract",
   "benchmarkId": "snake-layered-v2",
   "requiredRuntimePhases": ["task-plan", "draft-write"],
-  "requiredProtocolVersions": { "planner": "semantic-planner-prompt-v24", "executor": "semantic-executor-prompt-v30" },
+  "requiredProtocolVersions": { "planner": "semantic-planner-prompt-v24", "executor": "semantic-executor-prompt-v31" },
   "dispatch": { "oneTaskPerRound": true, "completeCommand": "plan-complete" },
   "minimumCacheHitRate": 0.9,
   "hardTimeoutMs": 300000,
@@ -12,7 +12,7 @@
       "id": "core-model",
       "seedFile": null,
       "task": "Create the core semantic model for Snake: the game identity, snake head sprite, food sprite, GameState state entity, and score text entity. Entity shells only — no members, no gameplay events.",
-      "changeBudget": { "entities": { "exact": 4 }, "members": { "exact": 0 }, "components": { "exact": 0 }, "events": { "exact": 0 }, "assetIntents": { "exact": 0 }, "layoutIntents": { "exact": 0 } },
+      "changeBudget": { "entities": { "exact": 4 }, "members": { "exact": 0 }, "components": { "exact": 0 }, "events": { "exact": 0 }, "assetIntents": { "exact": 2 }, "layoutIntents": { "exact": 0 } },
       "requiredEntities": [
         { "scope": "added", "semanticIdPattern": "^snake[-_. ]?head$", "kind": "sprite", "count": 1 },
         { "scope": "added", "semanticIdPattern": "^food$", "kind": "sprite", "count": 1 },
@@ -68,7 +68,7 @@
         "members": { "minimum": 1, "maximum": 3 },
         "components": { "exact": 0 },
         "events": { "minimum": 3, "maximum": 8 },
-        "assetIntents": { "exact": 0 },
+        "assetIntents": { "exact": 1 },
         "layoutIntents": { "exact": 0 }
       },
       "requiredEntities": [{ "scope": "added", "semanticIdPattern": "^snake[-_. ]?body$", "kind": "sprite", "count": 1, "bind": "body" }],

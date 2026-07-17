@@ -47,6 +47,25 @@ function assertFeedbackPlan(plan, feedbackBatch) {
   if (!plan || !plan.tasks || !plan.tasks.length) throw fail('SEMANTIC_FEEDBACK_PLAN_INCOMPLETE', 'TaskPlan is empty under feedback.');
 }
 function taskReceiptHashes(ledger) { return ledger.events.filter(function(event) { return event.type === stateMachine.EVENT_TYPES.TASK_COMMITTED; }).map(function(event) { return event.payload.receiptHash; }); }
+// Sprite entities need at least one asset intent whose subject matches the entity slot.
+// Without this, product asset.realize receives empty requirements and fails closed later.
+function assertSpriteAssetIntents(source) {
+  source = source || {};
+  var sprites = (source.entities || []).filter(function(entity) {
+    return entity && entity.objectTypeRef && String(entity.objectTypeRef).indexOf('Sprite') >= 0;
+  });
+  if (!sprites.length) return;
+  var intents = source.assetIntents || [];
+  if (!intents.length) {
+    throw fail('SEMANTIC_ASSET_INTENTS_REQUIRED', 'Sprite entities require asset intents before completion; emit asset(...) with family from [L1-asset-families] and style from [L1-asset-styles].');
+  }
+  var missing = sprites.filter(function(entity) {
+    return !intents.some(function(intent) { return intent && intent.subject === entity.semanticId; });
+  }).map(function(entity) { return entity.semanticId; });
+  if (missing.length) {
+    throw fail('SEMANTIC_ASSET_INTENTS_REQUIRED', 'Sprite entities missing matching asset intents for subject(s): ' + missing.join(', ') + '.');
+  }
+}
 
 function create(options) {
   options = options || {};
@@ -410,6 +429,7 @@ function create(options) {
             revision = draftApi.revision(draft);
             source = sourceContract.applyRevision(draft.baseSource, revision, { index: index });
           } else source = sourceContract.validateSource(draftApi.materialize(draft), { index: index });
+          assertSpriteAssetIntents(source);
           var semanticAssembly = semanticAssemblyApi.compileSemanticAssembly(source);
           // Semantic design output is Source + SemanticAssembly only; project seed is not this domain.
           assembly = semanticAssembly;

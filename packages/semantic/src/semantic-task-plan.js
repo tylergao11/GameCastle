@@ -412,7 +412,12 @@ function buildFailureFeedback(error, commands) {
   if (/Revision write cannot create game/i.test(message)) {
     repair.push('revision board: omit game(...); emit only work-order delta on [L3-board]');
   }
-  if (/component\.kind|component contains unknown|component requires field/i.test(message) || /requires a handle from \[param-context\].*sprite|state|text/i.test(message)) {
+  // Handle catalog: require wire handle tokens from L1 tables, never bare identity names.
+  if (code === 'SEMANTIC_REFERENCE_HANDLE_INVALID' || /requires a handle from \[param-context\] or \[retrieve\]/i.test(message)) {
+    repair.push('use only wire handle tokens from the matching L1 catalog: asset.family from [L1-asset-families], asset.style from [L1-asset-styles], capability from [L1-ops-*], component.kind from [L1-components]; identity names after | are labels only');
+  }
+  // Component shell confusion (bound to component.kind wording; do not match generic "text" substrings).
+  if (/component\.kind|component contains unknown|component requires field/i.test(message) || /requires a handle from \[param-context\] or \[retrieve\]: (sprite|state|text)\b/i.test(message)) {
     repair.push('omit component for shell sprites/state; use entity.kind from [L1-structure-kinds]; component.kind only from [L1-components]');
   }
   if (/member slot must be Owner\.field/i.test(message)) {
@@ -421,12 +426,23 @@ function buildFailureFeedback(error, commands) {
   if (/entity is missing: member/i.test(message)) {
     repair.push('member.slot is Owner.field only (GameState.direction); drop member. / entity. / game. type prefixes from slots');
   }
+  if (code === 'SEMANTIC_DSL_FIELD_REQUIRED' || /entity requires field:\s*roles/i.test(message)) {
+    repair.push('entity requires roles=list(...); emit roles on every entity write');
+  }
+  if (code === 'SEMANTIC_DRAFT_BEHAVIOR_MISSING' || /does not declare behavior/i.test(message)) {
+    repair.push('declare entity.behaviors before behavior actions; use behavior kinds from [L1-structure-kinds].behaviorKinds');
+  }
+  if (code === 'SEMANTIC_ASSET_INTENTS_REQUIRED' || /asset intent/i.test(message) && /sprite/i.test(message)) {
+    repair.push('sprite entities need asset(...) intents: family from [L1-asset-families], style from [L1-asset-styles], subject matching the entity slot');
+  }
   if (!repair.length) {
     repair.push('repair against [L3-work-order] and [L3-board]; preserve existing board values unless the goal changes them');
   }
   var className = 'other';
   if (code === 'SEMANTIC_TASK_PLAN_INFEASIBLE') className = 'plan-infeasible';
   else if (code === 'SEMANTIC_TASK_PLAN_DUPLICATE') className = 'plan-duplicate';
+  else if (code === 'SEMANTIC_REFERENCE_HANDLE_INVALID') className = 'handle-catalog';
+  else if (code === 'SEMANTIC_ASSET_INTENTS_REQUIRED') className = 'asset-intents';
   else if (code.indexOf('SEMANTIC_DSL_') === 0) className = 'dsl-syntax';
   else if (code === 'SEMANTIC_TASK_LIFECYCLE_INCOMPLETE') className = 'lifecycle';
   else if (code.indexOf('SEMANTIC_TASK_') === 0) className = 'task-write';

@@ -2,7 +2,7 @@
 
 **Owners:** `packages/semantic/src/`  
 **Language:** `semantic-dsl-v9` (`semantic-dsl-syntax.js`)  
-**Protocols:** planner `semantic-planner-prompt-v24` · executor `semantic-executor-prompt-v30`
+**Protocols:** planner `semantic-planner-prompt-v24` · executor `semantic-executor-prompt-v31`
 
 ## Roles
 

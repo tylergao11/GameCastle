@@ -422,7 +422,9 @@ function emptyTaskFacts() {
     entityKinds: [],
     behaviorKinds: [],
     eventEnvelopes: [],
-    components: []
+    components: [],
+    assetFamilies: [],
+    assetStyles: []
   };
 }
 
@@ -451,7 +453,10 @@ function taskFacts(references, task) {
     entityKinds: Array.isArray(parameters.entityKinds) ? parameters.entityKinds.slice() : [],
     behaviorKinds: Array.isArray(parameters.behaviorKinds) ? parameters.behaviorKinds.slice() : [],
     eventEnvelopes: eventEnvelopes,
-    components: Array.isArray(parameters.components) ? parameters.components.slice() : []
+    components: Array.isArray(parameters.components) ? parameters.components.slice() : [],
+    // Wire handles only (f1|character, s0|styleId|name). Identity names after | are labels, not legal field values.
+    assetFamilies: Array.isArray(parameters.assetFamilies) ? parameters.assetFamilies.slice() : [],
+    assetStyles: Array.isArray(parameters.assetStyles) ? parameters.assetStyles.slice() : []
   };
 }
 
@@ -488,6 +493,8 @@ function task(draftSlice, plan, machineProjection, activeTask, facts, feedback, 
       behaviorKinds: clone(facts.behaviorKinds || []),
       eventEnvelopes: clone(facts.eventEnvelopes || []),
       components: clone(facts.components || []),
+      assetFamilies: clone(facts.assetFamilies || []),
+      assetStyles: clone(facts.assetStyles || []),
       operationIndex: clone(facts.operationIndex || [])
     },
     l4: { transitionLines: transitions }

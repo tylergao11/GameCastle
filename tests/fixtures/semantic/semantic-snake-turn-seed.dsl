@@ -4,6 +4,8 @@ entity(slot=snakeHead,roles=list(player,"snake-head"),kind=sprite,behaviors=list
 entity(slot=food,roles=list(food),kind=sprite,behaviors=list())
 entity(slot=GameState,roles=list(state),kind=state,behaviors=list())
 entity(slot=scoreText,roles=list(ui,score),kind=text,behaviors=list())
+asset(slot=snakeHead_visual,roles=list(visual),subject=snakeHead,description="snake head sprite",family=f1,style=s0,constraints=record(width=32,height=32,transparent=true))
+asset(slot=food_visual,roles=list(visual),subject=food,description="food sprite",family=f6,style=s0,constraints=record(width=32,height=32,transparent=true))
 member(slot=GameState.score,roles=list(score),value=0,bindings=list())
 member(slot=GameState.direction,roles=list("movement-direction"),value="right",bindings=list())
 member(slot=GameState.step,roles=list("grid-step"),value=32,bindings=list())

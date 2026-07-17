@@ -6,7 +6,7 @@ var modelPolicy = require('./semantic-model-policy');
 
 // Planner = natural-language work-order dispatch. Executor = free write for active goal.
 // Do not re-introduce structure plan-* laws into planner protocol.
-var PROFILE_VERSIONS = Object.freeze({ planner: 'semantic-planner-prompt-v24', executor: 'semantic-executor-prompt-v30' });
+var PROFILE_VERSIONS = Object.freeze({ planner: 'semantic-planner-prompt-v24', executor: 'semantic-executor-prompt-v31' });
 
 function fail(code, message) { var error = new Error(message); error.code = code; error.owner = 'SemanticPromptBundle'; throw error; }
 function stable(value) { if (Array.isArray(value)) return value.map(stable); if (value && typeof value === 'object') return Object.keys(value).sort().reduce(function(out, key) { out[key] = stable(value[key]); return out; }, {}); return value; }
@@ -86,6 +86,8 @@ function executorProtocol(options) {
   var opsCondition = options.opsCondition || [];
   var opsAction = options.opsAction || [];
   var opsExpression = options.opsExpression || [];
+  var assetFamilies = options.assetFamilies || [];
+  var assetStyles = options.assetStyles || [];
   var lines = [
     'GameCastle Semantic Executor',
     'PROTOCOL|' + PROFILE_VERSIONS.executor,
@@ -104,12 +106,14 @@ function executorProtocol(options) {
       : 'BOARD|WORK_MODE=new: [L3-board] is empty; create the structures the work order needs',
     'PRODUCT|[L2-product] is scene background only when present; not a second checklist',
     // --- named channels (each field belongs to exactly one) ---
-    'CHANNELS|four channels; tokens from [L1-structure-kinds] and [L1-ops-*] below',
+    'CHANNELS|structure, ops, component, and asset tokens from the L1 catalogs below',
     'CH_ENVELOPE|event.kind from [L1-structure-kinds].eventEnvelopes; rule is the ordinary gameplay envelope; when/then attach to the same event slot',
     'CH_OP|when.capability from [L1-ops-condition] only; then.capability from [L1-ops-action] only; parameters are open fields on that same command',
     'CH_EXPR|number-expression: bare number, Owner.field (state.number), or record(capability=<handle from [L1-ops-expression]>, ...); call-style name(...) is outside wire',
     'CH_STRUCT|entity.kind from [L1-structure-kinds].entityKinds (sprite|state|text|...); entity.behaviors optional (omit or list()); slot ids are bare semantic ids (snakeHead, GameState) not entity.snakeHead; member=Owner.field (GameState.direction); when/then slot=eventId',
     'CH_COMPONENT|component is optional library blueprint only; kind is a handle from [L1-components] only; sprite/state/text are entity.kind values; ordinary shell work uses game+entity+member',
+    // Handle tables are handle|identity labels: only the handle token is legal on wire (f1, s0), not the identity name alone.
+    'CH_ASSET|asset.family from [L1-asset-families] handle tokens only; asset.style from [L1-asset-styles] handle tokens only; sprite entities that need pixels require asset(...) intents',
     'WIRE|open fields only (field=value); params= bags are outside wire',
     'VALUES|member.value and closed values: bare literal, list(...), or record(field=value)',
     'ORDER|Runtime orders structure before event before when/then',
@@ -130,6 +134,8 @@ function executorProtocol(options) {
   if (opsCondition.length) sectionRows(lines, 'L1-ops-condition', opsCondition);
   if (opsAction.length) sectionRows(lines, 'L1-ops-action', opsAction);
   if (opsExpression.length) sectionRows(lines, 'L1-ops-expression', opsExpression);
+  if (assetFamilies.length) sectionRows(lines, 'L1-asset-families', assetFamilies);
+  if (assetStyles.length) sectionRows(lines, 'L1-asset-styles', assetStyles);
   return lines.join('\n');
 }
 
@@ -282,7 +288,9 @@ function buildExecutorBundle(options) {
     components: l3.components || [],
     opsCondition: l3.opsCondition || [],
     opsAction: l3.opsAction || [],
-    opsExpression: l3.opsExpression || []
+    opsExpression: l3.opsExpression || [],
+    assetFamilies: l3.assetFamilies || [],
+    assetStyles: l3.assetStyles || []
   });
   return result(profile('executor', protocol, null), executorUser(context));
 }

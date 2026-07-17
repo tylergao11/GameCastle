@@ -93,7 +93,7 @@ var executorStart = projection([transition(1, 'TASK_ACTIVE', 'write', null, 'mov
 var slice = { schemaVersion: 1, documentKind: 'semantic-task-draft-slice', taskId: 'move', workMode: 'new', goal: '蛇需要会动', baseDraftHash: 'base', structureHash: 'slice', counts: { entities: 0, members: 0, events: 0 }, index: { game: null, entities: [], events: [] }, facts: [] };
 var executorContext = contextApi.task(slice, plan, executorStart, activeTask, facts, null, 'Build movement');
 var executorA = prompt.buildExecutorBundle({ context: executorContext });
-assert.strictEqual(executorA.protocolVersion, 'semantic-executor-prompt-v30');
+assert.strictEqual(executorA.protocolVersion, 'semantic-executor-prompt-v31');
 assert(executorA.system.indexOf('BOARD|') >= 0, 'executor states board mode');
 assert(executorA.system.indexOf('CHANNELS|') >= 0, 'executor declares CHANNELS');
 assert(executorA.system.indexOf('CH_ENVELOPE|') >= 0, 'executor envelope channel');
@@ -101,6 +101,7 @@ assert(executorA.system.indexOf('CH_OP|') >= 0, 'executor op channel');
 assert(executorA.system.indexOf('CH_EXPR|') >= 0, 'executor expression channel');
 assert(executorA.system.indexOf('CH_STRUCT|') >= 0, 'executor structure channel');
 assert(executorA.system.indexOf('CH_COMPONENT|') >= 0, 'executor component channel');
+assert(executorA.system.indexOf('CH_ASSET|') >= 0, 'executor asset channel');
 assert(executorA.system.indexOf('[L1-components]') >= 0, 'component library lives in system');
 assert(executorA.system.indexOf('WIRE|') >= 0, 'executor open-field wire');
 assert(executorA.system.indexOf('WORK_ORDER|') >= 0, 'executor sole checklist is work order');
@@ -115,6 +116,11 @@ assert.strictEqual(executorA.user.indexOf('[L3-active-task]'), -1, 'active-task 
 assert.strictEqual(executorA.user.indexOf('[L3-ops-condition]'), -1, 'ops tables not in user');
 assert(executorA.system.indexOf('[L1-ops-condition]') >= 0, 'ops tables live in system');
 assert(executorA.system.indexOf('[L1-structure-kinds]') >= 0, 'structure kinds live in system');
+assert(executorA.system.indexOf('[L1-asset-families]') >= 0, 'asset family handle table lives in system');
+assert(executorA.system.indexOf('[L1-asset-styles]') >= 0, 'asset style handle table lives in system');
+assert(executorA.system.indexOf('f1|character') >= 0, 'character family is handle f1 not bare character');
+assert(executorA.system.indexOf('s0|') >= 0, 'style handle table exposes s0');
+assert.strictEqual(executorA.system.indexOf('family=character'), -1, 'no example-style family=character prose');
 assert(executorA.user.indexOf('蛇需要会动') >= 0);
 assert.strictEqual((executorA.user.match(/蛇需要会动/g) || []).length, 1, 'goal appears once in user');
 assert(executorA.user.indexOf('[L2-product]') >= 0, 'product request projected as L2-product background');
@@ -124,6 +130,7 @@ assert.strictEqual(executorContext.l3.activeTask.goal, '蛇需要会动');
 assert(executorA.user.indexOf('[L3-work-order]') < executorA.user.indexOf('[L2-product]'), 'work order before product background');
 assert(facts.opsCondition.some(function(line) { return line.indexOf('handle=') === 0; }), 'condition op rows start with handle=');
 assert(facts.entityKinds.indexOf('sprite') >= 0, 'entity kinds projected');
+assert(facts.assetFamilies.some(function(line) { return line.indexOf('f1|') === 0; }), 'asset family handles projected in taskFacts');
 assert(executorA.system.indexOf('topdown') >= 0, 'behavior kinds in system');
 
 var plannerProse = promptBundle.plannerProtocol().length - syntax.PLAN_LINES.join('\n').length;
@@ -170,4 +177,13 @@ assert.strictEqual(syntax.writeLinesForMode('revision').some(function(line) { re
 // Cache-shaped: system holds catalogs; user is small task board.
 assert(revBundle.bytes.system > revBundle.bytes.user, 'system catalogs dominate; user is task-local');
 
-console.log('[SemanticPromptBundle] v30 layout+cache shape passed systemBytes=' + revBundle.bytes.system + ' userBytes=' + revBundle.bytes.user);
+// Failure feedback must teach handle catalogs, not mis-route family errors to component advice.
+var handleFb = taskPlan.buildFailureFeedback({
+  code: 'SEMANTIC_REFERENCE_HANDLE_INVALID',
+  message: 'family requires a handle from [param-context] or [retrieve]: character'
+}, []);
+assert.strictEqual(handleFb.class, 'handle-catalog');
+assert(handleFb.repair.some(function(line) { return line.indexOf('[L1-asset-families]') >= 0; }), 'handle repair points at asset family catalog');
+assert.strictEqual(handleFb.repair.some(function(line) { return line.indexOf('omit component for shell') >= 0; }), false, 'family handle errors must not get component shell repair');
+
+console.log('[SemanticPromptBundle] v31 layout+cache shape+asset catalogs passed systemBytes=' + revBundle.bytes.system + ' userBytes=' + revBundle.bytes.user);

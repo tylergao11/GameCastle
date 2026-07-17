@@ -21,7 +21,9 @@ var fixtures = {
       'entity(slot=snakeHead,roles=list(player,"snake-head"),kind=sprite,behaviors=list())',
       'entity(slot=food,roles=list(food),kind=sprite,behaviors=list())',
       'entity(slot=GameState,roles=list(state),kind=state,behaviors=list())',
-      'entity(slot=scoreText,roles=list(ui,score),kind=text,behaviors=list())'
+      'entity(slot=scoreText,roles=list(ui,score),kind=text,behaviors=list())',
+      'asset(slot=snakeHead_visual,roles=list(visual),subject=snakeHead,description="snake head sprite",family=f1,style=s0,constraints=record(width=32,height=32,transparent=true))',
+      'asset(slot=food_visual,roles=list(visual),subject=food,description="food sprite",family=f6,style=s0,constraints=record(width=32,height=32,transparent=true))'
     ].join(';')
   },
   'state-fields': {
@@ -48,6 +50,7 @@ var fixtures = {
     plan: planTask('loss_restart', 'Add only loss detection and restart on the existing board.'),
     write: [
       'entity(slot=snakeBody,roles=list("snake-body"),kind=sprite,behaviors=list())',
+      'asset(slot=snakeBody_visual,roles=list(visual),subject=snakeBody,description="snake body sprite",family=f1,style=s0,constraints=record(width=32,height=32,transparent=true))',
       'member(slot=GameState.gameOver,roles=list("game-over"),value=false,bindings=list())',
       'event(slot=boundary_left,kind=rule,locals=record())',
       'when(slot=boundary_left,capability=object.x.compare,target=snakeHead,operator="<",value=0)',
